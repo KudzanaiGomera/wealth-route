@@ -129,9 +129,11 @@
 
     <section class="plan">
       <h2>What to do next</h2>
-      <p id="planStatus" class="reason" aria-live="polite"></p>
-      <ol id="planSteps"></ol>
-      <p id="netWorthContext" class="reason"></p>
+      <div aria-live="polite" aria-atomic="true">
+        <p id="planStatus" class="reason"></p>
+        <ol id="planSteps"></ol>
+        <p id="netWorthContext" class="reason"></p>
+      </div>
     </section>
   </main>
 
@@ -153,7 +155,7 @@
       const totalAssets = data.cash + data.investments + data.property;
       const totalDebt = data.debtBalance;
       const netWorth = totalAssets - totalDebt;
-      const activeDebtMinimum = data.debtBalance > 0 ? Math.min(data.debtMinimum, data.debtBalance) : 0;
+      const activeDebtMinimum = data.debtBalance > 0 ? data.debtMinimum : 0;
       const freeCash = data.monthlyIncome - data.monthlyExpenses - activeDebtMinimum;
       return { totalAssets, totalDebt, netWorth, freeCash };
     }

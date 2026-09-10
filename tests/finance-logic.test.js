@@ -1,0 +1,83 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+
+const html = fs.readFileSync('/home/runner/work/wealth-route/wealth-route/index.html', 'utf8');
+const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+
+function makeElement(id = '') {
+  return {
+    id,
+    value: '0',
+    textContent: '',
+    className: '',
+    children: [],
+    addEventListener() {},
+    appendChild(child) { this.children.push(child); },
+    replaceChildren() { this.children = []; }
+  };
+}
+
+function makeContext() {
+  const ids = [
+    'monthlyIncome', 'monthlyExpenses', 'cash', 'investments', 'property',
+    'debtBalance', 'debtApr', 'debtMinimum', 'totalAssets', 'totalDebt',
+    'netWorth', 'freeCash', 'planSteps', 'planStatus', 'netWorthContext'
+  ];
+  const elements = Object.fromEntries(ids.map((id) => [id, makeElement(id)]));
+  const document = {
+    getElementById(id) {
+      if (!elements[id]) elements[id] = makeElement(id);
+      return elements[id];
+    },
+    createElement() {
+      return makeElement();
+    }
+  };
+  const localStorage = { getItem: () => null, setItem: () => {} };
+  const context = { document, localStorage, Intl };
+  vm.createContext(context);
+  vm.runInContext(script, context);
+  return { context, elements };
+}
+
+test('negative free cash flow returns only stabilization guidance', () => {
+  const { context, elements } = makeContext();
+  elements.monthlyIncome.value = '1000';
+  elements.monthlyExpenses.value = '1500';
+  elements.debtBalance.value = '3000';
+  elements.debtApr.value = '20';
+  elements.debtMinimum.value = '200';
+  context.render();
+
+  const titles = elements.planSteps.children.map((li) => li.children[0].textContent);
+  assert.equal(titles.length, 1);
+  assert.match(titles[0], /Stabilize your monthly cash flow immediately/);
+});
+
+test('high-interest debt and low cash prioritizes starter buffer then debt attack', () => {
+  const { context, elements } = makeContext();
+  elements.monthlyIncome.value = '5000';
+  elements.monthlyExpenses.value = '2000';
+  elements.cash.value = '100';
+  elements.debtBalance.value = '5000';
+  elements.debtApr.value = '20';
+  elements.debtMinimum.value = '150';
+  context.render();
+
+  const titles = elements.planSteps.children.map((li) => li.children[0].textContent);
+  assert.equal(titles[0], 'Build a 1-month starter emergency buffer, then attack high-interest debt');
+  assert.ok(!titles.includes('Build a 3-month emergency buffer'));
+});
+
+test('debt minimum is ignored when debt balance is zero', () => {
+  const { context, elements } = makeContext();
+  elements.monthlyIncome.value = '3000';
+  elements.monthlyExpenses.value = '2000';
+  elements.debtBalance.value = '0';
+  elements.debtMinimum.value = '900';
+  context.render();
+
+  assert.equal(elements.freeCash.textContent, '$1,000.00');
+});
