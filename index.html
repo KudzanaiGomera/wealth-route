@@ -131,6 +131,7 @@
       <h2>What to do next</h2>
       <p id="planStatus" class="reason" aria-live="polite"></p>
       <ol id="planSteps"></ol>
+      <p id="netWorthContext" class="reason"></p>
     </section>
   </main>
 
@@ -152,7 +153,7 @@
       const totalAssets = data.cash + data.investments + data.property;
       const totalDebt = data.debtBalance;
       const netWorth = totalAssets - totalDebt;
-      const activeDebtMinimum = data.debtBalance > 0 ? data.debtMinimum : 0;
+      const activeDebtMinimum = data.debtBalance > 0 ? Math.min(data.debtMinimum, data.debtBalance) : 0;
       const freeCash = data.monthlyIncome - data.monthlyExpenses - activeDebtMinimum;
       return { totalAssets, totalDebt, netWorth, freeCash };
     }
@@ -226,13 +227,6 @@
         });
       }
 
-      if (totals.netWorth < 0) {
-        steps.push({
-          title: 'Track monthly net-worth trend',
-          reason: `Current net worth is ${formatMoney(totals.netWorth)}. A rising trend confirms your plan is working.`
-        });
-      }
-
       return steps;
     }
 
@@ -282,6 +276,7 @@
       const plan = buildPlan(data, totals);
       const list = document.getElementById('planSteps');
       const status = document.getElementById('planStatus');
+      const netWorthContext = document.getElementById('netWorthContext');
       list.replaceChildren();
       for (const step of plan) {
         const li = document.createElement('li');
@@ -295,6 +290,9 @@
         list.appendChild(li);
       }
       status.textContent = plan.length ? `Top priority: ${plan[0].title}` : '';
+      netWorthContext.textContent = totals.netWorth < 0
+        ? `Net worth context: ${formatMoney(totals.netWorth)}. Keep tracking this monthly and target an upward trend.`
+        : '';
 
       saveState(data);
     }
