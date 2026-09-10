@@ -92,12 +92,25 @@ test('3-month emergency buffer appears only after starter buffer is complete', (
   elements.monthlyIncome.value = '5000';
   elements.monthlyExpenses.value = '2000';
   elements.cash.value = '2000';
+  elements.debtBalance.value = '0';
+  context.render();
+
+  const titles = elements.planSteps.children.map((li) => li.children[0].textContent);
+  assert.equal(titles[0], 'Build a 3-month emergency buffer');
+  assert.ok(!titles.includes('Build a 1-month starter emergency buffer first'));
+});
+
+test('low-interest debt is prioritized before expanded emergency savings', () => {
+  const { context, elements } = makeContext();
+  elements.monthlyIncome.value = '5000';
+  elements.monthlyExpenses.value = '2000';
+  elements.cash.value = '2000';
   elements.debtBalance.value = '1000';
   elements.debtApr.value = '5';
   elements.debtMinimum.value = '100';
   context.render();
 
   const titles = elements.planSteps.children.map((li) => li.children[0].textContent);
-  assert.equal(titles[0], 'Build a 3-month emergency buffer');
-  assert.ok(!titles.includes('Build a 1-month starter emergency buffer first'));
+  assert.equal(titles[0], 'Keep paying down debt steadily');
+  assert.ok(!titles.includes('Build a 3-month emergency buffer'));
 });
