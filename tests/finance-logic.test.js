@@ -1,10 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const vm = require('node:vm');
 
-const html = fs.readFileSync('/home/runner/work/wealth-route/wealth-route/index.html', 'utf8');
-const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const htmlPath = path.resolve(__dirname, '..', 'index.html');
+const html = fs.readFileSync(htmlPath, 'utf8');
+const scriptStart = html.toLowerCase().indexOf('<script>');
+const scriptEnd = html.toLowerCase().lastIndexOf('</script>');
+assert.ok(scriptStart >= 0 && scriptEnd > scriptStart, 'Expected embedded script in index.html');
+const script = html.slice(scriptStart + '<script>'.length, scriptEnd);
 
 function makeElement(id = '') {
   return {
