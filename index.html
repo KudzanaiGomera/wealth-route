@@ -115,9 +115,7 @@
 
     <section class="plan">
       <h2>What to do next</h2>
-      <div aria-live="polite" aria-atomic="true">
-        <ol id="planSteps"></ol>
-      </div>
+      <ol id="planSteps" aria-live="polite" aria-atomic="true"></ol>
     </section>
   </main>
 
@@ -255,7 +253,7 @@
 
       const plan = buildPlan(data, totals);
       const list = document.getElementById('planSteps');
-      list.innerHTML = '';
+      list.replaceChildren();
       for (const step of plan) {
         const li = document.createElement('li');
         const title = document.createElement('div');
