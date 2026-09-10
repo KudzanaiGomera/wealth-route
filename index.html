@@ -115,7 +115,7 @@
 
     <section class="plan">
       <h2>What to do next</h2>
-      <div aria-live="polite" aria-atomic="false">
+      <div aria-live="polite" aria-atomic="true">
         <ol id="planSteps"></ol>
       </div>
     </section>
@@ -145,6 +145,7 @@
 
     function buildPlan(data, totals) {
       const steps = [];
+      const highInterestDebtPriority = data.debtBalance > 0 && data.debtApr >= 8;
       const starterEmergencyTarget = data.monthlyExpenses;
       const starterEmergencyGap = Math.max(0, starterEmergencyTarget - data.cash);
       const emergencyTarget = data.monthlyExpenses * 3;
@@ -163,6 +164,7 @@
           title: 'Stabilize your monthly cash flow immediately',
           reason: `You are short ${formatMoney(Math.abs(totals.freeCash))} each month. Cut essential costs, raise income, or refinance to stop new debt.`
         });
+        return steps;
       }
 
       if (starterEmergencyGap > 0) {
@@ -172,7 +174,7 @@
         });
       }
 
-      if (data.debtBalance > 0 && data.debtApr >= 8) {
+      if (highInterestDebtPriority) {
         steps.push({
           title: 'Prioritize high-interest debt payoff',
           reason: `At about ${data.debtApr.toFixed(2)}% APR, debt interest likely outpaces safe investment returns.`
@@ -184,7 +186,7 @@
         });
       }
 
-      if (emergencyGap > 0) {
+      if (emergencyGap > 0 && !highInterestDebtPriority) {
         steps.push({
           title: 'Build a 3-month emergency buffer',
           reason: `You need about ${formatMoney(emergencyGap)} more in cash to cover 3 months of essentials.`
