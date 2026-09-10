@@ -115,7 +115,9 @@
 
     <section class="plan">
       <h2>What to do next</h2>
-      <ol id="planSteps" aria-live="polite"></ol>
+      <div aria-live="polite" aria-atomic="false">
+        <ol id="planSteps"></ol>
+      </div>
     </section>
   </main>
 
@@ -143,6 +145,8 @@
 
     function buildPlan(data, totals) {
       const steps = [];
+      const starterEmergencyTarget = data.monthlyExpenses;
+      const starterEmergencyGap = Math.max(0, starterEmergencyTarget - data.cash);
       const emergencyTarget = data.monthlyExpenses * 3;
       const emergencyGap = Math.max(0, emergencyTarget - data.cash);
 
@@ -158,6 +162,13 @@
         steps.push({
           title: 'Stabilize your monthly cash flow immediately',
           reason: `You are short ${formatMoney(Math.abs(totals.freeCash))} each month. Cut essential costs, raise income, or refinance to stop new debt.`
+        });
+      }
+
+      if (starterEmergencyGap > 0) {
+        steps.push({
+          title: 'Build a 1-month starter emergency buffer first',
+          reason: `You need about ${formatMoney(starterEmergencyGap)} more cash to cover one month of essentials and avoid new debt from surprises.`
         });
       }
 
@@ -207,7 +218,9 @@
     }
 
     function saveState(state) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch {}
     }
 
     const ids = [
