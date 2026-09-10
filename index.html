@@ -32,6 +32,15 @@
       border-radius: 10px;
       padding: 12px;
     }
+    fieldset {
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+    legend {
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
     label { display: block; font-weight: 600; margin-bottom: 6px; }
     input {
       width: 100%;
@@ -71,7 +80,10 @@
     <h1>Wealth Route</h1>
     <p class="subtitle">Track your money and get a clear next action with reasons.</p>
 
-    <section class="grid" aria-label="Financial inputs">
+    <form aria-label="Financial inputs">
+      <fieldset>
+        <legend>Financial inputs</legend>
+        <section class="grid" aria-label="Financial inputs">
       <div class="card">
         <label for="monthlyIncome">Monthly income ($)</label>
         <input id="monthlyIncome" type="number" min="0" step="0.01" value="0" />
@@ -104,7 +116,9 @@
         <label for="debtMinimum">Monthly debt minimum payment ($)</label>
         <input id="debtMinimum" type="number" min="0" step="0.01" value="0" />
       </div>
-    </section>
+        </section>
+      </fieldset>
+    </form>
 
     <section class="summary" aria-label="Financial summary">
       <div class="metric"><span>Total assets</span><strong id="totalAssets">$0.00</strong></div>
@@ -170,7 +184,7 @@
       if (starterEmergencyGap > 0 && highInterestDebtPriority) {
         steps.push({
           title: 'Build a 1-month starter emergency buffer, then attack high-interest debt',
-          reason: `Set aside ${formatMoney(starterEmergencyGap)} first so one surprise bill does not create more debt, then direct surplus to your ${data.debtApr.toFixed(2)}% APR balance.`
+          reason: `Set aside ${formatMoney(starterEmergencyGap)} first so one surprise bill does not create more debt, then keep raising payments above the minimum on your ${data.debtApr.toFixed(2)}% APR balance.`
         });
       } else if (starterEmergencyGap > 0) {
         steps.push({
@@ -200,10 +214,15 @@
         });
       }
 
-      if (steps.length === 0) {
+      if (steps.length === 0 && totals.freeCash > 0) {
         steps.push({
           title: 'Direct surplus cash to long-term investments',
           reason: 'You have positive cash flow, no urgent debt pressure, and a basic buffer, so compounding is your strongest next move.'
+        });
+      } else if (steps.length === 0) {
+        steps.push({
+          title: 'Maintain your current plan and increase flexibility',
+          reason: 'Your budget is currently balanced with no surplus. Keep debt current and look for ways to increase income or reduce fixed costs.'
         });
       }
 
