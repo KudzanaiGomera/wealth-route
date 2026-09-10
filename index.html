@@ -201,7 +201,7 @@
         });
       }
 
-      if (emergencyGap > 0 && !highInterestDebtPriority) {
+      if (starterEmergencyGap === 0 && emergencyGap > 0 && !highInterestDebtPriority) {
         steps.push({
           title: 'Build a 3-month emergency buffer',
           reason: `You need about ${formatMoney(emergencyGap)} more in cash to cover 3 months of essentials.`

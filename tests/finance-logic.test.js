@@ -86,3 +86,18 @@ test('debt minimum is ignored when debt balance is zero', () => {
 
   assert.equal(elements.freeCash.textContent, '$1,000.00');
 });
+
+test('3-month emergency buffer appears only after starter buffer is complete', () => {
+  const { context, elements } = makeContext();
+  elements.monthlyIncome.value = '5000';
+  elements.monthlyExpenses.value = '2000';
+  elements.cash.value = '2000';
+  elements.debtBalance.value = '1000';
+  elements.debtApr.value = '5';
+  elements.debtMinimum.value = '100';
+  context.render();
+
+  const titles = elements.planSteps.children.map((li) => li.children[0].textContent);
+  assert.equal(titles[0], 'Build a 3-month emergency buffer');
+  assert.ok(!titles.includes('Build a 1-month starter emergency buffer first'));
+});
