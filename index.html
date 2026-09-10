@@ -1,0 +1,3605 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WealthRoute</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+/* WealthRoute design tokens. A "private ledger" feel: warm paper or deep
+   ink backdrop, a literary serif for the numbers that matter, deep emerald
+   as the one accent that does real work, gold reserved for medium-priority
+   signal so it doesn't compete with the primary accent. */
+
+:root {
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  --bg: #f6f4ee;
+  --panel: #ffffff;
+  --panel-alt: #fbfaf5;
+  --text: #171a19;
+  --muted: #5b6560;
+  --border: #e3e0d3;
+  --accent: #0e6b57;
+  --accent-contrast: #ffffff;
+  --gold: #a9781f;
+  --danger: #a6332b;
+  --success: #2e7d4f;
+  --shadow: 0 1px 2px rgba(23, 26, 25, 0.04);
+
+  --chart-1: #0e6b57;
+  --chart-2: #a9781f;
+  --chart-3: #5b6560;
+  --chart-4: #7c9c93;
+  --chart-5: #c4a468;
+}
+
+:root[data-theme="dark"] {
+  --bg: #101615;
+  --panel: #171f1d;
+  --panel-alt: #1c2422;
+  --text: #e8ece9;
+  --muted: #93a19a;
+  --border: #283330;
+  --accent: #34b493;
+  --accent-contrast: #06120e;
+  --gold: #dcab52;
+  --danger: #e2685f;
+  --success: #59c48a;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+
+  --chart-1: #34b493;
+  --chart-2: #dcab52;
+  --chart-3: #93a19a;
+  --chart-4: #6c9186;
+  --chart-5: #c9ac72;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* ---------- Top bar ---------- */
+
+.topbar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+.brand {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  letter-spacing: 0.01em;
+}
+.brand-mark { flex-shrink: 0; }
+.brand-mark path { stroke: var(--accent); }
+.brand-mark circle { fill: var(--accent); }
+
+#nav { display: flex; gap: 1.25rem; flex-wrap: wrap; flex: 1; }
+#nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.88rem;
+  padding: 0.3rem 0;
+  border-bottom: 2px solid transparent;
+}
+#nav a.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+#nav a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-toggle {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+
+#content { max-width: 960px; margin: 0 auto; padding: 1.75rem 1.5rem 3rem; }
+
+/* ---------- Type scale ---------- */
+
+h1 { font-family: var(--font-serif); font-size: 1.6rem; font-weight: 500; margin: 0 0 0.25rem; }
+h2 { font-family: var(--font-serif); font-size: 1.2rem; font-weight: 500; margin: 1.75rem 0 0.6rem; }
+h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
+.month-label { color: var(--muted); margin: 0 0 1.25rem; font-size: 0.9rem; }
+
+/* ---------- Dashboard hero ---------- */
+
+.hero { margin-bottom: 0.5rem; }
+.hero-headline {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.75rem 2rem;
+  box-shadow: var(--shadow);
+  margin: 1rem 0 1.25rem;
+}
+.hero-headline .stat-label { font-size: 0.85rem; }
+.hero-headline .hero-value {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 2.75rem;
+  line-height: 1.15;
+  margin-top: 0.15rem;
+}
+.hero-headline .hero-value.negative { color: var(--danger); }
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.65rem; margin: 1rem 0; }
+.stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 0.9rem; }
+.stat-label { display: block; font-size: 0.78rem; color: var(--muted); }
+.stat-value { display: block; font-family: var(--font-serif); font-size: 1.3rem; margin-top: 0.2rem; }
+.stat-value.negative { color: var(--danger); }
+
+/* ---------- Health score ---------- */
+
+.health-score {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  margin: 1.25rem 0;
+}
+.health-score h2 { margin-top: 0; }
+.score-breakdown { display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: 0.83rem; color: var(--muted); margin: 0.5rem 0; }
+.fine-print { font-size: 0.8rem; color: var(--muted); }
+
+/* ---------- Recommendations ---------- */
+
+.recommendations { margin: 1.5rem 0; }
+.rec-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  border-radius: 8px;
+  padding: 0.95rem 1.1rem;
+  margin-bottom: 0.7rem;
+}
+.rec-card.p-high { border-left-color: var(--danger); border-left-width: 4px; }
+.rec-card.p-medium { border-left-color: var(--gold); }
+.rec-card.p-low { border-left-color: var(--success); }
+.rec-head { display: flex; align-items: baseline; gap: 0.55rem; margin-bottom: 0.45rem; }
+.rec-index { color: var(--muted); font-family: var(--font-serif); }
+.rec-title { font-weight: 600; flex: 1; }
+.badge {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-weight: 600;
+}
+.badge.p-high { color: var(--danger); }
+.badge.p-medium { color: var(--gold); }
+.badge.p-low { color: var(--success); }
+.rec-card p { margin: 0.3rem 0; font-size: 0.9rem; color: var(--text); }
+.rec-card p strong { color: var(--muted); font-weight: 600; }
+
+/* ---------- Charts ---------- */
+
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.chart-block { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; box-shadow: var(--shadow); }
+.chart-block svg { max-width: 100%; height: auto; }
+.chart-block svg text { fill: var(--muted); font-family: var(--font-sans); }
+
+/* ---------- Tables ---------- */
+
+.data-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 0.75rem 0; }
+.data-table th, .data-table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.88rem; }
+.data-table th { background: var(--panel-alt); font-weight: 600; color: var(--muted); font-size: 0.8rem; }
+.data-table th.sortable { cursor: pointer; user-select: none; }
+.data-table th.sortable:hover { color: var(--accent); }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.data-table .empty { color: var(--muted); text-align: center; padding: 1.25rem; }
+.data-table td input.cell, .data-table td select.cell { width: 100%; border: 1px solid transparent; background: transparent; color: var(--text); font-size: 0.85rem; padding: 0.2rem; font-family: var(--font-sans); transition: background-color 0.5s ease; }
+.data-table td input.cell:focus, .data-table td select.cell:focus { border-color: var(--accent); background: var(--panel-alt); }
+.data-table td input.cell.just-saved, .data-table td select.cell.just-saved { background: color-mix(in srgb, var(--success) 22%, transparent); }
+.invalid-row { background: color-mix(in srgb, var(--danger) 10%, var(--panel)); }
+
+/* ---------- Forms ---------- */
+
+.inline-form, .stacked-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.75rem 0; }
+.stacked-form { flex-direction: column; align-items: flex-start; }
+.inline-form input, .inline-form select, .stacked-form input, .stacked-form select, textarea {
+  padding: 0.42rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.88rem;
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+button {
+  padding: 0.48rem 0.95rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+button:hover { filter: brightness(1.08); }
+button.secondary { background: var(--panel-alt); color: var(--text); border: 1px solid var(--border); }
+button.danger { background: var(--danger); color: #fff; }
+.link-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.85rem; padding: 0; font-weight: 500; }
+.link-btn:hover { text-decoration: underline; }
+
+.toolbar { display: flex; gap: 1rem; align-items: center; margin: 0.75rem 0; flex-wrap: wrap; }
+.mapping-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.5rem; margin: 0.75rem 0; }
+.file-label { display: inline-block; }
+
+.warning { color: var(--danger); }
+.loading { color: var(--muted); }
+.assistant-answer { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; line-height: 1.55; box-shadow: var(--shadow); }
+
+@media (prefers-reduced-motion: reduce) {
+  body, button { transition: none; }
+}
+
+@media (max-width: 640px) {
+  #nav { gap: 0.6rem; }
+  #content { padding: 1.1rem; }
+  .hero-headline .hero-value { font-size: 2.1rem; }
+}
+
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+// IndexedDB schema, opened with the native browser API directly — no
+// external library, no bundler needed to resolve an import for one.
+
+window.WR = window.WR || {};
+
+(function () {
+  const DB_NAME = 'wealthroute';
+  const DB_VERSION = 1;
+
+  /** @type {Promise<IDBDatabase>|null} */
+  let dbPromise = null;
+
+  function openDatabase() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = (event) => {
+        const db = /** @type {IDBDatabase} */ (event.target.result);
+
+        db.createObjectStore('userProfile', { keyPath: 'id' });
+        db.createObjectStore('incomeSources', { keyPath: 'id' });
+        db.createObjectStore('expenseCategories', { keyPath: 'id' });
+
+        const budgetLines = db.createObjectStore('budgetLines', { keyPath: 'id' });
+        budgetLines.createIndex('by-month', 'month');
+
+        db.createObjectStore('debts', { keyPath: 'id' });
+
+        const debtPayments = db.createObjectStore('debtPayments', { keyPath: 'id' });
+        debtPayments.createIndex('by-debt', 'debtId');
+
+        db.createObjectStore('assets', { keyPath: 'id' });
+        db.createObjectStore('investments', { keyPath: 'id' });
+
+        const netWorthSnapshots = db.createObjectStore('netWorthSnapshots', { keyPath: 'id' });
+        netWorthSnapshots.createIndex('by-date', 'date');
+
+        db.createObjectStore('exchangeRates', { keyPath: 'id' });
+      };
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /** @returns {Promise<IDBDatabase>} */
+  function getDB() {
+    if (!dbPromise) {
+      dbPromise = openDatabase();
+    }
+    return dbPromise;
+  }
+
+  /** Test-only: drop the cached connection so a fresh open() happens next time. */
+  function resetConnection() {
+    dbPromise = null;
+  }
+
+  /** Test-only: fully delete the database so each test run starts clean. */
+  function deleteDatabase() {
+    dbPromise = null;
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.deleteDatabase(DB_NAME);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+      req.onblocked = () => resolve();
+    });
+  }
+
+  WR.db = { getDB, resetConnection, deleteDatabase, DB_NAME };
+})();
+// Generic CRUD repository over a single IndexedDB object store. Every entity
+// in the data model gets one of these via WR.createRepository(storeName).
+// Index-backed queries (e.g. "budget lines for a given month") live in
+// repositories.js instead, since they're store-specific.
+
+window.WR = window.WR || {};
+
+(function () {
+  /**
+   * @param {IDBRequest} request
+   * @returns {Promise<any>}
+   */
+  function requestToPromise(request) {
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * @param {string} storeName
+   */
+  function createRepository(storeName) {
+    return {
+      async getAll() {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readonly');
+        return requestToPromise(tx.objectStore(storeName).getAll());
+      },
+      /** @param {string} id */
+      async getById(id) {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readonly');
+        return requestToPromise(tx.objectStore(storeName).get(id));
+      },
+      /** @param {{id: string}} item */
+      async add(item) {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readwrite');
+        await requestToPromise(tx.objectStore(storeName).put(item));
+        return item.id;
+      },
+      /** @param {{id: string}} item */
+      async update(item) {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readwrite');
+        await requestToPromise(tx.objectStore(storeName).put(item));
+        return item.id;
+      },
+      /** @param {string} id */
+      async remove(id) {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readwrite');
+        await requestToPromise(tx.objectStore(storeName).delete(id));
+      },
+      async clear() {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readwrite');
+        await requestToPromise(tx.objectStore(storeName).clear());
+      },
+    };
+  }
+
+  WR.createRepository = createRepository;
+})();
+// One repository per entity, plus the index-backed queries the generic
+// repository can't express on its own.
+
+window.WR = window.WR || {};
+
+(function () {
+  /** @param {IDBRequest} request */
+  function requestToPromise(request) {
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  WR.repos = {
+    userProfile: WR.createRepository('userProfile'),
+    incomeSources: WR.createRepository('incomeSources'),
+    expenseCategories: WR.createRepository('expenseCategories'),
+    budgetLines: WR.createRepository('budgetLines'),
+    debts: WR.createRepository('debts'),
+    debtPayments: WR.createRepository('debtPayments'),
+    assets: WR.createRepository('assets'),
+    investments: WR.createRepository('investments'),
+    netWorthSnapshots: WR.createRepository('netWorthSnapshots'),
+    exchangeRates: WR.createRepository('exchangeRates'),
+  };
+
+  WR.queries = {
+    /** All budget lines (income/fixed/variable/savings/debt) for a 'YYYY-MM' month. */
+    async getBudgetLinesByMonth(month) {
+      const db = await WR.db.getDB();
+      const tx = db.transaction('budgetLines', 'readonly');
+      const index = tx.objectStore('budgetLines').index('by-month');
+      return requestToPromise(index.getAll(month));
+    },
+
+    /** All recorded payments made against a specific debt, across all months. */
+    async getDebtPaymentsForDebt(debtId) {
+      const db = await WR.db.getDB();
+      const tx = db.transaction('debtPayments', 'readonly');
+      const index = tx.objectStore('debtPayments').index('by-debt');
+      return requestToPromise(index.getAll(debtId));
+    },
+
+    /** Full net worth history, oldest first — powers the net worth trend chart. */
+    async getNetWorthHistory() {
+      const db = await WR.db.getDB();
+      const tx = db.transaction('netWorthSnapshots', 'readonly');
+      const index = tx.objectStore('netWorthSnapshots').index('by-date');
+      return requestToPromise(index.getAll());
+    },
+  };
+})();
+// Core WealthRoute data model.
+//
+// No TypeScript here (per your call to drop the build step), but the JSDoc
+// typedefs below still give autocomplete + inline type hints in VS Code and
+// most editors, with zero compilation. Factory functions generate a new id
+// so call sites never construct records by hand.
+//
+// Derived from Budget & Goal Tracker 2026.xlsx (Sprint 0 analysis), plus two
+// additions the workbook doesn't have: NetWorthSnapshot (a time series, so
+// trends/forecasting are possible) and ExchangeRate (fixes the workbook's
+// unconverted-USD-assets gap). The workbook's "Goal Tracker" and "Habit
+// Tracker" sheets are intentionally not modelled here.
+
+window.WR = window.WR || {};
+
+(function () {
+  /** @returns {string} */
+  function newId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    // Fallback for contexts where crypto.randomUUID isn't available
+    // (some restricted file:// setups) — still unique enough for local use.
+    return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  /**
+   * @typedef {Object} UserProfile
+   * @property {string} id
+   * @property {string} baseCurrency - ISO 4217 code, e.g. 'ZAR'
+   * @property {string} country
+   * @property {number} emergencyFundTargetMonths
+   * @property {'conservative'|'moderate'|'aggressive'} riskProfile
+   */
+  /** @param {Omit<UserProfile,'id'>} fields */
+  function createUserProfile(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} IncomeSource
+   * @property {string} id
+   * @property {string} name
+   * @property {number} amount
+   * @property {string} currency
+   * @property {'once'|'weekly'|'biweekly'|'monthly'|'annual'} frequency
+   * @property {string} category
+   * @property {boolean} recurring
+   */
+  /** @param {Omit<IncomeSource,'id'>} fields */
+  function createIncomeSource(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} ExpenseCategory
+   * @property {string} id
+   * @property {string} name
+   * @property {'fixed'|'variable'} type
+   * @property {boolean} essential
+   */
+  /** @param {Omit<ExpenseCategory,'id'>} fields */
+  function createExpenseCategory(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * One line item for one month. Mirrors the workbook's Budget / Actual /
+   * Difference rows, normalised across all months into one store instead of
+   * duplicated across 12 near-identical sheets.
+   * @typedef {Object} BudgetLine
+   * @property {string} id
+   * @property {string} month - 'YYYY-MM'
+   * @property {'income'|'fixed'|'variable'|'savings'|'debtPayment'} type
+   * @property {string} [categoryId]
+   * @property {string} name
+   * @property {number} budgetAmount
+   * @property {number} actualAmount
+   * @property {string} currency
+   */
+  /** @param {Omit<BudgetLine,'id'>} fields */
+  function createBudgetLine(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} Debt
+   * @property {string} id
+   * @property {string} name
+   * @property {string} [type]
+   * @property {number} [originalBalance]
+   * @property {number} currentBalance
+   * @property {string} [currency] - ISO 4217 code; falls back to base currency if omitted
+   * @property {number} interestRate - fraction, e.g. 0.2 = 20%
+   * @property {number} minPayment
+   * @property {string} [dueDate]
+   * @property {number} [priority] - lower = higher priority; set by the debt engine later
+   */
+  /** @param {Omit<Debt,'id'>} fields */
+  function createDebt(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} DebtPayment
+   * @property {string} id
+   * @property {string} debtId
+   * @property {string} month - 'YYYY-MM'
+   * @property {number} amount
+   */
+  /** @param {Omit<DebtPayment,'id'>} fields */
+  function createDebtPayment(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} Asset
+   * @property {string} id
+   * @property {string} name
+   * @property {string} type
+   * @property {string} currency
+   * @property {number} currentValue
+   * @property {number} [purchasePrice]
+   * @property {string} [purchaseDate]
+   * @property {'high'|'medium'|'low'} [liquidity]
+   * @property {string} [notes]
+   */
+  /** @param {Omit<Asset,'id'>} fields */
+  function createAsset(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} Investment
+   * @property {string} id
+   * @property {string} name
+   * @property {string} type
+   * @property {string} currency
+   * @property {number} currentValue
+   * @property {number} totalContributions
+   * @property {number} [expectedReturnAssumption] - fraction, e.g. 0.08
+   * @property {'low'|'medium'|'high'} [riskCategory]
+   * @property {number} [horizonYears]
+   */
+  /** @param {Omit<Investment,'id'>} fields */
+  function createInvestment(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * A point-in-time record of assets vs liabilities. Doesn't exist anywhere in
+   * the source workbook — it only ever stores "current" net worth, never a
+   * history — so this is what makes trend charts and forecasting possible.
+   * @typedef {Object} NetWorthSnapshot
+   * @property {string} id
+   * @property {string} date - ISO date
+   * @property {number} totalAssets
+   * @property {number} totalLiabilities
+   * @property {number} netWorth
+   * @property {string} currency
+   */
+  /** @param {Omit<NetWorthSnapshot,'id'>} fields */
+  function createNetWorthSnapshot(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} ExchangeRate
+   * @property {string} id
+   * @property {string} fromCurrency
+   * @property {string} toCurrency
+   * @property {number} rate
+   * @property {string} date
+   */
+  /** @param {Omit<ExchangeRate,'id'>} fields */
+  function createExchangeRate(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  WR.models = {
+    newId,
+    createUserProfile,
+    createIncomeSource,
+    createExpenseCategory,
+    createBudgetLine,
+    createDebt,
+    createDebtPayment,
+    createAsset,
+    createInvestment,
+    createNetWorthSnapshot,
+    createExchangeRate,
+  };
+})();
+// Cash flow, savings rate, and expense-split calculations.
+//
+// Every function here is pure: plain data in, plain data/numbers out. No
+// storage calls, no DOM, no side effects — this is what makes the engine
+// independently testable and keeps financial math out of UI code, per the
+// "deterministic engine" principle from the brief.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * Sum actualAmount for budget lines of a given type.
+   * Caller is expected to have already filtered to a single month (e.g. via
+   * WR.queries.getBudgetLinesByMonth).
+   * @param {Array} budgetLines
+   * @param {'income'|'fixed'|'variable'|'savings'|'debtPayment'} type
+   */
+  function sumActualByType(budgetLines, type) {
+    return budgetLines
+      .filter((line) => line.type === type)
+      .reduce((total, line) => total + line.actualAmount, 0);
+  }
+
+  /**
+   * Sum budgetAmount (planned, not actual) for budget lines of a given type.
+   * Useful for budget-vs-actual variance, same shape as the workbook's
+   * Budget/Actual/Difference columns.
+   */
+  function sumBudgetByType(budgetLines, type) {
+    return budgetLines
+      .filter((line) => line.type === type)
+      .reduce((total, line) => total + line.budgetAmount, 0);
+  }
+
+  /**
+   * Builds the core monthly cash flow picture from one month's budget lines.
+   * Mirrors the workbook's "Left to Spend" formula (income minus everything
+   * actually spent), but exposes each component separately so the dashboard
+   * and rules engine can reason about them individually rather than only
+   * seeing one final number.
+   *
+   * @param {Array} budgetLines - budget lines for a single month
+   * @returns {{
+   *   income: number, fixedExpenses: number, variableExpenses: number,
+   *   savings: number, debtPayments: number, totalExpenses: number,
+   *   availableSurplus: number, savingsRate: number
+   * }}
+   */
+  function calculateCashFlowSummary(budgetLines) {
+    const income = sumActualByType(budgetLines, 'income');
+    const fixedExpenses = sumActualByType(budgetLines, 'fixed');
+    const variableExpenses = sumActualByType(budgetLines, 'variable');
+    const savings = sumActualByType(budgetLines, 'savings');
+    const debtPayments = sumActualByType(budgetLines, 'debtPayment');
+
+    const totalExpenses = fixedExpenses + variableExpenses;
+    const availableSurplus = income - fixedExpenses - variableExpenses - savings - debtPayments;
+    const savingsRate = income > 0 ? savings / income : 0;
+
+    return {
+      income,
+      fixedExpenses,
+      variableExpenses,
+      savings,
+      debtPayments,
+      totalExpenses,
+      availableSurplus,
+      savingsRate,
+    };
+  }
+
+  /**
+   * Splits fixed+variable expense budget lines into essential vs discretionary
+   * totals, using each line's categoryId to look up ExpenseCategory.essential.
+   * A line with no matching category (or no categoryId at all) is counted as
+   * discretionary — safer to flag it for review than to silently assume it's
+   * essential when nobody has categorised it yet.
+   *
+   * @param {Array} budgetLines
+   * @param {Array} expenseCategories
+   * @returns {{ essential: number, discretionary: number }}
+   */
+  function calculateEssentialVsDiscretionary(budgetLines, expenseCategories) {
+    const categoryById = new Map(expenseCategories.map((c) => [c.id, c]));
+
+    let essential = 0;
+    let discretionary = 0;
+
+    budgetLines
+      .filter((line) => line.type === 'fixed' || line.type === 'variable')
+      .forEach((line) => {
+        const category = line.categoryId ? categoryById.get(line.categoryId) : undefined;
+        if (category && category.essential) {
+          essential += line.actualAmount;
+        } else {
+          discretionary += line.actualAmount;
+        }
+      });
+
+    return { essential, discretionary };
+  }
+
+  Object.assign(WR.financial, {
+    sumActualByType,
+    sumBudgetByType,
+    calculateCashFlowSummary,
+    calculateEssentialVsDiscretionary,
+  });
+})();
+// Debt totals and interest calculations. Pure functions — no storage calls,
+// no UI. This is the foundation the avalanche/snowball prioritisation engine
+// (a later sprint) builds on top of.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /** @param {Array} debts */
+  function calculateTotalDebt(debts) {
+    return debts.reduce((total, debt) => total + debt.currentBalance, 0);
+  }
+
+  /** @param {Array} debts */
+  function calculateTotalMinPayments(debts) {
+    return debts.reduce((total, debt) => total + debt.minPayment, 0);
+  }
+
+  /**
+   * Debt-to-income ratio using minimum required payments against monthly
+   * income. Returns 0 when income is 0 or negative, to avoid Infinity/NaN
+   * leaking into the dashboard or health score.
+   * @param {Array} debts
+   * @param {number} monthlyIncome
+   */
+  function calculateDebtToIncomeRatio(debts, monthlyIncome) {
+    if (monthlyIncome <= 0) return 0;
+    return calculateTotalMinPayments(debts) / monthlyIncome;
+  }
+
+  /**
+   * The debt currently costing the most in interest rate — this is what
+   * avalanche prioritisation and the "what should I do now" panel key off.
+   * Returns null if there are no debts, rather than throwing.
+   * @param {Array} debts
+   */
+  function getHighestInterestDebt(debts) {
+    if (debts.length === 0) return null;
+    return debts.reduce((highest, debt) => (debt.interestRate > highest.interestRate ? debt : highest));
+  }
+
+  /**
+   * Balance-weighted average interest rate across all debts — one number
+   * summarising "how expensive is my debt overall", used by the debt-vs-invest
+   * decision logic in a later sprint.
+   * @param {Array} debts
+   */
+  function calculateWeightedAverageInterestRate(debts) {
+    const totalBalance = calculateTotalDebt(debts);
+    if (totalBalance <= 0) return 0;
+    const weightedSum = debts.reduce((sum, debt) => sum + debt.interestRate * debt.currentBalance, 0);
+    return weightedSum / totalBalance;
+  }
+
+  Object.assign(WR.financial, {
+    calculateTotalDebt,
+    calculateTotalMinPayments,
+    calculateDebtToIncomeRatio,
+    getHighestInterestDebt,
+    calculateWeightedAverageInterestRate,
+  });
+})();
+// Net worth: assets minus liabilities, converted to one base currency.
+// The source workbook keeps a separate USD assets table that is summed but
+// never actually folded into the net worth total — this fixes that by
+// requiring every value to be converted to baseCurrency before summing.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * Converts an amount from one currency to another using the most recent
+   * matching ExchangeRate record. Returns the original amount unconverted
+   * (with a warning flag) if no rate is found and the currencies differ —
+   * silently assuming a 1:1 rate would misstate net worth, so callers get
+   * an explicit signal instead.
+   *
+   * @param {number} amount
+   * @param {string} fromCurrency
+   * @param {string} toCurrency
+   * @param {Array} exchangeRates
+   * @returns {{ value: number, converted: boolean }}
+   */
+  function convertCurrency(amount, fromCurrency, toCurrency, exchangeRates) {
+    if (fromCurrency === toCurrency) return { value: amount, converted: true };
+
+    const candidates = exchangeRates.filter(
+      (r) => r.fromCurrency === fromCurrency && r.toCurrency === toCurrency,
+    );
+    if (candidates.length > 0) {
+      const latest = candidates.reduce((a, b) => (a.date > b.date ? a : b));
+      return { value: amount * latest.rate, converted: true };
+    }
+
+    // Try the inverse rate if that's what's stored.
+    const inverseCandidates = exchangeRates.filter(
+      (r) => r.fromCurrency === toCurrency && r.toCurrency === fromCurrency,
+    );
+    if (inverseCandidates.length > 0) {
+      const latest = inverseCandidates.reduce((a, b) => (a.date > b.date ? a : b));
+      return { value: amount / latest.rate, converted: true };
+    }
+
+    return { value: amount, converted: false };
+  }
+
+  /**
+   * Calculates total assets, total liabilities, and net worth in one base
+   * currency. Items that couldn't be converted (no exchange rate on file)
+   * are tracked separately in `unconvertedItems` rather than silently
+   * folded in at face value.
+   *
+   * @param {Array} assets
+   * @param {Array} investments
+   * @param {Array} debts
+   * @param {Array} exchangeRates
+   * @param {string} baseCurrency
+   */
+  function calculateNetWorth(assets, investments, debts, exchangeRates, baseCurrency) {
+    let totalAssets = 0;
+    let totalLiabilities = 0;
+    const unconvertedItems = [];
+
+    assets.forEach((asset) => {
+      const { value, converted } = convertCurrency(
+        asset.currentValue,
+        asset.currency,
+        baseCurrency,
+        exchangeRates,
+      );
+      totalAssets += value;
+      if (!converted) unconvertedItems.push({ name: asset.name, currency: asset.currency });
+    });
+
+    investments.forEach((inv) => {
+      const { value, converted } = convertCurrency(
+        inv.currentValue,
+        inv.currency,
+        baseCurrency,
+        exchangeRates,
+      );
+      totalAssets += value;
+      if (!converted) unconvertedItems.push({ name: inv.name, currency: inv.currency });
+    });
+
+    debts.forEach((debt) => {
+      // Older records created before debts carried a currency field fall
+      // back to base currency, matching the original assumption \u2014 but any
+      // debt with an explicit foreign currency is now converted correctly.
+      const { value, converted } = convertCurrency(
+        debt.currentBalance,
+        debt.currency || baseCurrency,
+        baseCurrency,
+        exchangeRates,
+      );
+      totalLiabilities += value;
+      if (!converted) unconvertedItems.push({ name: debt.name, currency: debt.currency });
+    });
+
+    return {
+      totalAssets,
+      totalLiabilities,
+      netWorth: totalAssets - totalLiabilities,
+      currency: baseCurrency,
+      unconvertedItems,
+    };
+  }
+
+  Object.assign(WR.financial, { convertCurrency, calculateNetWorth });
+})();
+// Emergency fund coverage: how many months of essential expenses the
+// user's liquid assets would cover.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * Sums the current value of assets flagged as high liquidity — the
+   * practical definition of "emergency fund" money (cash, money market,
+   * easily-accessed savings), as opposed to a house or a retirement annuity.
+   * @param {Array} assets
+   */
+  function calculateLiquidAssets(assets) {
+    return assets.filter((a) => a.liquidity === 'high').reduce((sum, a) => sum + a.currentValue, 0);
+  }
+
+  /**
+   * How many months of essential expenses the liquid assets would cover.
+   * Returns Infinity (not a crash) when essential expenses are 0 and there
+   * are liquid assets — genuinely "fully covered" in that case, and 0 when
+   * there's nothing liquid at all.
+   * @param {number} liquidAssets
+   * @param {number} monthlyEssentialExpenses
+   */
+  function calculateEmergencyFundMonths(liquidAssets, monthlyEssentialExpenses) {
+    if (monthlyEssentialExpenses <= 0) return liquidAssets > 0 ? Infinity : 0;
+    return liquidAssets / monthlyEssentialExpenses;
+  }
+
+  Object.assign(WR.financial, { calculateLiquidAssets, calculateEmergencyFundMonths });
+})();
+// Financial health score. Every point traces back to an explicit formula —
+// per your brief, this must never become an opaque AI-generated number.
+// Five equally-weighted components (20 points each): cash flow, emergency
+// fund, debt burden, savings rate, net worth trend.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  /**
+   * Scales a ratio linearly onto a 0-100 range between a floor (0 points)
+   * and a target (100 points). Used so each component has one obvious,
+   * inspectable formula rather than a hidden curve.
+   */
+  function scaleLinear(value, floor, target) {
+    if (target === floor) return value >= target ? 100 : 0;
+    const ratio = (value - floor) / (target - floor);
+    return clamp(ratio, 0, 1) * 100;
+  }
+
+  function average(snapshots) {
+    return snapshots.reduce((sum, s) => sum + s.netWorth, 0) / snapshots.length;
+  }
+
+  /**
+   * Compares the average of the most recent snapshots against the average
+   * of the snapshots before that, rather than just the last two points \u2014
+   * a single noisy or one-off snapshot can no longer single-handedly flip
+   * this component. With exactly 2 snapshots this reduces to the original
+   * simple comparison; with more history the window grows to smooth things
+   * out, capped at 3 either side. Defaults to a neutral 50 with fewer than
+   * 2 snapshots (not enough history yet) or if there's no prior window to
+   * compare against.
+   * @param {Array} netWorthHistory - ordered oldest-to-newest
+   */
+  function calculateNetWorthTrendScore(netWorthHistory) {
+    if (!netWorthHistory || netWorthHistory.length < 2) return 50;
+    const windowSize = Math.min(3, Math.floor(netWorthHistory.length / 2)) || 1;
+    const recent = netWorthHistory.slice(-windowSize);
+    const prior = netWorthHistory.slice(-windowSize * 2, -windowSize);
+    if (prior.length === 0) return 50;
+
+    const recentAvg = average(recent);
+    const priorAvg = average(prior);
+    if (recentAvg > priorAvg) return 100;
+    if (recentAvg === priorAvg) return 50;
+    return 0;
+  }
+
+  /**
+   * @param {Object} inputs
+   * @param {number} inputs.income - monthly income
+   * @param {number} inputs.availableSurplus - monthly surplus (from calculateCashFlowSummary)
+   * @param {number} inputs.savingsRate - fraction, e.g. 0.1 = 10% (from calculateCashFlowSummary)
+   * @param {number} inputs.emergencyFundMonths
+   * @param {number} inputs.emergencyFundTargetMonths - from UserProfile
+   * @param {number} inputs.debtToIncomeRatio - fraction (from calculateDebtToIncomeRatio)
+   * @param {Array} inputs.netWorthHistory - ordered oldest-to-newest, from getNetWorthHistory()
+   * @returns {{ score: number, breakdown: Object }}
+   */
+  function calculateFinancialHealthScore(inputs) {
+    const {
+      income,
+      availableSurplus,
+      savingsRate,
+      emergencyFundMonths,
+      emergencyFundTargetMonths,
+      debtToIncomeRatio,
+      netWorthHistory,
+    } = inputs;
+
+    // Cash flow: surplus as a % of income. 0% -> 0 points, 20%+ -> 100 points.
+    const surplusRatio = income > 0 ? availableSurplus / income : 0;
+    const cashFlow = scaleLinear(surplusRatio, 0, 0.2);
+
+    // Emergency fund: months covered vs the user's own target.
+    const targetMonths = emergencyFundTargetMonths > 0 ? emergencyFundTargetMonths : 3;
+    const emergencyFund = scaleLinear(
+      Number.isFinite(emergencyFundMonths) ? emergencyFundMonths : targetMonths,
+      0,
+      targetMonths,
+    );
+
+    // Debt burden: lower debt-to-income is better. 0% -> 100 points, 40%+ -> 0 points.
+    const debtBurden = 100 - scaleLinear(debtToIncomeRatio, 0, 0.4);
+
+    // Savings rate: 0% -> 0 points, 20%+ -> 100 points.
+    const savingsRateScore = scaleLinear(savingsRate, 0, 0.2);
+
+    const netWorthTrend = calculateNetWorthTrendScore(netWorthHistory);
+
+    const breakdown = { cashFlow, emergencyFund, debtBurden, savingsRate: savingsRateScore, netWorthTrend };
+    const score = Math.round(
+      (breakdown.cashFlow + breakdown.emergencyFund + breakdown.debtBurden + breakdown.savingsRate + breakdown.netWorthTrend) / 5,
+    );
+
+    return { score, breakdown };
+  }
+
+  Object.assign(WR.financial, { calculateFinancialHealthScore, calculateNetWorthTrendScore });
+})();
+// Debt prioritisation and payoff simulation. Avalanche/snowball/hybrid
+// ordering, plus a month-by-month simulator that answers "how long until
+// I'm debt-free" and "what happens if I pay an extra RX/month".
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  const MAX_MONTHS = 600; // 50-year safety cap, so a payment too small to ever
+  // clear the balance can't loop forever — reachedSafetyCap flags this case.
+
+  /** Highest interest rate first — minimises total interest paid. */
+  function orderAvalanche(debts) {
+    return [...debts].sort((a, b) => b.interestRate - a.interestRate);
+  }
+
+  /** Smallest balance first — maximises early "wins" for motivation. */
+  function orderSnowball(debts) {
+    return [...debts].sort((a, b) => a.currentBalance - b.currentBalance);
+  }
+
+  /**
+   * Blends interest rate and balance so a merely-elevated rate on a huge
+   * balance can still outrank a tiny balance at a very high rate. Weights
+   * are parameters, not hidden constants, so the ordering stays inspectable.
+   */
+  function orderHybrid(debts, weights) {
+    const w = weights || { interestWeight: 0.7, balanceWeight: 0.3 };
+    if (debts.length === 0) return [];
+    const maxRate = Math.max(...debts.map((d) => d.interestRate)) || 1;
+    const maxBalance = Math.max(...debts.map((d) => d.currentBalance)) || 1;
+    const scored = debts.map((d) => ({
+      debt: d,
+      score: w.interestWeight * (d.interestRate / maxRate) + w.balanceWeight * (1 - d.currentBalance / maxBalance),
+    }));
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map((s) => s.debt);
+  }
+
+  /**
+   * Simulates paying off a set of debts month by month. Every open debt
+   * always gets at least its minimum payment; all extra payment (plus any
+   * minimums freed up as debts get fully paid off) goes to whichever debt
+   * is first, still open, in `orderedDebts`.
+   *
+   * @param {Array} orderedDebts - pre-sorted by avalanche/snowball/hybrid
+   * @param {number} extraMonthlyPayment - beyond the sum of all minimums
+   * @returns {{
+   *   months: number, totalInterestPaid: number,
+   *   payoffOrder: Array<{name: string, monthsToPayoff: number|null}>,
+   *   reachedSafetyCap: boolean
+   * }}
+   */
+  function simulatePayoff(orderedDebts, extraMonthlyPayment) {
+    const balances = orderedDebts.map((d) => ({
+      name: d.name,
+      balance: d.currentBalance,
+      monthlyRate: d.interestRate / 12,
+      minPayment: d.minPayment,
+      paidOffMonth: null,
+    }));
+
+    let month = 0;
+    let totalInterestPaid = 0;
+    let extraPool = extraMonthlyPayment;
+
+    while (balances.some((b) => b.balance > 0.01) && month < MAX_MONTHS) {
+      month += 1;
+
+      balances.forEach((b) => {
+        if (b.balance > 0) {
+          const interest = b.balance * b.monthlyRate;
+          b.balance += interest;
+          totalInterestPaid += interest;
+        }
+      });
+
+      balances.forEach((b) => {
+        if (b.balance > 0) {
+          b.balance -= Math.min(b.minPayment, b.balance);
+        }
+      });
+
+      let pool = extraPool;
+      for (const b of balances) {
+        if (b.balance > 0 && pool > 0) {
+          const payment = Math.min(pool, b.balance);
+          b.balance -= payment;
+          pool -= payment;
+        }
+      }
+
+      balances.forEach((b) => {
+        if (b.balance <= 0.01 && b.paidOffMonth === null) {
+          b.paidOffMonth = month;
+          extraPool += b.minPayment; // rollover: freed-up minimum joins next month's extra pool
+        }
+      });
+    }
+
+    return {
+      months: month,
+      totalInterestPaid,
+      payoffOrder: balances.map((b) => ({ name: b.name, monthsToPayoff: b.paidOffMonth })),
+      reachedSafetyCap: month >= MAX_MONTHS,
+    };
+  }
+
+  /**
+   * Answers "what happens if I pay an extra RX/month" by comparing total
+   * interest paid and total months with vs without the extra payment.
+   */
+  function calculateInterestSaved(orderedDebts, extraMonthlyPayment) {
+    const withoutExtra = simulatePayoff(orderedDebts, 0);
+    const withExtra = simulatePayoff(orderedDebts, extraMonthlyPayment);
+    return {
+      interestSaved: withoutExtra.totalInterestPaid - withExtra.totalInterestPaid,
+      monthsSaved: withoutExtra.months - withExtra.months,
+      withoutExtra,
+      withExtra,
+    };
+  }
+
+  Object.assign(WR.financial, {
+    orderDebtsAvalanche: orderAvalanche,
+    orderDebtsSnowball: orderSnowball,
+    orderDebtsHybrid: orderHybrid,
+    simulateDebtPayoff: simulatePayoff,
+    calculateInterestSaved,
+  });
+})();
+// Investment readiness. Deliberately answers "am I ready to invest?" before
+// anything about what to invest in — matching the brief's explicit decision
+// order (debt and emergency fund come first when they're the better use of
+// money). Every outcome carries its reasons; never a bare verdict.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * @param {Object} inputs
+   * @param {number} inputs.emergencyFundMonths
+   * @param {number} inputs.emergencyFundTargetMonths
+   * @param {number|null} inputs.highestDebtInterestRate - fraction, or null if debt-free
+   * @param {number} inputs.assumedInvestmentReturn - fraction, e.g. 0.08 (configurable assumption, never guaranteed)
+   * @param {number} inputs.availableSurplus - monthly
+   * @returns {{ readiness: string, reasons: string[] }}
+   */
+  function assessInvestmentReadiness(inputs) {
+    const {
+      emergencyFundMonths,
+      emergencyFundTargetMonths,
+      highestDebtInterestRate,
+      assumedInvestmentReturn,
+      availableSurplus,
+    } = inputs;
+
+    const target = emergencyFundTargetMonths > 0 ? emergencyFundTargetMonths : 3;
+
+    if (emergencyFundMonths < target * 0.5) {
+      return {
+        readiness: 'build_emergency_fund',
+        reasons: [
+          `Your emergency fund covers ${emergencyFundMonths.toFixed(1)} months of essential expenses, ` +
+            `less than half of your ${target}-month target.`,
+          'An emergency fund below this level means an unexpected expense would likely force you into new debt — building this up protects any investment gains you make later.',
+        ],
+      };
+    }
+
+    if (highestDebtInterestRate !== null && highestDebtInterestRate > assumedInvestmentReturn) {
+      return {
+        readiness: 'focus_on_debt',
+        reasons: [
+          `Your highest-interest debt costs ${(highestDebtInterestRate * 100).toFixed(1)}% a year, ` +
+            `more than the ${(assumedInvestmentReturn * 100).toFixed(1)}% assumed investment return.`,
+          'Paying this down is a guaranteed return equal to its interest rate — investing instead only makes sense once your most expensive debt costs less than you expect to earn.',
+        ],
+      };
+    }
+
+    if (emergencyFundMonths < target) {
+      return {
+        readiness: 'start_investing_conservatively',
+        reasons: [
+          `Your emergency fund covers ${emergencyFundMonths.toFixed(1)} of your ${target}-month target — ` +
+            'past the halfway point, but not fully there yet.',
+          'Debt is not more expensive than your assumed return, so starting conservatively while still finishing the emergency fund is reasonable.',
+        ],
+      };
+    }
+
+    if (availableSurplus <= 0) {
+      return {
+        readiness: 'review_cash_flow',
+        reasons: [
+          'There is no monthly surplus currently available to invest.',
+          'Review spending before committing to new investment contributions — investing money you don\u2019t actually have available each month isn\u2019t sustainable.',
+        ],
+      };
+    }
+
+    return {
+      readiness: 'ready_to_invest',
+      reasons: [
+        `Your emergency fund meets your ${target}-month target and your debt is not more expensive than your assumed investment return.`,
+        `You have a monthly surplus of ${availableSurplus.toFixed(2)} available to allocate toward long-term investing.`,
+      ],
+    };
+  }
+
+  Object.assign(WR.financial, { assessInvestmentReadiness });
+})();
+// Multi-year forecasting. Every number here is a projection built from
+// assumptions the caller supplies (growth rates, contribution amounts) —
+// never presented as guaranteed, per the brief's safety principle. The UI
+// layer is responsible for labelling this clearly as "projected", not "will".
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * Projects net worth forward month by month, then returns one snapshot
+   * per year. Debt accrues interest and is paid down by a fixed monthly
+   * payment (floored at 0, doesn't go negative); investments grow by an
+   * assumed annual return and receive a fixed monthly contribution.
+   * Everything else that makes up net worth today (property, vehicles, etc.)
+   * is held constant — this engine doesn't project asset appreciation for
+   * anything except tagged investments, on purpose, since guessing at house
+   * price growth is exactly the kind of unfounded certainty the brief warns
+   * against.
+   *
+   * @param {Object} params
+   * @param {number} params.currentNetWorth
+   * @param {number} params.currentDebtTotal
+   * @param {number} params.currentInvestmentTotal
+   * @param {number} params.monthlyDebtPayment
+   * @param {number} params.monthlyInvestmentContribution
+   * @param {number} params.debtInterestAnnual - weighted average, fraction
+   * @param {number} params.investmentReturnAnnual - assumed, fraction, never guaranteed
+   * @param {number} years
+   * @returns {Array<{ year: number, netWorth: number, debtBalance: number, investmentBalance: number }>}
+   */
+  function forecastNetWorth(params, years) {
+    const {
+      currentNetWorth,
+      currentDebtTotal,
+      currentInvestmentTotal,
+      monthlyDebtPayment,
+      monthlyInvestmentContribution,
+      debtInterestAnnual,
+      investmentReturnAnnual,
+    } = params;
+
+    // Everything else that makes up net worth today, held constant.
+    const otherAssetsBaseline = currentNetWorth - currentInvestmentTotal + currentDebtTotal;
+
+    let debtBalance = currentDebtTotal;
+    let investmentBalance = currentInvestmentTotal;
+    const monthlyDebtRate = debtInterestAnnual / 12;
+    const monthlyInvestmentRate = investmentReturnAnnual / 12;
+
+    const snapshots = [];
+    const totalMonths = years * 12;
+
+    for (let month = 1; month <= totalMonths; month += 1) {
+      if (debtBalance > 0) {
+        debtBalance += debtBalance * monthlyDebtRate;
+        debtBalance = Math.max(0, debtBalance - monthlyDebtPayment);
+      }
+      investmentBalance = investmentBalance * (1 + monthlyInvestmentRate) + monthlyInvestmentContribution;
+
+      if (month % 12 === 0) {
+        snapshots.push({
+          year: month / 12,
+          netWorth: otherAssetsBaseline + investmentBalance - debtBalance,
+          debtBalance,
+          investmentBalance,
+        });
+      }
+    }
+
+    return snapshots;
+  }
+
+  Object.assign(WR.financial, { forecastNetWorth });
+})();
+// Pure aggregation functions powering the Reports view: totals grouped by
+// month across the whole budget-line history, and spending grouped by
+// expense category. No storage calls, no DOM \u2014 same "engine calculates,
+// UI displays" separation as the rest of the financial engine.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * Groups every budget line by month and sums each type, producing one
+   * row per month the user has ever entered data for, sorted chronologically.
+   * @param {Array} allBudgetLines
+   * @returns {Array<{month:string, income:number, fixed:number, variable:number, savings:number, debtPayments:number}>}
+   */
+  function aggregateMonthlyTotals(allBudgetLines) {
+    const byMonth = {};
+    allBudgetLines.forEach((line) => {
+      if (!byMonth[line.month]) {
+        byMonth[line.month] = { month: line.month, income: 0, fixed: 0, variable: 0, savings: 0, debtPayments: 0 };
+      }
+      const bucket = byMonth[line.month];
+      if (line.type === 'income') bucket.income += line.actualAmount;
+      else if (line.type === 'fixed') bucket.fixed += line.actualAmount;
+      else if (line.type === 'variable') bucket.variable += line.actualAmount;
+      else if (line.type === 'savings') bucket.savings += line.actualAmount;
+      else if (line.type === 'debtPayment') bucket.debtPayments += line.actualAmount;
+    });
+    return Object.values(byMonth).sort((a, b) => (a.month < b.month ? -1 : 1));
+  }
+
+  /**
+   * Sums fixed+variable spending by expense category name for whichever
+   * budget lines are passed in (caller filters to a month or range first).
+   * Uncategorised spending is grouped under "Uncategorised" rather than
+   * dropped, so the total always reconciles with actual spending.
+   * @param {Array} budgetLines
+   * @param {Array} expenseCategories
+   * @returns {Array<{label:string, value:number}>} sorted highest spend first
+   */
+  function aggregateSpendingByCategory(budgetLines, expenseCategories) {
+    const categoryById = new Map(expenseCategories.map((c) => [c.id, c]));
+    const totals = {};
+    budgetLines
+      .filter((l) => l.type === 'fixed' || l.type === 'variable')
+      .forEach((l) => {
+        const category = l.categoryId ? categoryById.get(l.categoryId) : null;
+        const label = category ? category.name : 'Uncategorised';
+        totals[label] = (totals[label] || 0) + l.actualAmount;
+      });
+    return Object.entries(totals)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }
+
+  Object.assign(WR.financial, { aggregateMonthlyTotals, aggregateSpendingByCategory });
+})();
+// Recommendation rules engine. Each rule is a plain object with a
+// `condition` function and a `build` function that produces the
+// recommendation text — rules are data, not scattered hardcoded advice
+// buried in UI components, so they stay auditable and easy to change.
+// This is the layer between the deterministic Financial Engine and the
+// "What Should I Do Now?" panel; it never changes any stored financial
+// data itself, only reads a snapshot and produces suggestions.
+
+window.WR = window.WR || {};
+WR.recommendations = WR.recommendations || {};
+
+(function () {
+  const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
+
+  /**
+   * @typedef {Object} FinancialSnapshot
+   * @property {number} income
+   * @property {number} availableSurplus
+   * @property {number} savingsRate
+   * @property {number} emergencyFundMonths
+   * @property {number} emergencyFundTargetMonths
+   * @property {number} debtToIncomeRatio
+   * @property {Object|null} highestInterestDebt
+   * @property {number} totalDebt
+   * @property {number} assumedInvestmentReturn
+   * @property {{essential: number, discretionary: number}} essentialVsDiscretionary
+   * @property {number|null} discretionarySpendChangePct - fraction vs prior period, null if no history yet
+   * @property {{readiness: string, reasons: string[]}} investmentReadiness
+   */
+
+  const RULES = [
+    {
+      id: 'negative-cashflow',
+      priority: 'high',
+      condition: (s) => s.availableSurplus < 0,
+      build: (s) => ({
+        title: 'Cash flow is negative this month',
+        reason: `You spent ${Math.abs(s.availableSurplus).toFixed(2)} more than you earned this month.`,
+        financialImpact: 'Continuing to spend beyond income means relying on debt or depleting savings to cover the gap.',
+        suggestedAction: 'Review discretionary and variable expenses first \u2014 these are usually the fastest to adjust.',
+        numbers: { availableSurplus: s.availableSurplus, income: s.income },
+        assumptions: [],
+      }),
+    },
+    {
+      id: 'high-interest-debt',
+      priority: 'high',
+      condition: (s) => s.highestInterestDebt !== null && s.highestInterestDebt.interestRate > s.assumedInvestmentReturn,
+      build: (s) => ({
+        title: `Pay down ${s.highestInterestDebt.name}`,
+        reason: `This debt costs ${(s.highestInterestDebt.interestRate * 100).toFixed(1)}% a year, more than your assumed ${(s.assumedInvestmentReturn * 100).toFixed(1)}% investment return.`,
+        financialImpact: 'Extra payments here earn a guaranteed return equal to the interest rate \u2014 higher and more certain than investing while this debt remains.',
+        suggestedAction: s.availableSurplus > 0
+          ? `Consider directing some of your ${s.availableSurplus.toFixed(2)} monthly surplus toward this debt.`
+          : 'Free up monthly surplus (see the cash flow recommendation) before adding extra debt payments.',
+        numbers: { balance: s.highestInterestDebt.currentBalance, interestRate: s.highestInterestDebt.interestRate },
+        assumptions: [`Assumed investment return: ${(s.assumedInvestmentReturn * 100).toFixed(1)}%/year \u2014 adjust this in Settings.`],
+      }),
+    },
+    {
+      id: 'emergency-fund-critical',
+      priority: 'high',
+      condition: (s) => s.emergencyFundMonths < s.emergencyFundTargetMonths * 0.5,
+      build: (s) => ({
+        title: 'Build your emergency fund',
+        reason: `Your emergency fund covers ${s.emergencyFundMonths.toFixed(1)} months of essential expenses, under half of your ${s.emergencyFundTargetMonths}-month target.`,
+        financialImpact: 'An unexpected expense at this level would likely have to be covered by new debt.',
+        suggestedAction: 'Prioritise emergency savings over new investment contributions until you reach at least half your target.',
+        numbers: { emergencyFundMonths: s.emergencyFundMonths, target: s.emergencyFundTargetMonths },
+        assumptions: [],
+      }),
+    },
+    {
+      id: 'emergency-fund-building',
+      priority: 'medium',
+      condition: (s) =>
+        s.emergencyFundMonths >= s.emergencyFundTargetMonths * 0.5 && s.emergencyFundMonths < s.emergencyFundTargetMonths,
+      build: (s) => ({
+        title: 'Keep building your emergency fund',
+        reason: `You're at ${s.emergencyFundMonths.toFixed(1)} of your ${s.emergencyFundTargetMonths}-month target \u2014 past the halfway point.`,
+        financialImpact: 'Closing this gap further reduces the chance a surprise expense forces you into debt.',
+        suggestedAction: 'Continue current contributions, or increase them if the high-interest debt items above are resolved.',
+        numbers: { emergencyFundMonths: s.emergencyFundMonths, target: s.emergencyFundTargetMonths },
+        assumptions: [],
+      }),
+    },
+    {
+      id: 'discretionary-spend-increase',
+      priority: 'medium',
+      condition: (s) => s.discretionarySpendChangePct !== null && s.discretionarySpendChangePct > 0.15,
+      build: (s) => ({
+        title: 'Discretionary spending has increased',
+        reason: `Discretionary spending is up ${(s.discretionarySpendChangePct * 100).toFixed(0)}% compared with your recent average.`,
+        financialImpact: 'If this continues, it reduces the surplus available for debt, savings, or investing.',
+        suggestedAction: 'Review recent discretionary transactions to see whether this reflects a one-off or an ongoing change.',
+        numbers: { changePct: s.discretionarySpendChangePct, discretionary: s.essentialVsDiscretionary.discretionary },
+        assumptions: [],
+      }),
+    },
+    {
+      id: 'investment-opportunity',
+      priority: 'low',
+      condition: (s) => s.investmentReadiness.readiness === 'ready_to_invest' && s.availableSurplus > 0,
+      build: (s) => ({
+        title: 'Consider increasing your investment contribution',
+        reason: s.investmentReadiness.reasons.join(' '),
+        financialImpact: `You have an unallocated monthly surplus of ${s.availableSurplus.toFixed(2)}.`,
+        suggestedAction: 'Once debt and emergency fund priorities above are addressed, direct some of this surplus toward long-term investing.',
+        numbers: { availableSurplus: s.availableSurplus },
+        assumptions: ['Investment returns are never guaranteed \u2014 see the Investments section for your own return assumptions.'],
+      }),
+    },
+  ];
+
+  /**
+   * Evaluates every rule against a FinancialSnapshot and returns the
+   * matching recommendations, sorted high \u2192 medium \u2192 low priority.
+   * @param {FinancialSnapshot} snapshot
+   */
+  function generateRecommendations(snapshot) {
+    return RULES.filter((rule) => rule.condition(snapshot))
+      .map((rule) => ({ id: rule.id, priority: rule.priority, ...rule.build(snapshot) }))
+      .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
+  }
+
+  WR.recommendations = { RULES, generateRecommendations };
+})();
+// Excel import/export, built on SheetJS (loaded via CDN in index.html as
+// the global `XLSX`). Deliberately uses a generic column-mapping approach
+// rather than hardcoded cell ranges tied to one exact workbook layout —
+// hardcoded ranges break the moment a row shifts; column mapping survives
+// minor structural differences and works with any spreadsheet, not just
+// the exact source workbook this project started from.
+//
+// Workflow: parse workbook -> list sheets -> user picks a sheet + maps its
+// columns to WealthRoute fields -> preview -> confirm -> import as
+// BudgetLine records for the current month.
+
+window.WR = window.WR || {};
+WR.excel = WR.excel || {};
+
+(function () {
+  /**
+   * Parses an uploaded file (ArrayBuffer) into a SheetJS workbook.
+   * @param {ArrayBuffer} arrayBuffer
+   */
+  function parseWorkbook(arrayBuffer) {
+    return XLSX.read(arrayBuffer, { type: 'array' });
+  }
+
+  /** @param {object} workbook */
+  function getSheetNames(workbook) {
+    return workbook.SheetNames;
+  }
+
+  /**
+   * Reads one sheet as an array of row objects, plus the header list for
+   * building a mapping UI. `headerRowIndex` (0-indexed) lets the caller
+   * point at whichever row actually holds column headers \u2014 not every
+   * spreadsheet has them in row 1 (this workbook's own month sheets, for
+   * example, have several header rows partway down the sheet). Blank
+   * header cells get a synthetic "Column X" label rather than being
+   * silently dropped, so every column stays mappable.
+   * @param {object} workbook
+   * @param {string} sheetName
+   * @param {number} [headerRowIndex] - 0-indexed row number, defaults to 0 (row 1)
+   */
+  function readSheetRows(workbook, sheetName, headerRowIndex) {
+    const startRow = headerRowIndex || 0;
+    const sheet = workbook.Sheets[sheetName];
+    const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, range: startRow, defval: '' });
+
+    const headerCells = aoa[0] || [];
+    const headers = headerCells.map((h, i) =>
+      h === '' || h === undefined || h === null ? `Column ${XLSX.utils.encode_col(i)}` : String(h),
+    );
+
+    const rows = aoa.slice(1)
+      .filter((rowArr) => rowArr.some((cell) => cell !== '' && cell !== undefined)) // skip fully blank rows
+      .map((rowArr) => {
+        const obj = {};
+        headers.forEach((h, i) => {
+          obj[h] = rowArr[i] !== undefined ? rowArr[i] : '';
+        });
+        return obj;
+      });
+
+    return { headers, rows };
+  }
+
+  /**
+   * Validates a single mapped row before import. Returns a list of problems
+   * (empty = valid) rather than throwing, so the caller can show every issue
+   * in the preview instead of stopping at the first bad row.
+   * @param {Object} row - already mapped to { name, amount, type, month, categoryId }
+   */
+  function validateImportRow(row) {
+    const problems = [];
+    if (!row.name || String(row.name).trim() === '') problems.push('Missing name/description');
+    if (row.amount === undefined || row.amount === '' || Number.isNaN(Number(row.amount))) {
+      problems.push('Missing or invalid amount');
+    }
+    if (!['income', 'fixed', 'variable', 'savings', 'debtPayment'].includes(row.type)) {
+      problems.push(`Invalid type "${row.type}"`);
+    }
+    if (!/^\d{4}-\d{2}$/.test(row.month || '')) problems.push('Month must be in YYYY-MM format');
+    return problems;
+  }
+
+  /**
+   * Parses a spreadsheet cell into a number, handling currency symbols,
+   * thousands separators, and accounting-style negatives like "(500.00)"
+   * (parentheses meaning negative, common in exported financial data).
+   * @param {*} raw
+   */
+  function parseAmount(raw) {
+    const str = String(raw ?? '').trim();
+    const isParenNegative = /^\(.*\)$/.test(str);
+    const cleaned = str.replace(/[^\d.-]/g, '');
+    const value = parseFloat(cleaned);
+    if (Number.isNaN(value)) return NaN;
+    return isParenNegative ? -Math.abs(value) : value;
+  }
+
+  /**
+   * Applies a column mapping to raw sheet rows, producing WealthRoute
+   * BudgetLine-shaped records (not yet saved). `mapping` keys are
+   * WealthRoute field names, values are the source column header to read
+   * from each raw row. `constants` supplies fields not present as columns
+   * (e.g. a fixed month or type for the whole import).
+   *
+   * @param {Array<Object>} rawRows
+   * @param {{name?: string, amount?: string, type?: string, month?: string, currency?: string}} mapping
+   * @param {{type?: string, month?: string, currency?: string}} constants
+   */
+  function applyMapping(rawRows, mapping, constants) {
+    return rawRows.map((raw) => {
+      const name = mapping.name ? raw[mapping.name] : undefined;
+      const amountRaw = mapping.amount ? raw[mapping.amount] : undefined;
+      const amount = typeof amountRaw === 'number' ? amountRaw : parseAmount(amountRaw);
+      const type = constants.type || (mapping.type ? raw[mapping.type] : undefined);
+      const month = constants.month || (mapping.month ? raw[mapping.month] : undefined);
+      const currency = constants.currency || (mapping.currency ? raw[mapping.currency] : 'ZAR');
+
+      return { name, amount, type, month, currency };
+    });
+  }
+
+  /**
+   * Imports validated rows as BudgetLine records via the repository layer.
+   * Rows that fail validation are skipped and returned separately, rather
+   * than silently importing bad data.
+   * @param {Array<Object>} mappedRows
+   */
+  async function importBudgetLines(mappedRows) {
+    const imported = [];
+    const rejected = [];
+
+    for (const row of mappedRows) {
+      const problems = validateImportRow(row);
+      if (problems.length > 0) {
+        rejected.push({ row, problems });
+        continue;
+      }
+      const line = WR.models.createBudgetLine({
+        month: row.month,
+        type: row.type,
+        name: row.name,
+        budgetAmount: Number(row.amount),
+        actualAmount: Number(row.amount),
+        currency: row.currency || 'ZAR',
+      });
+      await WR.repos.budgetLines.add(line);
+      imported.push(line);
+    }
+
+    return { imported, rejected };
+  }
+
+  /**
+   * Exports all current data as a multi-sheet workbook: one sheet per
+   * entity. This intentionally does not attempt to reproduce the exact
+   * 16-sheet source template (Annual Overview + 12 month sheets + Networth
+   * + Goal/Habit trackers) — it exports WealthRoute's own normalised data
+   * model instead, which is what round-trips cleanly.
+   */
+  async function exportWorkbook() {
+    const [budgetLines, debts, assets, investments, netWorthSnapshots] = await Promise.all([
+      WR.repos.budgetLines.getAll(),
+      WR.repos.debts.getAll(),
+      WR.repos.assets.getAll(),
+      WR.repos.investments.getAll(),
+      WR.repos.netWorthSnapshots.getAll(),
+    ]);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(budgetLines), 'Budget Lines');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(debts), 'Debts');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(assets), 'Assets');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(investments), 'Investments');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(netWorthSnapshots), 'Net Worth History');
+
+    XLSX.writeFile(wb, `wealthroute-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
+  WR.excel = {
+    parseWorkbook,
+    getSheetNames,
+    readSheetRows,
+    validateImportRow,
+    parseAmount,
+    applyMapping,
+    importBudgetLines,
+    exportWorkbook,
+  };
+})();
+// Hand-rolled SVG charts. No charting library — the whole point of this
+// project is staying dependency-light, and bar/line charts don't need one.
+
+window.WR = window.WR || {};
+WR.charts = WR.charts || {};
+
+(function () {
+  const PALETTE = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-1)'];
+
+  function escapeXml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
+  }
+
+  /**
+   * @param {Array<{label: string, value: number}>} data
+   * @param {{width?: number, height?: number, color?: string}} [options]
+   */
+  function barChart(data, options) {
+    const opts = options || {};
+    const width = opts.width || 480;
+    const height = opts.height || 240;
+    const padding = 32;
+    const chartW = width - padding * 2;
+    const chartH = height - padding * 2;
+
+    if (data.length === 0) {
+      return `<svg width="${width}" height="${height}"><text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#888">No data</text></svg>`;
+    }
+
+    const maxVal = Math.max(...data.map((d) => d.value), 0.01);
+    const barWidth = chartW / data.length;
+
+    const bars = data
+      .map((d, i) => {
+        const barH = (Math.max(d.value, 0) / maxVal) * chartH;
+        const x = padding + i * barWidth + barWidth * 0.15;
+        const y = padding + (chartH - barH);
+        const w = barWidth * 0.7;
+        const color = opts.color || PALETTE[i % PALETTE.length];
+        return `
+          <rect x="${x}" y="${y}" width="${w}" height="${barH}" fill="${color}" rx="2"></rect>
+          <text x="${x + w / 2}" y="${height - padding + 14}" text-anchor="middle" font-size="10" fill="#444">${escapeXml(d.label)}</text>
+          <text x="${x + w / 2}" y="${y - 4}" text-anchor="middle" font-size="10" fill="#222">${d.value.toFixed(0)}</text>
+        `;
+      })
+      .join('');
+
+    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
+  }
+
+  /**
+   * @param {Array<{label: string, value: number}>} data - ordered chronologically
+   * @param {{width?: number, height?: number, color?: string}} [options]
+   */
+  function lineChart(data, options) {
+    const opts = options || {};
+    const width = opts.width || 480;
+    const height = opts.height || 240;
+    const padding = 32;
+    const chartW = width - padding * 2;
+    const chartH = height - padding * 2;
+
+    if (data.length === 0) {
+      return `<svg width="${width}" height="${height}"><text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#888">No data</text></svg>`;
+    }
+
+    const values = data.map((d) => d.value);
+    const maxVal = Math.max(...values);
+    const minVal = Math.min(...values, 0);
+    const range = maxVal - minVal || 1;
+    const stepX = data.length > 1 ? chartW / (data.length - 1) : 0;
+    const color = opts.color || PALETTE[0];
+
+    const points = data.map((d, i) => {
+      const x = padding + i * stepX;
+      const y = padding + chartH - ((d.value - minVal) / range) * chartH;
+      return { x, y, label: d.label, value: d.value };
+    });
+
+    const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+    const dots = points
+      .map(
+        (p) =>
+          `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${color}"><title>${escapeXml(p.label)}: ${p.value.toFixed(2)}</title></circle>`,
+      )
+      .join('');
+    const labels = points
+      .map((p, i) => (i % Math.ceil(points.length / 8 || 1) === 0
+        ? `<text x="${p.x.toFixed(1)}" y="${height - padding + 14}" text-anchor="middle" font-size="9" fill="#444">${escapeXml(p.label)}</text>`
+        : ''))
+      .join('');
+
+    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="2"></path>
+      ${dots}
+      ${labels}
+    </svg>`;
+  }
+
+  WR.charts = { barChart, lineChart };
+})();
+// Theme management: defaults to the system preference, persists an
+// explicit user choice in localStorage, applied via a data-theme attribute
+// on <html> that the CSS custom properties key off.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  const STORAGE_KEY = 'wr_theme';
+
+  function getStoredTheme() {
+    return localStorage.getItem(STORAGE_KEY);
+  }
+
+  function getSystemTheme() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    updateToggleIcon(theme);
+  }
+
+  function updateToggleIcon(theme) {
+    const btn = document.getElementById('theme-toggle-btn');
+    if (!btn) return;
+    // Sun icon when in dark mode (click to go light), moon icon when in
+    // light mode (click to go dark) \u2014 the icon shown is the destination.
+    btn.innerHTML = theme === 'dark' ? SUN_ICON : MOON_ICON;
+    btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+  }
+
+  const SUN_ICON =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>';
+  const MOON_ICON =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+
+  function initTheme() {
+    applyTheme(getStoredTheme() || getSystemTheme());
+  }
+
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || getSystemTheme();
+    const next = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(STORAGE_KEY, next);
+    applyTheme(next);
+  }
+
+  WR.ui.initTheme = initTheme;
+  WR.ui.toggleTheme = toggleTheme;
+  WR.ui.updateToggleIcon = updateToggleIcon;
+
+  // Runs immediately at script load, not on DOMContentLoaded \u2014
+  // document.documentElement already exists by the time this executes, and
+  // setting the attribute this early avoids a flash of the wrong theme
+  // before the rest of the page renders. The toggle button doesn't exist
+  // yet at this point; updateToggleIcon() is called again once the shell
+  // (with the button) is rendered.
+  applyTheme(getStoredTheme() || getSystemTheme());
+})();
+// Builds the FinancialSnapshot consumed by the dashboard, the health score,
+// and the recommendations engine. This is the one place raw stored records
+// get turned into computed financial state — every other view reads from
+// this rather than recomputing things its own way.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  function currentMonthKey(date) {
+    const d = date || new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  function previousMonthKey(monthKey) {
+    const [y, m] = monthKey.split('-').map(Number);
+    const d = new Date(y, m - 2, 1); // m is 1-indexed, so m-2 steps back one month
+    return currentMonthKey(d);
+  }
+
+  async function getOrCreateProfile() {
+    const profiles = await WR.repos.userProfile.getAll();
+    if (profiles.length > 0) return profiles[0];
+    const profile = WR.models.createUserProfile({
+      baseCurrency: 'ZAR',
+      country: 'South Africa',
+      emergencyFundTargetMonths: 3,
+      riskProfile: 'moderate',
+    });
+    await WR.repos.userProfile.add(profile);
+    return profile;
+  }
+
+  /**
+   * @param {string} [monthKey] - 'YYYY-MM', defaults to the current month
+   */
+  async function buildSnapshot(monthKey) {
+    const month = monthKey || currentMonthKey();
+    const prevMonth = previousMonthKey(month);
+
+    const [budgetLines, prevBudgetLines, debts, assets, investments, exchangeRates, expenseCategories, netWorthHistory, profile] =
+      await Promise.all([
+        WR.queries.getBudgetLinesByMonth(month),
+        WR.queries.getBudgetLinesByMonth(prevMonth),
+        WR.repos.debts.getAll(),
+        WR.repos.assets.getAll(),
+        WR.repos.investments.getAll(),
+        WR.repos.exchangeRates.getAll(),
+        WR.repos.expenseCategories.getAll(),
+        WR.queries.getNetWorthHistory(),
+        getOrCreateProfile(),
+      ]);
+
+    const F = WR.financial;
+    const cashflow = F.calculateCashFlowSummary(budgetLines);
+    const split = F.calculateEssentialVsDiscretionary(budgetLines, expenseCategories);
+    const prevSplit = F.calculateEssentialVsDiscretionary(prevBudgetLines, expenseCategories);
+
+    const totalDebt = F.calculateTotalDebt(debts);
+    const debtToIncomeRatio = F.calculateDebtToIncomeRatio(debts, cashflow.income);
+    const highestInterestDebt = F.getHighestInterestDebt(debts);
+
+    const liquidAssets = F.calculateLiquidAssets(assets);
+    // Fall back to fixed expenses as a rough proxy for "essential monthly
+    // expenses" when no categories have been tagged essential yet.
+    const essentialMonthlyExpenses = split.essential > 0 ? split.essential : cashflow.fixedExpenses;
+    const emergencyFundMonths = F.calculateEmergencyFundMonths(liquidAssets, essentialMonthlyExpenses);
+
+    const netWorth = F.calculateNetWorth(assets, investments, debts, exchangeRates, profile.baseCurrency);
+
+    const assumedInvestmentReturn = profile.assumedInvestmentReturn || 0.08;
+
+    const investmentReadiness = F.assessInvestmentReadiness({
+      emergencyFundMonths,
+      emergencyFundTargetMonths: profile.emergencyFundTargetMonths,
+      highestDebtInterestRate: highestInterestDebt ? highestInterestDebt.interestRate : null,
+      assumedInvestmentReturn,
+      availableSurplus: cashflow.availableSurplus,
+    });
+
+    const healthScore = F.calculateFinancialHealthScore({
+      income: cashflow.income,
+      availableSurplus: cashflow.availableSurplus,
+      savingsRate: cashflow.savingsRate,
+      emergencyFundMonths,
+      emergencyFundTargetMonths: profile.emergencyFundTargetMonths,
+      debtToIncomeRatio,
+      netWorthHistory,
+    });
+
+    let discretionarySpendChangePct = null;
+    if (prevSplit.discretionary > 0) {
+      discretionarySpendChangePct = (split.discretionary - prevSplit.discretionary) / prevSplit.discretionary;
+    }
+
+    const snapshot = {
+      month,
+      profile,
+      cashflow,
+      income: cashflow.income,
+      availableSurplus: cashflow.availableSurplus,
+      savingsRate: cashflow.savingsRate,
+      essentialVsDiscretionary: split,
+      discretionarySpendChangePct,
+      totalDebt,
+      debtToIncomeRatio,
+      highestInterestDebt,
+      emergencyFundMonths,
+      emergencyFundTargetMonths: profile.emergencyFundTargetMonths,
+      netWorth,
+      assumedInvestmentReturn,
+      investmentReadiness,
+      healthScore,
+      debts,
+      assets,
+      investments,
+      netWorthHistory,
+      budgetLines,
+    };
+
+    snapshot.recommendations = WR.recommendations.generateRecommendations(snapshot);
+    return snapshot;
+  }
+
+  WR.ui.currentMonthKey = currentMonthKey;
+  WR.ui.previousMonthKey = previousMonthKey;
+  WR.ui.getOrCreateProfile = getOrCreateProfile;
+  WR.ui.buildSnapshot = buildSnapshot;
+})();
+// UI layer, part 1: layout shell, DOM helpers, and the Dashboard view.
+// Direct DOM manipulation, no framework — innerHTML for structure,
+// addEventListener for behaviour, re-render on data changes.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  function fmt(n) {
+    return (Number(n) || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function pct(n) {
+    return `${((Number(n) || 0) * 100).toFixed(1)}%`;
+  }
+  function el(html) {
+    const template = document.createElement('template');
+    template.innerHTML = html.trim();
+    return template.content.firstElementChild;
+  }
+
+  /**
+   * Briefly flashes an element to confirm an inline edit actually saved \u2014
+   * cell edits save silently otherwise, with no visual confirmation.
+   * @param {HTMLElement} element
+   */
+  function flashSaved(element) {
+    if (!element) return;
+    element.classList.add('just-saved');
+    setTimeout(() => element.classList.remove('just-saved'), 700);
+  }
+
+  const NAV_ITEMS = [
+    { hash: '#/dashboard', label: 'Dashboard' },
+    { hash: '#/transactions', label: 'Transactions' },
+    { hash: '#/debts', label: 'Debts' },
+    { hash: '#/assets', label: 'Assets' },
+    { hash: '#/investments', label: 'Investments' },
+    { hash: '#/forecast', label: 'Forecast' },
+    { hash: '#/reports', label: 'Reports' },
+    { hash: '#/spreadsheet', label: 'Spreadsheet' },
+    { hash: '#/excel', label: 'Excel' },
+    { hash: '#/assistant', label: 'Wealth Assistant' },
+    { hash: '#/settings', label: 'Settings' },
+  ];
+
+  function renderShell() {
+    const nav = NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
+    document.getElementById('app').innerHTML = `
+      <header class="topbar">
+        <div class="brand">
+          <svg class="brand-mark" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M2 18 C 7 18, 7 8, 12 8 S 17 18, 22 18" stroke-width="1.6" stroke-dasharray="1 3.2" stroke-linecap="round"></path>
+            <circle cx="22" cy="18" r="2"></circle>
+          </svg>
+          WealthRoute
+        </div>
+        <nav id="nav">${nav}</nav>
+        <button id="theme-toggle-btn" class="theme-toggle" type="button"></button>
+      </header>
+      <main id="content"></main>
+    `;
+    WR.ui.updateToggleIcon(document.documentElement.getAttribute('data-theme') || 'light');
+    document.getElementById('theme-toggle-btn').addEventListener('click', WR.ui.toggleTheme);
+  }
+
+  function setActiveNav(hash) {
+    document.querySelectorAll('#nav a').forEach((a) => {
+      a.classList.toggle('active', a.getAttribute('data-hash') === hash);
+    });
+  }
+
+  function priorityBadge(priority) {
+    const labels = { high: 'High priority', medium: 'Medium priority', low: 'Later' };
+    return `<span class="badge p-${priority}">${labels[priority]}</span>`;
+  }
+
+  async function renderDashboard(container) {
+    container.innerHTML = '<p class="loading">Loading your financial position\u2026</p>';
+    const snapshot = await WR.ui.buildSnapshot();
+    const s = snapshot;
+    const currency = s.profile.baseCurrency;
+
+    const recsHtml = s.recommendations.length
+      ? s.recommendations
+          .map(
+            (r, i) => `
+        <div class="rec-card p-${r.priority}">
+          <div class="rec-head">
+            <span class="rec-index">${i + 1}.</span>
+            <span class="rec-title">${r.title}</span>
+            ${priorityBadge(r.priority)}
+          </div>
+          <p class="rec-reason"><strong>Reason:</strong> ${r.reason}</p>
+          <p class="rec-impact"><strong>Financial impact:</strong> ${r.financialImpact}</p>
+          <p class="rec-action"><strong>Suggested action:</strong> ${r.suggestedAction}</p>
+          ${r.assumptions && r.assumptions.length ? `<p class="rec-assumptions"><strong>Assumptions:</strong> ${r.assumptions.join(' ')}</p>` : ''}
+        </div>`,
+          )
+          .join('')
+      : '<p class="empty">No urgent recommendations right now \u2014 add income, expenses, debts and assets to get personalised guidance.</p>';
+
+    const cashflowChart = WR.charts.barChart(
+      [
+        { label: 'Income', value: s.cashflow.income },
+        { label: 'Fixed', value: s.cashflow.fixedExpenses },
+        { label: 'Variable', value: s.cashflow.variableExpenses },
+        { label: 'Savings', value: s.cashflow.savings },
+        { label: 'Debt pmt', value: s.cashflow.debtPayments },
+      ],
+      { width: 460, height: 220 },
+    );
+
+    const netWorthChart = WR.charts.lineChart(
+      s.netWorthHistory.map((h) => ({ label: h.date, value: h.netWorth })),
+      { width: 460, height: 220 },
+    );
+
+    container.innerHTML = `
+      <section class="hero">
+        <h1>Your Financial Position</h1>
+        <p class="month-label">${s.month}</p>
+
+        <div class="hero-headline">
+          <span class="stat-label">Net Worth</span>
+          <span class="hero-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat"><span class="stat-label">Monthly Income</span><span class="stat-value">${currency} ${fmt(s.income)}</span></div>
+          <div class="stat"><span class="stat-label">Monthly Expenses</span><span class="stat-value">${currency} ${fmt(s.cashflow.totalExpenses)}</span></div>
+          <div class="stat"><span class="stat-label">Available Surplus</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
+          <div class="stat"><span class="stat-label">Total Debt</span><span class="stat-value">${currency} ${fmt(s.totalDebt)}</span></div>
+          <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${Number.isFinite(s.emergencyFundMonths) ? s.emergencyFundMonths.toFixed(1) : '\u221e'} months</span></div>
+        </div>
+      </section>
+
+      <section class="health-score">
+        <h2>Financial Health: ${s.healthScore.score}/100</h2>
+        <div class="score-breakdown">
+          <div>Cash flow: ${s.healthScore.breakdown.cashFlow.toFixed(0)}</div>
+          <div>Emergency fund: ${s.healthScore.breakdown.emergencyFund.toFixed(0)}</div>
+          <div>Debt burden: ${s.healthScore.breakdown.debtBurden.toFixed(0)}</div>
+          <div>Savings rate: ${s.healthScore.breakdown.savingsRate.toFixed(0)}</div>
+          <div>Net worth trend: ${s.healthScore.breakdown.netWorthTrend.toFixed(0)}</div>
+        </div>
+        <p class="fine-print">Every component above is a plain formula \u2014 see Settings for how the emergency fund target and other assumptions are set.</p>
+      </section>
+
+      <section class="recommendations">
+        <h2>What Should I Do Now?</h2>
+        ${recsHtml}
+      </section>
+
+      <section class="charts">
+        <div class="chart-block">
+          <h3>This Month's Cash Flow</h3>
+          ${cashflowChart}
+        </div>
+        <div class="chart-block">
+          <h3>Net Worth History</h3>
+          ${netWorthChart}
+          <button id="snapshot-networth-btn" class="secondary">Record today's net worth snapshot</button>
+        </div>
+      </section>
+    `;
+
+    document.getElementById('snapshot-networth-btn').addEventListener('click', async () => {
+      const snap = WR.models.createNetWorthSnapshot({
+        date: new Date().toISOString().slice(0, 10),
+        totalAssets: s.netWorth.totalAssets,
+        totalLiabilities: s.netWorth.totalLiabilities,
+        netWorth: s.netWorth.netWorth,
+        currency: s.profile.baseCurrency,
+      });
+      await WR.repos.netWorthSnapshots.add(snap);
+      WR.ui.renderDashboard(container);
+    });
+  }
+
+  WR.ui.fmt = fmt;
+  WR.ui.pct = pct;
+  WR.ui.el = el;
+  WR.ui.flashSaved = flashSaved;
+  WR.ui.NAV_ITEMS = NAV_ITEMS;
+  WR.ui.renderShell = renderShell;
+  WR.ui.setActiveNav = setActiveNav;
+  WR.ui.priorityBadge = priorityBadge;
+  WR.ui.renderDashboard = renderDashboard;
+})();
+// Transactions / Budget view: manage income, fixed, variable, savings and
+// debt-payment lines for a selected month. Every cell is directly editable,
+// sortable by column, category-taggable, and confirms before deleting.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  const TYPE_LABELS = {
+    income: 'Income',
+    fixed: 'Fixed expense',
+    variable: 'Variable expense',
+    savings: 'Savings/Investment',
+    debtPayment: 'Debt payment',
+  };
+
+  const SORTABLE_COLUMNS = [
+    { field: 'type', label: 'Type' },
+    { field: 'name', label: 'Name' },
+    { field: 'categoryName', label: 'Category' },
+    { field: 'budgetAmount', label: 'Budget' },
+    { field: 'actualAmount', label: 'Actual' },
+    { field: 'diff', label: 'Diff' },
+  ];
+
+  function typeOptions(selected) {
+    return Object.entries(TYPE_LABELS)
+      .map(([v, l]) => `<option value="${v}" ${v === selected ? 'selected' : ''}>${l}</option>`)
+      .join('');
+  }
+
+  function categoryOptions(categories, selectedId) {
+    return (
+      `<option value="">\u2014 none \u2014</option>` +
+      categories.map((c) => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.name}</option>`).join('')
+    );
+  }
+
+  function sortLines(lines, categoriesById, sort) {
+    const withDerived = lines.map((l) => ({
+      ...l,
+      categoryName: l.categoryId && categoriesById[l.categoryId] ? categoriesById[l.categoryId].name : '',
+      diff: l.actualAmount - l.budgetAmount,
+    }));
+    withDerived.sort((a, b) => {
+      const av = a[sort.field];
+      const bv = b[sort.field];
+      const cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+      return sort.dir === 'asc' ? cmp : -cmp;
+    });
+    return withDerived;
+  }
+
+  async function renderTransactions(container) {
+    const month = WR.ui._transactionsMonth || WR.ui.currentMonthKey();
+    WR.ui._transactionsMonth = month;
+    const sort = WR.ui._transactionsSort || { field: 'type', dir: 'asc' };
+    WR.ui._transactionsSort = sort;
+
+    const [lines, profile, categories] = await Promise.all([
+      WR.queries.getBudgetLinesByMonth(month),
+      WR.ui.getOrCreateProfile(),
+      WR.repos.expenseCategories.getAll(),
+    ]);
+    const categoriesById = Object.fromEntries(categories.map((c) => [c.id, c]));
+
+    const sortedLines = sortLines(lines, categoriesById, sort);
+
+    const headerCells = SORTABLE_COLUMNS.map(
+      (col) =>
+        `<th class="sortable" data-sort-field="${col.field}">${col.label}${sort.field === col.field ? (sort.dir === 'asc' ? ' \u2191' : ' \u2193') : ''}</th>`,
+    ).join('');
+
+    const rows = sortedLines
+      .map(
+        (l) => `
+      <tr data-id="${l.id}">
+        <td><select class="cell" data-field="type">${typeOptions(l.type)}</select></td>
+        <td><input class="cell" data-field="name" value="${l.name}"></td>
+        <td><select class="cell" data-field="categoryId">${categoryOptions(categories, l.categoryId)}</select></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="budgetAmount" value="${l.budgetAmount}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="actualAmount" value="${l.actualAmount}"></td>
+        <td class="num diff-cell">${WR.ui.fmt(l.diff)}</td>
+        <td><button class="link-btn delete-line" data-id="${l.id}">Delete</button></td>
+      </tr>`,
+      )
+      .join('');
+
+    container.innerHTML = `
+      <h1>Transactions</h1>
+      <div class="toolbar">
+        <label>Month:
+          <input type="month" id="month-picker" value="${month}">
+        </label>
+      </div>
+      <p class="fine-print">Edit any cell \u2014 changes save immediately. Click a column header to sort. Categories are managed in Settings.</p>
+
+      <table class="data-table">
+        <thead><tr>${headerCells}<th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" class="empty">No lines yet for this month \u2014 add one below.</td></tr>'}</tbody>
+      </table>
+
+      <h3>Add a line</h3>
+      <form id="add-line-form" class="inline-form">
+        <select name="type" required>${typeOptions()}</select>
+        <input name="name" placeholder="Name (e.g. Salary, Rent)" required>
+        <select name="categoryId">${categoryOptions(categories)}</select>
+        <input name="budgetAmount" type="number" step="0.01" min="0" placeholder="Budget" required>
+        <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Actual" required>
+        <button type="submit">Add</button>
+      </form>
+    `;
+
+    document.getElementById('month-picker').addEventListener('change', (e) => {
+      WR.ui._transactionsMonth = e.target.value;
+      renderTransactions(container);
+    });
+
+    container.querySelectorAll('th.sortable').forEach((th) => {
+      th.addEventListener('click', () => {
+        const field = th.dataset.sortField;
+        if (sort.field === field) {
+          sort.dir = sort.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          WR.ui._transactionsSort = { field, dir: 'asc' };
+        }
+        renderTransactions(container);
+      });
+    });
+
+    container.querySelectorAll('tbody tr').forEach((tr) => {
+      const id = tr.dataset.id;
+      tr.querySelectorAll('.cell').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const line = await WR.repos.budgetLines.getById(id);
+          if (!line) return;
+          const field = input.dataset.field;
+          if (field === 'budgetAmount' || field === 'actualAmount') {
+            line[field] = Math.max(0, parseFloat(input.value) || 0);
+            input.value = line[field];
+          } else if (field === 'categoryId') {
+            line.categoryId = input.value || undefined;
+          } else {
+            line[field] = input.value;
+          }
+          await WR.repos.budgetLines.update(line);
+          WR.ui.flashSaved(input);
+
+          const diffCell = tr.querySelector('.diff-cell');
+          if (diffCell) diffCell.textContent = WR.ui.fmt(line.actualAmount - line.budgetAmount);
+        });
+      });
+    });
+
+    container.querySelectorAll('.delete-line').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this transaction? This cannot be undone.')) return;
+        await WR.repos.budgetLines.remove(btn.dataset.id);
+        renderTransactions(container);
+      });
+    });
+
+    document.getElementById('add-line-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const line = WR.models.createBudgetLine({
+        month,
+        type: form.type.value,
+        name: form.name.value,
+        categoryId: form.categoryId.value || undefined,
+        budgetAmount: Math.max(0, parseFloat(form.budgetAmount.value) || 0),
+        actualAmount: Math.max(0, parseFloat(form.actualAmount.value) || 0),
+        currency: profile.baseCurrency,
+      });
+      await WR.repos.budgetLines.add(line);
+      renderTransactions(container);
+    });
+  }
+
+  WR.ui.renderTransactions = renderTransactions;
+})();
+// Debts view: manage debts (inline-editable), then run the
+// avalanche/snowball/hybrid prioritisation engine with an adjustable extra
+// payment. Editing a debt only re-renders the payoff projection section,
+// not the whole table \u2014 so the row you're editing keeps focus.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  const CURRENCIES = ['ZAR', 'USD', 'EUR', 'GBP'];
+
+  function currencyOptions(selected) {
+    return CURRENCIES.map((c) => `<option value="${c}" ${c === selected ? 'selected' : ''}>${c}</option>`).join('');
+  }
+
+  function computePayoffHtml(debts, strategy, extra, profile) {
+    if (debts.length === 0) return '<p class="empty">Add a debt to see a payoff projection.</p>';
+
+    let orderedDebts = [];
+    if (strategy === 'avalanche') orderedDebts = WR.financial.orderDebtsAvalanche(debts);
+    else if (strategy === 'snowball') orderedDebts = WR.financial.orderDebtsSnowball(debts);
+    else orderedDebts = WR.financial.orderDebtsHybrid(debts);
+
+    const saved = WR.financial.calculateInterestSaved(orderedDebts, extra);
+    const orderList = saved.withExtra.payoffOrder
+      .map((p, i) => `<li>${i + 1}. ${p.name} \u2014 paid off in ${p.monthsToPayoff ?? '50+ years (capped)'} months</li>`)
+      .join('');
+
+    return `
+      <p><strong>Payoff order (${strategy}):</strong></p>
+      <ol>${orderList}</ol>
+      <p>Total time to debt-free: <strong>${saved.withExtra.months} months</strong> ${saved.monthsSaved > 0 ? `(${saved.monthsSaved} months sooner than paying only minimums)` : ''}</p>
+      <p>Total interest paid: <strong>${profile.baseCurrency} ${WR.ui.fmt(saved.withExtra.totalInterestPaid)}</strong> ${saved.interestSaved > 0 ? `(${profile.baseCurrency} ${WR.ui.fmt(saved.interestSaved)} saved vs. minimums only)` : ''}</p>
+      ${saved.withExtra.reachedSafetyCap ? '<p class="warning">This extra payment amount is not enough to ever clear the balance at the current interest rate \u2014 try a larger amount.</p>' : ''}
+    `;
+  }
+
+  async function refreshPayoffSection(container) {
+    const debts = await WR.repos.debts.getAll();
+    const profile = await WR.ui.getOrCreateProfile();
+    const strategy = WR.ui._debtStrategy || 'avalanche';
+    const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
+    const section = container.querySelector('.payoff-results');
+    if (section) section.innerHTML = computePayoffHtml(debts, strategy, extra, profile);
+  }
+
+  async function renderDebts(container) {
+    const debts = await WR.repos.debts.getAll();
+    const profile = await WR.ui.getOrCreateProfile();
+    const strategy = WR.ui._debtStrategy || 'avalanche';
+    const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
+
+    const rows = debts
+      .map(
+        (d) => `
+      <tr data-id="${d.id}">
+        <td><input class="cell" data-field="name" value="${d.name}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentBalance" value="${d.currentBalance}"></td>
+        <td><select class="cell" data-field="currency">${currencyOptions(d.currency || profile.baseCurrency)}</select></td>
+        <td><input class="cell num" type="number" step="0.1" min="0" data-field="interestRatePct" value="${(d.interestRate * 100).toFixed(2)}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="minPayment" value="${d.minPayment}"></td>
+        <td><button class="link-btn delete-debt" data-id="${d.id}">Delete</button></td>
+      </tr>`,
+      )
+      .join('');
+
+    container.innerHTML = `
+      <h1>Debts</h1>
+      <p class="fine-print">Edit any cell \u2014 changes save immediately and update the payoff projection below.</p>
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Balance</th><th>Currency</th><th>Interest rate %/yr</th><th>Min. payment</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6" class="empty">No debts recorded.</td></tr>'}</tbody>
+      </table>
+
+      <h3>Add a debt</h3>
+      <form id="add-debt-form" class="inline-form">
+        <input name="name" placeholder="Name (e.g. Credit Card)" required>
+        <input name="currentBalance" type="number" step="0.01" min="0" placeholder="Current balance" required>
+        <select name="currency">${currencyOptions(profile.baseCurrency)}</select>
+        <input name="interestRate" type="number" step="0.1" min="0" placeholder="Interest rate % / year" required>
+        <input name="minPayment" type="number" step="0.01" min="0" placeholder="Minimum payment" required>
+        <button type="submit">Add</button>
+      </form>
+
+      <h2>Payoff Strategy</h2>
+      <div class="toolbar">
+        <label>Strategy:
+          <select id="strategy-picker">
+            <option value="avalanche" ${strategy === 'avalanche' ? 'selected' : ''}>Avalanche (highest interest first)</option>
+            <option value="snowball" ${strategy === 'snowball' ? 'selected' : ''}>Snowball (smallest balance first)</option>
+            <option value="hybrid" ${strategy === 'hybrid' ? 'selected' : ''}>Hybrid</option>
+          </select>
+        </label>
+        <label>Extra monthly payment:
+          <input type="number" id="extra-payment" step="10" min="0" value="${extra}">
+        </label>
+      </div>
+      <div class="payoff-results">${computePayoffHtml(debts, strategy, extra, profile)}</div>
+    `;
+
+    container.querySelectorAll('tbody tr').forEach((tr) => {
+      const id = tr.dataset.id;
+      tr.querySelectorAll('.cell').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const debt = await WR.repos.debts.getById(id);
+          if (!debt) return;
+          const field = input.dataset.field;
+          if (field === 'interestRatePct') {
+            debt.interestRate = Math.max(0, parseFloat(input.value) || 0) / 100;
+          } else if (field === 'name' || field === 'currency') {
+            debt[field] = input.value;
+          } else {
+            debt[field] = Math.max(0, parseFloat(input.value) || 0);
+            input.value = debt[field];
+          }
+          await WR.repos.debts.update(debt);
+          WR.ui.flashSaved(input);
+          // Only the payoff projection needs to update \u2014 not the whole
+          // table \u2014 so the row being edited doesn't lose focus.
+          refreshPayoffSection(container);
+        });
+      });
+    });
+
+    container.querySelectorAll('.delete-debt').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this debt? This cannot be undone.')) return;
+        await WR.repos.debts.remove(btn.dataset.id);
+        renderDebts(container);
+      });
+    });
+
+    document.getElementById('add-debt-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const debt = WR.models.createDebt({
+        name: form.name.value,
+        currentBalance: Math.max(0, parseFloat(form.currentBalance.value) || 0),
+        currency: form.currency.value,
+        interestRate: Math.max(0, parseFloat(form.interestRate.value) || 0) / 100,
+        minPayment: Math.max(0, parseFloat(form.minPayment.value) || 0),
+      });
+      await WR.repos.debts.add(debt);
+      renderDebts(container);
+    });
+
+    document.getElementById('strategy-picker').addEventListener('change', (e) => {
+      WR.ui._debtStrategy = e.target.value;
+      refreshPayoffSection(container);
+    });
+    document.getElementById('extra-payment').addEventListener('change', (e) => {
+      WR.ui._debtExtra = Math.max(0, parseFloat(e.target.value) || 0);
+      e.target.value = WR.ui._debtExtra;
+      refreshPayoffSection(container);
+    });
+  }
+
+  WR.ui.renderDebts = renderDebts;
+})();
+// Assets and Investments views. Both inline-editable, matching the pattern
+// used across Transactions, Debts, and Spreadsheet: edits flash to confirm
+// they saved, values can't go negative, deletes ask for confirmation first.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  const CURRENCIES = ['ZAR', 'USD', 'EUR', 'GBP'];
+  const LIQUIDITY_LEVELS = ['high', 'medium', 'low'];
+  const RISK_LEVELS = ['low', 'medium', 'high'];
+
+  function optionsFor(list, selected, labelFn) {
+    return list.map((v) => `<option value="${v}" ${v === selected ? 'selected' : ''}>${labelFn ? labelFn(v) : v}</option>`).join('');
+  }
+
+  async function renderAssets(container) {
+    const assets = await WR.repos.assets.getAll();
+    const rows = assets
+      .map(
+        (a) => `
+      <tr data-id="${a.id}">
+        <td><input class="cell" data-field="name" value="${a.name}"></td>
+        <td><input class="cell" data-field="type" value="${a.type}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentValue" value="${a.currentValue}"></td>
+        <td><select class="cell" data-field="currency">${optionsFor(CURRENCIES, a.currency)}</select></td>
+        <td><select class="cell" data-field="liquidity">${optionsFor(LIQUIDITY_LEVELS, a.liquidity || 'medium')}</select></td>
+        <td><button class="link-btn delete-asset" data-id="${a.id}">Delete</button></td>
+      </tr>`,
+      )
+      .join('');
+
+    container.innerHTML = `
+      <h1>Assets</h1>
+      <p class="fine-print">Edit any cell \u2014 changes save immediately. "High" liquidity counts toward your emergency fund calculation.</p>
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Type</th><th>Value</th><th>Currency</th><th>Liquidity</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6" class="empty">No assets recorded.</td></tr>'}</tbody>
+      </table>
+
+      <h3>Add an asset</h3>
+      <form id="add-asset-form" class="inline-form">
+        <input name="name" placeholder="Name (e.g. Cash, Car)" required>
+        <input name="type" placeholder="Type (e.g. cash, vehicle, property)" required>
+        <input name="currentValue" type="number" step="0.01" min="0" placeholder="Current value" required>
+        <select name="currency">${optionsFor(CURRENCIES)}</select>
+        <select name="liquidity">
+          <option value="high">High liquidity (counts toward emergency fund)</option>
+          <option value="medium">Medium liquidity</option>
+          <option value="low">Low liquidity</option>
+        </select>
+        <button type="submit">Add</button>
+      </form>
+    `;
+
+    container.querySelectorAll('tbody tr').forEach((tr) => {
+      const id = tr.dataset.id;
+      tr.querySelectorAll('.cell').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const asset = await WR.repos.assets.getById(id);
+          if (!asset) return;
+          const field = input.dataset.field;
+          if (field === 'currentValue') {
+            asset.currentValue = Math.max(0, parseFloat(input.value) || 0);
+            input.value = asset.currentValue;
+          } else {
+            asset[field] = input.value;
+          }
+          await WR.repos.assets.update(asset);
+          WR.ui.flashSaved(input);
+        });
+      });
+    });
+
+    container.querySelectorAll('.delete-asset').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this asset? This cannot be undone.')) return;
+        await WR.repos.assets.remove(btn.dataset.id);
+        renderAssets(container);
+      });
+    });
+
+    document.getElementById('add-asset-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const asset = WR.models.createAsset({
+        name: form.name.value,
+        type: form.type.value,
+        currentValue: Math.max(0, parseFloat(form.currentValue.value) || 0),
+        currency: form.currency.value,
+        liquidity: form.liquidity.value,
+      });
+      await WR.repos.assets.add(asset);
+      renderAssets(container);
+    });
+  }
+
+  async function renderInvestments(container) {
+    const investments = await WR.repos.investments.getAll();
+    const rows = investments
+      .map(
+        (inv) => `
+      <tr data-id="${inv.id}">
+        <td><input class="cell" data-field="name" value="${inv.name}"></td>
+        <td><input class="cell" data-field="type" value="${inv.type}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentValue" value="${inv.currentValue}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="totalContributions" value="${inv.totalContributions}"></td>
+        <td><select class="cell" data-field="currency">${optionsFor(CURRENCIES, inv.currency)}</select></td>
+        <td><select class="cell" data-field="riskCategory">${optionsFor(RISK_LEVELS, inv.riskCategory || 'medium')}</select></td>
+        <td><button class="link-btn delete-investment" data-id="${inv.id}">Delete</button></td>
+      </tr>`,
+      )
+      .join('');
+
+    container.innerHTML = `
+      <h1>Investments</h1>
+      <p class="fine-print">Manual tracking only \u2014 update values yourself as they change. No live market data. Edit any cell to update.</p>
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Type</th><th>Current value</th><th>Contributions</th><th>Currency</th><th>Risk</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" class="empty">No investments recorded.</td></tr>'}</tbody>
+      </table>
+
+      <h3>Add an investment</h3>
+      <form id="add-investment-form" class="inline-form">
+        <input name="name" placeholder="Name (e.g. Satrix ETF)" required>
+        <input name="type" placeholder="Type (e.g. etf, unit_trust, retirement_annuity)" required>
+        <input name="currentValue" type="number" step="0.01" min="0" placeholder="Current value" required>
+        <input name="totalContributions" type="number" step="0.01" min="0" placeholder="Total contributed" required>
+        <select name="currency">${optionsFor(CURRENCIES)}</select>
+        <select name="riskCategory">
+          <option value="low">Low risk</option>
+          <option value="medium">Medium risk</option>
+          <option value="high">High risk</option>
+        </select>
+        <button type="submit">Add</button>
+      </form>
+    `;
+
+    container.querySelectorAll('tbody tr').forEach((tr) => {
+      const id = tr.dataset.id;
+      tr.querySelectorAll('.cell').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const inv = await WR.repos.investments.getById(id);
+          if (!inv) return;
+          const field = input.dataset.field;
+          if (field === 'currentValue' || field === 'totalContributions') {
+            inv[field] = Math.max(0, parseFloat(input.value) || 0);
+            input.value = inv[field];
+          } else {
+            inv[field] = input.value;
+          }
+          await WR.repos.investments.update(inv);
+          WR.ui.flashSaved(input);
+        });
+      });
+    });
+
+    container.querySelectorAll('.delete-investment').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this investment? This cannot be undone.')) return;
+        await WR.repos.investments.remove(btn.dataset.id);
+        renderInvestments(container);
+      });
+    });
+
+    document.getElementById('add-investment-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const inv = WR.models.createInvestment({
+        name: form.name.value,
+        type: form.type.value,
+        currentValue: Math.max(0, parseFloat(form.currentValue.value) || 0),
+        totalContributions: Math.max(0, parseFloat(form.totalContributions.value) || 0),
+        currency: form.currency.value,
+        riskCategory: form.riskCategory.value,
+      });
+      await WR.repos.investments.add(inv);
+      renderInvestments(container);
+    });
+  }
+
+  WR.ui.renderAssets = renderAssets;
+  WR.ui.renderInvestments = renderInvestments;
+})();
+// Forecast view: multi-year net worth projection. Every number here is
+// explicitly labelled as a projection, never a promise.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  async function renderForecast(container) {
+    const snapshot = await WR.ui.buildSnapshot();
+    const params = WR.ui._forecastParams || {
+      monthlyDebtPayment: Math.max(snapshot.cashflow.debtPayments, 0),
+      monthlyInvestmentContribution: Math.max(snapshot.cashflow.savings, 0),
+      debtInterestAnnual: snapshot.debts.length
+        ? WR.financial.calculateWeightedAverageInterestRate(snapshot.debts)
+        : 0,
+      investmentReturnAnnual: snapshot.assumedInvestmentReturn,
+      years: 10,
+    };
+    WR.ui._forecastParams = params;
+
+    const forecast = WR.financial.forecastNetWorth(
+      {
+        currentNetWorth: snapshot.netWorth.netWorth,
+        currentDebtTotal: snapshot.totalDebt,
+        currentInvestmentTotal: snapshot.investments.reduce((sum, i) => sum + i.currentValue, 0),
+        monthlyDebtPayment: params.monthlyDebtPayment,
+        monthlyInvestmentContribution: params.monthlyInvestmentContribution,
+        debtInterestAnnual: params.debtInterestAnnual,
+        investmentReturnAnnual: params.investmentReturnAnnual,
+      },
+      params.years,
+    );
+
+    const chart = WR.charts.lineChart(
+      forecast.map((f) => ({ label: `Yr ${f.year}`, value: f.netWorth })),
+      { width: 500, height: 260 },
+    );
+
+    const rows = forecast
+      .map(
+        (f) => `<tr><td>Year ${f.year}</td><td class="num">${WR.ui.fmt(f.netWorth)}</td><td class="num">${WR.ui.fmt(f.debtBalance)}</td><td class="num">${WR.ui.fmt(f.investmentBalance)}</td></tr>`,
+      )
+      .join('');
+
+    container.innerHTML = `
+      <h1>Forecast</h1>
+      <p class="fine-print">Projections based on the assumptions below \u2014 not guarantees. Actual results will differ. Anything except tagged investments (property, vehicles, etc.) is held constant, since projecting their future value would be pure speculation.</p>
+
+      <form id="forecast-form" class="inline-form">
+        <label>Years: <input type="number" name="years" value="${params.years}" min="1" max="20"></label>
+        <label>Monthly debt payment: <input type="number" name="monthlyDebtPayment" value="${params.monthlyDebtPayment}" step="10"></label>
+        <label>Debt interest rate %/yr: <input type="number" name="debtInterestAnnual" value="${(params.debtInterestAnnual * 100).toFixed(1)}" step="0.1"></label>
+        <label>Monthly investment contribution: <input type="number" name="monthlyInvestmentContribution" value="${params.monthlyInvestmentContribution}" step="10"></label>
+        <label>Assumed investment return %/yr: <input type="number" name="investmentReturnAnnual" value="${(params.investmentReturnAnnual * 100).toFixed(1)}" step="0.1"></label>
+        <button type="submit">Recalculate</button>
+      </form>
+
+      <div class="chart-block">${chart}</div>
+
+      <table class="data-table">
+        <thead><tr><th>Year</th><th>Net Worth</th><th>Debt Balance</th><th>Investment Balance</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+
+    document.getElementById('forecast-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const form = e.target;
+      WR.ui._forecastParams = {
+        years: parseInt(form.years.value, 10) || 10,
+        monthlyDebtPayment: parseFloat(form.monthlyDebtPayment.value) || 0,
+        debtInterestAnnual: (parseFloat(form.debtInterestAnnual.value) || 0) / 100,
+        monthlyInvestmentContribution: parseFloat(form.monthlyInvestmentContribution.value) || 0,
+        investmentReturnAnnual: (parseFloat(form.investmentReturnAnnual.value) || 0) / 100,
+      };
+      renderForecast(container);
+    });
+  }
+
+  WR.ui.renderForecast = renderForecast;
+})();
+// Reports view: trend charts the Dashboard doesn't cover \u2014 income/expenses
+// across every month on record, essential vs discretionary trend, net worth
+// components over time, and spending by category.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  async function renderReports(container) {
+    container.innerHTML = '<p class="loading">Building your reports\u2026</p>';
+
+    const [allBudgetLines, categories, netWorthHistory, profile] = await Promise.all([
+      WR.repos.budgetLines.getAll(),
+      WR.repos.expenseCategories.getAll(),
+      WR.queries.getNetWorthHistory(),
+      WR.ui.getOrCreateProfile(),
+    ]);
+
+    const monthly = WR.financial.aggregateMonthlyTotals(allBudgetLines);
+    const currency = profile.baseCurrency;
+
+    if (monthly.length === 0 && netWorthHistory.length === 0) {
+      container.innerHTML = `
+        <h1>Reports</h1>
+        <p class="empty">No data yet \u2014 add some transactions on the Transactions tab, or record a net worth snapshot from the Dashboard, and reports will appear here.</p>
+      `;
+      return;
+    }
+
+    const incomeExpenseChart = WR.charts.barChart(
+      monthly.flatMap((m) => [
+        { label: `${m.month} In`, value: m.income },
+        { label: `${m.month} Exp`, value: m.fixed + m.variable },
+      ]),
+      { width: 620, height: 240 },
+    );
+
+    const essentialDiscretionary = monthly.map((m) => {
+      const linesForMonth = allBudgetLines.filter((l) => l.month === m.month);
+      const split = WR.financial.calculateEssentialVsDiscretionary(linesForMonth, categories);
+      return { month: m.month, ...split };
+    });
+    const spendSplitChart = WR.charts.barChart(
+      essentialDiscretionary.flatMap((m) => [
+        { label: `${m.month} Ess`, value: m.essential },
+        { label: `${m.month} Disc`, value: m.discretionary },
+      ]),
+      { width: 620, height: 240 },
+    );
+
+    const assetsChart = WR.charts.lineChart(
+      netWorthHistory.map((h) => ({ label: h.date, value: h.totalAssets })),
+      { width: 460, height: 220 },
+    );
+    const liabilitiesChart = WR.charts.lineChart(
+      netWorthHistory.map((h) => ({ label: h.date, value: h.totalLiabilities })),
+      { width: 460, height: 220 },
+    );
+
+    const latestMonth = monthly.length ? monthly[monthly.length - 1].month : null;
+    const latestMonthLines = latestMonth ? allBudgetLines.filter((l) => l.month === latestMonth) : [];
+    const categorySpend = WR.financial.aggregateSpendingByCategory(latestMonthLines, categories);
+    const categoryChart = WR.charts.barChart(
+      categorySpend.map((c) => ({ label: c.label, value: c.value })),
+      { width: 620, height: 240 },
+    );
+
+    container.innerHTML = `
+      <h1>Reports</h1>
+      <p class="fine-print">Built from every month you've entered data for \u2014 the more months you track, the more these trends tell you.</p>
+
+      <h2>Income vs Expenses by Month</h2>
+      <div class="chart-block">${monthly.length ? incomeExpenseChart : '<p class="empty">No transactions recorded yet.</p>'}</div>
+
+      <h2>Essential vs Discretionary Spending by Month</h2>
+      <p class="fine-print">Tag expense categories as essential/discretionary in Settings to make this accurate \u2014 untagged spending counts as discretionary.</p>
+      <div class="chart-block">${monthly.length ? spendSplitChart : '<p class="empty">No transactions recorded yet.</p>'}</div>
+
+      <h2>Spending by Category (${latestMonth || 'no data'})</h2>
+      <div class="chart-block">${categorySpend.length ? categoryChart : '<p class="empty">No fixed/variable expenses recorded for the latest month.</p>'}</div>
+
+      <h2>Assets &amp; Liabilities Over Time</h2>
+      <div class="charts">
+        <div class="chart-block"><h3>Total Assets (${currency})</h3>${assetsChart}</div>
+        <div class="chart-block"><h3>Total Liabilities (${currency})</h3>${liabilitiesChart}</div>
+      </div>
+      <p class="fine-print">Record a net worth snapshot from the Dashboard each time your numbers change to build this history.</p>
+    `;
+  }
+
+  WR.ui.renderReports = renderReports;
+})();
+// Spreadsheet editor: every budget line, across every month, in one
+// editable table. Edits write directly to the same IndexedDB store the
+// dashboard reads from \u2014 there's no separate "spreadsheet data" to keep in
+// sync, by design (see Sprint 0 notes on the spreadsheet/model sync problem).
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  const TYPES = ['income', 'fixed', 'variable', 'savings', 'debtPayment'];
+
+  function categoryOptions(categories, selectedId) {
+    return (
+      `<option value="">\u2014 none \u2014</option>` +
+      categories.map((c) => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.name}</option>`).join('')
+    );
+  }
+
+  async function renderSpreadsheet(container) {
+    const [allLines, profile, categories] = await Promise.all([
+      WR.repos.budgetLines.getAll(),
+      WR.ui.getOrCreateProfile(),
+      WR.repos.expenseCategories.getAll(),
+    ]);
+    const lines = allLines.sort((a, b) => (a.month < b.month ? 1 : -1) || a.type.localeCompare(b.type));
+
+    const rows = lines
+      .map(
+        (l) => `
+      <tr data-id="${l.id}">
+        <td><input type="month" class="cell" data-field="month" value="${l.month}"></td>
+        <td>
+          <select class="cell" data-field="type">
+            ${TYPES.map((t) => `<option value="${t}" ${t === l.type ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </td>
+        <td><input class="cell" data-field="name" value="${l.name}"></td>
+        <td><select class="cell" data-field="categoryId">${categoryOptions(categories, l.categoryId)}</select></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="budgetAmount" value="${l.budgetAmount}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="actualAmount" value="${l.actualAmount}"></td>
+        <td><button class="link-btn delete-row" data-id="${l.id}">Delete</button></td>
+      </tr>`,
+      )
+      .join('');
+
+    container.innerHTML = `
+      <h1>Spreadsheet</h1>
+      <p class="fine-print">Edit any cell \u2014 changes save immediately and the Dashboard updates to match.</p>
+      <table class="data-table spreadsheet">
+        <thead><tr><th>Month</th><th>Type</th><th>Name</th><th>Category</th><th>Budget</th><th>Actual</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" class="empty">No budget lines yet.</td></tr>'}</tbody>
+      </table>
+
+      <h3>Add a row</h3>
+      <form id="add-row-form" class="inline-form">
+        <input type="month" name="month" value="${WR.ui.currentMonthKey()}" required>
+        <select name="type">${TYPES.map((t) => `<option value="${t}">${t}</option>`).join('')}</select>
+        <input name="name" placeholder="Name" required>
+        <select name="categoryId">${categoryOptions(categories)}</select>
+        <input name="budgetAmount" type="number" step="0.01" min="0" placeholder="Budget" required>
+        <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Actual" required>
+        <button type="submit">Add</button>
+      </form>
+    `;
+
+    // Save on change, per cell \u2014 no separate "save" button, matching the
+    // "spreadsheet and financial model stay synchronised" requirement.
+    container.querySelectorAll('tbody tr').forEach((tr) => {
+      const id = tr.dataset.id;
+      tr.querySelectorAll('.cell').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const line = await WR.repos.budgetLines.getById(id);
+          if (!line) return;
+          const field = input.dataset.field;
+          if (field === 'budgetAmount' || field === 'actualAmount') {
+            line[field] = Math.max(0, parseFloat(input.value) || 0);
+            input.value = line[field];
+          } else if (field === 'categoryId') {
+            line.categoryId = input.value || undefined;
+          } else {
+            line[field] = input.value;
+          }
+          await WR.repos.budgetLines.update(line);
+          WR.ui.flashSaved(input);
+        });
+      });
+    });
+
+    container.querySelectorAll('.delete-row').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this row? This cannot be undone.')) return;
+        await WR.repos.budgetLines.remove(btn.dataset.id);
+        renderSpreadsheet(container);
+      });
+    });
+
+    document.getElementById('add-row-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const line = WR.models.createBudgetLine({
+        month: form.month.value,
+        type: form.type.value,
+        name: form.name.value,
+        categoryId: form.categoryId.value || undefined,
+        budgetAmount: Math.max(0, parseFloat(form.budgetAmount.value) || 0),
+        actualAmount: Math.max(0, parseFloat(form.actualAmount.value) || 0),
+        currency: profile.baseCurrency,
+      });
+      await WR.repos.budgetLines.add(line);
+      renderSpreadsheet(container);
+    });
+  }
+
+  WR.ui.renderSpreadsheet = renderSpreadsheet;
+})();
+// Excel view: upload -> pick sheet -> pick header row -> map columns ->
+// preview -> confirm import, plus export of current data to a new workbook.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  let state = { workbook: null, sheetName: null, headerRowIndex: 0, headers: [], rawRows: [] };
+
+  function fieldMappingForm(headers) {
+    const options = (selected) =>
+      `<option value="">\u2014 not mapped \u2014</option>` +
+      headers.map((h) => `<option value="${h}" ${h === selected ? 'selected' : ''}>${h}</option>`).join('');
+
+    return `
+      <div class="mapping-grid">
+        <label>Name / Description column: <select id="map-name">${options()}</select></label>
+        <label>Amount column: <select id="map-amount">${options()}</select></label>
+        <label>Type for all rows:
+          <select id="map-type-constant">
+            <option value="income">Income</option>
+            <option value="fixed">Fixed expense</option>
+            <option value="variable">Variable expense</option>
+            <option value="savings">Savings/Investment</option>
+            <option value="debtPayment">Debt payment</option>
+          </select>
+        </label>
+        <label>Month for all rows: <input type="month" id="map-month-constant" value="${WR.ui.currentMonthKey()}"></label>
+      </div>
+    `;
+  }
+
+  async function renderExcel(container) {
+    container.innerHTML = `
+      <h1>Excel</h1>
+
+      <section>
+        <h2>Import</h2>
+        <p class="fine-print">Works with any spreadsheet \u2014 you'll map its columns to WealthRoute fields before anything is imported. Nothing is saved until you confirm.</p>
+        <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv">
+        <div id="import-workflow"></div>
+      </section>
+
+      <section>
+        <h2>Export</h2>
+        <p class="fine-print">Downloads all current WealthRoute data as a new workbook (one sheet per data type). This does not reproduce the original 16-sheet template layout \u2014 it exports WealthRoute's own data model.</p>
+        <button id="export-btn">Export to Excel</button>
+      </section>
+    `;
+
+    document.getElementById('export-btn').addEventListener('click', async () => {
+      if (typeof XLSX === 'undefined') {
+        alert('Excel library failed to load \u2014 check your internet connection and reload the page.');
+        return;
+      }
+      await WR.excel.exportWorkbook();
+    });
+
+    document.getElementById('excel-file-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (typeof XLSX === 'undefined') {
+        alert('Excel library failed to load \u2014 check your internet connection and reload the page.');
+        return;
+      }
+      const buffer = await file.arrayBuffer();
+      state.workbook = WR.excel.parseWorkbook(buffer);
+      const sheetNames = WR.excel.getSheetNames(state.workbook);
+      renderSheetPicker(sheetNames);
+    });
+
+    function renderSheetPicker(sheetNames) {
+      const workflow = document.getElementById('import-workflow');
+      workflow.innerHTML = `
+        <div class="toolbar">
+          <label>Sheet: <select id="sheet-picker">${sheetNames.map((n) => `<option value="${n}">${n}</option>`).join('')}</select></label>
+          <label>Header row: <input type="number" id="header-row-input" min="1" value="1" style="width:4.5em"></label>
+        </div>
+        <p class="fine-print">If a sheet has its column headers somewhere other than the first row \u2014 common in sheets with a title or multiple tables \u2014 set the header row number above and the columns will refresh.</p>
+        <div id="mapping-area"></div>
+      `;
+      document.getElementById('sheet-picker').addEventListener('change', (e) => {
+        document.getElementById('header-row-input').value = 1;
+        loadSheet(e.target.value, 0);
+      });
+      document.getElementById('header-row-input').addEventListener('change', (e) => {
+        const rowNum = Math.max(1, parseInt(e.target.value, 10) || 1);
+        e.target.value = rowNum;
+        loadSheet(state.sheetName, rowNum - 1); // convert 1-indexed display to 0-indexed
+      });
+      loadSheet(sheetNames[0], 0);
+    }
+
+    function loadSheet(sheetName, headerRowIndex) {
+      state.sheetName = sheetName;
+      state.headerRowIndex = headerRowIndex;
+      const { headers, rows } = WR.excel.readSheetRows(state.workbook, sheetName, headerRowIndex);
+      state.headers = headers;
+      state.rawRows = rows;
+
+      const mappingArea = document.getElementById('mapping-area');
+      if (rows.length === 0) {
+        mappingArea.innerHTML = `<p class="warning">No data rows found below this header row \u2014 try a different header row number.</p>`;
+        return;
+      }
+
+      mappingArea.innerHTML = `
+        ${fieldMappingForm(headers)}
+        <button id="preview-btn">Preview</button>
+        <div id="preview-area"></div>
+      `;
+      document.getElementById('preview-btn').addEventListener('click', renderPreview);
+    }
+
+    function currentMapping() {
+      return {
+        mapping: { name: document.getElementById('map-name').value, amount: document.getElementById('map-amount').value },
+        constants: {
+          type: document.getElementById('map-type-constant').value,
+          month: document.getElementById('map-month-constant').value,
+        },
+      };
+    }
+
+    function renderPreview() {
+      const { mapping, constants } = currentMapping();
+
+      if (!mapping.name || !mapping.amount) {
+        document.getElementById('preview-area').innerHTML =
+          '<p class="warning">Map both a Name/Description column and an Amount column before previewing.</p>';
+        return;
+      }
+
+      const mapped = WR.excel.applyMapping(state.rawRows, mapping, constants);
+      const withProblems = mapped.map((row) => ({ row, problems: WR.excel.validateImportRow(row) }));
+      const validCount = withProblems.filter((r) => r.problems.length === 0).length;
+
+      const rowsHtml = withProblems
+        .slice(0, 25)
+        .map(
+          ({ row, problems }) => `
+        <tr class="${problems.length ? 'invalid-row' : ''}">
+          <td>${row.name ?? ''}</td>
+          <td class="num">${row.amount ?? ''}</td>
+          <td>${row.type ?? ''}</td>
+          <td>${row.month ?? ''}</td>
+          <td>${problems.join('; ')}</td>
+        </tr>`,
+        )
+        .join('');
+
+      document.getElementById('preview-area').innerHTML = `
+        <p><strong>${validCount}</strong> of <strong>${mapped.length}</strong> rows are valid and will be imported. Showing first 25 rows below.</p>
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Amount</th><th>Type</th><th>Month</th><th>Problems</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <button id="confirm-import-btn" ${validCount === 0 ? 'disabled' : ''}>Confirm Import (${validCount} rows)</button>
+        <p id="import-result"></p>
+      `;
+
+      document.getElementById('confirm-import-btn').addEventListener('click', async () => {
+        const result = await WR.excel.importBudgetLines(mapped);
+        document.getElementById('import-result').textContent =
+          `Imported ${result.imported.length} rows. Skipped ${result.rejected.length} invalid rows.`;
+      });
+    }
+  }
+
+  WR.ui.renderExcel = renderExcel;
+})();
+// Settings view: base currency, country, emergency fund target, assumed
+// investment return, JSON backup/restore/reset, and the optional AI
+// assistant API key (stored locally only, never sent anywhere but
+// Anthropic's API when you actually use the assistant).
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  async function exportBackup() {
+    const data = {};
+    for (const [name, repo] of Object.entries(WR.repos)) {
+      data[name] = await repo.getAll();
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wealthroute-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importBackup(jsonText) {
+    const data = JSON.parse(jsonText);
+    for (const [name, repo] of Object.entries(WR.repos)) {
+      if (Array.isArray(data[name])) {
+        await repo.clear();
+        for (const item of data[name]) await repo.add(item);
+      }
+    }
+  }
+
+  async function resetAllData() {
+    for (const repo of Object.values(WR.repos)) await repo.clear();
+  }
+
+  async function renderSettings(container) {
+    const profile = await WR.ui.getOrCreateProfile();
+    const apiKey = localStorage.getItem('wr_anthropic_api_key') || '';
+
+    container.innerHTML = `
+      <h1>Settings</h1>
+
+      <section>
+        <h2>Profile & Assumptions</h2>
+        <form id="profile-form" class="stacked-form">
+          <label>Base currency:
+            <select name="baseCurrency">
+              ${['ZAR', 'USD', 'EUR', 'GBP'].map((c) => `<option value="${c}" ${c === profile.baseCurrency ? 'selected' : ''}>${c}</option>`).join('')}
+            </select>
+          </label>
+          <label>Country: <input name="country" value="${profile.country}"></label>
+          <label>Emergency fund target (months): <input name="emergencyFundTargetMonths" type="number" step="0.5" value="${profile.emergencyFundTargetMonths}"></label>
+          <label>Assumed investment return (%/year): <input name="assumedInvestmentReturn" type="number" step="0.1" value="${((profile.assumedInvestmentReturn || 0.08) * 100).toFixed(1)}"></label>
+          <label>Risk profile:
+            <select name="riskProfile">
+              ${['conservative', 'moderate', 'aggressive'].map((r) => `<option value="${r}" ${r === profile.riskProfile ? 'selected' : ''}>${r}</option>`).join('')}
+            </select>
+          </label>
+          <button type="submit">Save</button>
+        </form>
+      </section>
+
+      <section>
+        <h2>Exchange Rates</h2>
+        <p class="fine-print">Manually entered \u2014 no live rate lookup in this version. Needed if you hold assets in more than one currency.</p>
+        <div id="rates-list"></div>
+        <form id="rate-form" class="inline-form">
+          <input name="fromCurrency" placeholder="From (e.g. USD)" maxlength="3" required>
+          <input name="toCurrency" placeholder="To (e.g. ZAR)" maxlength="3" required>
+          <input name="rate" type="number" step="0.0001" placeholder="Rate" required>
+          <button type="submit">Add rate</button>
+        </form>
+      </section>
+
+      <section>
+        <h2>Expense Categories</h2>
+        <p class="fine-print">
+          Tag your fixed and variable expenses as essential or discretionary here, then assign them to
+          transactions on the Transactions or Spreadsheet tabs. This drives the emergency fund calculation
+          (essential expenses only) and the "discretionary spending increased" recommendation \u2014 without any
+          categories tagged, those fall back to rough approximations.
+        </p>
+        <div id="categories-list"></div>
+        <form id="category-form" class="inline-form">
+          <input name="name" placeholder="Category name (e.g. Groceries, Rent)" required>
+          <select name="type">
+            <option value="fixed">Fixed</option>
+            <option value="variable">Variable</option>
+          </select>
+          <label><input type="checkbox" name="essential" checked> Essential</label>
+          <button type="submit">Add category</button>
+        </form>
+      </section>
+
+      <section>
+        <h2>Data Management</h2>
+        <button id="export-backup-btn">Export backup (JSON)</button>
+        <label class="file-label">Restore from backup:
+          <input type="file" id="restore-input" accept=".json">
+        </label>
+        <button id="reset-btn" class="danger">Delete all data</button>
+      </section>
+
+      <section>
+        <h2>Wealth Assistant (optional)</h2>
+        <p class="fine-print">
+          Off by default. This app has no server, so there's no safe place to store an API key on your behalf \u2014
+          if you enable this, you're pasting in your own Anthropic API key, which is stored only in this browser's
+          local storage and sent directly from your browser to Anthropic's API when you ask a question. This is not
+          free \u2014 it uses your own Anthropic API usage/billing. Never share this key; anyone with it can use your
+          API quota.
+        </p>
+        <form id="api-key-form" class="inline-form">
+          <input type="password" id="api-key-input" placeholder="sk-ant-\u2026" value="${apiKey}">
+          <button type="submit">Save key</button>
+          <button type="button" id="clear-key-btn" class="secondary">Clear key</button>
+        </form>
+      </section>
+    `;
+
+    async function renderCategories() {
+      const categories = await WR.repos.expenseCategories.getAll();
+      document.getElementById('categories-list').innerHTML = categories.length
+        ? `<table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Essential</th><th></th></tr></thead><tbody>${categories
+            .map(
+              (c) =>
+                `<tr><td>${c.name}</td><td>${c.type}</td><td>${c.essential ? 'Yes' : 'No'}</td><td><button class="link-btn delete-category" data-id="${c.id}">Delete</button></td></tr>`,
+            )
+            .join('')}</tbody></table>`
+        : '<p class="empty">No categories yet \u2014 add one below.</p>';
+      document.querySelectorAll('.delete-category').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this category? Transactions already tagged with it keep their tag, but it will no longer appear in the picker.')) return;
+          await WR.repos.expenseCategories.remove(btn.dataset.id);
+          renderCategories();
+        }),
+      );
+    }
+    renderCategories();
+
+    document.getElementById('category-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const category = WR.models.createExpenseCategory({
+        name: form.name.value,
+        type: form.type.value,
+        essential: form.essential.checked,
+      });
+      await WR.repos.expenseCategories.add(category);
+      form.reset();
+      form.essential.checked = true;
+      renderCategories();
+    });
+
+    async function renderRates() {
+      const rates = await WR.repos.exchangeRates.getAll();
+      document.getElementById('rates-list').innerHTML = rates.length
+        ? `<ul>${rates.map((r) => `<li>1 ${r.fromCurrency} = ${r.rate} ${r.toCurrency} <button class="link-btn delete-rate" data-id="${r.id}">Delete</button></li>`).join('')}</ul>`
+        : '<p class="empty">No exchange rates yet.</p>';
+      document.querySelectorAll('.delete-rate').forEach((btn) =>
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete this exchange rate?')) return;
+          await WR.repos.exchangeRates.remove(btn.dataset.id);
+          renderRates();
+        }),
+      );
+    }
+    renderRates();
+
+    document.getElementById('profile-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const updated = {
+        ...profile,
+        baseCurrency: form.baseCurrency.value,
+        country: form.country.value,
+        emergencyFundTargetMonths: parseFloat(form.emergencyFundTargetMonths.value) || 3,
+        assumedInvestmentReturn: (parseFloat(form.assumedInvestmentReturn.value) || 8) / 100,
+        riskProfile: form.riskProfile.value,
+      };
+      await WR.repos.userProfile.update(updated);
+      alert('Saved.');
+    });
+
+    document.getElementById('rate-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const rate = WR.models.createExchangeRate({
+        fromCurrency: form.fromCurrency.value.toUpperCase(),
+        toCurrency: form.toCurrency.value.toUpperCase(),
+        rate: parseFloat(form.rate.value),
+        date: new Date().toISOString().slice(0, 10),
+      });
+      await WR.repos.exchangeRates.add(rate);
+      form.reset();
+      renderRates();
+    });
+
+    document.getElementById('export-backup-btn').addEventListener('click', exportBackup);
+
+    document.getElementById('restore-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (!confirm('This replaces all current data with the backup file. Continue?')) return;
+      const text = await file.text();
+      await importBackup(text);
+      alert('Backup restored.');
+      renderSettings(container);
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', async () => {
+      if (!confirm('This permanently deletes all WealthRoute data in this browser. This cannot be undone. Continue?')) return;
+      await resetAllData();
+      alert('All data deleted.');
+      renderSettings(container);
+    });
+
+    document.getElementById('api-key-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      localStorage.setItem('wr_anthropic_api_key', document.getElementById('api-key-input').value.trim());
+      alert('Key saved locally.');
+    });
+    document.getElementById('clear-key-btn').addEventListener('click', () => {
+      localStorage.removeItem('wr_anthropic_api_key');
+      document.getElementById('api-key-input').value = '';
+      alert('Key cleared.');
+    });
+  }
+
+  WR.ui.renderSettings = renderSettings;
+  WR.ui.exportBackup = exportBackup;
+  WR.ui.importBackup = importBackup;
+  WR.ui.resetAllData = resetAllData;
+})();
+// Wealth Assistant: sends the already-computed FinancialSnapshot (not raw
+// data, not permission to act) to Anthropic's API along with the user's
+// question, using their own API key. The model only ever explains numbers
+// the deterministic engine already produced \u2014 it cannot change any stored
+// data, per the "AI explains, engine calculates" separation from the brief.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  const MODEL = 'claude-sonnet-5';
+
+  function snapshotForPrompt(s) {
+    // A trimmed, explicitly-labelled version of the snapshot \u2014 numbers only,
+    // no raw transaction-level detail, so the model has exactly what it
+    // needs to explain the dashboard and nothing it could use to invent
+    // detail that isn't there.
+    return {
+      month: s.month,
+      baseCurrency: s.profile.baseCurrency,
+      monthlyIncome: s.income,
+      monthlyExpenses: s.cashflow.totalExpenses,
+      availableSurplus: s.availableSurplus,
+      savingsRate: s.savingsRate,
+      totalDebt: s.totalDebt,
+      debtToIncomeRatio: s.debtToIncomeRatio,
+      highestInterestDebt: s.highestInterestDebt
+        ? { name: s.highestInterestDebt.name, interestRate: s.highestInterestDebt.interestRate, balance: s.highestInterestDebt.currentBalance }
+        : null,
+      emergencyFundMonths: s.emergencyFundMonths,
+      emergencyFundTargetMonths: s.emergencyFundTargetMonths,
+      netWorth: s.netWorth.netWorth,
+      totalAssets: s.netWorth.totalAssets,
+      totalLiabilities: s.netWorth.totalLiabilities,
+      assumedInvestmentReturn: s.assumedInvestmentReturn,
+      investmentReadiness: s.investmentReadiness,
+      financialHealthScore: s.healthScore.score,
+      currentRecommendations: s.recommendations.map((r) => ({ title: r.title, priority: r.priority, reason: r.reason })),
+    };
+  }
+
+  async function askAssistant(apiKey, question, snapshot) {
+    const systemPrompt =
+      'You are the Wealth Assistant inside WealthRoute, a personal finance app. ' +
+      'You are given a JSON snapshot of numbers WealthRoute\u2019s own calculation engine already computed. ' +
+      'Explain and answer using only these numbers \u2014 do not invent figures that are not present. ' +
+      'You are not a licensed financial adviser; be clear this is general educational information, not personalised financial advice. ' +
+      'Never state investment returns as guaranteed. Keep answers concise and concrete.';
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: `Financial snapshot:\n${JSON.stringify(snapshotForPrompt(snapshot), null, 2)}\n\nQuestion: ${question}`,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`API error ${response.status}: ${errText}`);
+    }
+    const data = await response.json();
+    return data.content
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('\n');
+  }
+
+  async function renderAssistant(container) {
+    const apiKey = localStorage.getItem('wr_anthropic_api_key') || '';
+
+    container.innerHTML = `
+      <h1>Wealth Assistant</h1>
+      ${
+        apiKey
+          ? `<p class="fine-print">Answers use only the numbers already shown on your Dashboard. General information, not personalised financial advice.</p>
+             <form id="ask-form" class="stacked-form">
+               <textarea id="question-input" rows="2" placeholder="e.g. Should I pay debt or invest right now?" required></textarea>
+               <button type="submit">Ask</button>
+             </form>
+             <div id="answer-area"></div>`
+          : `<p class="empty">No API key configured. Add your own Anthropic API key in Settings to enable this \u2014 it's optional and off by default.</p>`
+      }
+    `;
+
+    if (!apiKey) return;
+
+    document.getElementById('ask-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const question = document.getElementById('question-input').value.trim();
+      if (!question) return;
+      const answerArea = document.getElementById('answer-area');
+      answerArea.innerHTML = '<p class="loading">Thinking\u2026</p>';
+      try {
+        const snapshot = await WR.ui.buildSnapshot();
+        const answer = await askAssistant(apiKey, question, snapshot);
+        answerArea.innerHTML = `<div class="assistant-answer">${answer.replace(/\n/g, '<br>')}</div>`;
+      } catch (err) {
+        answerArea.innerHTML = `<p class="warning">Something went wrong: ${err.message}</p>`;
+      }
+    });
+  }
+
+  WR.ui.renderAssistant = renderAssistant;
+  WR.ui._askAssistant = askAssistant; // exposed for testing snapshotForPrompt indirectly
+  WR.ui._snapshotForPrompt = snapshotForPrompt;
+})();
+// Hash-based router. No history API complexity needed for a single-page
+// local app \u2014 #/dashboard, #/transactions, etc. map directly to render
+// functions.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  const ROUTES = {
+    '#/dashboard': 'renderDashboard',
+    '#/transactions': 'renderTransactions',
+    '#/debts': 'renderDebts',
+    '#/assets': 'renderAssets',
+    '#/investments': 'renderInvestments',
+    '#/forecast': 'renderForecast',
+    '#/reports': 'renderReports',
+    '#/spreadsheet': 'renderSpreadsheet',
+    '#/excel': 'renderExcel',
+    '#/assistant': 'renderAssistant',
+    '#/settings': 'renderSettings',
+  };
+
+  async function handleRoute() {
+    const hash = window.location.hash || '#/dashboard';
+    const renderFnName = ROUTES[hash] || 'renderDashboard';
+    WR.ui.setActiveNav(ROUTES[hash] ? hash : '#/dashboard');
+
+    const content = document.getElementById('content');
+    try {
+      await WR.ui[renderFnName](content);
+    } catch (err) {
+      content.innerHTML = `<p class="warning">Something went wrong loading this page: ${err.message}</p>`;
+      console.error(err);
+    }
+  }
+
+  function initRouter() {
+    window.addEventListener('hashchange', handleRoute);
+    if (!window.location.hash) window.location.hash = '#/dashboard';
+    handleRoute();
+  }
+
+  WR.ui.initRouter = initRouter;
+})();
+document.addEventListener('DOMContentLoaded', () => {
+  WR.ui.renderShell();
+  WR.ui.initRouter();
+});
+
+    </script>
+  </body>
+</html>

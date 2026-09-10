@@ -1,0 +1,2210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WealthRoute &mdash; Tests</title>
+    <style>body { font-family: system-ui, -apple-system, sans-serif; max-width: 700px; margin: 3rem auto; padding: 0 1.5rem; color: #1a1a1a; }</style>
+  </head>
+  <body>
+    <h1>WealthRoute &mdash; Full test suite</h1>
+    <div id="results"></div>
+    <script>
+// IndexedDB schema, opened with the native browser API directly — no
+// external library, no bundler needed to resolve an import for one.
+
+window.WR = window.WR || {};
+
+(function () {
+  const DB_NAME = 'wealthroute';
+  const DB_VERSION = 1;
+
+  /** @type {Promise<IDBDatabase>|null} */
+  let dbPromise = null;
+
+  function openDatabase() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = (event) => {
+        const db = /** @type {IDBDatabase} */ (event.target.result);
+
+        db.createObjectStore('userProfile', { keyPath: 'id' });
+        db.createObjectStore('incomeSources', { keyPath: 'id' });
+        db.createObjectStore('expenseCategories', { keyPath: 'id' });
+
+        const budgetLines = db.createObjectStore('budgetLines', { keyPath: 'id' });
+        budgetLines.createIndex('by-month', 'month');
+
+        db.createObjectStore('debts', { keyPath: 'id' });
+
+        const debtPayments = db.createObjectStore('debtPayments', { keyPath: 'id' });
+        debtPayments.createIndex('by-debt', 'debtId');
+
+        db.createObjectStore('assets', { keyPath: 'id' });
+        db.createObjectStore('investments', { keyPath: 'id' });
+
+        const netWorthSnapshots = db.createObjectStore('netWorthSnapshots', { keyPath: 'id' });
+        netWorthSnapshots.createIndex('by-date', 'date');
+
+        db.createObjectStore('exchangeRates', { keyPath: 'id' });
+      };
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /** @returns {Promise<IDBDatabase>} */
+  function getDB() {
+    if (!dbPromise) {
+      dbPromise = openDatabase();
+    }
+    return dbPromise;
+  }
+
+  /** Test-only: drop the cached connection so a fresh open() happens next time. */
+  function resetConnection() {
+    dbPromise = null;
+  }
+
+  /** Test-only: fully delete the database so each test run starts clean. */
+  function deleteDatabase() {
+    dbPromise = null;
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.deleteDatabase(DB_NAME);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+      req.onblocked = () => resolve();
+    });
+  }
+
+  WR.db = { getDB, resetConnection, deleteDatabase, DB_NAME };
+})();
+// Generic CRUD repository over a single IndexedDB object store. Every entity
+// in the data model gets one of these via WR.createRepository(storeName).
+// Index-backed queries (e.g. "budget lines for a given month") live in
+// repositories.js instead, since they're store-specific.
+
+window.WR = window.WR || {};
+
+(function () {
+  /**
+   * @param {IDBRequest} request
+   * @returns {Promise<any>}
+   */
+  function requestToPromise(request) {
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /**
+   * @param {string} storeName
+   */
+  function createRepository(storeName) {
+    return {
+      async getAll() {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readonly');
+        return requestToPromise(tx.objectStore(storeName).getAll());
+      },
+      /** @param {string} id */
+      async getById(id) {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readonly');
+        return requestToPromise(tx.objectStore(storeName).get(id));
+      },
+      /** @param {{id: string}} item */
+      async add(item) {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readwrite');
+        await requestToPromise(tx.objectStore(storeName).put(item));
+        return item.id;
+      },
+      /** @param {{id: string}} item */
+      async update(item) {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readwrite');
+        await requestToPromise(tx.objectStore(storeName).put(item));
+        return item.id;
+      },
+      /** @param {string} id */
+      async remove(id) {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readwrite');
+        await requestToPromise(tx.objectStore(storeName).delete(id));
+      },
+      async clear() {
+        const db = await WR.db.getDB();
+        const tx = db.transaction(storeName, 'readwrite');
+        await requestToPromise(tx.objectStore(storeName).clear());
+      },
+    };
+  }
+
+  WR.createRepository = createRepository;
+})();
+// One repository per entity, plus the index-backed queries the generic
+// repository can't express on its own.
+
+window.WR = window.WR || {};
+
+(function () {
+  /** @param {IDBRequest} request */
+  function requestToPromise(request) {
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  WR.repos = {
+    userProfile: WR.createRepository('userProfile'),
+    incomeSources: WR.createRepository('incomeSources'),
+    expenseCategories: WR.createRepository('expenseCategories'),
+    budgetLines: WR.createRepository('budgetLines'),
+    debts: WR.createRepository('debts'),
+    debtPayments: WR.createRepository('debtPayments'),
+    assets: WR.createRepository('assets'),
+    investments: WR.createRepository('investments'),
+    netWorthSnapshots: WR.createRepository('netWorthSnapshots'),
+    exchangeRates: WR.createRepository('exchangeRates'),
+  };
+
+  WR.queries = {
+    /** All budget lines (income/fixed/variable/savings/debt) for a 'YYYY-MM' month. */
+    async getBudgetLinesByMonth(month) {
+      const db = await WR.db.getDB();
+      const tx = db.transaction('budgetLines', 'readonly');
+      const index = tx.objectStore('budgetLines').index('by-month');
+      return requestToPromise(index.getAll(month));
+    },
+
+    /** All recorded payments made against a specific debt, across all months. */
+    async getDebtPaymentsForDebt(debtId) {
+      const db = await WR.db.getDB();
+      const tx = db.transaction('debtPayments', 'readonly');
+      const index = tx.objectStore('debtPayments').index('by-debt');
+      return requestToPromise(index.getAll(debtId));
+    },
+
+    /** Full net worth history, oldest first — powers the net worth trend chart. */
+    async getNetWorthHistory() {
+      const db = await WR.db.getDB();
+      const tx = db.transaction('netWorthSnapshots', 'readonly');
+      const index = tx.objectStore('netWorthSnapshots').index('by-date');
+      return requestToPromise(index.getAll());
+    },
+  };
+})();
+// Core WealthRoute data model.
+//
+// No TypeScript here (per your call to drop the build step), but the JSDoc
+// typedefs below still give autocomplete + inline type hints in VS Code and
+// most editors, with zero compilation. Factory functions generate a new id
+// so call sites never construct records by hand.
+//
+// Derived from Budget & Goal Tracker 2026.xlsx (Sprint 0 analysis), plus two
+// additions the workbook doesn't have: NetWorthSnapshot (a time series, so
+// trends/forecasting are possible) and ExchangeRate (fixes the workbook's
+// unconverted-USD-assets gap). The workbook's "Goal Tracker" and "Habit
+// Tracker" sheets are intentionally not modelled here.
+
+window.WR = window.WR || {};
+
+(function () {
+  /** @returns {string} */
+  function newId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    // Fallback for contexts where crypto.randomUUID isn't available
+    // (some restricted file:// setups) — still unique enough for local use.
+    return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  /**
+   * @typedef {Object} UserProfile
+   * @property {string} id
+   * @property {string} baseCurrency - ISO 4217 code, e.g. 'ZAR'
+   * @property {string} country
+   * @property {number} emergencyFundTargetMonths
+   * @property {'conservative'|'moderate'|'aggressive'} riskProfile
+   */
+  /** @param {Omit<UserProfile,'id'>} fields */
+  function createUserProfile(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} IncomeSource
+   * @property {string} id
+   * @property {string} name
+   * @property {number} amount
+   * @property {string} currency
+   * @property {'once'|'weekly'|'biweekly'|'monthly'|'annual'} frequency
+   * @property {string} category
+   * @property {boolean} recurring
+   */
+  /** @param {Omit<IncomeSource,'id'>} fields */
+  function createIncomeSource(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} ExpenseCategory
+   * @property {string} id
+   * @property {string} name
+   * @property {'fixed'|'variable'} type
+   * @property {boolean} essential
+   */
+  /** @param {Omit<ExpenseCategory,'id'>} fields */
+  function createExpenseCategory(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * One line item for one month. Mirrors the workbook's Budget / Actual /
+   * Difference rows, normalised across all months into one store instead of
+   * duplicated across 12 near-identical sheets.
+   * @typedef {Object} BudgetLine
+   * @property {string} id
+   * @property {string} month - 'YYYY-MM'
+   * @property {'income'|'fixed'|'variable'|'savings'|'debtPayment'} type
+   * @property {string} [categoryId]
+   * @property {string} name
+   * @property {number} budgetAmount
+   * @property {number} actualAmount
+   * @property {string} currency
+   */
+  /** @param {Omit<BudgetLine,'id'>} fields */
+  function createBudgetLine(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} Debt
+   * @property {string} id
+   * @property {string} name
+   * @property {string} [type]
+   * @property {number} [originalBalance]
+   * @property {number} currentBalance
+   * @property {string} [currency] - ISO 4217 code; falls back to base currency if omitted
+   * @property {number} interestRate - fraction, e.g. 0.2 = 20%
+   * @property {number} minPayment
+   * @property {string} [dueDate]
+   * @property {number} [priority] - lower = higher priority; set by the debt engine later
+   */
+  /** @param {Omit<Debt,'id'>} fields */
+  function createDebt(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} DebtPayment
+   * @property {string} id
+   * @property {string} debtId
+   * @property {string} month - 'YYYY-MM'
+   * @property {number} amount
+   */
+  /** @param {Omit<DebtPayment,'id'>} fields */
+  function createDebtPayment(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} Asset
+   * @property {string} id
+   * @property {string} name
+   * @property {string} type
+   * @property {string} currency
+   * @property {number} currentValue
+   * @property {number} [purchasePrice]
+   * @property {string} [purchaseDate]
+   * @property {'high'|'medium'|'low'} [liquidity]
+   * @property {string} [notes]
+   */
+  /** @param {Omit<Asset,'id'>} fields */
+  function createAsset(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} Investment
+   * @property {string} id
+   * @property {string} name
+   * @property {string} type
+   * @property {string} currency
+   * @property {number} currentValue
+   * @property {number} totalContributions
+   * @property {number} [expectedReturnAssumption] - fraction, e.g. 0.08
+   * @property {'low'|'medium'|'high'} [riskCategory]
+   * @property {number} [horizonYears]
+   */
+  /** @param {Omit<Investment,'id'>} fields */
+  function createInvestment(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * A point-in-time record of assets vs liabilities. Doesn't exist anywhere in
+   * the source workbook — it only ever stores "current" net worth, never a
+   * history — so this is what makes trend charts and forecasting possible.
+   * @typedef {Object} NetWorthSnapshot
+   * @property {string} id
+   * @property {string} date - ISO date
+   * @property {number} totalAssets
+   * @property {number} totalLiabilities
+   * @property {number} netWorth
+   * @property {string} currency
+   */
+  /** @param {Omit<NetWorthSnapshot,'id'>} fields */
+  function createNetWorthSnapshot(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  /**
+   * @typedef {Object} ExchangeRate
+   * @property {string} id
+   * @property {string} fromCurrency
+   * @property {string} toCurrency
+   * @property {number} rate
+   * @property {string} date
+   */
+  /** @param {Omit<ExchangeRate,'id'>} fields */
+  function createExchangeRate(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  WR.models = {
+    newId,
+    createUserProfile,
+    createIncomeSource,
+    createExpenseCategory,
+    createBudgetLine,
+    createDebt,
+    createDebtPayment,
+    createAsset,
+    createInvestment,
+    createNetWorthSnapshot,
+    createExchangeRate,
+  };
+})();
+// Cash flow, savings rate, and expense-split calculations.
+//
+// Every function here is pure: plain data in, plain data/numbers out. No
+// storage calls, no DOM, no side effects — this is what makes the engine
+// independently testable and keeps financial math out of UI code, per the
+// "deterministic engine" principle from the brief.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * Sum actualAmount for budget lines of a given type.
+   * Caller is expected to have already filtered to a single month (e.g. via
+   * WR.queries.getBudgetLinesByMonth).
+   * @param {Array} budgetLines
+   * @param {'income'|'fixed'|'variable'|'savings'|'debtPayment'} type
+   */
+  function sumActualByType(budgetLines, type) {
+    return budgetLines
+      .filter((line) => line.type === type)
+      .reduce((total, line) => total + line.actualAmount, 0);
+  }
+
+  /**
+   * Sum budgetAmount (planned, not actual) for budget lines of a given type.
+   * Useful for budget-vs-actual variance, same shape as the workbook's
+   * Budget/Actual/Difference columns.
+   */
+  function sumBudgetByType(budgetLines, type) {
+    return budgetLines
+      .filter((line) => line.type === type)
+      .reduce((total, line) => total + line.budgetAmount, 0);
+  }
+
+  /**
+   * Builds the core monthly cash flow picture from one month's budget lines.
+   * Mirrors the workbook's "Left to Spend" formula (income minus everything
+   * actually spent), but exposes each component separately so the dashboard
+   * and rules engine can reason about them individually rather than only
+   * seeing one final number.
+   *
+   * @param {Array} budgetLines - budget lines for a single month
+   * @returns {{
+   *   income: number, fixedExpenses: number, variableExpenses: number,
+   *   savings: number, debtPayments: number, totalExpenses: number,
+   *   availableSurplus: number, savingsRate: number
+   * }}
+   */
+  function calculateCashFlowSummary(budgetLines) {
+    const income = sumActualByType(budgetLines, 'income');
+    const fixedExpenses = sumActualByType(budgetLines, 'fixed');
+    const variableExpenses = sumActualByType(budgetLines, 'variable');
+    const savings = sumActualByType(budgetLines, 'savings');
+    const debtPayments = sumActualByType(budgetLines, 'debtPayment');
+
+    const totalExpenses = fixedExpenses + variableExpenses;
+    const availableSurplus = income - fixedExpenses - variableExpenses - savings - debtPayments;
+    const savingsRate = income > 0 ? savings / income : 0;
+
+    return {
+      income,
+      fixedExpenses,
+      variableExpenses,
+      savings,
+      debtPayments,
+      totalExpenses,
+      availableSurplus,
+      savingsRate,
+    };
+  }
+
+  /**
+   * Splits fixed+variable expense budget lines into essential vs discretionary
+   * totals, using each line's categoryId to look up ExpenseCategory.essential.
+   * A line with no matching category (or no categoryId at all) is counted as
+   * discretionary — safer to flag it for review than to silently assume it's
+   * essential when nobody has categorised it yet.
+   *
+   * @param {Array} budgetLines
+   * @param {Array} expenseCategories
+   * @returns {{ essential: number, discretionary: number }}
+   */
+  function calculateEssentialVsDiscretionary(budgetLines, expenseCategories) {
+    const categoryById = new Map(expenseCategories.map((c) => [c.id, c]));
+
+    let essential = 0;
+    let discretionary = 0;
+
+    budgetLines
+      .filter((line) => line.type === 'fixed' || line.type === 'variable')
+      .forEach((line) => {
+        const category = line.categoryId ? categoryById.get(line.categoryId) : undefined;
+        if (category && category.essential) {
+          essential += line.actualAmount;
+        } else {
+          discretionary += line.actualAmount;
+        }
+      });
+
+    return { essential, discretionary };
+  }
+
+  Object.assign(WR.financial, {
+    sumActualByType,
+    sumBudgetByType,
+    calculateCashFlowSummary,
+    calculateEssentialVsDiscretionary,
+  });
+})();
+// Debt totals and interest calculations. Pure functions — no storage calls,
+// no UI. This is the foundation the avalanche/snowball prioritisation engine
+// (a later sprint) builds on top of.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /** @param {Array} debts */
+  function calculateTotalDebt(debts) {
+    return debts.reduce((total, debt) => total + debt.currentBalance, 0);
+  }
+
+  /** @param {Array} debts */
+  function calculateTotalMinPayments(debts) {
+    return debts.reduce((total, debt) => total + debt.minPayment, 0);
+  }
+
+  /**
+   * Debt-to-income ratio using minimum required payments against monthly
+   * income. Returns 0 when income is 0 or negative, to avoid Infinity/NaN
+   * leaking into the dashboard or health score.
+   * @param {Array} debts
+   * @param {number} monthlyIncome
+   */
+  function calculateDebtToIncomeRatio(debts, monthlyIncome) {
+    if (monthlyIncome <= 0) return 0;
+    return calculateTotalMinPayments(debts) / monthlyIncome;
+  }
+
+  /**
+   * The debt currently costing the most in interest rate — this is what
+   * avalanche prioritisation and the "what should I do now" panel key off.
+   * Returns null if there are no debts, rather than throwing.
+   * @param {Array} debts
+   */
+  function getHighestInterestDebt(debts) {
+    if (debts.length === 0) return null;
+    return debts.reduce((highest, debt) => (debt.interestRate > highest.interestRate ? debt : highest));
+  }
+
+  /**
+   * Balance-weighted average interest rate across all debts — one number
+   * summarising "how expensive is my debt overall", used by the debt-vs-invest
+   * decision logic in a later sprint.
+   * @param {Array} debts
+   */
+  function calculateWeightedAverageInterestRate(debts) {
+    const totalBalance = calculateTotalDebt(debts);
+    if (totalBalance <= 0) return 0;
+    const weightedSum = debts.reduce((sum, debt) => sum + debt.interestRate * debt.currentBalance, 0);
+    return weightedSum / totalBalance;
+  }
+
+  Object.assign(WR.financial, {
+    calculateTotalDebt,
+    calculateTotalMinPayments,
+    calculateDebtToIncomeRatio,
+    getHighestInterestDebt,
+    calculateWeightedAverageInterestRate,
+  });
+})();
+// Net worth: assets minus liabilities, converted to one base currency.
+// The source workbook keeps a separate USD assets table that is summed but
+// never actually folded into the net worth total — this fixes that by
+// requiring every value to be converted to baseCurrency before summing.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * Converts an amount from one currency to another using the most recent
+   * matching ExchangeRate record. Returns the original amount unconverted
+   * (with a warning flag) if no rate is found and the currencies differ —
+   * silently assuming a 1:1 rate would misstate net worth, so callers get
+   * an explicit signal instead.
+   *
+   * @param {number} amount
+   * @param {string} fromCurrency
+   * @param {string} toCurrency
+   * @param {Array} exchangeRates
+   * @returns {{ value: number, converted: boolean }}
+   */
+  function convertCurrency(amount, fromCurrency, toCurrency, exchangeRates) {
+    if (fromCurrency === toCurrency) return { value: amount, converted: true };
+
+    const candidates = exchangeRates.filter(
+      (r) => r.fromCurrency === fromCurrency && r.toCurrency === toCurrency,
+    );
+    if (candidates.length > 0) {
+      const latest = candidates.reduce((a, b) => (a.date > b.date ? a : b));
+      return { value: amount * latest.rate, converted: true };
+    }
+
+    // Try the inverse rate if that's what's stored.
+    const inverseCandidates = exchangeRates.filter(
+      (r) => r.fromCurrency === toCurrency && r.toCurrency === fromCurrency,
+    );
+    if (inverseCandidates.length > 0) {
+      const latest = inverseCandidates.reduce((a, b) => (a.date > b.date ? a : b));
+      return { value: amount / latest.rate, converted: true };
+    }
+
+    return { value: amount, converted: false };
+  }
+
+  /**
+   * Calculates total assets, total liabilities, and net worth in one base
+   * currency. Items that couldn't be converted (no exchange rate on file)
+   * are tracked separately in `unconvertedItems` rather than silently
+   * folded in at face value.
+   *
+   * @param {Array} assets
+   * @param {Array} investments
+   * @param {Array} debts
+   * @param {Array} exchangeRates
+   * @param {string} baseCurrency
+   */
+  function calculateNetWorth(assets, investments, debts, exchangeRates, baseCurrency) {
+    let totalAssets = 0;
+    let totalLiabilities = 0;
+    const unconvertedItems = [];
+
+    assets.forEach((asset) => {
+      const { value, converted } = convertCurrency(
+        asset.currentValue,
+        asset.currency,
+        baseCurrency,
+        exchangeRates,
+      );
+      totalAssets += value;
+      if (!converted) unconvertedItems.push({ name: asset.name, currency: asset.currency });
+    });
+
+    investments.forEach((inv) => {
+      const { value, converted } = convertCurrency(
+        inv.currentValue,
+        inv.currency,
+        baseCurrency,
+        exchangeRates,
+      );
+      totalAssets += value;
+      if (!converted) unconvertedItems.push({ name: inv.name, currency: inv.currency });
+    });
+
+    debts.forEach((debt) => {
+      // Older records created before debts carried a currency field fall
+      // back to base currency, matching the original assumption \u2014 but any
+      // debt with an explicit foreign currency is now converted correctly.
+      const { value, converted } = convertCurrency(
+        debt.currentBalance,
+        debt.currency || baseCurrency,
+        baseCurrency,
+        exchangeRates,
+      );
+      totalLiabilities += value;
+      if (!converted) unconvertedItems.push({ name: debt.name, currency: debt.currency });
+    });
+
+    return {
+      totalAssets,
+      totalLiabilities,
+      netWorth: totalAssets - totalLiabilities,
+      currency: baseCurrency,
+      unconvertedItems,
+    };
+  }
+
+  Object.assign(WR.financial, { convertCurrency, calculateNetWorth });
+})();
+// Emergency fund coverage: how many months of essential expenses the
+// user's liquid assets would cover.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * Sums the current value of assets flagged as high liquidity — the
+   * practical definition of "emergency fund" money (cash, money market,
+   * easily-accessed savings), as opposed to a house or a retirement annuity.
+   * @param {Array} assets
+   */
+  function calculateLiquidAssets(assets) {
+    return assets.filter((a) => a.liquidity === 'high').reduce((sum, a) => sum + a.currentValue, 0);
+  }
+
+  /**
+   * How many months of essential expenses the liquid assets would cover.
+   * Returns Infinity (not a crash) when essential expenses are 0 and there
+   * are liquid assets — genuinely "fully covered" in that case, and 0 when
+   * there's nothing liquid at all.
+   * @param {number} liquidAssets
+   * @param {number} monthlyEssentialExpenses
+   */
+  function calculateEmergencyFundMonths(liquidAssets, monthlyEssentialExpenses) {
+    if (monthlyEssentialExpenses <= 0) return liquidAssets > 0 ? Infinity : 0;
+    return liquidAssets / monthlyEssentialExpenses;
+  }
+
+  Object.assign(WR.financial, { calculateLiquidAssets, calculateEmergencyFundMonths });
+})();
+// Financial health score. Every point traces back to an explicit formula —
+// per your brief, this must never become an opaque AI-generated number.
+// Five equally-weighted components (20 points each): cash flow, emergency
+// fund, debt burden, savings rate, net worth trend.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  /**
+   * Scales a ratio linearly onto a 0-100 range between a floor (0 points)
+   * and a target (100 points). Used so each component has one obvious,
+   * inspectable formula rather than a hidden curve.
+   */
+  function scaleLinear(value, floor, target) {
+    if (target === floor) return value >= target ? 100 : 0;
+    const ratio = (value - floor) / (target - floor);
+    return clamp(ratio, 0, 1) * 100;
+  }
+
+  function average(snapshots) {
+    return snapshots.reduce((sum, s) => sum + s.netWorth, 0) / snapshots.length;
+  }
+
+  /**
+   * Compares the average of the most recent snapshots against the average
+   * of the snapshots before that, rather than just the last two points \u2014
+   * a single noisy or one-off snapshot can no longer single-handedly flip
+   * this component. With exactly 2 snapshots this reduces to the original
+   * simple comparison; with more history the window grows to smooth things
+   * out, capped at 3 either side. Defaults to a neutral 50 with fewer than
+   * 2 snapshots (not enough history yet) or if there's no prior window to
+   * compare against.
+   * @param {Array} netWorthHistory - ordered oldest-to-newest
+   */
+  function calculateNetWorthTrendScore(netWorthHistory) {
+    if (!netWorthHistory || netWorthHistory.length < 2) return 50;
+    const windowSize = Math.min(3, Math.floor(netWorthHistory.length / 2)) || 1;
+    const recent = netWorthHistory.slice(-windowSize);
+    const prior = netWorthHistory.slice(-windowSize * 2, -windowSize);
+    if (prior.length === 0) return 50;
+
+    const recentAvg = average(recent);
+    const priorAvg = average(prior);
+    if (recentAvg > priorAvg) return 100;
+    if (recentAvg === priorAvg) return 50;
+    return 0;
+  }
+
+  /**
+   * @param {Object} inputs
+   * @param {number} inputs.income - monthly income
+   * @param {number} inputs.availableSurplus - monthly surplus (from calculateCashFlowSummary)
+   * @param {number} inputs.savingsRate - fraction, e.g. 0.1 = 10% (from calculateCashFlowSummary)
+   * @param {number} inputs.emergencyFundMonths
+   * @param {number} inputs.emergencyFundTargetMonths - from UserProfile
+   * @param {number} inputs.debtToIncomeRatio - fraction (from calculateDebtToIncomeRatio)
+   * @param {Array} inputs.netWorthHistory - ordered oldest-to-newest, from getNetWorthHistory()
+   * @returns {{ score: number, breakdown: Object }}
+   */
+  function calculateFinancialHealthScore(inputs) {
+    const {
+      income,
+      availableSurplus,
+      savingsRate,
+      emergencyFundMonths,
+      emergencyFundTargetMonths,
+      debtToIncomeRatio,
+      netWorthHistory,
+    } = inputs;
+
+    // Cash flow: surplus as a % of income. 0% -> 0 points, 20%+ -> 100 points.
+    const surplusRatio = income > 0 ? availableSurplus / income : 0;
+    const cashFlow = scaleLinear(surplusRatio, 0, 0.2);
+
+    // Emergency fund: months covered vs the user's own target.
+    const targetMonths = emergencyFundTargetMonths > 0 ? emergencyFundTargetMonths : 3;
+    const emergencyFund = scaleLinear(
+      Number.isFinite(emergencyFundMonths) ? emergencyFundMonths : targetMonths,
+      0,
+      targetMonths,
+    );
+
+    // Debt burden: lower debt-to-income is better. 0% -> 100 points, 40%+ -> 0 points.
+    const debtBurden = 100 - scaleLinear(debtToIncomeRatio, 0, 0.4);
+
+    // Savings rate: 0% -> 0 points, 20%+ -> 100 points.
+    const savingsRateScore = scaleLinear(savingsRate, 0, 0.2);
+
+    const netWorthTrend = calculateNetWorthTrendScore(netWorthHistory);
+
+    const breakdown = { cashFlow, emergencyFund, debtBurden, savingsRate: savingsRateScore, netWorthTrend };
+    const score = Math.round(
+      (breakdown.cashFlow + breakdown.emergencyFund + breakdown.debtBurden + breakdown.savingsRate + breakdown.netWorthTrend) / 5,
+    );
+
+    return { score, breakdown };
+  }
+
+  Object.assign(WR.financial, { calculateFinancialHealthScore, calculateNetWorthTrendScore });
+})();
+// Debt prioritisation and payoff simulation. Avalanche/snowball/hybrid
+// ordering, plus a month-by-month simulator that answers "how long until
+// I'm debt-free" and "what happens if I pay an extra RX/month".
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  const MAX_MONTHS = 600; // 50-year safety cap, so a payment too small to ever
+  // clear the balance can't loop forever — reachedSafetyCap flags this case.
+
+  /** Highest interest rate first — minimises total interest paid. */
+  function orderAvalanche(debts) {
+    return [...debts].sort((a, b) => b.interestRate - a.interestRate);
+  }
+
+  /** Smallest balance first — maximises early "wins" for motivation. */
+  function orderSnowball(debts) {
+    return [...debts].sort((a, b) => a.currentBalance - b.currentBalance);
+  }
+
+  /**
+   * Blends interest rate and balance so a merely-elevated rate on a huge
+   * balance can still outrank a tiny balance at a very high rate. Weights
+   * are parameters, not hidden constants, so the ordering stays inspectable.
+   */
+  function orderHybrid(debts, weights) {
+    const w = weights || { interestWeight: 0.7, balanceWeight: 0.3 };
+    if (debts.length === 0) return [];
+    const maxRate = Math.max(...debts.map((d) => d.interestRate)) || 1;
+    const maxBalance = Math.max(...debts.map((d) => d.currentBalance)) || 1;
+    const scored = debts.map((d) => ({
+      debt: d,
+      score: w.interestWeight * (d.interestRate / maxRate) + w.balanceWeight * (1 - d.currentBalance / maxBalance),
+    }));
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map((s) => s.debt);
+  }
+
+  /**
+   * Simulates paying off a set of debts month by month. Every open debt
+   * always gets at least its minimum payment; all extra payment (plus any
+   * minimums freed up as debts get fully paid off) goes to whichever debt
+   * is first, still open, in `orderedDebts`.
+   *
+   * @param {Array} orderedDebts - pre-sorted by avalanche/snowball/hybrid
+   * @param {number} extraMonthlyPayment - beyond the sum of all minimums
+   * @returns {{
+   *   months: number, totalInterestPaid: number,
+   *   payoffOrder: Array<{name: string, monthsToPayoff: number|null}>,
+   *   reachedSafetyCap: boolean
+   * }}
+   */
+  function simulatePayoff(orderedDebts, extraMonthlyPayment) {
+    const balances = orderedDebts.map((d) => ({
+      name: d.name,
+      balance: d.currentBalance,
+      monthlyRate: d.interestRate / 12,
+      minPayment: d.minPayment,
+      paidOffMonth: null,
+    }));
+
+    let month = 0;
+    let totalInterestPaid = 0;
+    let extraPool = extraMonthlyPayment;
+
+    while (balances.some((b) => b.balance > 0.01) && month < MAX_MONTHS) {
+      month += 1;
+
+      balances.forEach((b) => {
+        if (b.balance > 0) {
+          const interest = b.balance * b.monthlyRate;
+          b.balance += interest;
+          totalInterestPaid += interest;
+        }
+      });
+
+      balances.forEach((b) => {
+        if (b.balance > 0) {
+          b.balance -= Math.min(b.minPayment, b.balance);
+        }
+      });
+
+      let pool = extraPool;
+      for (const b of balances) {
+        if (b.balance > 0 && pool > 0) {
+          const payment = Math.min(pool, b.balance);
+          b.balance -= payment;
+          pool -= payment;
+        }
+      }
+
+      balances.forEach((b) => {
+        if (b.balance <= 0.01 && b.paidOffMonth === null) {
+          b.paidOffMonth = month;
+          extraPool += b.minPayment; // rollover: freed-up minimum joins next month's extra pool
+        }
+      });
+    }
+
+    return {
+      months: month,
+      totalInterestPaid,
+      payoffOrder: balances.map((b) => ({ name: b.name, monthsToPayoff: b.paidOffMonth })),
+      reachedSafetyCap: month >= MAX_MONTHS,
+    };
+  }
+
+  /**
+   * Answers "what happens if I pay an extra RX/month" by comparing total
+   * interest paid and total months with vs without the extra payment.
+   */
+  function calculateInterestSaved(orderedDebts, extraMonthlyPayment) {
+    const withoutExtra = simulatePayoff(orderedDebts, 0);
+    const withExtra = simulatePayoff(orderedDebts, extraMonthlyPayment);
+    return {
+      interestSaved: withoutExtra.totalInterestPaid - withExtra.totalInterestPaid,
+      monthsSaved: withoutExtra.months - withExtra.months,
+      withoutExtra,
+      withExtra,
+    };
+  }
+
+  Object.assign(WR.financial, {
+    orderDebtsAvalanche: orderAvalanche,
+    orderDebtsSnowball: orderSnowball,
+    orderDebtsHybrid: orderHybrid,
+    simulateDebtPayoff: simulatePayoff,
+    calculateInterestSaved,
+  });
+})();
+// Investment readiness. Deliberately answers "am I ready to invest?" before
+// anything about what to invest in — matching the brief's explicit decision
+// order (debt and emergency fund come first when they're the better use of
+// money). Every outcome carries its reasons; never a bare verdict.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * @param {Object} inputs
+   * @param {number} inputs.emergencyFundMonths
+   * @param {number} inputs.emergencyFundTargetMonths
+   * @param {number|null} inputs.highestDebtInterestRate - fraction, or null if debt-free
+   * @param {number} inputs.assumedInvestmentReturn - fraction, e.g. 0.08 (configurable assumption, never guaranteed)
+   * @param {number} inputs.availableSurplus - monthly
+   * @returns {{ readiness: string, reasons: string[] }}
+   */
+  function assessInvestmentReadiness(inputs) {
+    const {
+      emergencyFundMonths,
+      emergencyFundTargetMonths,
+      highestDebtInterestRate,
+      assumedInvestmentReturn,
+      availableSurplus,
+    } = inputs;
+
+    const target = emergencyFundTargetMonths > 0 ? emergencyFundTargetMonths : 3;
+
+    if (emergencyFundMonths < target * 0.5) {
+      return {
+        readiness: 'build_emergency_fund',
+        reasons: [
+          `Your emergency fund covers ${emergencyFundMonths.toFixed(1)} months of essential expenses, ` +
+            `less than half of your ${target}-month target.`,
+          'An emergency fund below this level means an unexpected expense would likely force you into new debt — building this up protects any investment gains you make later.',
+        ],
+      };
+    }
+
+    if (highestDebtInterestRate !== null && highestDebtInterestRate > assumedInvestmentReturn) {
+      return {
+        readiness: 'focus_on_debt',
+        reasons: [
+          `Your highest-interest debt costs ${(highestDebtInterestRate * 100).toFixed(1)}% a year, ` +
+            `more than the ${(assumedInvestmentReturn * 100).toFixed(1)}% assumed investment return.`,
+          'Paying this down is a guaranteed return equal to its interest rate — investing instead only makes sense once your most expensive debt costs less than you expect to earn.',
+        ],
+      };
+    }
+
+    if (emergencyFundMonths < target) {
+      return {
+        readiness: 'start_investing_conservatively',
+        reasons: [
+          `Your emergency fund covers ${emergencyFundMonths.toFixed(1)} of your ${target}-month target — ` +
+            'past the halfway point, but not fully there yet.',
+          'Debt is not more expensive than your assumed return, so starting conservatively while still finishing the emergency fund is reasonable.',
+        ],
+      };
+    }
+
+    if (availableSurplus <= 0) {
+      return {
+        readiness: 'review_cash_flow',
+        reasons: [
+          'There is no monthly surplus currently available to invest.',
+          'Review spending before committing to new investment contributions — investing money you don\u2019t actually have available each month isn\u2019t sustainable.',
+        ],
+      };
+    }
+
+    return {
+      readiness: 'ready_to_invest',
+      reasons: [
+        `Your emergency fund meets your ${target}-month target and your debt is not more expensive than your assumed investment return.`,
+        `You have a monthly surplus of ${availableSurplus.toFixed(2)} available to allocate toward long-term investing.`,
+      ],
+    };
+  }
+
+  Object.assign(WR.financial, { assessInvestmentReadiness });
+})();
+// Multi-year forecasting. Every number here is a projection built from
+// assumptions the caller supplies (growth rates, contribution amounts) —
+// never presented as guaranteed, per the brief's safety principle. The UI
+// layer is responsible for labelling this clearly as "projected", not "will".
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * Projects net worth forward month by month, then returns one snapshot
+   * per year. Debt accrues interest and is paid down by a fixed monthly
+   * payment (floored at 0, doesn't go negative); investments grow by an
+   * assumed annual return and receive a fixed monthly contribution.
+   * Everything else that makes up net worth today (property, vehicles, etc.)
+   * is held constant — this engine doesn't project asset appreciation for
+   * anything except tagged investments, on purpose, since guessing at house
+   * price growth is exactly the kind of unfounded certainty the brief warns
+   * against.
+   *
+   * @param {Object} params
+   * @param {number} params.currentNetWorth
+   * @param {number} params.currentDebtTotal
+   * @param {number} params.currentInvestmentTotal
+   * @param {number} params.monthlyDebtPayment
+   * @param {number} params.monthlyInvestmentContribution
+   * @param {number} params.debtInterestAnnual - weighted average, fraction
+   * @param {number} params.investmentReturnAnnual - assumed, fraction, never guaranteed
+   * @param {number} years
+   * @returns {Array<{ year: number, netWorth: number, debtBalance: number, investmentBalance: number }>}
+   */
+  function forecastNetWorth(params, years) {
+    const {
+      currentNetWorth,
+      currentDebtTotal,
+      currentInvestmentTotal,
+      monthlyDebtPayment,
+      monthlyInvestmentContribution,
+      debtInterestAnnual,
+      investmentReturnAnnual,
+    } = params;
+
+    // Everything else that makes up net worth today, held constant.
+    const otherAssetsBaseline = currentNetWorth - currentInvestmentTotal + currentDebtTotal;
+
+    let debtBalance = currentDebtTotal;
+    let investmentBalance = currentInvestmentTotal;
+    const monthlyDebtRate = debtInterestAnnual / 12;
+    const monthlyInvestmentRate = investmentReturnAnnual / 12;
+
+    const snapshots = [];
+    const totalMonths = years * 12;
+
+    for (let month = 1; month <= totalMonths; month += 1) {
+      if (debtBalance > 0) {
+        debtBalance += debtBalance * monthlyDebtRate;
+        debtBalance = Math.max(0, debtBalance - monthlyDebtPayment);
+      }
+      investmentBalance = investmentBalance * (1 + monthlyInvestmentRate) + monthlyInvestmentContribution;
+
+      if (month % 12 === 0) {
+        snapshots.push({
+          year: month / 12,
+          netWorth: otherAssetsBaseline + investmentBalance - debtBalance,
+          debtBalance,
+          investmentBalance,
+        });
+      }
+    }
+
+    return snapshots;
+  }
+
+  Object.assign(WR.financial, { forecastNetWorth });
+})();
+// Pure aggregation functions powering the Reports view: totals grouped by
+// month across the whole budget-line history, and spending grouped by
+// expense category. No storage calls, no DOM \u2014 same "engine calculates,
+// UI displays" separation as the rest of the financial engine.
+
+window.WR = window.WR || {};
+WR.financial = WR.financial || {};
+
+(function () {
+  /**
+   * Groups every budget line by month and sums each type, producing one
+   * row per month the user has ever entered data for, sorted chronologically.
+   * @param {Array} allBudgetLines
+   * @returns {Array<{month:string, income:number, fixed:number, variable:number, savings:number, debtPayments:number}>}
+   */
+  function aggregateMonthlyTotals(allBudgetLines) {
+    const byMonth = {};
+    allBudgetLines.forEach((line) => {
+      if (!byMonth[line.month]) {
+        byMonth[line.month] = { month: line.month, income: 0, fixed: 0, variable: 0, savings: 0, debtPayments: 0 };
+      }
+      const bucket = byMonth[line.month];
+      if (line.type === 'income') bucket.income += line.actualAmount;
+      else if (line.type === 'fixed') bucket.fixed += line.actualAmount;
+      else if (line.type === 'variable') bucket.variable += line.actualAmount;
+      else if (line.type === 'savings') bucket.savings += line.actualAmount;
+      else if (line.type === 'debtPayment') bucket.debtPayments += line.actualAmount;
+    });
+    return Object.values(byMonth).sort((a, b) => (a.month < b.month ? -1 : 1));
+  }
+
+  /**
+   * Sums fixed+variable spending by expense category name for whichever
+   * budget lines are passed in (caller filters to a month or range first).
+   * Uncategorised spending is grouped under "Uncategorised" rather than
+   * dropped, so the total always reconciles with actual spending.
+   * @param {Array} budgetLines
+   * @param {Array} expenseCategories
+   * @returns {Array<{label:string, value:number}>} sorted highest spend first
+   */
+  function aggregateSpendingByCategory(budgetLines, expenseCategories) {
+    const categoryById = new Map(expenseCategories.map((c) => [c.id, c]));
+    const totals = {};
+    budgetLines
+      .filter((l) => l.type === 'fixed' || l.type === 'variable')
+      .forEach((l) => {
+        const category = l.categoryId ? categoryById.get(l.categoryId) : null;
+        const label = category ? category.name : 'Uncategorised';
+        totals[label] = (totals[label] || 0) + l.actualAmount;
+      });
+    return Object.entries(totals)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }
+
+  Object.assign(WR.financial, { aggregateMonthlyTotals, aggregateSpendingByCategory });
+})();
+// Recommendation rules engine. Each rule is a plain object with a
+// `condition` function and a `build` function that produces the
+// recommendation text — rules are data, not scattered hardcoded advice
+// buried in UI components, so they stay auditable and easy to change.
+// This is the layer between the deterministic Financial Engine and the
+// "What Should I Do Now?" panel; it never changes any stored financial
+// data itself, only reads a snapshot and produces suggestions.
+
+window.WR = window.WR || {};
+WR.recommendations = WR.recommendations || {};
+
+(function () {
+  const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
+
+  /**
+   * @typedef {Object} FinancialSnapshot
+   * @property {number} income
+   * @property {number} availableSurplus
+   * @property {number} savingsRate
+   * @property {number} emergencyFundMonths
+   * @property {number} emergencyFundTargetMonths
+   * @property {number} debtToIncomeRatio
+   * @property {Object|null} highestInterestDebt
+   * @property {number} totalDebt
+   * @property {number} assumedInvestmentReturn
+   * @property {{essential: number, discretionary: number}} essentialVsDiscretionary
+   * @property {number|null} discretionarySpendChangePct - fraction vs prior period, null if no history yet
+   * @property {{readiness: string, reasons: string[]}} investmentReadiness
+   */
+
+  const RULES = [
+    {
+      id: 'negative-cashflow',
+      priority: 'high',
+      condition: (s) => s.availableSurplus < 0,
+      build: (s) => ({
+        title: 'Cash flow is negative this month',
+        reason: `You spent ${Math.abs(s.availableSurplus).toFixed(2)} more than you earned this month.`,
+        financialImpact: 'Continuing to spend beyond income means relying on debt or depleting savings to cover the gap.',
+        suggestedAction: 'Review discretionary and variable expenses first \u2014 these are usually the fastest to adjust.',
+        numbers: { availableSurplus: s.availableSurplus, income: s.income },
+        assumptions: [],
+      }),
+    },
+    {
+      id: 'high-interest-debt',
+      priority: 'high',
+      condition: (s) => s.highestInterestDebt !== null && s.highestInterestDebt.interestRate > s.assumedInvestmentReturn,
+      build: (s) => ({
+        title: `Pay down ${s.highestInterestDebt.name}`,
+        reason: `This debt costs ${(s.highestInterestDebt.interestRate * 100).toFixed(1)}% a year, more than your assumed ${(s.assumedInvestmentReturn * 100).toFixed(1)}% investment return.`,
+        financialImpact: 'Extra payments here earn a guaranteed return equal to the interest rate \u2014 higher and more certain than investing while this debt remains.',
+        suggestedAction: s.availableSurplus > 0
+          ? `Consider directing some of your ${s.availableSurplus.toFixed(2)} monthly surplus toward this debt.`
+          : 'Free up monthly surplus (see the cash flow recommendation) before adding extra debt payments.',
+        numbers: { balance: s.highestInterestDebt.currentBalance, interestRate: s.highestInterestDebt.interestRate },
+        assumptions: [`Assumed investment return: ${(s.assumedInvestmentReturn * 100).toFixed(1)}%/year \u2014 adjust this in Settings.`],
+      }),
+    },
+    {
+      id: 'emergency-fund-critical',
+      priority: 'high',
+      condition: (s) => s.emergencyFundMonths < s.emergencyFundTargetMonths * 0.5,
+      build: (s) => ({
+        title: 'Build your emergency fund',
+        reason: `Your emergency fund covers ${s.emergencyFundMonths.toFixed(1)} months of essential expenses, under half of your ${s.emergencyFundTargetMonths}-month target.`,
+        financialImpact: 'An unexpected expense at this level would likely have to be covered by new debt.',
+        suggestedAction: 'Prioritise emergency savings over new investment contributions until you reach at least half your target.',
+        numbers: { emergencyFundMonths: s.emergencyFundMonths, target: s.emergencyFundTargetMonths },
+        assumptions: [],
+      }),
+    },
+    {
+      id: 'emergency-fund-building',
+      priority: 'medium',
+      condition: (s) =>
+        s.emergencyFundMonths >= s.emergencyFundTargetMonths * 0.5 && s.emergencyFundMonths < s.emergencyFundTargetMonths,
+      build: (s) => ({
+        title: 'Keep building your emergency fund',
+        reason: `You're at ${s.emergencyFundMonths.toFixed(1)} of your ${s.emergencyFundTargetMonths}-month target \u2014 past the halfway point.`,
+        financialImpact: 'Closing this gap further reduces the chance a surprise expense forces you into debt.',
+        suggestedAction: 'Continue current contributions, or increase them if the high-interest debt items above are resolved.',
+        numbers: { emergencyFundMonths: s.emergencyFundMonths, target: s.emergencyFundTargetMonths },
+        assumptions: [],
+      }),
+    },
+    {
+      id: 'discretionary-spend-increase',
+      priority: 'medium',
+      condition: (s) => s.discretionarySpendChangePct !== null && s.discretionarySpendChangePct > 0.15,
+      build: (s) => ({
+        title: 'Discretionary spending has increased',
+        reason: `Discretionary spending is up ${(s.discretionarySpendChangePct * 100).toFixed(0)}% compared with your recent average.`,
+        financialImpact: 'If this continues, it reduces the surplus available for debt, savings, or investing.',
+        suggestedAction: 'Review recent discretionary transactions to see whether this reflects a one-off or an ongoing change.',
+        numbers: { changePct: s.discretionarySpendChangePct, discretionary: s.essentialVsDiscretionary.discretionary },
+        assumptions: [],
+      }),
+    },
+    {
+      id: 'investment-opportunity',
+      priority: 'low',
+      condition: (s) => s.investmentReadiness.readiness === 'ready_to_invest' && s.availableSurplus > 0,
+      build: (s) => ({
+        title: 'Consider increasing your investment contribution',
+        reason: s.investmentReadiness.reasons.join(' '),
+        financialImpact: `You have an unallocated monthly surplus of ${s.availableSurplus.toFixed(2)}.`,
+        suggestedAction: 'Once debt and emergency fund priorities above are addressed, direct some of this surplus toward long-term investing.',
+        numbers: { availableSurplus: s.availableSurplus },
+        assumptions: ['Investment returns are never guaranteed \u2014 see the Investments section for your own return assumptions.'],
+      }),
+    },
+  ];
+
+  /**
+   * Evaluates every rule against a FinancialSnapshot and returns the
+   * matching recommendations, sorted high \u2192 medium \u2192 low priority.
+   * @param {FinancialSnapshot} snapshot
+   */
+  function generateRecommendations(snapshot) {
+    return RULES.filter((rule) => rule.condition(snapshot))
+      .map((rule) => ({ id: rule.id, priority: rule.priority, ...rule.build(snapshot) }))
+      .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]);
+  }
+
+  WR.recommendations = { RULES, generateRecommendations };
+})();
+// Excel import/export, built on SheetJS (loaded via CDN in index.html as
+// the global `XLSX`). Deliberately uses a generic column-mapping approach
+// rather than hardcoded cell ranges tied to one exact workbook layout —
+// hardcoded ranges break the moment a row shifts; column mapping survives
+// minor structural differences and works with any spreadsheet, not just
+// the exact source workbook this project started from.
+//
+// Workflow: parse workbook -> list sheets -> user picks a sheet + maps its
+// columns to WealthRoute fields -> preview -> confirm -> import as
+// BudgetLine records for the current month.
+
+window.WR = window.WR || {};
+WR.excel = WR.excel || {};
+
+(function () {
+  /**
+   * Parses an uploaded file (ArrayBuffer) into a SheetJS workbook.
+   * @param {ArrayBuffer} arrayBuffer
+   */
+  function parseWorkbook(arrayBuffer) {
+    return XLSX.read(arrayBuffer, { type: 'array' });
+  }
+
+  /** @param {object} workbook */
+  function getSheetNames(workbook) {
+    return workbook.SheetNames;
+  }
+
+  /**
+   * Reads one sheet as an array of row objects, plus the header list for
+   * building a mapping UI. `headerRowIndex` (0-indexed) lets the caller
+   * point at whichever row actually holds column headers \u2014 not every
+   * spreadsheet has them in row 1 (this workbook's own month sheets, for
+   * example, have several header rows partway down the sheet). Blank
+   * header cells get a synthetic "Column X" label rather than being
+   * silently dropped, so every column stays mappable.
+   * @param {object} workbook
+   * @param {string} sheetName
+   * @param {number} [headerRowIndex] - 0-indexed row number, defaults to 0 (row 1)
+   */
+  function readSheetRows(workbook, sheetName, headerRowIndex) {
+    const startRow = headerRowIndex || 0;
+    const sheet = workbook.Sheets[sheetName];
+    const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, range: startRow, defval: '' });
+
+    const headerCells = aoa[0] || [];
+    const headers = headerCells.map((h, i) =>
+      h === '' || h === undefined || h === null ? `Column ${XLSX.utils.encode_col(i)}` : String(h),
+    );
+
+    const rows = aoa.slice(1)
+      .filter((rowArr) => rowArr.some((cell) => cell !== '' && cell !== undefined)) // skip fully blank rows
+      .map((rowArr) => {
+        const obj = {};
+        headers.forEach((h, i) => {
+          obj[h] = rowArr[i] !== undefined ? rowArr[i] : '';
+        });
+        return obj;
+      });
+
+    return { headers, rows };
+  }
+
+  /**
+   * Validates a single mapped row before import. Returns a list of problems
+   * (empty = valid) rather than throwing, so the caller can show every issue
+   * in the preview instead of stopping at the first bad row.
+   * @param {Object} row - already mapped to { name, amount, type, month, categoryId }
+   */
+  function validateImportRow(row) {
+    const problems = [];
+    if (!row.name || String(row.name).trim() === '') problems.push('Missing name/description');
+    if (row.amount === undefined || row.amount === '' || Number.isNaN(Number(row.amount))) {
+      problems.push('Missing or invalid amount');
+    }
+    if (!['income', 'fixed', 'variable', 'savings', 'debtPayment'].includes(row.type)) {
+      problems.push(`Invalid type "${row.type}"`);
+    }
+    if (!/^\d{4}-\d{2}$/.test(row.month || '')) problems.push('Month must be in YYYY-MM format');
+    return problems;
+  }
+
+  /**
+   * Parses a spreadsheet cell into a number, handling currency symbols,
+   * thousands separators, and accounting-style negatives like "(500.00)"
+   * (parentheses meaning negative, common in exported financial data).
+   * @param {*} raw
+   */
+  function parseAmount(raw) {
+    const str = String(raw ?? '').trim();
+    const isParenNegative = /^\(.*\)$/.test(str);
+    const cleaned = str.replace(/[^\d.-]/g, '');
+    const value = parseFloat(cleaned);
+    if (Number.isNaN(value)) return NaN;
+    return isParenNegative ? -Math.abs(value) : value;
+  }
+
+  /**
+   * Applies a column mapping to raw sheet rows, producing WealthRoute
+   * BudgetLine-shaped records (not yet saved). `mapping` keys are
+   * WealthRoute field names, values are the source column header to read
+   * from each raw row. `constants` supplies fields not present as columns
+   * (e.g. a fixed month or type for the whole import).
+   *
+   * @param {Array<Object>} rawRows
+   * @param {{name?: string, amount?: string, type?: string, month?: string, currency?: string}} mapping
+   * @param {{type?: string, month?: string, currency?: string}} constants
+   */
+  function applyMapping(rawRows, mapping, constants) {
+    return rawRows.map((raw) => {
+      const name = mapping.name ? raw[mapping.name] : undefined;
+      const amountRaw = mapping.amount ? raw[mapping.amount] : undefined;
+      const amount = typeof amountRaw === 'number' ? amountRaw : parseAmount(amountRaw);
+      const type = constants.type || (mapping.type ? raw[mapping.type] : undefined);
+      const month = constants.month || (mapping.month ? raw[mapping.month] : undefined);
+      const currency = constants.currency || (mapping.currency ? raw[mapping.currency] : 'ZAR');
+
+      return { name, amount, type, month, currency };
+    });
+  }
+
+  /**
+   * Imports validated rows as BudgetLine records via the repository layer.
+   * Rows that fail validation are skipped and returned separately, rather
+   * than silently importing bad data.
+   * @param {Array<Object>} mappedRows
+   */
+  async function importBudgetLines(mappedRows) {
+    const imported = [];
+    const rejected = [];
+
+    for (const row of mappedRows) {
+      const problems = validateImportRow(row);
+      if (problems.length > 0) {
+        rejected.push({ row, problems });
+        continue;
+      }
+      const line = WR.models.createBudgetLine({
+        month: row.month,
+        type: row.type,
+        name: row.name,
+        budgetAmount: Number(row.amount),
+        actualAmount: Number(row.amount),
+        currency: row.currency || 'ZAR',
+      });
+      await WR.repos.budgetLines.add(line);
+      imported.push(line);
+    }
+
+    return { imported, rejected };
+  }
+
+  /**
+   * Exports all current data as a multi-sheet workbook: one sheet per
+   * entity. This intentionally does not attempt to reproduce the exact
+   * 16-sheet source template (Annual Overview + 12 month sheets + Networth
+   * + Goal/Habit trackers) — it exports WealthRoute's own normalised data
+   * model instead, which is what round-trips cleanly.
+   */
+  async function exportWorkbook() {
+    const [budgetLines, debts, assets, investments, netWorthSnapshots] = await Promise.all([
+      WR.repos.budgetLines.getAll(),
+      WR.repos.debts.getAll(),
+      WR.repos.assets.getAll(),
+      WR.repos.investments.getAll(),
+      WR.repos.netWorthSnapshots.getAll(),
+    ]);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(budgetLines), 'Budget Lines');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(debts), 'Debts');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(assets), 'Assets');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(investments), 'Investments');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(netWorthSnapshots), 'Net Worth History');
+
+    XLSX.writeFile(wb, `wealthroute-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
+  WR.excel = {
+    parseWorkbook,
+    getSheetNames,
+    readSheetRows,
+    validateImportRow,
+    parseAmount,
+    applyMapping,
+    importBudgetLines,
+    exportWorkbook,
+  };
+})();
+// Hand-rolled SVG charts. No charting library — the whole point of this
+// project is staying dependency-light, and bar/line charts don't need one.
+
+window.WR = window.WR || {};
+WR.charts = WR.charts || {};
+
+(function () {
+  const PALETTE = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-1)'];
+
+  function escapeXml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
+  }
+
+  /**
+   * @param {Array<{label: string, value: number}>} data
+   * @param {{width?: number, height?: number, color?: string}} [options]
+   */
+  function barChart(data, options) {
+    const opts = options || {};
+    const width = opts.width || 480;
+    const height = opts.height || 240;
+    const padding = 32;
+    const chartW = width - padding * 2;
+    const chartH = height - padding * 2;
+
+    if (data.length === 0) {
+      return `<svg width="${width}" height="${height}"><text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#888">No data</text></svg>`;
+    }
+
+    const maxVal = Math.max(...data.map((d) => d.value), 0.01);
+    const barWidth = chartW / data.length;
+
+    const bars = data
+      .map((d, i) => {
+        const barH = (Math.max(d.value, 0) / maxVal) * chartH;
+        const x = padding + i * barWidth + barWidth * 0.15;
+        const y = padding + (chartH - barH);
+        const w = barWidth * 0.7;
+        const color = opts.color || PALETTE[i % PALETTE.length];
+        return `
+          <rect x="${x}" y="${y}" width="${w}" height="${barH}" fill="${color}" rx="2"></rect>
+          <text x="${x + w / 2}" y="${height - padding + 14}" text-anchor="middle" font-size="10" fill="#444">${escapeXml(d.label)}</text>
+          <text x="${x + w / 2}" y="${y - 4}" text-anchor="middle" font-size="10" fill="#222">${d.value.toFixed(0)}</text>
+        `;
+      })
+      .join('');
+
+    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
+  }
+
+  /**
+   * @param {Array<{label: string, value: number}>} data - ordered chronologically
+   * @param {{width?: number, height?: number, color?: string}} [options]
+   */
+  function lineChart(data, options) {
+    const opts = options || {};
+    const width = opts.width || 480;
+    const height = opts.height || 240;
+    const padding = 32;
+    const chartW = width - padding * 2;
+    const chartH = height - padding * 2;
+
+    if (data.length === 0) {
+      return `<svg width="${width}" height="${height}"><text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#888">No data</text></svg>`;
+    }
+
+    const values = data.map((d) => d.value);
+    const maxVal = Math.max(...values);
+    const minVal = Math.min(...values, 0);
+    const range = maxVal - minVal || 1;
+    const stepX = data.length > 1 ? chartW / (data.length - 1) : 0;
+    const color = opts.color || PALETTE[0];
+
+    const points = data.map((d, i) => {
+      const x = padding + i * stepX;
+      const y = padding + chartH - ((d.value - minVal) / range) * chartH;
+      return { x, y, label: d.label, value: d.value };
+    });
+
+    const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+    const dots = points
+      .map(
+        (p) =>
+          `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${color}"><title>${escapeXml(p.label)}: ${p.value.toFixed(2)}</title></circle>`,
+      )
+      .join('');
+    const labels = points
+      .map((p, i) => (i % Math.ceil(points.length / 8 || 1) === 0
+        ? `<text x="${p.x.toFixed(1)}" y="${height - padding + 14}" text-anchor="middle" font-size="9" fill="#444">${escapeXml(p.label)}</text>`
+        : ''))
+      .join('');
+
+    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="2"></path>
+      ${dots}
+      ${labels}
+    </svg>`;
+  }
+
+  WR.charts = { barChart, lineChart };
+})();
+// A deliberately tiny test runner — no dependency, runs by just opening
+// tests.html in a browser. Not a replacement for Jest/Vitest at scale, but
+// this project's whole point this sprint is having zero install step.
+
+window.WR = window.WR || {};
+
+(function () {
+  const results = [];
+
+  /**
+   * @param {string} name
+   * @param {() => Promise<void>|void} fn
+   */
+  async function test(name, fn) {
+    try {
+      await fn();
+      results.push({ name, passed: true });
+    } catch (err) {
+      results.push({ name, passed: false, error: err && err.message ? err.message : String(err) });
+    }
+  }
+
+  /** @param {*} actual */
+  function expect(actual) {
+    return {
+      toBe(expected) {
+        if (actual !== expected) {
+          throw new Error(`Expected ${JSON.stringify(actual)} to be ${JSON.stringify(expected)}`);
+        }
+      },
+      toEqual(expected) {
+        const a = JSON.stringify(actual);
+        const e = JSON.stringify(expected);
+        if (a !== e) throw new Error(`Expected ${a} to equal ${e}`);
+      },
+      toBeUndefined() {
+        if (actual !== undefined) {
+          throw new Error(`Expected ${JSON.stringify(actual)} to be undefined`);
+        }
+      },
+      toHaveLength(n) {
+        const len = actual ? actual.length : undefined;
+        if (len !== n) throw new Error(`Expected length ${n}, got ${len}`);
+      },
+      toBeCloseTo(expected, precision = 2) {
+        const diff = Math.abs(actual - expected);
+        if (diff > Math.pow(10, -precision)) {
+          throw new Error(`Expected ${actual} to be close to ${expected}`);
+        }
+      },
+      toBeTruthy() {
+        if (!actual) throw new Error(`Expected ${JSON.stringify(actual)} to be truthy`);
+      },
+    };
+  }
+
+  function render() {
+    const container = document.getElementById('results');
+    if (!container) return;
+
+    const passed = results.filter((r) => r.passed).length;
+    const failed = results.length - passed;
+
+    const summary = document.createElement('h2');
+    summary.textContent = `${passed} passed, ${failed} failed (of ${results.length})`;
+    summary.style.color = failed === 0 ? '#1a7f37' : '#c1121f';
+    container.appendChild(summary);
+
+    results.forEach((r) => {
+      const div = document.createElement('div');
+      div.style.color = r.passed ? '#1a7f37' : '#c1121f';
+      div.style.fontFamily = 'monospace';
+      div.textContent = r.passed ? `\u2713 ${r.name}` : `\u2717 ${r.name} \u2014 ${r.error}`;
+      container.appendChild(div);
+    });
+  }
+
+  WR.test = { test, expect, render };
+})();
+// Storage layer tests. Registers itself in WR.testRuns rather than running
+// immediately — run-tests.js awaits every registered suite, then renders
+// once, so this file's results and the financial-engine tests' results end
+// up on the same page instead of two separate render() calls stomping on
+// each other.
+
+window.WR = window.WR || {};
+WR.testRuns = WR.testRuns || [];
+
+WR.testRuns.push(
+  (async function () {
+    const { test, expect } = WR.test;
+
+  async function resetDB() {
+    await WR.db.deleteDatabase();
+  }
+
+  // --- incomeSources ---------------------------------------------------
+
+  await resetDB();
+  await test('incomeSources > adds and retrieves an income source', async () => {
+    const item = WR.models.createIncomeSource({
+      name: 'Salary',
+      amount: 31470.19,
+      currency: 'ZAR',
+      frequency: 'monthly',
+      category: 'salary',
+      recurring: true,
+    });
+    await WR.repos.incomeSources.add(item);
+    const all = await WR.repos.incomeSources.getAll();
+
+    expect(all).toHaveLength(1);
+    expect(all[0].name).toBe('Salary');
+    expect(all[0].amount).toBeCloseTo(31470.19);
+  });
+
+  await resetDB();
+  await test('incomeSources > updates an existing record in place', async () => {
+    const item = WR.models.createIncomeSource({
+      name: 'Freelance',
+      amount: 5000,
+      currency: 'ZAR',
+      frequency: 'monthly',
+      category: 'freelance',
+      recurring: false,
+    });
+    await WR.repos.incomeSources.add(item);
+    await WR.repos.incomeSources.update({ ...item, amount: 6000 });
+
+    const fetched = await WR.repos.incomeSources.getById(item.id);
+    expect(fetched.amount).toBe(6000);
+
+    const all = await WR.repos.incomeSources.getAll();
+    expect(all).toHaveLength(1); // update, not a duplicate insert
+  });
+
+  await resetDB();
+  await test('incomeSources > removes a record', async () => {
+    const item = WR.models.createIncomeSource({
+      name: 'Rental',
+      amount: 4000,
+      currency: 'ZAR',
+      frequency: 'monthly',
+      category: 'rental',
+      recurring: true,
+    });
+    await WR.repos.incomeSources.add(item);
+    await WR.repos.incomeSources.remove(item.id);
+
+    const fetched = await WR.repos.incomeSources.getById(item.id);
+    expect(fetched).toBeUndefined();
+
+    const all = await WR.repos.incomeSources.getAll();
+    expect(all).toHaveLength(0);
+  });
+
+  // --- debt payments by debt (index query) ------------------------------
+
+  await resetDB();
+  await test('getDebtPaymentsForDebt > returns only payments belonging to the requested debt', async () => {
+    const debt1 = WR.models.createDebt({
+      name: 'MTN',
+      currentBalance: 7668.87,
+      interestRate: 0.2,
+      minPayment: 1000,
+      dueDate: '2026-09-25',
+    });
+    const debt2 = WR.models.createDebt({
+      name: 'Loan',
+      currentBalance: 2600,
+      interestRate: 0.15,
+      minPayment: 500,
+      dueDate: '2026-09-20',
+    });
+    await WR.repos.debts.add(debt1);
+    await WR.repos.debts.add(debt2);
+
+    const payments = [
+      WR.models.createDebtPayment({ debtId: debt1.id, month: '2026-08', amount: 3621.42 }),
+      WR.models.createDebtPayment({ debtId: debt1.id, month: '2026-09', amount: 1000 }),
+      WR.models.createDebtPayment({ debtId: debt2.id, month: '2026-09', amount: 2600 }),
+    ];
+    for (const p of payments) await WR.repos.debtPayments.add(p);
+
+    const debt1Payments = await WR.queries.getDebtPaymentsForDebt(debt1.id);
+
+    expect(debt1Payments).toHaveLength(2);
+    expect(debt1Payments.every((p) => p.debtId === debt1.id)).toBeTruthy();
+  });
+
+  await resetDB();
+  await test('getDebtPaymentsForDebt > returns an empty array for a debt with no payments', async () => {
+    const debt = WR.models.createDebt({
+      name: 'FNB Overdraft',
+      currentBalance: 700,
+      interestRate: 0.22,
+      minPayment: 100,
+    });
+    await WR.repos.debts.add(debt);
+
+    const payments = await WR.queries.getDebtPaymentsForDebt(debt.id);
+    expect(payments).toEqual([]);
+  });
+
+  // --- net worth history (index query) ----------------------------------
+
+  await resetDB();
+  await test('getNetWorthHistory > returns snapshots ordered oldest to newest regardless of insert order', async () => {
+    const snapshots = [
+      WR.models.createNetWorthSnapshot({
+        date: '2026-09-01',
+        totalAssets: 100,
+        totalLiabilities: 9947.29,
+        netWorth: 100 - 9947.29,
+        currency: 'ZAR',
+      }),
+      WR.models.createNetWorthSnapshot({
+        date: '2026-08-01',
+        totalAssets: 46.83,
+        totalLiabilities: 10945.63,
+        netWorth: 46.83 - 10945.63,
+        currency: 'ZAR',
+      }),
+    ];
+    // Insert newest first on purpose, to prove the index (not insert order) drives sort.
+    for (const s of snapshots) await WR.repos.netWorthSnapshots.add(s);
+
+    const history = await WR.queries.getNetWorthHistory();
+    expect(history.map((h) => h.date)).toEqual(['2026-08-01', '2026-09-01']);
+  });
+
+  })()
+);
+// Financial engine tests. Pure functions, no IndexedDB involved — these run
+// synchronously fast and don't need a database reset between tests.
+
+window.WR = window.WR || {};
+WR.testRuns = WR.testRuns || [];
+
+WR.testRuns.push(
+  (async function () {
+    const { test, expect } = WR.test;
+    const F = WR.financial;
+
+    // --- calculateCashFlowSummary ---------------------------------------
+
+    await test('calculateCashFlowSummary > computes income, expenses, surplus and savings rate', () => {
+      // Mirrors the real Aug figures from the source workbook.
+      const budgetLines = [
+        { type: 'income', actualAmount: 31470.19, budgetAmount: 31000 },
+        { type: 'fixed', actualAmount: 12800, budgetAmount: 12500 },
+        { type: 'variable', actualAmount: 5600, budgetAmount: 6000 },
+        { type: 'savings', actualAmount: 0, budgetAmount: 2000 },
+        { type: 'debtPayment', actualAmount: 3621.42, budgetAmount: 3500 },
+      ];
+
+      const summary = F.calculateCashFlowSummary(budgetLines);
+
+      expect(summary.income).toBeCloseTo(31470.19);
+      expect(summary.fixedExpenses).toBe(12800);
+      expect(summary.variableExpenses).toBe(5600);
+      expect(summary.totalExpenses).toBe(18400);
+      expect(summary.savings).toBe(0);
+      expect(summary.debtPayments).toBeCloseTo(3621.42);
+      // 31470.19 - 12800 - 5600 - 0 - 3621.42
+      expect(summary.availableSurplus).toBeCloseTo(9448.77);
+      expect(summary.savingsRate).toBe(0); // R0 actually saved despite a budget of R2000
+    });
+
+    await test('calculateCashFlowSummary > returns a 0 savings rate rather than NaN when income is 0', () => {
+      const summary = F.calculateCashFlowSummary([
+        { type: 'fixed', actualAmount: 500, budgetAmount: 500 },
+        { type: 'savings', actualAmount: 100, budgetAmount: 100 },
+      ]);
+
+      expect(summary.income).toBe(0);
+      expect(summary.savingsRate).toBe(0);
+    });
+
+    await test('calculateCashFlowSummary > handles an empty month with no data at all', () => {
+      const summary = F.calculateCashFlowSummary([]);
+
+      expect(summary.income).toBe(0);
+      expect(summary.availableSurplus).toBe(0);
+      expect(summary.savingsRate).toBe(0);
+    });
+
+    // --- calculateEssentialVsDiscretionary --------------------------------
+
+    await test('calculateEssentialVsDiscretionary > splits spend by category essential flag', () => {
+      const categories = [
+        { id: 'rent', name: 'Rent', type: 'fixed', essential: true },
+        { id: 'dining', name: 'Dining Out', type: 'variable', essential: false },
+      ];
+      const budgetLines = [
+        { type: 'fixed', categoryId: 'rent', actualAmount: 9000, budgetAmount: 9000 },
+        { type: 'variable', categoryId: 'dining', actualAmount: 1800, budgetAmount: 1200 },
+        { type: 'income', actualAmount: 30000, budgetAmount: 30000 }, // ignored — not fixed/variable
+      ];
+
+      const split = F.calculateEssentialVsDiscretionary(budgetLines, categories);
+
+      expect(split.essential).toBe(9000);
+      expect(split.discretionary).toBe(1800);
+    });
+
+    await test('calculateEssentialVsDiscretionary > treats an uncategorised line as discretionary', () => {
+      const split = F.calculateEssentialVsDiscretionary(
+        [{ type: 'variable', categoryId: undefined, actualAmount: 500, budgetAmount: 500 }],
+        [],
+      );
+
+      expect(split.essential).toBe(0);
+      expect(split.discretionary).toBe(500);
+    });
+
+    // --- debt totals -------------------------------------------------------
+
+    const sampleDebts = [
+      { name: 'MTN', currentBalance: 7668.87, interestRate: 0.2, minPayment: 1000 },
+      { name: 'Loan', currentBalance: 2600, interestRate: 0.15, minPayment: 500 },
+      { name: 'FNB Overdraft', currentBalance: 700, interestRate: 0.22, minPayment: 100 },
+    ];
+
+    await test('calculateTotalDebt > sums current balances across all debts', () => {
+      expect(F.calculateTotalDebt(sampleDebts)).toBeCloseTo(10968.87);
+    });
+
+    await test('calculateTotalMinPayments > sums minimum payments across all debts', () => {
+      expect(F.calculateTotalMinPayments(sampleDebts)).toBe(1600);
+    });
+
+    await test('calculateDebtToIncomeRatio > divides total min payments by monthly income', () => {
+      const ratio = F.calculateDebtToIncomeRatio(sampleDebts, 31470.19);
+      expect(ratio).toBeCloseTo(0.05084, 3);
+    });
+
+    await test('calculateDebtToIncomeRatio > returns 0 instead of Infinity when income is 0', () => {
+      expect(F.calculateDebtToIncomeRatio(sampleDebts, 0)).toBe(0);
+    });
+
+    await test('getHighestInterestDebt > returns the debt with the highest interest rate', () => {
+      const highest = F.getHighestInterestDebt(sampleDebts);
+      expect(highest.name).toBe('FNB Overdraft');
+    });
+
+    await test('getHighestInterestDebt > returns null when there are no debts', () => {
+      expect(F.getHighestInterestDebt([])).toBe(null);
+    });
+
+    await test('calculateWeightedAverageInterestRate > weights by balance, not a simple average', () => {
+      // Simple average of 0.2, 0.15, 0.22 would be ~0.19 — balance-weighted
+      // should pull toward the two large balances (0.2 and 0.15) instead.
+      const weighted = F.calculateWeightedAverageInterestRate(sampleDebts);
+      expect(weighted).toBeCloseTo(0.18942, 3);
+    });
+  })(),
+);
+
+   // Tests for net worth, emergency fund, health score, debt payoff,
+// investment readiness, forecast, the rules engine, and Excel mapping.
+// All pure functions \u2014 no IndexedDB involved.
+
+window.WR = window.WR || {};
+WR.testRuns = WR.testRuns || [];
+
+WR.testRuns.push(
+  (async function () {
+    const { test, expect } = WR.test;
+    const F = WR.financial;
+
+    // --- net worth / currency conversion ---------------------------------
+
+    await test('calculateNetWorth > converts a foreign-currency asset using the exchange rate on file', () => {
+      const assets = [
+        { name: 'Cash', currency: 'ZAR', currentValue: 5000 },
+        { name: 'US Brokerage', currency: 'USD', currentValue: 1000 },
+      ];
+      const rates = [{ fromCurrency: 'USD', toCurrency: 'ZAR', rate: 18.5, date: '2026-09-01' }];
+      const nw = F.calculateNetWorth(assets, [], [{ currentBalance: 3000 }], rates, 'ZAR');
+
+      expect(nw.totalAssets).toBeCloseTo(5000 + 1000 * 18.5);
+      expect(nw.totalLiabilities).toBe(3000);
+      expect(nw.unconvertedItems).toHaveLength(0);
+    });
+
+    await test('calculateNetWorth > flags an asset with no matching exchange rate instead of guessing 1:1', () => {
+      const nw = F.calculateNetWorth([{ name: 'EUR asset', currency: 'EUR', currentValue: 100 }], [], [], [], 'ZAR');
+      expect(nw.unconvertedItems).toHaveLength(1);
+    });
+
+    // --- emergency fund ----------------------------------------------------
+
+    await test('calculateEmergencyFundMonths > divides liquid assets by essential monthly expenses', () => {
+      const months = F.calculateEmergencyFundMonths(6000, 3000);
+      expect(months).toBe(2);
+    });
+
+    // --- health score --------------------------------------------------
+
+    await test('calculateFinancialHealthScore > produces a score within 0-100 with a full breakdown', () => {
+      const result = F.calculateFinancialHealthScore({
+        income: 30000,
+        availableSurplus: 3000,
+        savingsRate: 0.1,
+        emergencyFundMonths: 1.5,
+        emergencyFundTargetMonths: 3,
+        debtToIncomeRatio: 0.1,
+        netWorthHistory: [{ netWorth: 100 }, { netWorth: 200 }],
+      });
+      expect(result.score >= 0 && result.score <= 100).toBeTruthy();
+      expect(result.breakdown.netWorthTrend).toBe(100); // net worth increased between the two snapshots
+    });
+
+    await test('calculateFinancialHealthScore > net worth trend defaults to neutral with fewer than 2 snapshots', () => {
+      const result = F.calculateFinancialHealthScore({
+        income: 30000, availableSurplus: 0, savingsRate: 0,
+        emergencyFundMonths: 0, emergencyFundTargetMonths: 3,
+        debtToIncomeRatio: 0, netWorthHistory: [],
+      });
+      expect(result.breakdown.netWorthTrend).toBe(50);
+    });
+
+    await test('calculateNetWorthTrendScore > a rolling window survives a single noisy recent point', () => {
+      // Clearly upward overall, but the very last point dips slightly \u2014
+      // the old last-two-points comparison would have called this a decline.
+      const sixPoints = [
+        { netWorth: 100 }, { netWorth: 120 }, { netWorth: 140 },
+        { netWorth: 180 }, { netWorth: 210 }, { netWorth: 205 },
+      ];
+      expect(F.calculateNetWorthTrendScore(sixPoints)).toBe(100);
+    });
+
+    await test('calculateNetWorth > converts a foreign-currency debt using the exchange rate on file', () => {
+      const debts = [{ name: 'US Loan', currency: 'USD', currentBalance: 1000 }];
+      const rates = [{ fromCurrency: 'USD', toCurrency: 'ZAR', rate: 18.5, date: '2026-09-01' }];
+      const nw = F.calculateNetWorth([], [], debts, rates, 'ZAR');
+      expect(nw.totalLiabilities).toBe(18500);
+    });
+
+    await test('calculateNetWorth > a debt with no currency field falls back to base currency (legacy records)', () => {
+      const nw = F.calculateNetWorth([], [], [{ name: 'Old debt', currentBalance: 500 }], [], 'ZAR');
+      expect(nw.totalLiabilities).toBe(500);
+    });
+
+    // --- debt payoff simulation ------------------------------------------
+
+    const sampleDebts = [
+      { name: 'CardA', currentBalance: 5000, interestRate: 0.24, minPayment: 200 },
+      { name: 'CardB', currentBalance: 2000, interestRate: 0.15, minPayment: 100 },
+    ];
+
+    await test('orderDebtsAvalanche > sorts highest interest rate first', () => {
+      const ordered = F.orderDebtsAvalanche(sampleDebts);
+      expect(ordered[0].name).toBe('CardA');
+    });
+
+    await test('orderDebtsSnowball > sorts smallest balance first', () => {
+      const ordered = F.orderDebtsSnowball(sampleDebts);
+      expect(ordered[0].name).toBe('CardB');
+    });
+
+    await test('simulateDebtPayoff > pays off all debts within a reasonable timeframe given a real extra payment', () => {
+      const result = F.simulateDebtPayoff(F.orderDebtsAvalanche(sampleDebts), 500);
+      expect(result.months > 0 && result.months < 600).toBeTruthy();
+      expect(result.reachedSafetyCap).toBe(false);
+    });
+
+    await test('simulateDebtPayoff > flags the safety cap when payments can never cover interest', () => {
+      const stuck = F.simulateDebtPayoff([{ name: 'Stuck', currentBalance: 100000, interestRate: 0.9, minPayment: 10 }], 0);
+      expect(stuck.reachedSafetyCap).toBe(true);
+    });
+
+    await test('calculateInterestSaved > an extra payment always saves interest and time vs minimums only', () => {
+      const saved = F.calculateInterestSaved(F.orderDebtsAvalanche(sampleDebts), 500);
+      expect(saved.interestSaved > 0).toBeTruthy();
+      expect(saved.monthsSaved > 0).toBeTruthy();
+    });
+
+    // --- investment readiness ---------------------------------------------
+
+    await test('assessInvestmentReadiness > prioritises the emergency fund when it is under half the target', () => {
+      const result = F.assessInvestmentReadiness({
+        emergencyFundMonths: 0.5, emergencyFundTargetMonths: 3,
+        highestDebtInterestRate: 0.2, assumedInvestmentReturn: 0.08, availableSurplus: 1000,
+      });
+      expect(result.readiness).toBe('build_emergency_fund');
+    });
+
+    await test('assessInvestmentReadiness > prioritises debt when its rate beats the assumed investment return', () => {
+      const result = F.assessInvestmentReadiness({
+        emergencyFundMonths: 3, emergencyFundTargetMonths: 3,
+        highestDebtInterestRate: 0.25, assumedInvestmentReturn: 0.08, availableSurplus: 1000,
+      });
+      expect(result.readiness).toBe('focus_on_debt');
+    });
+
+    await test('assessInvestmentReadiness > ready to invest once fund and debt conditions are met', () => {
+      const result = F.assessInvestmentReadiness({
+        emergencyFundMonths: 3, emergencyFundTargetMonths: 3,
+        highestDebtInterestRate: null, assumedInvestmentReturn: 0.08, availableSurplus: 1000,
+      });
+      expect(result.readiness).toBe('ready_to_invest');
+    });
+
+    // --- forecast ------------------------------------------------------
+
+    await test('forecastNetWorth > debt shrinks and investments grow over time under positive assumptions', () => {
+      const forecast = F.forecastNetWorth(
+        {
+          currentNetWorth: 50000, currentDebtTotal: 20000, currentInvestmentTotal: 10000,
+          monthlyDebtPayment: 500, monthlyInvestmentContribution: 1000,
+          debtInterestAnnual: 0.2, investmentReturnAnnual: 0.08,
+        },
+        5,
+      );
+      expect(forecast).toHaveLength(5);
+      expect(forecast[4].debtBalance <= forecast[0].debtBalance).toBeTruthy();
+      expect(forecast[4].investmentBalance > forecast[0].investmentBalance).toBeTruthy();
+    });
+
+    // --- rules engine ----------------------------------------------------
+
+    await test('generateRecommendations > flags negative cash flow and high-interest debt as high priority', () => {
+      const recs = WR.recommendations.generateRecommendations({
+        income: 30000, availableSurplus: -500, savingsRate: 0,
+        emergencyFundMonths: 1, emergencyFundTargetMonths: 3,
+        debtToIncomeRatio: 0.15,
+        highestInterestDebt: { name: 'CardA', interestRate: 0.24, currentBalance: 5000 },
+        totalDebt: 7000, assumedInvestmentReturn: 0.08,
+        essentialVsDiscretionary: { essential: 12000, discretionary: 5000 },
+        discretionarySpendChangePct: 0.2,
+        investmentReadiness: { readiness: 'focus_on_debt', reasons: ['test'] },
+      });
+      expect(recs[0].priority).toBe('high');
+      expect(recs.some((r) => r.id === 'negative-cashflow')).toBeTruthy();
+      expect(recs.some((r) => r.id === 'high-interest-debt')).toBeTruthy();
+    });
+
+    await test('generateRecommendations > a healthy snapshot produces no high-priority warnings', () => {
+      const recs = WR.recommendations.generateRecommendations({
+        income: 30000, availableSurplus: 5000, savingsRate: 0.15,
+        emergencyFundMonths: 4, emergencyFundTargetMonths: 3,
+        debtToIncomeRatio: 0, highestInterestDebt: null,
+        totalDebt: 0, assumedInvestmentReturn: 0.08,
+        essentialVsDiscretionary: { essential: 12000, discretionary: 3000 },
+        discretionarySpendChangePct: 0,
+        investmentReadiness: { readiness: 'ready_to_invest', reasons: ['test'] },
+      });
+      expect(recs.every((r) => r.priority !== 'high')).toBeTruthy();
+    });
+
+    // --- Excel mapping ---------------------------------------------------
+
+    await test('applyMapping + validateImportRow > parses currency-formatted amounts and flags bad rows', () => {
+      const rawRows = [
+        { Date: '2026-08-15', Desc: 'Salary', Amt: 'R 31,470.19' },
+        { Date: '2026-08-16', Desc: '', Amt: 500 },
+        { Date: '2026-08-17', Desc: 'Rent', Amt: 'not-a-number' },
+      ];
+      const mapped = WR.excel.applyMapping(
+        rawRows,
+        { name: 'Desc', amount: 'Amt' },
+        { type: 'income', month: '2026-08', currency: 'ZAR' },
+      );
+      expect(mapped[0].amount).toBeCloseTo(31470.19);
+
+      const problems0 = WR.excel.validateImportRow(mapped[0]);
+      expect(problems0).toHaveLength(0);
+
+      const problems1 = WR.excel.validateImportRow(mapped[1]);
+      expect(problems1.includes('Missing name/description')).toBeTruthy();
+
+      const problems2 = WR.excel.validateImportRow(mapped[2]);
+      expect(problems2.includes('Missing or invalid amount')).toBeTruthy();
+    });
+
+    await test('parseAmount > handles accounting-style negative numbers in parentheses', () => {
+      expect(WR.excel.parseAmount('(500.00)')).toBe(-500);
+      expect(WR.excel.parseAmount('R 1,234.56')).toBeCloseTo(1234.56);
+      expect(WR.excel.parseAmount('1234')).toBe(1234);
+    });
+
+    // --- reports aggregation ------------------------------------------
+
+    await test('aggregateMonthlyTotals > groups budget lines by month, summed by type, sorted chronologically', () => {
+      const lines = [
+        { month: '2026-08', type: 'income', actualAmount: 30000 },
+        { month: '2026-08', type: 'fixed', actualAmount: 12000 },
+        { month: '2026-09', type: 'income', actualAmount: 31000 },
+      ];
+      const monthly = WR.financial.aggregateMonthlyTotals(lines);
+      expect(monthly).toHaveLength(2);
+      expect(monthly[0].month).toBe('2026-08');
+      expect(monthly[0].income).toBe(30000);
+      expect(monthly[1].income).toBe(31000);
+    });
+
+    await test('aggregateSpendingByCategory > sums by category name and buckets uncategorised spending separately', () => {
+      const lines = [
+        { type: 'fixed', actualAmount: 12000, categoryId: 'rent' },
+        { type: 'fixed', actualAmount: 12000, categoryId: 'rent' },
+        { type: 'variable', actualAmount: 500 },
+      ];
+      const categories = [{ id: 'rent', name: 'Rent' }];
+      const spend = WR.financial.aggregateSpendingByCategory(lines, categories);
+      expect(spend[0].label).toBe('Rent');
+      expect(spend[0].value).toBe(24000);
+      expect(spend.some((s) => s.label === 'Uncategorised' && s.value === 500)).toBeTruthy();
+    });
+
+    // --- charts (smoke test \u2014 valid SVG string, no exceptions) -----------
+
+    await test('charts > barChart and lineChart return valid SVG for data and for empty input', () => {
+      const bar = WR.charts.barChart([{ label: 'Jan', value: 100 }]);
+      expect(bar.includes('<svg')).toBeTruthy();
+      const line = WR.charts.lineChart([{ label: '2026-01', value: 100 }, { label: '2026-02', value: 150 }]);
+      expect(line.includes('<svg')).toBeTruthy();
+      const empty = WR.charts.barChart([]);
+      expect(empty.includes('No data')).toBeTruthy();
+    });
+  })(),
+);
+// Waits for every suite registered in WR.testRuns (storage-tests.js,
+// financial/tests.js, and any future test files that push onto that array),
+// then renders one combined results page. Must be the last script loaded.
+
+(async function () {
+  await Promise.all(WR.testRuns);
+  WR.test.render();
+})();
+
+    </script>
+  </body>
+</html>
