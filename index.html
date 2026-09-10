@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wealth Route</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #f7fafc;
+      color: #1a202c;
+      line-height: 1.4;
+    }
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+    h1 { margin: 0 0 4px; }
+    .subtitle { margin: 0 0 20px; color: #4a5568; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #cbd5e0;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 14px;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+      margin-bottom: 16px;
+    }
+    .summary .metric {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px;
+    }
+    .metric strong { display: block; font-size: 20px; margin-top: 4px; }
+    .plan {
+      background: #fff;
+      border: 1px solid #cbd5e0;
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .plan h2 { margin-top: 0; }
+    .plan ol { margin: 8px 0 0; padding-left: 18px; }
+    .reason { color: #4a5568; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Wealth Route</h1>
+    <p class="subtitle">Track your money and get a clear next action with reasons.</p>
+
+    <section class="grid" aria-label="Financial inputs">
+      <div class="card">
+        <label for="monthlyIncome">Monthly income ($)</label>
+        <input id="monthlyIncome" type="number" min="0" step="0.01" value="0" />
+      </div>
+      <div class="card">
+        <label for="monthlyExpenses">Monthly essentials, excluding debt minimums ($)</label>
+        <input id="monthlyExpenses" type="number" min="0" step="0.01" value="0" />
+      </div>
+      <div class="card">
+        <label for="cash">Cash + emergency fund ($)</label>
+        <input id="cash" type="number" min="0" step="0.01" value="0" />
+      </div>
+      <div class="card">
+        <label for="investments">Investments ($)</label>
+        <input id="investments" type="number" min="0" step="0.01" value="0" />
+      </div>
+      <div class="card">
+        <label for="property">Property/other assets ($)</label>
+        <input id="property" type="number" min="0" step="0.01" value="0" />
+      </div>
+      <div class="card">
+        <label for="debtBalance">Total debt balance ($)</label>
+        <input id="debtBalance" type="number" min="0" step="0.01" value="0" />
+      </div>
+      <div class="card">
+        <label for="debtApr">Average debt APR (%)</label>
+        <input id="debtApr" type="number" min="0" step="0.01" value="0" />
+      </div>
+      <div class="card">
+        <label for="debtMinimum">Monthly debt minimum payment ($)</label>
+        <input id="debtMinimum" type="number" min="0" step="0.01" value="0" />
+      </div>
+    </section>
+
+    <section class="summary" aria-label="Financial summary">
+      <div class="metric"><span>Total assets</span><strong id="totalAssets">$0.00</strong></div>
+      <div class="metric"><span>Total debt</span><strong id="totalDebt">$0.00</strong></div>
+      <div class="metric"><span>Net worth</span><strong id="netWorth">$0.00</strong></div>
+      <div class="metric"><span>Monthly free cash</span><strong id="freeCash">$0.00</strong></div>
+    </section>
+
+    <section class="plan">
+      <h2>What to do next</h2>
+      <p id="planStatus" class="reason" aria-live="polite"></p>
+      <ol id="planSteps"></ol>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'wealth-route-state-v1';
+
+    function parseMoney(value) {
+      const n = Number(value);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function formatMoney(value) {
+      const amount = Math.abs(value);
+      const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+      return value < 0 ? `-${formatted}` : formatted;
+    }
+
+    function calculateTotals(data) {
+      const totalAssets = data.cash + data.investments + data.property;
+      const totalDebt = data.debtBalance;
+      const netWorth = totalAssets - totalDebt;
+      const activeDebtMinimum = data.debtBalance > 0 ? data.debtMinimum : 0;
+      const freeCash = data.monthlyIncome - data.monthlyExpenses - activeDebtMinimum;
+      return { totalAssets, totalDebt, netWorth, freeCash };
+    }
+
+    function buildPlan(data, totals) {
+      const steps = [];
+      const highInterestDebtPriority = data.debtBalance > 0 && data.debtApr >= 8;
+      const starterEmergencyTarget = data.monthlyExpenses;
+      const starterEmergencyGap = Math.max(0, starterEmergencyTarget - data.cash);
+      const emergencyTarget = data.monthlyExpenses * 3;
+      const emergencyGap = Math.max(0, emergencyTarget - data.cash);
+
+      if (data.monthlyIncome <= 0) {
+        steps.push({
+          title: 'Set up reliable monthly income tracking first',
+          reason: 'The app can only recommend a route once income is known, because every step depends on cash flow.'
+        });
+        return steps;
+      }
+
+      if (totals.freeCash < 0) {
+        steps.push({
+          title: 'Stabilize your monthly cash flow immediately',
+          reason: `You are short ${formatMoney(Math.abs(totals.freeCash))} each month. Cut essential costs, raise income, or refinance to stop new debt.`
+        });
+        return steps;
+      }
+
+      if (starterEmergencyGap > 0 && highInterestDebtPriority) {
+        steps.push({
+          title: 'Build a 1-month starter emergency buffer, then attack high-interest debt',
+          reason: `Set aside ${formatMoney(starterEmergencyGap)} first so one surprise bill does not create more debt, then direct surplus to your ${data.debtApr.toFixed(2)}% APR balance.`
+        });
+      } else if (starterEmergencyGap > 0) {
+        steps.push({
+          title: 'Build a 1-month starter emergency buffer first',
+          reason: `You need about ${formatMoney(starterEmergencyGap)} more cash to cover one month of essentials and avoid new debt from surprises.`
+        });
+      }
+
+      if (highInterestDebtPriority && starterEmergencyGap === 0) {
+        steps.push({
+          title: 'Prioritize high-interest debt payoff',
+          reason: `At about ${data.debtApr.toFixed(2)}% APR, debt interest likely outpaces safe investment returns.`
+        });
+      }
+
+      if (emergencyGap > 0 && !highInterestDebtPriority) {
+        steps.push({
+          title: 'Build a 3-month emergency buffer',
+          reason: `You need about ${formatMoney(emergencyGap)} more in cash to cover 3 months of essentials.`
+        });
+      }
+
+      if (data.debtBalance > 0 && !highInterestDebtPriority) {
+        steps.push({
+          title: 'Keep paying down debt steadily',
+          reason: 'Lower-rate debt still reduces flexibility, so consistent extra payments improve future cash flow.'
+        });
+      }
+
+      if (steps.length === 0) {
+        steps.push({
+          title: 'Direct surplus cash to long-term investments',
+          reason: 'You have positive cash flow, no urgent debt pressure, and a basic buffer, so compounding is your strongest next move.'
+        });
+      }
+
+      if (totals.netWorth < 0) {
+        steps.push({
+          title: 'Track monthly net-worth trend',
+          reason: `Current net worth is ${formatMoney(totals.netWorth)}. A rising trend confirms your plan is working.`
+        });
+      }
+
+      return steps;
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveState(state) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch {}
+    }
+
+    const ids = [
+      'monthlyIncome', 'monthlyExpenses', 'cash', 'investments',
+      'property', 'debtBalance', 'debtApr', 'debtMinimum'
+    ];
+
+    const inputs = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
+
+    function gatherData() {
+      return {
+        monthlyIncome: parseMoney(inputs.monthlyIncome.value),
+        monthlyExpenses: parseMoney(inputs.monthlyExpenses.value),
+        cash: parseMoney(inputs.cash.value),
+        investments: parseMoney(inputs.investments.value),
+        property: parseMoney(inputs.property.value),
+        debtBalance: parseMoney(inputs.debtBalance.value),
+        debtApr: parseMoney(inputs.debtApr.value),
+        debtMinimum: parseMoney(inputs.debtMinimum.value)
+      };
+    }
+
+    function render() {
+      const data = gatherData();
+      const totals = calculateTotals(data);
+      document.getElementById('totalAssets').textContent = formatMoney(totals.totalAssets);
+      document.getElementById('totalDebt').textContent = formatMoney(totals.totalDebt);
+      document.getElementById('netWorth').textContent = formatMoney(totals.netWorth);
+      document.getElementById('freeCash').textContent = formatMoney(totals.freeCash);
+
+      const plan = buildPlan(data, totals);
+      const list = document.getElementById('planSteps');
+      const status = document.getElementById('planStatus');
+      list.replaceChildren();
+      for (const step of plan) {
+        const li = document.createElement('li');
+        const title = document.createElement('div');
+        title.textContent = step.title;
+        const reason = document.createElement('div');
+        reason.className = 'reason';
+        reason.textContent = step.reason;
+        li.appendChild(title);
+        li.appendChild(reason);
+        list.appendChild(li);
+      }
+      status.textContent = plan.length ? `Top priority: ${plan[0].title}` : '';
+
+      saveState(data);
+    }
+
+    const saved = loadState();
+    for (const id of ids) {
+      if (saved[id] !== undefined) {
+        inputs[id].value = saved[id];
+      }
+      inputs[id].addEventListener('input', render);
+    }
+
+    render();
+  </script>
+</body>
+</html>
