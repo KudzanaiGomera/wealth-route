@@ -137,7 +137,8 @@
       const totalAssets = data.cash + data.investments + data.property;
       const totalDebt = data.debtBalance;
       const netWorth = totalAssets - totalDebt;
-      const freeCash = data.monthlyIncome - data.monthlyExpenses - data.debtMinimum;
+      const activeDebtMinimum = data.debtBalance > 0 ? data.debtMinimum : 0;
+      const freeCash = data.monthlyIncome - data.monthlyExpenses - activeDebtMinimum;
       return { totalAssets, totalDebt, netWorth, freeCash };
     }
 
@@ -182,17 +183,19 @@
           title: 'Prioritize high-interest debt payoff',
           reason: `At about ${data.debtApr.toFixed(2)}% APR, debt interest likely outpaces safe investment returns.`
         });
-      } else if (data.debtBalance > 0) {
-        steps.push({
-          title: 'Keep paying down debt steadily',
-          reason: 'Lower-rate debt still reduces flexibility, so consistent extra payments improve future cash flow.'
-        });
       }
 
       if (emergencyGap > 0 && !highInterestDebtPriority) {
         steps.push({
           title: 'Build a 3-month emergency buffer',
           reason: `You need about ${formatMoney(emergencyGap)} more in cash to cover 3 months of essentials.`
+        });
+      }
+
+      if (data.debtBalance > 0 && !highInterestDebtPriority) {
+        steps.push({
+          title: 'Keep paying down debt steadily',
+          reason: 'Lower-rate debt still reduces flexibility, so consistent extra payments improve future cash flow.'
         });
       }
 
