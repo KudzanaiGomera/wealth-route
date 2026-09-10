@@ -71,7 +71,7 @@
     <h1>Wealth Route</h1>
     <p class="subtitle">Track your money and get a clear next action with reasons.</p>
 
-    <section class="grid" aria-label="finance-inputs">
+    <section class="grid" aria-label="Financial inputs">
       <div class="card">
         <label for="monthlyIncome">Monthly income ($)</label>
         <input id="monthlyIncome" type="number" min="0" step="0.01" value="0" />
@@ -106,7 +106,7 @@
       </div>
     </section>
 
-    <section class="summary" aria-label="financial-summary">
+    <section class="summary" aria-label="Financial summary">
       <div class="metric"><span>Total assets</span><strong id="totalAssets">$0.00</strong></div>
       <div class="metric"><span>Total debt</span><strong id="totalDebt">$0.00</strong></div>
       <div class="metric"><span>Net worth</span><strong id="netWorth">$0.00</strong></div>
@@ -115,7 +115,8 @@
 
     <section class="plan">
       <h2>What to do next</h2>
-      <ol id="planSteps" aria-live="polite" aria-atomic="true"></ol>
+      <p id="planStatus" class="reason" aria-live="polite"></p>
+      <ol id="planSteps"></ol>
     </section>
   </main>
 
@@ -261,6 +262,7 @@
 
       const plan = buildPlan(data, totals);
       const list = document.getElementById('planSteps');
+      const status = document.getElementById('planStatus');
       list.replaceChildren();
       for (const step of plan) {
         const li = document.createElement('li');
@@ -273,6 +275,7 @@
         li.appendChild(reason);
         list.appendChild(li);
       }
+      status.textContent = plan.length ? `Top priority: ${plan[0].title}` : '';
 
       saveState(data);
     }
