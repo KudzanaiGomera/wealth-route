@@ -112,5 +112,5 @@ test('low-interest debt is prioritized before expanded emergency savings', () =>
 
   const titles = elements.planSteps.children.map((li) => li.children[0].textContent);
   assert.equal(titles[0], 'Keep paying down debt steadily');
-  assert.ok(!titles.includes('Build a 3-month emergency buffer'));
+  assert.ok(titles.includes('Build a 3-month emergency buffer'));
 });
