@@ -4,4 +4,4 @@ Single-file personal finance app (`index.html`) that tracks income, debt, assets
 
 ## Run
 
-Open `/home/runner/work/wealth-route/wealth-route/index.html` in any modern browser.
+From the repository root, open `index.html` in any modern browser.

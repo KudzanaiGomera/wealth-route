@@ -113,9 +113,9 @@
       <div class="metric"><span>Monthly free cash</span><strong id="freeCash">$0.00</strong></div>
     </section>
 
-    <section class="plan" aria-live="polite">
+    <section class="plan">
       <h2>What to do next</h2>
-      <ol id="planSteps"></ol>
+      <ol id="planSteps" aria-live="polite"></ol>
     </section>
   </main>
 
@@ -128,7 +128,9 @@
     }
 
     function formatMoney(value) {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+      const amount = Math.abs(value);
+      const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+      return value < 0 ? `-${formatted}` : formatted;
     }
 
     function calculateTotals(data) {
