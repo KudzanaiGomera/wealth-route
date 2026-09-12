@@ -14,6 +14,18 @@ worth figure and headings, sans-serif for everything functional. No
 external font/icon dependencies \u2014 system font stacks only, so this doesn't
 add to the "needs internet" list beyond the Excel tab (see below).
 
+## Display name
+
+Settings has an optional "Display name" field, shown as a time-of-day
+greeting on the Dashboard ("Good afternoon, [name]"). Purely cosmetic \u2014 no
+security or access-control meaning. Since each visitor's browser already
+has its own completely separate IndexedDB database (per-origin, per-browser
+isolation, not something WealthRoute has to build), there's no shared data
+for a login system to protect, so there isn't one \u2014 adding a login screen
+here would only create a false impression of a security boundary that
+doesn't exist, plus an unrecoverable-password failure mode with no backend
+to reset it.
+
 ## This pass: editing, Excel fix, and a professionalism pass
 
 **Editable everywhere.** Transactions, Debts, Assets, Investments, and
