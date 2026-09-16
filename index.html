@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WealthRoute</title>
+    <meta name="theme-color" content="#0e6b57" />
+    <link rel="manifest" href="manifest.webmanifest" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
 /* WealthRoute design tokens. A "private ledger" feel: warm paper or deep
@@ -61,7 +63,10 @@
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 8% 10%, color-mix(in srgb, var(--accent) 12%, transparent) 0, transparent 35%),
+    radial-gradient(circle at 90% 0%, color-mix(in srgb, var(--gold) 12%, transparent) 0, transparent 28%),
+    var(--bg);
   color: var(--text);
   transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -69,13 +74,17 @@ body {
 /* ---------- Top bar ---------- */
 
 .topbar {
-  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
   border-bottom: 1px solid var(--border);
   padding: 0.85rem 1.5rem;
   display: flex;
   align-items: center;
-  gap: 2rem;
-  flex-wrap: wrap;
+  gap: 1rem;
+  flex-wrap: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(8px);
 }
 .brand {
   font-family: var(--font-serif);
@@ -89,18 +98,105 @@ body {
 .brand-mark path { stroke: var(--accent); }
 .brand-mark circle { fill: var(--accent); }
 
-#nav { display: flex; gap: 1.25rem; flex-wrap: wrap; flex: 1; }
+#nav {
+  display: flex;
+  gap: 0.2rem;
+  flex-wrap: nowrap;
+  flex-direction: column;
+  position: absolute;
+  right: 1rem;
+  top: calc(100% + 0.45rem);
+  min-width: 230px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 0.4rem;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
 #nav a {
   color: var(--muted);
   text-decoration: none;
   font-size: 0.88rem;
-  padding: 0.3rem 0;
-  border-bottom: 2px solid transparent;
+  padding: 0.45rem 0.55rem;
+  border-bottom: none;
+  border-radius: 7px;
 }
-#nav a.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+#nav a.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-weight: 600;
+}
+#nav a:hover { background: var(--panel-alt); }
+#nav .nav-section-title {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.55rem 0.2rem;
+}
+#nav .nav-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.3rem 0.2rem;
+}
 #nav a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.topbar.nav-open #nav {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.nav-jump {
+  height: 2.1rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-alt);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.83rem;
+  padding: 0 0.85rem;
+  min-width: 190px;
+}
+
+.nav-toggle {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.nav-toggle-bars {
+  width: 0.9rem;
+  height: 0.7rem;
+  display: grid;
+  align-content: space-between;
+}
+
+.nav-toggle-bars span {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text);
 }
 
 .theme-toggle {
@@ -118,7 +214,65 @@ body {
 }
 .theme-toggle:hover { border-color: var(--accent); }
 
-#content { max-width: 960px; margin: 0 auto; padding: 1.75rem 1.5rem 3rem; }
+#content { max-width: 980px; margin: 0 auto; padding: 1.75rem 1.5rem 3rem; }
+#content > section { animation: sectionIn 220ms ease-out; }
+
+.global-notice {
+  max-width: 980px;
+  margin: 0.75rem auto 0;
+  padding: 0 1.5rem;
+}
+.global-notice .notice-card {
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  background: color-mix(in srgb, var(--danger) 9%, var(--panel));
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  font-size: 0.86rem;
+}
+
+.toast-stack {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  display: grid;
+  gap: 0.5rem;
+  z-index: 60;
+}
+.toast {
+  min-width: 220px;
+  max-width: 360px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  padding: 0.65rem 0.75rem;
+  box-shadow: var(--shadow);
+  font-size: 0.84rem;
+}
+.toast.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+.toast-action {
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  color: var(--text);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.22rem 0.6rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.toast.success { border-color: color-mix(in srgb, var(--success) 40%, var(--border)); }
+.toast.error { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+
+@keyframes sectionIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 /* ---------- Type scale ---------- */
 
@@ -131,6 +285,23 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 
 .hero { margin-bottom: 0.5rem; }
 .greeting { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.2rem; }
+.position-summary-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr;
+  gap: 1rem;
+  margin: 0.3rem 0 1rem;
+  align-items: stretch;
+}
+.dashboard-card {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+.dashboard-card h2 {
+  margin-top: 0;
+}
 .hero-headline {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -205,9 +376,73 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .chart-block svg { max-width: 100%; height: auto; }
 .chart-block svg text { fill: var(--muted); font-family: var(--font-sans); }
 
+.summary-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.pie-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.pie-layout {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.pie-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+
+.pie-legend li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.legend-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.legend-dot {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.legend-value {
+  font-family: var(--font-serif);
+}
+
 /* ---------- Tables ---------- */
 
-.data-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 0.75rem 0; }
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  margin: 0.75rem 0;
+}
+.data-table { width: 100%; border-collapse: collapse; background: var(--panel); border: none; border-radius: 0; overflow: visible; margin: 0; min-width: 640px; }
 .data-table th, .data-table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.88rem; }
 .data-table th { background: var(--panel-alt); font-weight: 600; color: var(--muted); font-size: 0.8rem; }
 .data-table th.sortable { cursor: pointer; user-select: none; }
@@ -258,58 +493,91 @@ button.danger { background: var(--danger); color: #fff; }
 .assistant-answer { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; line-height: 1.55; box-shadow: var(--shadow); }
 
 @media (prefers-reduced-motion: reduce) {
-  body, button { transition: none; }
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
-@media (max-width: 640px) {
-  #nav { gap: 0.6rem; }
-  #content { padding: 1.1rem; }
-  .hero-headline .hero-value { font-size: 2.1rem; }
+@media (max-width: 900px) {
+  .topbar { padding: 0.7rem 1rem; gap: 0.85rem; }
+  .nav-jump { display: none; }
+  #nav {
+    right: 0.7rem;
+    left: 0.7rem;
+    top: calc(100% + 0.35rem);
+    min-width: 0;
+    max-height: calc(100vh - 90px);
+    overflow-y: auto;
+  }
+  #content { padding: 1.1rem 0.9rem 2.4rem; }
+  .position-summary-grid { grid-template-columns: 1fr; }
+  .hero-headline { padding: 1.25rem 1.4rem; }
+  .hero-headline .hero-value { font-size: 2.25rem; }
 }
 
+@media (max-width: 680px) {
+  h1 { font-size: 1.35rem; }
+  h2 { font-size: 1.08rem; }
+  .toolbar { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+  .toolbar > * { width: 100%; }
+  .inline-form { flex-direction: column; align-items: stretch; }
+  .inline-form input, .inline-form select, .inline-form button, .stacked-form input, .stacked-form select, .stacked-form button, textarea { width: 100%; }
+  .stat-grid { grid-template-columns: 1fr; }
+  .score-breakdown { flex-direction: column; gap: 0.25rem; }
+  .data-table { min-width: 560px; }
+  .summary-charts { grid-template-columns: 1fr; }
+  .pie-layout { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 901px) {
+  .nav-toggle { display: none; }
+}
     </style>
   </head>
   <body>
     <div id="app"></div>
     <script>
-// IndexedDB schema, opened with the native browser API directly — no
-// external library, no bundler needed to resolve an import for one.
+// IndexedDB schema and migration layer.
 
 window.WR = window.WR || {};
 
 (function () {
   const DB_NAME = 'wealthroute';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
 
   /** @type {Promise<IDBDatabase>|null} */
   let dbPromise = null;
+
+  function ensureStore(db, name, options, indexes) {
+    const store = db.objectStoreNames.contains(name)
+      ? null
+      : db.createObjectStore(name, options || { keyPath: 'id' });
+    if (!store || !indexes || !indexes.length) return;
+    indexes.forEach((indexDef) => {
+      if (!store.indexNames.contains(indexDef.name)) {
+        store.createIndex(indexDef.name, indexDef.keyPath, indexDef.options || undefined);
+      }
+    });
+  }
 
   function openDatabase() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
       request.onupgradeneeded = (event) => {
-        const db = /** @type {IDBDatabase} */ (event.target.result);
-
-        db.createObjectStore('userProfile', { keyPath: 'id' });
-        db.createObjectStore('incomeSources', { keyPath: 'id' });
-        db.createObjectStore('expenseCategories', { keyPath: 'id' });
-
-        const budgetLines = db.createObjectStore('budgetLines', { keyPath: 'id' });
-        budgetLines.createIndex('by-month', 'month');
-
-        db.createObjectStore('debts', { keyPath: 'id' });
-
-        const debtPayments = db.createObjectStore('debtPayments', { keyPath: 'id' });
-        debtPayments.createIndex('by-debt', 'debtId');
-
-        db.createObjectStore('assets', { keyPath: 'id' });
-        db.createObjectStore('investments', { keyPath: 'id' });
-
-        const netWorthSnapshots = db.createObjectStore('netWorthSnapshots', { keyPath: 'id' });
-        netWorthSnapshots.createIndex('by-date', 'date');
-
-        db.createObjectStore('exchangeRates', { keyPath: 'id' });
+        const db = event.target.result;
+        ensureStore(db, 'userProfile', { keyPath: 'id' });
+        ensureStore(db, 'incomeSources', { keyPath: 'id' });
+        ensureStore(db, 'fixedExpenses', { keyPath: 'id' });
+        ensureStore(db, 'expenseCategories', { keyPath: 'id' });
+        ensureStore(db, 'budgetLines', { keyPath: 'id' }, [{ name: 'by-month', keyPath: 'month' }]);
+        ensureStore(db, 'debts', { keyPath: 'id' });
+        ensureStore(db, 'debtPayments', { keyPath: 'id' }, [{ name: 'by-debt', keyPath: 'debtId' }]);
+        ensureStore(db, 'emergencyFundContributions', { keyPath: 'id' });
+        ensureStore(db, 'dayToDayAccounts', { keyPath: 'id' });
+        ensureStore(db, 'dayToDayTransactions', { keyPath: 'id' });
+        ensureStore(db, 'assets', { keyPath: 'id' });
+        ensureStore(db, 'investments', { keyPath: 'id' });
+        ensureStore(db, 'netWorthSnapshots', { keyPath: 'id' }, [{ name: 'by-date', keyPath: 'date' }]);
+        ensureStore(db, 'exchangeRates', { keyPath: 'id' });
       };
 
       request.onsuccess = () => resolve(request.result);
@@ -317,20 +585,15 @@ window.WR = window.WR || {};
     });
   }
 
-  /** @returns {Promise<IDBDatabase>} */
   function getDB() {
-    if (!dbPromise) {
-      dbPromise = openDatabase();
-    }
+    if (!dbPromise) dbPromise = openDatabase();
     return dbPromise;
   }
 
-  /** Test-only: drop the cached connection so a fresh open() happens next time. */
   function resetConnection() {
     dbPromise = null;
   }
 
-  /** Test-only: fully delete the database so each test run starts clean. */
   function deleteDatabase() {
     dbPromise = null;
     return new Promise((resolve, reject) => {
@@ -341,7 +604,7 @@ window.WR = window.WR || {};
     });
   }
 
-  WR.db = { getDB, resetConnection, deleteDatabase, DB_NAME };
+  WR.db = { getDB, resetConnection, deleteDatabase, DB_NAME, DB_VERSION };
 })();
 // Generic CRUD repository over a single IndexedDB object store. Every entity
 // in the data model gets one of these via WR.createRepository(storeName).
@@ -425,10 +688,14 @@ window.WR = window.WR || {};
   WR.repos = {
     userProfile: WR.createRepository('userProfile'),
     incomeSources: WR.createRepository('incomeSources'),
+    fixedExpenses: WR.createRepository('fixedExpenses'),
     expenseCategories: WR.createRepository('expenseCategories'),
     budgetLines: WR.createRepository('budgetLines'),
     debts: WR.createRepository('debts'),
     debtPayments: WR.createRepository('debtPayments'),
+    emergencyFundContributions: WR.createRepository('emergencyFundContributions'),
+    dayToDayAccounts: WR.createRepository('dayToDayAccounts'),
+    dayToDayTransactions: WR.createRepository('dayToDayTransactions'),
     assets: WR.createRepository('assets'),
     investments: WR.createRepository('investments'),
     netWorthSnapshots: WR.createRepository('netWorthSnapshots'),
@@ -641,6 +908,22 @@ window.WR = window.WR || {};
     return { id: newId(), ...fields };
   }
 
+  function createFixedExpense(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  function createEmergencyFundContribution(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  function createDayToDayAccount(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  function createDayToDayTransaction(fields) {
+    return { id: newId(), ...fields };
+  }
+
   WR.models = {
     newId,
     createUserProfile,
@@ -653,6 +936,10 @@ window.WR = window.WR || {};
     createInvestment,
     createNetWorthSnapshot,
     createExchangeRate,
+    createFixedExpense,
+    createEmergencyFundContribution,
+    createDayToDayAccount,
+    createDayToDayTransaction,
   };
 })();
 // Cash flow, savings rate, and expense-split calculations.
@@ -1834,7 +2121,43 @@ WR.charts = WR.charts || {};
     </svg>`;
   }
 
-  WR.charts = { barChart, lineChart };
+  /**
+   * @param {Array<{label: string, value: number}>} data
+   * @param {{size?: number, innerRadius?: number}} [options]
+   */
+  function pieChart(data, options) {
+    const opts = options || {};
+    const size = opts.size || 180;
+    const radius = size / 2 - 8;
+    const innerRadius = opts.innerRadius || radius * 0.58;
+    const cx = size / 2;
+    const cy = size / 2;
+
+    const valid = (data || []).filter((d) => Number(d.value) > 0);
+    const total = valid.reduce((sum, d) => sum + Number(d.value || 0), 0);
+    if (!valid.length || total <= 0) {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="var(--border)" stroke-width="14"></circle><text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="var(--muted)">No data</text></svg>`;
+    }
+
+    const arcs = [];
+    let start = -Math.PI / 2;
+    valid.forEach((item, i) => {
+      const angle = (Number(item.value) / total) * Math.PI * 2;
+      const end = start + angle;
+      const x1 = cx + Math.cos(start) * radius;
+      const y1 = cy + Math.sin(start) * radius;
+      const x2 = cx + Math.cos(end) * radius;
+      const y2 = cy + Math.sin(end) * radius;
+      const large = angle > Math.PI ? 1 : 0;
+      const color = PALETTE[i % PALETTE.length];
+      arcs.push(`<path d="M ${cx} ${cy} L ${x1.toFixed(3)} ${y1.toFixed(3)} A ${radius} ${radius} 0 ${large} 1 ${x2.toFixed(3)} ${y2.toFixed(3)} Z" fill="${color}"></path>`);
+      start = end;
+    });
+
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${arcs.join('')}<circle cx="${cx}" cy="${cy}" r="${innerRadius}" fill="var(--panel)"></circle><text x="${cx}" y="${cy - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">Total</text><text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="14" fill="var(--text)">${total.toFixed(0)}</text></svg>`;
+  }
+
+  WR.charts = { barChart, lineChart, pieChart };
 })();
 // Theme management: defaults to the system preference, persists an
 // explicit user choice in localStorage, applied via a data-theme attribute
@@ -1910,6 +2233,17 @@ WR.ui = WR.ui || {};
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
 
+  function monthName(monthNumber) {
+    return new Date(2000, monthNumber - 1, 1).toLocaleString('en-ZA', { month: 'long' });
+  }
+
+  function yearsAroundCurrent(before, after) {
+    const nowYear = new Date().getFullYear();
+    const list = [];
+    for (let y = nowYear - (before || 2); y <= nowYear + (after || 2); y += 1) list.push(y);
+    return list;
+  }
+
   function previousMonthKey(monthKey) {
     const [y, m] = monthKey.split('-').map(Number);
     const d = new Date(y, m - 2, 1); // m is 1-indexed, so m-2 steps back one month
@@ -1929,17 +2263,50 @@ WR.ui = WR.ui || {};
     return profile;
   }
 
+  function monthlyAmountFromFrequency(amount, frequency) {
+    const value = Number(amount) || 0;
+    if (frequency === 'weekly') return value * 52 / 12;
+    if (frequency === 'biweekly') return value * 26 / 12;
+    if (frequency === 'quarterly') return value / 3;
+    if (frequency === 'yearly' || frequency === 'annual') return value / 12;
+    return value;
+  }
+
+  function isActiveForMonth(record, monthKey) {
+    const start = record.startMonth || `${record.year || monthKey.slice(0, 4)}-01`;
+    const end = record.endMonth || `${record.year || monthKey.slice(0, 4)}-12`;
+    return String(monthKey) >= String(start) && String(monthKey) <= String(end);
+  }
+
+  function calculateDayToDaySummary(account, transactions, year) {
+    const opening = Number(account?.startingBalance) || 0;
+    const inAmount = transactions
+      .filter((tx) => Number(tx.year) === Number(year) && tx.kind === 'add')
+      .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    const spent = transactions
+      .filter((tx) => Number(tx.year) === Number(year) && tx.kind !== 'add')
+      .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    return {
+      opening,
+      added: inAmount,
+      spent,
+      currentBalance: opening + inAmount - spent,
+      totalTransactions: transactions.filter((tx) => Number(tx.year) === Number(year)).length,
+    };
+  }
+
   /**
    * @param {string} [monthKey] - 'YYYY-MM', defaults to the current month
    */
   async function buildSnapshot(monthKey) {
     const month = monthKey || currentMonthKey();
     const prevMonth = previousMonthKey(month);
+    const selectedYear = Number(month.slice(0, 4));
+    const selectedMonthNumber = Number(month.slice(5, 7));
 
-    const [budgetLines, prevBudgetLines, debts, assets, investments, exchangeRates, expenseCategories, netWorthHistory, profile] =
+    const [allBudgetLines, debts, assets, investments, exchangeRates, expenseCategories, netWorthHistory, profile, incomeSources, fixedExpenses, emergencyFundContributions, dayToDayAccounts, dayToDayTransactions] =
       await Promise.all([
-        WR.queries.getBudgetLinesByMonth(month),
-        WR.queries.getBudgetLinesByMonth(prevMonth),
+        WR.repos.budgetLines.getAll(),
         WR.repos.debts.getAll(),
         WR.repos.assets.getAll(),
         WR.repos.investments.getAll(),
@@ -1947,7 +2314,63 @@ WR.ui = WR.ui || {};
         WR.repos.expenseCategories.getAll(),
         WR.queries.getNetWorthHistory(),
         getOrCreateProfile(),
+        WR.repos.incomeSources.getAll(),
+        WR.repos.fixedExpenses.getAll(),
+        WR.repos.emergencyFundContributions.getAll(),
+        WR.repos.dayToDayAccounts.getAll(),
+        WR.repos.dayToDayTransactions.getAll(),
       ]);
+
+    const monthBudgetLines = allBudgetLines.filter((line) => line.month === month);
+    const prevMonthBudgetLines = allBudgetLines.filter((line) => line.month === prevMonth);
+
+    const recurringIncomeLines = incomeSources
+      .filter((source) => Number(source.year || selectedYear) === selectedYear && isActiveForMonth(source, month))
+      .map((source) => ({
+        type: 'income',
+        name: source.name,
+        categoryId: source.categoryId,
+        budgetAmount: monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'),
+        actualAmount: monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'),
+      }));
+
+    const recurringFixedLines = fixedExpenses
+      .filter((expense) => isActiveForMonth(expense, month))
+      .map((expense) => ({
+        type: 'fixed',
+        name: expense.name,
+        categoryId: expense.categoryId,
+        budgetAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'),
+        actualAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'),
+      }));
+
+    const budgetLines = monthBudgetLines
+      .filter((line) => line.type !== 'income' && line.type !== 'fixed')
+      .concat(recurringIncomeLines)
+      .concat(recurringFixedLines);
+
+    const prevRecurringIncomeLines = incomeSources
+      .filter((source) => Number(source.year || Number(prevMonth.slice(0, 4))) === Number(prevMonth.slice(0, 4)) && isActiveForMonth(source, prevMonth))
+      .map((source) => ({
+        type: 'income',
+        name: source.name,
+        categoryId: source.categoryId,
+        budgetAmount: monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'),
+        actualAmount: monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'),
+      }));
+    const prevRecurringFixedLines = fixedExpenses
+      .filter((expense) => isActiveForMonth(expense, prevMonth))
+      .map((expense) => ({
+        type: 'fixed',
+        name: expense.name,
+        categoryId: expense.categoryId,
+        budgetAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'),
+        actualAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'),
+      }));
+    const prevBudgetLines = prevMonthBudgetLines
+      .filter((line) => line.type !== 'income' && line.type !== 'fixed')
+      .concat(prevRecurringIncomeLines)
+      .concat(prevRecurringFixedLines);
 
     const F = WR.financial;
     const cashflow = F.calculateCashFlowSummary(budgetLines);
@@ -1991,8 +2414,45 @@ WR.ui = WR.ui || {};
       discretionarySpendChangePct = (split.discretionary - prevSplit.discretionary) / prevSplit.discretionary;
     }
 
+    const annualMonths = Array.from({ length: 12 }, (_, index) => `${selectedYear}-${String(index + 1).padStart(2, '0')}`);
+    const annualRows = annualMonths.map((monthId) => {
+      const monthLines = allBudgetLines.filter((line) => line.month === monthId && line.type !== 'income' && line.type !== 'fixed');
+      const monthIncome = incomeSources
+        .filter((source) => Number(source.year || selectedYear) === selectedYear && isActiveForMonth(source, monthId))
+        .map((source) => ({ type: 'income', actualAmount: monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly') }));
+      const monthFixed = fixedExpenses
+        .filter((expense) => isActiveForMonth(expense, monthId))
+        .map((expense) => ({ type: 'fixed', actualAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly') }));
+      const fullLines = monthLines.concat(monthIncome).concat(monthFixed);
+      const monthCashflow = F.calculateCashFlowSummary(fullLines);
+      return { month: monthId, cashflow: monthCashflow };
+    });
+
+    const annualSummary = annualRows.reduce((summary, row) => {
+      summary.totalIncome += row.cashflow.income;
+      summary.totalFixedExpenses += row.cashflow.fixedExpenses;
+      summary.totalVariableExpenses += row.cashflow.variableExpenses;
+      summary.totalSaved += row.cashflow.savings;
+      summary.totalDebtPaid += row.cashflow.debtPayments;
+      return summary;
+    }, {
+      totalIncome: 0,
+      totalSaved: 0,
+      totalInvested: 0,
+      totalFixedExpenses: 0,
+      totalVariableExpenses: 0,
+      totalDebtPaid: 0,
+    });
+    annualSummary.totalInvested = annualSummary.totalSaved;
+
+    const emergencyFundBalance = emergencyFundContributions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const dayToDayAccount = dayToDayAccounts.find((item) => Number(item.year) === selectedYear) || null;
+    const dayToDaySummary = calculateDayToDaySummary(dayToDayAccount, dayToDayTransactions, selectedYear);
+
     const snapshot = {
       month,
+      monthLabel: `${monthName(selectedMonthNumber)} ${selectedYear}`,
+      selectedYear,
       profile,
       cashflow,
       income: cashflow.income,
@@ -2009,9 +2469,20 @@ WR.ui = WR.ui || {};
       assumedInvestmentReturn,
       investmentReadiness,
       healthScore,
+      annualSummary,
+      annualMonths: annualRows,
+      emergencyFundBalance,
+      emergencyFundContributions,
+      incomeSources,
+      fixedExpenses,
+      dayToDaySummary,
+      dayToDayAccount,
+      dayToDayTransactions,
       debts,
       assets,
       investments,
+      allBudgetLines,
+      expenseCategories,
       netWorthHistory,
       budgetLines,
     };
@@ -2022,6 +2493,8 @@ WR.ui = WR.ui || {};
 
   WR.ui.currentMonthKey = currentMonthKey;
   WR.ui.previousMonthKey = previousMonthKey;
+  WR.ui.monthName = monthName;
+  WR.ui.yearsAroundCurrent = yearsAroundCurrent;
   WR.ui.getOrCreateProfile = getOrCreateProfile;
   WR.ui.buildSnapshot = buildSnapshot;
 })();
@@ -2063,22 +2536,153 @@ WR.ui = WR.ui || {};
     setTimeout(() => element.classList.remove('just-saved'), 700);
   }
 
-  const NAV_ITEMS = [
+  function notify(message, tone) {
+    const stack = document.getElementById('toast-stack');
+    if (!stack) return;
+    const toast = document.createElement('div');
+    toast.className = `toast ${tone || ''}`.trim();
+    toast.textContent = message;
+    stack.appendChild(toast);
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 2800);
+  }
+
+  function notifyUndo(message, onUndo, options) {
+    const stack = document.getElementById('toast-stack');
+    if (!stack) return;
+    const opts = options || {};
+    const timeoutMs = Number(opts.timeoutMs) || 5000;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast row';
+
+    const text = document.createElement('span');
+    text.textContent = message;
+
+    const button = document.createElement('button');
+    button.className = 'toast-action';
+    button.type = 'button';
+    button.textContent = opts.undoLabel || 'Undo';
+
+    toast.appendChild(text);
+    toast.appendChild(button);
+    stack.appendChild(toast);
+
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    };
+
+    const timer = setTimeout(close, timeoutMs);
+    button.addEventListener('click', async () => {
+      clearTimeout(timer);
+      close();
+      try {
+        await onUndo();
+        notify(opts.undoSuccessMessage || 'Restored.', 'success');
+      } catch (err) {
+        notify(`Undo failed: ${err.message}`, 'error');
+      }
+    });
+  }
+
+  async function removeWithUndo(options) {
+    const existing = await options.repo.getById(options.id);
+    if (!existing) return;
+
+    await options.repo.remove(options.id);
+    if (options.afterChange) await options.afterChange();
+
+    notifyUndo(`${options.entityLabel || 'Item'} deleted.`, async () => {
+      await options.repo.add(existing);
+      if (options.afterChange) await options.afterChange();
+    }, {
+      undoLabel: 'Undo',
+      undoSuccessMessage: `${options.entityLabel || 'Item'} restored.`,
+      timeoutMs: options.timeoutMs || 5000,
+    });
+  }
+
+  async function getIntegrityWarnings() {
+    const [lines, debts] = await Promise.all([
+      WR.repos.budgetLines.getAll(),
+      WR.repos.debts.getAll(),
+    ]);
+    const warnings = [];
+    const badMonthCount = lines.filter((line) => !line.month || !/^\d{4}-\d{2}$/.test(String(line.month))).length;
+    if (badMonthCount > 0) warnings.push(`${badMonthCount} budget rows have invalid month values.`);
+    const invalidAmounts = lines.filter((line) => Number(line.budgetAmount) < 0 || Number(line.actualAmount) < 0).length;
+    if (invalidAmounts > 0) warnings.push(`${invalidAmounts} budget rows have negative amounts.`);
+    const badDebtBalances = debts.filter((debt) => Number(debt.currentBalance) < 0 || Number.isNaN(Number(debt.currentBalance))).length;
+    if (badDebtBalances > 0) warnings.push(`${badDebtBalances} debts have invalid balances.`);
+    return warnings;
+  }
+
+  async function refreshIntegrityNotice() {
+    const host = document.getElementById('global-notice');
+    if (!host) return;
+    const warnings = await getIntegrityWarnings();
+    host.innerHTML = warnings.length
+      ? `<div class="notice-card"><strong>Data check:</strong> ${warnings.join(' ')}</div>`
+      : '';
+  }
+
+  function enhanceResponsiveContent(container) {
+    if (!container) return;
+    container.querySelectorAll('table.data-table').forEach((table) => {
+      if (table.parentElement && table.parentElement.classList.contains('table-wrap')) return;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  }
+
+  const PRIMARY_NAV_ITEMS = [
     { hash: '#/dashboard', label: 'Dashboard' },
-    { hash: '#/transactions', label: 'Transactions' },
+    { hash: '#/income', label: 'Income' },
+    { hash: '#/fixed-expenses', label: 'Fixed Expenses' },
+    { hash: '#/emergency-fund', label: 'Emergency Fund' },
+    { hash: '#/day-to-day', label: 'Day-to-Day' },
+    { hash: '#/transactions', label: 'Budget Planner' },
     { hash: '#/debts', label: 'Debts' },
     { hash: '#/assets', label: 'Assets' },
     { hash: '#/investments', label: 'Investments' },
+    { hash: '#/insights', label: 'Financial Insights' },
     { hash: '#/forecast', label: 'Forecast' },
     { hash: '#/reports', label: 'Reports' },
-    { hash: '#/spreadsheet', label: 'Spreadsheet' },
-    { hash: '#/excel', label: 'Excel' },
-    { hash: '#/assistant', label: 'Wealth Assistant' },
     { hash: '#/settings', label: 'Settings' },
   ];
 
+  const SECONDARY_NAV_ITEMS = [
+    { hash: '#/spreadsheet', label: 'Spreadsheet' },
+    { hash: '#/excel', label: 'Excel' },
+    { hash: '#/assistant', label: 'Wealth Assistant' },
+  ];
+
+  const NAV_ITEMS = PRIMARY_NAV_ITEMS.concat(SECONDARY_NAV_ITEMS);
+
   function renderShell() {
-    const nav = NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
+    const primaryNavLinks = PRIMARY_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
+    const secondaryNavLinks = SECONDARY_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
+    const nav = `
+      <div class="nav-section-title">Core</div>
+      ${primaryNavLinks}
+      <div class="nav-divider"></div>
+      <div class="nav-section-title">More</div>
+      ${secondaryNavLinks}
+    `;
+    const navOptions = `
+      <optgroup label="Core">
+        ${PRIMARY_NAV_ITEMS.map((i) => `<option value="${i.hash}">${i.label}</option>`).join('')}
+      </optgroup>
+      <optgroup label="More">
+        ${SECONDARY_NAV_ITEMS.map((i) => `<option value="${i.hash}">${i.label}</option>`).join('')}
+      </optgroup>
+    `;
     document.getElementById('app').innerHTML = `
       <header class="topbar">
         <div class="brand">
@@ -2089,18 +2693,43 @@ WR.ui = WR.ui || {};
           WealthRoute
         </div>
         <nav id="nav">${nav}</nav>
+        <div class="nav-controls">
+          <select id="nav-jump" class="nav-jump" aria-label="Jump to section">
+            ${navOptions}
+          </select>
+          <button id="nav-toggle-btn" class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation">
+            <span class="nav-toggle-bars"><span></span><span></span><span></span></span>
+          </button>
+        </div>
         <button id="theme-toggle-btn" class="theme-toggle" type="button"></button>
       </header>
+      <div id="global-notice" class="global-notice"></div>
       <main id="content"></main>
+      <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
     `;
     WR.ui.updateToggleIcon(document.documentElement.getAttribute('data-theme') || 'light');
     document.getElementById('theme-toggle-btn').addEventListener('click', WR.ui.toggleTheme);
+    document.getElementById('nav-jump').addEventListener('change', (event) => {
+      window.location.hash = event.target.value;
+    });
+    document.getElementById('nav-toggle-btn').addEventListener('click', () => {
+      const topbar = document.querySelector('.topbar');
+      const isOpen = topbar.classList.toggle('nav-open');
+      document.getElementById('nav-toggle-btn').setAttribute('aria-expanded', String(isOpen));
+    });
+    refreshIntegrityNotice();
   }
 
   function setActiveNav(hash) {
     document.querySelectorAll('#nav a').forEach((a) => {
       a.classList.toggle('active', a.getAttribute('data-hash') === hash);
     });
+    const jump = document.getElementById('nav-jump');
+    if (jump) jump.value = hash;
+    const topbar = document.querySelector('.topbar');
+    const toggle = document.getElementById('nav-toggle-btn');
+    if (topbar) topbar.classList.remove('nav-open');
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
   }
 
   function priorityBadge(priority) {
@@ -2109,10 +2738,10 @@ WR.ui = WR.ui || {};
   }
 
   async function renderDashboard(container) {
-    container.innerHTML = '<p class="loading">Loading your financial position\u2026</p>';
-    const snapshot = await WR.ui.buildSnapshot();
-    const s = snapshot;
+    container.innerHTML = '<p class="loading">Loading your financial position...</p>';
+    const s = await WR.ui.buildSnapshot();
     const currency = s.profile.baseCurrency;
+    const setupComplete = s.budgetLines.length > 0 && (s.debts.length > 0 || s.assets.length > 0 || s.investments.length > 0);
 
     const recsHtml = s.recommendations.length
       ? s.recommendations
@@ -2131,7 +2760,7 @@ WR.ui = WR.ui || {};
         </div>`,
           )
           .join('')
-      : '<p class="empty">No urgent recommendations right now \u2014 add income, expenses, debts and assets to get personalised guidance.</p>';
+      : '<p class="empty">No urgent recommendations right now - add income, expenses, debts and assets to get personalised guidance.</p>';
 
     const cashflowChart = WR.charts.barChart(
       [
@@ -2149,23 +2778,80 @@ WR.ui = WR.ui || {};
       { width: 460, height: 220 },
     );
 
-    container.innerHTML = `
-      <section class="hero">
-        <p class="greeting">${greeting(s.profile.displayName)}</p>
-        <h1>Your Financial Position</h1>
-        <p class="month-label">${s.month}</p>
+    const monthlyBreakdown = [
+      { label: 'Fixed', value: s.cashflow.fixedExpenses },
+      { label: 'Variable', value: s.cashflow.variableExpenses },
+      { label: 'Savings', value: s.cashflow.savings },
+      { label: 'Debt', value: s.cashflow.debtPayments },
+    ].filter((x) => Number(x.value) > 0);
 
-        <div class="hero-headline">
-          <span class="stat-label">Net Worth</span>
-          <span class="hero-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span>
+    const annualBreakdown = [
+      { label: 'Fixed', value: s.annualSummary.totalFixedExpenses },
+      { label: 'Variable', value: s.annualSummary.totalVariableExpenses },
+      { label: 'Saved', value: s.annualSummary.totalSaved },
+      { label: 'Debt', value: s.annualSummary.totalDebtPaid },
+    ].filter((x) => Number(x.value) > 0);
+
+    const monthlyPie = WR.charts.pieChart(monthlyBreakdown, { size: 180, innerRadius: 56 });
+    const annualPie = WR.charts.pieChart(annualBreakdown, { size: 180, innerRadius: 56 });
+
+    function legendHtml(items) {
+      if (!items.length) return '<p class="fine-print">No spending/saving data for this period yet.</p>';
+      return `<ul class="pie-legend">${items.map((item, index) => `
+        <li>
+          <span class="legend-label"><span class="legend-dot" style="background: var(--chart-${(index % 5) + 1})"></span>${item.label}</span>
+          <span class="legend-value">${currency} ${fmt(item.value)}</span>
+        </li>
+      `).join('')}</ul>`;
+    }
+
+    container.innerHTML = `
+      ${setupComplete ? '' : `
+      <section class="health-score">
+        <h2>Quick Setup</h2>
+        <p class="fine-print">Add your first transactions and at least one debt or asset to unlock better recommendations.</p>
+        <div class="toolbar">
+          <button id="setup-go-transactions">Set Monthly Budget</button>
+          <button id="setup-go-debts" class="secondary">Add Debt</button>
+          <button id="setup-go-assets" class="secondary">Add Asset</button>
+          <button id="setup-go-settings" class="secondary">Open Settings</button>
+        </div>
+      </section>
+      `}
+
+      <section class="position-summary-grid">
+        <div class="hero dashboard-card">
+          <p class="greeting">${greeting(s.profile.displayName)}</p>
+          <h1>Your Financial Position</h1>
+          <p class="month-label">${s.monthLabel}</p>
+
+          <div class="hero-headline">
+            <span class="stat-label">Net Worth</span>
+            <span class="hero-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span>
+          </div>
+
+          <div class="stat-grid">
+            <div class="stat"><span class="stat-label">Monthly Income</span><span class="stat-value">${currency} ${fmt(s.income)}</span></div>
+            <div class="stat"><span class="stat-label">Monthly Expenses</span><span class="stat-value">${currency} ${fmt(s.cashflow.totalExpenses)}</span></div>
+            <div class="stat"><span class="stat-label">Available Surplus</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
+            <div class="stat"><span class="stat-label">Total Debt</span><span class="stat-value">${currency} ${fmt(s.totalDebt)}</span></div>
+            <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
+            <div class="stat"><span class="stat-label">Day-to-Day Balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
+          </div>
         </div>
 
-        <div class="stat-grid">
-          <div class="stat"><span class="stat-label">Monthly Income</span><span class="stat-value">${currency} ${fmt(s.income)}</span></div>
-          <div class="stat"><span class="stat-label">Monthly Expenses</span><span class="stat-value">${currency} ${fmt(s.cashflow.totalExpenses)}</span></div>
-          <div class="stat"><span class="stat-label">Available Surplus</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
-          <div class="stat"><span class="stat-label">Total Debt</span><span class="stat-value">${currency} ${fmt(s.totalDebt)}</span></div>
-          <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${Number.isFinite(s.emergencyFundMonths) ? s.emergencyFundMonths.toFixed(1) : '\u221e'} months</span></div>
+        <div class="dashboard-card">
+          <h2>Annual Financial Summary (${s.selectedYear})</h2>
+          <div class="stat-grid">
+            <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
+            <div class="stat"><span class="stat-label">Total Saved</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSaved)}</span></div>
+            <div class="stat"><span class="stat-label">Total Invested</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalInvested)}</span></div>
+            <div class="stat"><span class="stat-label">Total Fixed Expenses</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalFixedExpenses)}</span></div>
+            <div class="stat"><span class="stat-label">Total Variable Expenses</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalVariableExpenses)}</span></div>
+            <div class="stat"><span class="stat-label">Total Debt Paid</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
+            <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
+            <div class="stat"><span class="stat-label">Net Worth</span><span class="stat-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span></div>
+          </div>
         </div>
       </section>
 
@@ -2178,7 +2864,24 @@ WR.ui = WR.ui || {};
           <div>Savings rate: ${s.healthScore.breakdown.savingsRate.toFixed(0)}</div>
           <div>Net worth trend: ${s.healthScore.breakdown.netWorthTrend.toFixed(0)}</div>
         </div>
-        <p class="fine-print">Every component above is a plain formula \u2014 see Settings for how the emergency fund target and other assumptions are set.</p>
+        <p class="fine-print">Every component above is a plain formula - see Settings for assumptions.</p>
+      </section>
+
+      <section class="summary-charts">
+        <article class="pie-card">
+          <h3>Monthly Breakdown (${s.monthLabel})</h3>
+          <div class="pie-layout">
+            ${monthlyPie}
+            ${legendHtml(monthlyBreakdown)}
+          </div>
+        </article>
+        <article class="pie-card">
+          <h3>Annual Breakdown (${s.selectedYear})</h3>
+          <div class="pie-layout">
+            ${annualPie}
+            ${legendHtml(annualBreakdown)}
+          </div>
+        </article>
       </section>
 
       <section class="recommendations">
@@ -2210,6 +2913,13 @@ WR.ui = WR.ui || {};
       await WR.repos.netWorthSnapshots.add(snap);
       WR.ui.renderDashboard(container);
     });
+
+    if (!setupComplete) {
+      document.getElementById('setup-go-transactions')?.addEventListener('click', () => { window.location.hash = '#/transactions'; });
+      document.getElementById('setup-go-debts')?.addEventListener('click', () => { window.location.hash = '#/debts'; });
+      document.getElementById('setup-go-assets')?.addEventListener('click', () => { window.location.hash = '#/assets'; });
+      document.getElementById('setup-go-settings')?.addEventListener('click', () => { window.location.hash = '#/settings'; });
+    }
   }
 
   WR.ui.fmt = fmt;
@@ -2217,6 +2927,12 @@ WR.ui = WR.ui || {};
   WR.ui.el = el;
   WR.ui.greeting = greeting;
   WR.ui.flashSaved = flashSaved;
+  WR.ui.notify = notify;
+  WR.ui.notifyUndo = notifyUndo;
+  WR.ui.removeWithUndo = removeWithUndo;
+  WR.ui.getIntegrityWarnings = getIntegrityWarnings;
+  WR.ui.refreshIntegrityNotice = refreshIntegrityNotice;
+  WR.ui.enhanceResponsiveContent = enhanceResponsiveContent;
   WR.ui.NAV_ITEMS = NAV_ITEMS;
   WR.ui.renderShell = renderShell;
   WR.ui.setActiveNav = setActiveNav;
@@ -2380,8 +3096,12 @@ WR.ui = WR.ui || {};
     container.querySelectorAll('.delete-line').forEach((btn) => {
       btn.addEventListener('click', async () => {
         if (!confirm('Delete this transaction? This cannot be undone.')) return;
-        await WR.repos.budgetLines.remove(btn.dataset.id);
-        renderTransactions(container);
+        await WR.ui.removeWithUndo({
+          repo: WR.repos.budgetLines,
+          id: btn.dataset.id,
+          entityLabel: 'Transaction',
+          afterChange: async () => { await renderTransactions(container); },
+        });
       });
     });
 
@@ -2404,6 +3124,490 @@ WR.ui = WR.ui || {};
 
   WR.ui.renderTransactions = renderTransactions;
 })();
+// Dedicated pages for recurring income/fixed expenses, emergency fund,
+// day-to-day money, and financial insights.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  const RECURRING_FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
+
+  function recurringFrequencyOptions(selected) {
+    return RECURRING_FREQUENCIES
+      .map((frequency) => `<option value="${frequency}" ${frequency === selected ? 'selected' : ''}>${frequency}</option>`)
+      .join('');
+  }
+
+  function categoryOptions(categories, selectedId, type) {
+    const filtered = (categories || []).filter((category) => !type || category.type === type);
+    return `<option value="">— none —</option>${filtered.map((category) => `<option value="${category.id}" ${category.id === selectedId ? 'selected' : ''}>${category.name}</option>`).join('')}`;
+  }
+
+  function isMonthRangeValid(startMonth, endMonth) {
+    if (!startMonth || !endMonth) return true;
+    return String(startMonth) <= String(endMonth);
+  }
+
+  async function renderIncome(container) {
+    const [profile, incomes] = await Promise.all([
+      WR.ui.getOrCreateProfile(),
+      WR.repos.incomeSources.getAll(),
+    ]);
+    const year = WR.ui._incomeYear || new Date().getFullYear();
+    WR.ui._incomeYear = year;
+
+    const rows = incomes
+      .filter((item) => Number(item.year || year) === year)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((item) => `
+        <tr data-id="${item.id}">
+          <td><input class="cell" data-field="name" value="${item.name || ''}"></td>
+          <td><input class="cell num" data-field="amount" type="number" step="0.01" min="0" value="${item.amount || 0}"></td>
+          <td><select class="cell" data-field="frequency">${recurringFrequencyOptions(item.frequency || 'monthly')}</select></td>
+          <td><input class="cell" data-field="startMonth" type="month" value="${item.startMonth || `${year}-01`}"></td>
+          <td><input class="cell" data-field="endMonth" type="month" value="${item.endMonth || `${year}-12`}"></td>
+          <td><button class="link-btn delete-income" data-id="${item.id}">Delete</button></td>
+        </tr>`)
+      .join('');
+
+    container.innerHTML = `
+      <h1>Income</h1>
+      <p class="fine-print">Set recurring income for a year once. It is applied automatically in monthly and annual calculations.</p>
+      <div class="toolbar"><label>Year: <select id="income-year">${WR.ui.yearsAroundCurrent(3, 4).map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></label></div>
+      <table class="data-table">
+        <thead><tr><th>Source</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Start month</th><th>End month</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6" class="empty">No income sources for this year.</td></tr>'}</tbody>
+      </table>
+
+      <h3>Add income source</h3>
+      <form id="income-add-form" class="inline-form">
+        <input name="name" placeholder="Salary, side business, rental" required>
+        <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
+        <select name="frequency">${recurringFrequencyOptions('monthly')}</select>
+        <input name="startMonth" type="month" value="${year}-01">
+        <input name="endMonth" type="month" value="${year}-12">
+        <button type="submit">Add</button>
+      </form>
+      <p id="income-form-message" class="warning"></p>
+    `;
+
+    document.getElementById('income-year').addEventListener('change', (event) => {
+      WR.ui._incomeYear = Number(event.target.value);
+      renderIncome(container);
+    });
+
+    container.querySelectorAll('tbody tr').forEach((tr) => {
+      const id = tr.dataset.id;
+      tr.querySelectorAll('.cell').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const income = await WR.repos.incomeSources.getById(id);
+          if (!income) return;
+          const field = input.dataset.field;
+          if (field === 'amount') {
+            income.amount = Math.max(0, parseFloat(input.value) || 0);
+            input.value = income.amount;
+          } else {
+            income[field] = input.value;
+          }
+          income.year = year;
+          income.currency = profile.baseCurrency;
+          if (!isMonthRangeValid(income.startMonth, income.endMonth)) {
+            WR.ui.notify('Income month range is invalid.', 'error');
+            renderIncome(container);
+            return;
+          }
+          await WR.repos.incomeSources.update(income);
+          WR.ui.flashSaved(input);
+        });
+      });
+    });
+
+    container.querySelectorAll('.delete-income').forEach((button) => {
+      button.addEventListener('click', async () => {
+        if (!confirm('Delete this income source?')) return;
+        await WR.ui.removeWithUndo({
+          repo: WR.repos.incomeSources,
+          id: button.dataset.id,
+          entityLabel: 'Income source',
+          afterChange: async () => { await renderIncome(container); },
+        });
+      });
+    });
+
+    document.getElementById('income-add-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const startMonth = form.startMonth.value;
+      const endMonth = form.endMonth.value;
+      const message = document.getElementById('income-form-message');
+      if (!isMonthRangeValid(startMonth, endMonth)) {
+        message.textContent = 'Invalid month range: start month must be before or equal to end month.';
+        return;
+      }
+      message.textContent = '';
+      await WR.repos.incomeSources.add(WR.models.createIncomeSource({
+        year,
+        name: form.name.value.trim(),
+        amount: Math.max(0, parseFloat(form.amount.value) || 0),
+        currency: profile.baseCurrency,
+        frequency: form.frequency.value,
+        startMonth,
+        endMonth,
+      }));
+      renderIncome(container);
+    });
+  }
+
+  async function renderFixedExpenses(container) {
+    const [profile, categories, expenses] = await Promise.all([
+      WR.ui.getOrCreateProfile(),
+      WR.repos.expenseCategories.getAll(),
+      WR.repos.fixedExpenses.getAll(),
+    ]);
+
+    const rows = expenses
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((expense) => `
+        <tr data-id="${expense.id}">
+          <td><input class="cell" data-field="name" value="${expense.name || ''}"></td>
+          <td><input class="cell num" data-field="amount" type="number" step="0.01" min="0" value="${expense.amount || 0}"></td>
+          <td><select class="cell" data-field="frequency">${recurringFrequencyOptions(expense.frequency || 'monthly')}</select></td>
+          <td><select class="cell" data-field="categoryId">${categoryOptions(categories, expense.categoryId, 'fixed')}</select></td>
+          <td><input class="cell" data-field="startMonth" type="month" value="${expense.startMonth || WR.ui.currentMonthKey()}"></td>
+          <td><input class="cell" data-field="endMonth" type="month" value="${expense.endMonth || ''}"></td>
+          <td><button class="link-btn delete-fixed-expense" data-id="${expense.id}">Delete</button></td>
+        </tr>`)
+      .join('');
+
+    container.innerHTML = `
+      <h1>Fixed Expenses</h1>
+      <p class="fine-print">Recurring fixed expenses are entered once and automatically applied to every applicable month.</p>
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Category</th><th>Start month</th><th>End month</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" class="empty">No fixed expenses yet.</td></tr>'}</tbody>
+      </table>
+
+      <h3>Add fixed expense</h3>
+      <form id="fixed-add-form" class="inline-form">
+        <input name="name" placeholder="Rent, insurance, internet" required>
+        <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
+        <select name="frequency">${recurringFrequencyOptions('monthly')}</select>
+        <select name="categoryId">${categoryOptions(categories, undefined, 'fixed')}</select>
+        <input name="startMonth" type="month" value="${WR.ui.currentMonthKey()}">
+        <input name="endMonth" type="month">
+        <button type="submit">Add</button>
+      </form>
+      <p id="fixed-form-message" class="warning"></p>
+    `;
+
+    container.querySelectorAll('tbody tr').forEach((tr) => {
+      const id = tr.dataset.id;
+      tr.querySelectorAll('.cell').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const expense = await WR.repos.fixedExpenses.getById(id);
+          if (!expense) return;
+          const field = input.dataset.field;
+          if (field === 'amount') {
+            expense.amount = Math.max(0, parseFloat(input.value) || 0);
+            input.value = expense.amount;
+          } else {
+            expense[field] = input.value || undefined;
+          }
+          if (!isMonthRangeValid(expense.startMonth, expense.endMonth)) {
+            WR.ui.notify('Fixed expense month range is invalid.', 'error');
+            renderFixedExpenses(container);
+            return;
+          }
+          expense.currency = profile.baseCurrency;
+          await WR.repos.fixedExpenses.update(expense);
+          WR.ui.flashSaved(input);
+        });
+      });
+    });
+
+    container.querySelectorAll('.delete-fixed-expense').forEach((button) => {
+      button.addEventListener('click', async () => {
+        if (!confirm('Delete this fixed expense?')) return;
+        await WR.ui.removeWithUndo({
+          repo: WR.repos.fixedExpenses,
+          id: button.dataset.id,
+          entityLabel: 'Fixed expense',
+          afterChange: async () => { await renderFixedExpenses(container); },
+        });
+      });
+    });
+
+    document.getElementById('fixed-add-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const message = document.getElementById('fixed-form-message');
+      if (!isMonthRangeValid(form.startMonth.value, form.endMonth.value)) {
+        message.textContent = 'Invalid month range: start month must be before or equal to end month.';
+        return;
+      }
+      message.textContent = '';
+      await WR.repos.fixedExpenses.add(WR.models.createFixedExpense({
+        name: form.name.value.trim(),
+        amount: Math.max(0, parseFloat(form.amount.value) || 0),
+        frequency: form.frequency.value,
+        categoryId: form.categoryId.value || undefined,
+        startMonth: form.startMonth.value || WR.ui.currentMonthKey(),
+        endMonth: form.endMonth.value || undefined,
+        currency: profile.baseCurrency,
+      }));
+      renderFixedExpenses(container);
+    });
+  }
+
+  async function renderEmergencyFund(container) {
+    const [profile, contributions] = await Promise.all([
+      WR.ui.getOrCreateProfile(),
+      WR.repos.emergencyFundContributions.getAll(),
+    ]);
+    const sorted = contributions.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const total = sorted.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+    const rows = sorted.map((item) => `
+      <tr data-id="${item.id}">
+        <td><input class="cell" data-field="date" type="date" value="${item.date}"></td>
+        <td><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${item.amount}"></td>
+        <td><input class="cell" data-field="note" value="${item.note || ''}"></td>
+        <td><button class="link-btn delete-emergency" data-id="${item.id}">Delete</button></td>
+      </tr>`).join('');
+
+    container.innerHTML = `
+      <h1>Emergency Fund</h1>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Current emergency fund balance</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(total)}</span></div>
+        <div class="stat"><span class="stat-label">Total contributions</span><span class="stat-value">${sorted.length}</span></div>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Contribution (${profile.baseCurrency})</th><th>Note</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" class="empty">No emergency contributions yet.</td></tr>'}</tbody>
+      </table>
+
+      <h3>Add contribution</h3>
+      <form id="emergency-add-form" class="inline-form">
+        <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
+        <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
+        <input name="note" placeholder="Optional note">
+        <button type="submit">Add</button>
+      </form>
+    `;
+
+    container.querySelectorAll('tbody tr').forEach((tr) => {
+      const id = tr.dataset.id;
+      tr.querySelectorAll('.cell').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const row = await WR.repos.emergencyFundContributions.getById(id);
+          if (!row) return;
+          const field = input.dataset.field;
+          row[field] = field === 'amount' ? Math.max(0, parseFloat(input.value) || 0) : input.value;
+          await WR.repos.emergencyFundContributions.update(row);
+          WR.ui.flashSaved(input);
+          WR.ui.refreshIntegrityNotice();
+        });
+      });
+    });
+
+    container.querySelectorAll('.delete-emergency').forEach((button) => {
+      button.addEventListener('click', async () => {
+        if (!confirm('Delete this emergency contribution?')) return;
+        await WR.ui.removeWithUndo({
+          repo: WR.repos.emergencyFundContributions,
+          id: button.dataset.id,
+          entityLabel: 'Emergency contribution',
+          afterChange: async () => {
+            await WR.ui.refreshIntegrityNotice();
+            await renderEmergencyFund(container);
+          },
+        });
+      });
+    });
+
+    document.getElementById('emergency-add-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
+        date: form.date.value,
+        amount: Math.max(0, parseFloat(form.amount.value) || 0),
+        note: form.note.value.trim() || undefined,
+      }));
+      WR.ui.refreshIntegrityNotice();
+      renderEmergencyFund(container);
+    });
+  }
+
+  async function renderDayToDay(container) {
+    const [profile, accounts, transactions] = await Promise.all([
+      WR.ui.getOrCreateProfile(),
+      WR.repos.dayToDayAccounts.getAll(),
+      WR.repos.dayToDayTransactions.getAll(),
+    ]);
+    const year = WR.ui._dayYear || new Date().getFullYear();
+    WR.ui._dayYear = year;
+    const account = accounts.find((item) => Number(item.year) === year) || null;
+    const yearTx = transactions.filter((item) => Number(item.year) === year).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const added = yearTx.filter((item) => item.kind === 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const spent = yearTx.filter((item) => item.kind !== 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const opening = Number(account?.startingBalance) || 0;
+    const current = opening + added - spent;
+
+    const rows = yearTx.map((item) => `
+      <tr data-id="${item.id}">
+        <td><input class="cell" data-field="date" type="date" value="${item.date}"></td>
+        <td><select class="cell" data-field="kind"><option value="spend" ${item.kind !== 'add' ? 'selected' : ''}>Spend</option><option value="add" ${item.kind === 'add' ? 'selected' : ''}>Add money</option></select></td>
+        <td><input class="cell" data-field="description" value="${item.description || ''}"></td>
+        <td><input class="cell" data-field="category" value="${item.category || ''}"></td>
+        <td><input class="cell" data-field="note" value="${item.note || ''}"></td>
+        <td><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${item.amount}"></td>
+        <td><button class="link-btn delete-day" data-id="${item.id}">Delete</button></td>
+      </tr>`).join('');
+
+    container.innerHTML = `
+      <h1>Day-to-Day</h1>
+      <p class="fine-print">Track daily account money separately from budget categories. Spend entries deduct from the current day-to-day balance.</p>
+      <div class="toolbar"><label>Year: <select id="day-year">${WR.ui.yearsAroundCurrent(3, 4).map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></label></div>
+
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Starting balance</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(opening)}</span></div>
+        <div class="stat"><span class="stat-label">Money added</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(added)}</span></div>
+        <div class="stat"><span class="stat-label">Money spent</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(spent)}</span></div>
+        <div class="stat"><span class="stat-label">Current balance</span><span class="stat-value ${current < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(current)}</span></div>
+        <div class="stat"><span class="stat-label">Total transactions</span><span class="stat-value">${yearTx.length}</span></div>
+      </div>
+
+      <h3>Starting balance</h3>
+      <form id="day-balance-form" class="inline-form">
+        <input name="startingBalance" type="number" step="0.01" min="0" value="${opening}">
+        <button type="submit">Save starting balance</button>
+      </form>
+
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Category</th><th>Note</th><th>Amount (${profile.baseCurrency})</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" class="empty">No day-to-day transactions yet.</td></tr>'}</tbody>
+      </table>
+
+      <h3>Add day-to-day transaction</h3>
+      <form id="day-add-form" class="inline-form">
+        <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
+        <select name="kind"><option value="spend">Spend</option><option value="add">Add money</option></select>
+        <input name="description" placeholder="Description" required>
+        <input name="category" placeholder="Optional category">
+        <input name="note" placeholder="Optional note">
+        <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
+        <button type="submit">Add</button>
+      </form>
+    `;
+
+    document.getElementById('day-year').addEventListener('change', (event) => {
+      WR.ui._dayYear = Number(event.target.value);
+      renderDayToDay(container);
+    });
+
+    document.getElementById('day-balance-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const record = account || WR.models.createDayToDayAccount({ year, startingBalance: 0, currency: profile.baseCurrency });
+      record.year = year;
+      record.currency = profile.baseCurrency;
+      record.startingBalance = Math.max(0, parseFloat(form.startingBalance.value) || 0);
+      await WR.repos.dayToDayAccounts.update(record);
+      renderDayToDay(container);
+    });
+
+    container.querySelectorAll('tbody tr').forEach((tr) => {
+      const id = tr.dataset.id;
+      tr.querySelectorAll('.cell').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const row = await WR.repos.dayToDayTransactions.getById(id);
+          if (!row) return;
+          const field = input.dataset.field;
+          if (field === 'amount') {
+            row.amount = Math.max(0, parseFloat(input.value) || 0);
+            input.value = row.amount;
+          } else {
+            row[field] = input.value;
+          }
+          row.year = Number(String(row.date || '').slice(0, 4)) || year;
+          await WR.repos.dayToDayTransactions.update(row);
+          WR.ui.flashSaved(input);
+          renderDayToDay(container);
+        });
+      });
+    });
+
+    container.querySelectorAll('.delete-day').forEach((button) => {
+      button.addEventListener('click', async () => {
+        if (!confirm('Delete this day-to-day transaction?')) return;
+        await WR.ui.removeWithUndo({
+          repo: WR.repos.dayToDayTransactions,
+          id: button.dataset.id,
+          entityLabel: 'Day-to-day transaction',
+          afterChange: async () => { await renderDayToDay(container); },
+        });
+      });
+    });
+
+    document.getElementById('day-add-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const date = form.date.value;
+      await WR.repos.dayToDayTransactions.add(WR.models.createDayToDayTransaction({
+        year: Number(date.slice(0, 4)),
+        date,
+        kind: form.kind.value,
+        description: form.description.value.trim(),
+        category: form.category.value.trim() || undefined,
+        note: form.note.value.trim() || undefined,
+        amount: Math.max(0, parseFloat(form.amount.value) || 0),
+      }));
+      renderDayToDay(container);
+    });
+  }
+
+  async function renderInsights(container) {
+    const month = WR.ui._insightsMonth || WR.ui.currentMonthKey();
+    WR.ui._insightsMonth = month;
+    const snapshot = await WR.ui.buildSnapshot(month);
+
+    const info = [
+      `Month selected: ${snapshot.monthLabel}`,
+      `Annual income tracked for ${snapshot.selectedYear}: ${snapshot.profile.baseCurrency} ${WR.ui.fmt(snapshot.annualSummary.totalIncome)}`,
+      `Emergency fund total: ${snapshot.profile.baseCurrency} ${WR.ui.fmt(snapshot.emergencyFundBalance)}`,
+      `Current day-to-day balance: ${snapshot.profile.baseCurrency} ${WR.ui.fmt(snapshot.dayToDaySummary.currentBalance)}`,
+    ];
+    const trends = [];
+    if (snapshot.discretionarySpendChangePct !== null) {
+      trends.push(`Variable/discretionary spending changed by ${(snapshot.discretionarySpendChangePct * 100).toFixed(1)}% compared with the previous month.`);
+    }
+    trends.push(`Financial health score is ${snapshot.healthScore.score}/100 this month.`);
+
+    const suggestions = snapshot.recommendations.length
+      ? snapshot.recommendations.map((item) => `${item.title}: ${item.reason}`)
+      : ['No high-priority actions. Continue tracking monthly activity for richer insights.'];
+
+    container.innerHTML = `
+      <h1>Financial Insights</h1>
+      <div class="toolbar"><label>Month: <input type="month" id="insights-month" value="${month}"></label></div>
+      <section><h2>Information</h2><div class="assistant-answer">${info.map((line) => `<p>${line}</p>`).join('')}</div></section>
+      <section><h2>Trends</h2><div class="assistant-answer">${trends.map((line) => `<p>${line}</p>`).join('')}</div></section>
+      <section><h2>Suggestions</h2><div class="assistant-answer">${suggestions.map((line) => `<p>${line}</p>`).join('')}</div></section>
+    `;
+
+    document.getElementById('insights-month').addEventListener('change', (event) => {
+      WR.ui._insightsMonth = event.target.value;
+      renderInsights(container);
+    });
+  }
+
+  WR.ui.renderIncome = renderIncome;
+  WR.ui.renderFixedExpenses = renderFixedExpenses;
+  WR.ui.renderEmergencyFund = renderEmergencyFund;
+  WR.ui.renderDayToDay = renderDayToDay;
+  WR.ui.renderInsights = renderInsights;
+})();
 // Debts view: manage debts (inline-editable), then run the
 // avalanche/snowball/hybrid prioritisation engine with an adjustable extra
 // payment. Editing a debt only re-renders the payoff projection section,
@@ -2417,6 +3621,38 @@ WR.ui = WR.ui || {};
 
   function currencyOptions(selected) {
     return CURRENCIES.map((c) => `<option value="${c}" ${c === selected ? 'selected' : ''}>${c}</option>`).join('');
+  }
+
+  const PAYMENT_FREQUENCY_TO_MONTHS = {
+    weekly: 12 / 52,
+    biweekly: 12 / 26,
+    monthly: 1,
+    quarterly: 3,
+    yearly: 12,
+  };
+
+  function paymentFrequencyOptions(selected) {
+    return Object.keys(PAYMENT_FREQUENCY_TO_MONTHS)
+      .map((frequency) => `<option value="${frequency}" ${frequency === selected ? 'selected' : ''}>${frequency}</option>`)
+      .join('');
+  }
+
+  function computePaymentsRemaining(debt) {
+    const perCycle = Math.max(0, Number(debt.minPayment) || 0);
+    if (perCycle <= 0) return null;
+    const monthsPerPayment = PAYMENT_FREQUENCY_TO_MONTHS[debt.paymentFrequency || 'monthly'] || 1;
+    const monthlyEquivalent = perCycle / monthsPerPayment;
+    if (monthlyEquivalent <= 0) return null;
+    return Math.ceil((Number(debt.currentBalance) || 0) / monthlyEquivalent);
+  }
+
+  function estimateCompletionDate(debt, paymentsRemaining) {
+    if (!paymentsRemaining || paymentsRemaining < 0) return '';
+    const monthsPerPayment = PAYMENT_FREQUENCY_TO_MONTHS[debt.paymentFrequency || 'monthly'] || 1;
+    const start = debt.startDate ? new Date(`${debt.startDate}T00:00:00`) : new Date();
+    const monthsToAdd = Math.ceil(paymentsRemaining * monthsPerPayment);
+    start.setMonth(start.getMonth() + monthsToAdd);
+    return start.toISOString().slice(0, 10);
   }
 
   function computePayoffHtml(debts, strategy, extra, profile) {
@@ -2451,22 +3687,39 @@ WR.ui = WR.ui || {};
   }
 
   async function renderDebts(container) {
-    const debts = await WR.repos.debts.getAll();
+    const [debts, payments] = await Promise.all([
+      WR.repos.debts.getAll(),
+      WR.repos.debtPayments.getAll(),
+    ]);
     const profile = await WR.ui.getOrCreateProfile();
     const strategy = WR.ui._debtStrategy || 'avalanche';
     const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
 
     const rows = debts
       .map(
-        (d) => `
+        (d) => {
+          const paymentsRemaining = computePaymentsRemaining(d);
+          const expectedCompletionDate = d.expectedCompletionDate || estimateCompletionDate(d, paymentsRemaining);
+          const paidTotal = payments
+            .filter((payment) => payment.debtId === d.id)
+            .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+
+          return `
       <tr data-id="${d.id}">
         <td><input class="cell" data-field="name" value="${d.name}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="originalBalance" value="${d.originalBalance || d.currentBalance}"></td>
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentBalance" value="${d.currentBalance}"></td>
         <td><select class="cell" data-field="currency">${currencyOptions(d.currency || profile.baseCurrency)}</select></td>
         <td><input class="cell num" type="number" step="0.1" min="0" data-field="interestRatePct" value="${(d.interestRate * 100).toFixed(2)}"></td>
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="minPayment" value="${d.minPayment}"></td>
+        <td><select class="cell" data-field="paymentFrequency">${paymentFrequencyOptions(d.paymentFrequency || 'monthly')}</select></td>
+        <td><input class="cell" type="date" data-field="startDate" value="${d.startDate || ''}"></td>
+        <td><input class="cell" type="date" data-field="expectedCompletionDate" value="${expectedCompletionDate}"></td>
+        <td>${paymentsRemaining == null ? '—' : paymentsRemaining}</td>
+        <td>${WR.ui.fmt(paidTotal)}</td>
         <td><button class="link-btn delete-debt" data-id="${d.id}">Delete</button></td>
-      </tr>`,
+      </tr>`;
+        },
       )
       .join('');
 
@@ -2474,17 +3727,21 @@ WR.ui = WR.ui || {};
       <h1>Debts</h1>
       <p class="fine-print">Edit any cell \u2014 changes save immediately and update the payoff projection below.</p>
       <table class="data-table">
-        <thead><tr><th>Name</th><th>Balance</th><th>Currency</th><th>Interest rate %/yr</th><th>Min. payment</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="6" class="empty">No debts recorded.</td></tr>'}</tbody>
+        <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate %/yr</th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Expected completion</th><th>Payments remaining</th><th>Total paid</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="12" class="empty">No debts recorded.</td></tr>'}</tbody>
       </table>
 
       <h3>Add a debt</h3>
       <form id="add-debt-form" class="inline-form">
         <input name="name" placeholder="Name (e.g. Credit Card)" required>
+        <input name="originalBalance" type="number" step="0.01" min="0" placeholder="Original balance" required>
         <input name="currentBalance" type="number" step="0.01" min="0" placeholder="Current balance" required>
         <select name="currency">${currencyOptions(profile.baseCurrency)}</select>
         <input name="interestRate" type="number" step="0.1" min="0" placeholder="Interest rate % / year" required>
         <input name="minPayment" type="number" step="0.01" min="0" placeholder="Minimum payment" required>
+        <select name="paymentFrequency">${paymentFrequencyOptions('monthly')}</select>
+        <input name="startDate" type="date" value="${new Date().toISOString().slice(0, 10)}">
+        <input name="expectedCompletionDate" type="date">
         <button type="submit">Add</button>
       </form>
 
@@ -2513,17 +3770,21 @@ WR.ui = WR.ui || {};
           const field = input.dataset.field;
           if (field === 'interestRatePct') {
             debt.interestRate = Math.max(0, parseFloat(input.value) || 0) / 100;
-          } else if (field === 'name' || field === 'currency') {
+          } else if (field === 'name' || field === 'currency' || field === 'paymentFrequency' || field === 'startDate' || field === 'expectedCompletionDate') {
             debt[field] = input.value;
           } else {
             debt[field] = Math.max(0, parseFloat(input.value) || 0);
             input.value = debt[field];
           }
+          if (!debt.expectedCompletionDate) {
+            const remaining = computePaymentsRemaining(debt);
+            debt.expectedCompletionDate = estimateCompletionDate(debt, remaining);
+          }
           await WR.repos.debts.update(debt);
           WR.ui.flashSaved(input);
           // Only the payoff projection needs to update \u2014 not the whole
           // table \u2014 so the row being edited doesn't lose focus.
-          refreshPayoffSection(container);
+          renderDebts(container);
         });
       });
     });
@@ -2531,8 +3792,12 @@ WR.ui = WR.ui || {};
     container.querySelectorAll('.delete-debt').forEach((btn) => {
       btn.addEventListener('click', async () => {
         if (!confirm('Delete this debt? This cannot be undone.')) return;
-        await WR.repos.debts.remove(btn.dataset.id);
-        renderDebts(container);
+        await WR.ui.removeWithUndo({
+          repo: WR.repos.debts,
+          id: btn.dataset.id,
+          entityLabel: 'Debt',
+          afterChange: async () => { await renderDebts(container); },
+        });
       });
     });
 
@@ -2541,11 +3806,18 @@ WR.ui = WR.ui || {};
       const form = e.target;
       const debt = WR.models.createDebt({
         name: form.name.value,
+        originalBalance: Math.max(0, parseFloat(form.originalBalance.value) || 0),
         currentBalance: Math.max(0, parseFloat(form.currentBalance.value) || 0),
         currency: form.currency.value,
         interestRate: Math.max(0, parseFloat(form.interestRate.value) || 0) / 100,
         minPayment: Math.max(0, parseFloat(form.minPayment.value) || 0),
+        paymentFrequency: form.paymentFrequency.value,
+        startDate: form.startDate.value || undefined,
+        expectedCompletionDate: form.expectedCompletionDate.value || undefined,
       });
+      if (!debt.expectedCompletionDate) {
+        debt.expectedCompletionDate = estimateCompletionDate(debt, computePaymentsRemaining(debt));
+      }
       await WR.repos.debts.add(debt);
       renderDebts(container);
     });
@@ -2640,8 +3912,12 @@ WR.ui = WR.ui || {};
     container.querySelectorAll('.delete-asset').forEach((btn) => {
       btn.addEventListener('click', async () => {
         if (!confirm('Delete this asset? This cannot be undone.')) return;
-        await WR.repos.assets.remove(btn.dataset.id);
-        renderAssets(container);
+        await WR.ui.removeWithUndo({
+          repo: WR.repos.assets,
+          id: btn.dataset.id,
+          entityLabel: 'Asset',
+          afterChange: async () => { await renderAssets(container); },
+        });
       });
     });
 
@@ -2723,8 +3999,12 @@ WR.ui = WR.ui || {};
     container.querySelectorAll('.delete-investment').forEach((btn) => {
       btn.addEventListener('click', async () => {
         if (!confirm('Delete this investment? This cannot be undone.')) return;
-        await WR.repos.investments.remove(btn.dataset.id);
-        renderInvestments(container);
+        await WR.ui.removeWithUndo({
+          repo: WR.repos.investments,
+          id: btn.dataset.id,
+          entityLabel: 'Investment',
+          afterChange: async () => { await renderInvestments(container); },
+        });
       });
     });
 
@@ -3011,8 +4291,12 @@ WR.ui = WR.ui || {};
     container.querySelectorAll('.delete-row').forEach((btn) => {
       btn.addEventListener('click', async () => {
         if (!confirm('Delete this row? This cannot be undone.')) return;
-        await WR.repos.budgetLines.remove(btn.dataset.id);
-        renderSpreadsheet(container);
+        await WR.ui.removeWithUndo({
+          repo: WR.repos.budgetLines,
+          id: btn.dataset.id,
+          entityLabel: 'Budget row',
+          afterChange: async () => { await renderSpreadsheet(container); },
+        });
       });
     });
 
@@ -3215,6 +4499,15 @@ window.WR = window.WR || {};
 WR.ui = WR.ui || {};
 
 (function () {
+  const APP_VERSION = '1.0.0';
+
+  function hardConfirm(actionLabel) {
+    return new Promise((resolve) => {
+      const token = prompt(`Type CONFIRM to ${actionLabel}.`);
+      resolve(token === 'CONFIRM');
+    });
+  }
+
   async function exportBackup() {
     const data = {};
     for (const [name, repo] of Object.entries(WR.repos)) {
@@ -3231,6 +4524,8 @@ WR.ui = WR.ui || {};
 
   async function importBackup(jsonText) {
     const data = JSON.parse(jsonText);
+    if (!data || typeof data !== 'object') throw new Error('Invalid backup format.');
+    if (Object.keys(data).length === 0) throw new Error('Backup file is empty.');
     for (const [name, repo] of Object.entries(WR.repos)) {
       if (Array.isArray(data[name])) {
         await repo.clear();
@@ -3315,6 +4610,41 @@ WR.ui = WR.ui || {};
       </section>
 
       <section>
+        <h2>Integrity Check</h2>
+        <p class="fine-print">Runs lightweight local checks for invalid month formats, negative budget amounts, and invalid debt balances.</p>
+        <button id="run-integrity-btn" class="secondary">Run data check now</button>
+        <p id="integrity-result" class="fine-print"></p>
+      </section>
+
+      <section>
+        <h2>Methodology</h2>
+        <p class="fine-print">WealthRoute is deterministic: formulas calculate outcomes and the assistant explains existing numbers only.</p>
+        <ul>
+          <li>Monthly surplus = income - (fixed + variable + savings + debt payments).</li>
+          <li>Emergency cover = liquid emergency-ready funds divided by essential monthly expenses.</li>
+          <li>Financial health score blends cash flow, emergency cover, debt burden, savings rate, and net-worth trend.</li>
+          <li>Forecasts are scenarios, not guarantees.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Privacy & Ownership</h2>
+        <p class="fine-print">Your financial records stay in this browser's local storage/IndexedDB. No automatic cloud sync is performed by this app version.</p>
+        <p class="fine-print">You own your data. Export backups regularly and keep them securely.</p>
+      </section>
+
+      <section>
+        <h2>Release Notes</h2>
+        <p class="fine-print">Version ${APP_VERSION}</p>
+        <ul>
+          <li>Improved interface polish and mobile spacing.</li>
+          <li>Added startup and on-demand integrity checks.</li>
+          <li>Added stronger confirmation flow for restore/reset.</li>
+          <li>Added installable PWA metadata and offline shell caching.</li>
+        </ul>
+      </section>
+
+      <section>
         <h2>Wealth Assistant (optional)</h2>
         <p class="fine-print">
           Off by default. This app has no server, so there's no safe place to store an API key on your behalf \u2014
@@ -3344,8 +4674,12 @@ WR.ui = WR.ui || {};
       document.querySelectorAll('.delete-category').forEach((btn) =>
         btn.addEventListener('click', async () => {
           if (!confirm('Delete this category? Transactions already tagged with it keep their tag, but it will no longer appear in the picker.')) return;
-          await WR.repos.expenseCategories.remove(btn.dataset.id);
-          renderCategories();
+          await WR.ui.removeWithUndo({
+            repo: WR.repos.expenseCategories,
+            id: btn.dataset.id,
+            entityLabel: 'Category',
+            afterChange: async () => { await renderCategories(); },
+          });
         }),
       );
     }
@@ -3373,8 +4707,12 @@ WR.ui = WR.ui || {};
       document.querySelectorAll('.delete-rate').forEach((btn) =>
         btn.addEventListener('click', async () => {
           if (!confirm('Delete this exchange rate?')) return;
-          await WR.repos.exchangeRates.remove(btn.dataset.id);
-          renderRates();
+          await WR.ui.removeWithUndo({
+            repo: WR.repos.exchangeRates,
+            id: btn.dataset.id,
+            entityLabel: 'Exchange rate',
+            afterChange: async () => { await renderRates(); },
+          });
         }),
       );
     }
@@ -3393,7 +4731,7 @@ WR.ui = WR.ui || {};
         riskProfile: form.riskProfile.value,
       };
       await WR.repos.userProfile.update(updated);
-      alert('Saved.');
+      WR.ui.notify('Profile saved.', 'success');
     });
 
     document.getElementById('rate-form').addEventListener('submit', async (e) => {
@@ -3407,6 +4745,7 @@ WR.ui = WR.ui || {};
       });
       await WR.repos.exchangeRates.add(rate);
       form.reset();
+      WR.ui.notify('Exchange rate added.', 'success');
       renderRates();
     });
 
@@ -3415,29 +4754,51 @@ WR.ui = WR.ui || {};
     document.getElementById('restore-input').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      if (!confirm('This replaces all current data with the backup file. Continue?')) return;
-      const text = await file.text();
-      await importBackup(text);
-      alert('Backup restored.');
-      renderSettings(container);
+      if (!(await hardConfirm('replace your current data with this backup'))) {
+        WR.ui.notify('Restore canceled.', 'error');
+        e.target.value = '';
+        return;
+      }
+      try {
+        const text = await file.text();
+        await importBackup(text);
+        WR.ui.notify('Backup restored.', 'success');
+        WR.ui.refreshIntegrityNotice();
+        renderSettings(container);
+      } catch (err) {
+        WR.ui.notify(`Restore failed: ${err.message}`, 'error');
+      } finally {
+        e.target.value = '';
+      }
     });
 
     document.getElementById('reset-btn').addEventListener('click', async () => {
-      if (!confirm('This permanently deletes all WealthRoute data in this browser. This cannot be undone. Continue?')) return;
+      if (!(await hardConfirm('delete all WealthRoute data in this browser'))) {
+        WR.ui.notify('Delete canceled.', 'error');
+        return;
+      }
       await resetAllData();
-      alert('All data deleted.');
+      WR.ui.notify('All data deleted.', 'success');
+      WR.ui.refreshIntegrityNotice();
       renderSettings(container);
     });
 
     document.getElementById('api-key-form').addEventListener('submit', (e) => {
       e.preventDefault();
       localStorage.setItem('wr_anthropic_api_key', document.getElementById('api-key-input').value.trim());
-      alert('Key saved locally.');
+      WR.ui.notify('Key saved locally.', 'success');
     });
     document.getElementById('clear-key-btn').addEventListener('click', () => {
       localStorage.removeItem('wr_anthropic_api_key');
       document.getElementById('api-key-input').value = '';
-      alert('Key cleared.');
+      WR.ui.notify('Key cleared.', 'success');
+    });
+
+    document.getElementById('run-integrity-btn').addEventListener('click', async () => {
+      const warnings = await WR.ui.getIntegrityWarnings();
+      const target = document.getElementById('integrity-result');
+      target.textContent = warnings.length ? warnings.join(' ') : 'No issues detected.';
+      WR.ui.refreshIntegrityNotice();
     });
   }
 
@@ -3576,10 +4937,15 @@ WR.ui = WR.ui || {};
 (function () {
   const ROUTES = {
     '#/dashboard': 'renderDashboard',
+    '#/income': 'renderIncome',
+    '#/fixed-expenses': 'renderFixedExpenses',
+    '#/emergency-fund': 'renderEmergencyFund',
+    '#/day-to-day': 'renderDayToDay',
     '#/transactions': 'renderTransactions',
     '#/debts': 'renderDebts',
     '#/assets': 'renderAssets',
     '#/investments': 'renderInvestments',
+    '#/insights': 'renderInsights',
     '#/forecast': 'renderForecast',
     '#/reports': 'renderReports',
     '#/spreadsheet': 'renderSpreadsheet',
@@ -3596,6 +4962,7 @@ WR.ui = WR.ui || {};
     const content = document.getElementById('content');
     try {
       await WR.ui[renderFnName](content);
+      if (WR.ui.enhanceResponsiveContent) WR.ui.enhanceResponsiveContent(content);
     } catch (err) {
       content.innerHTML = `<p class="warning">Something went wrong loading this page: ${err.message}</p>`;
       console.error(err);
@@ -3613,6 +4980,11 @@ WR.ui = WR.ui || {};
 document.addEventListener('DOMContentLoaded', () => {
   WR.ui.renderShell();
   WR.ui.initRouter();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js').catch((err) => {
+      console.warn('Service worker registration failed', err);
+    });
+  }
 });
 
     </script>

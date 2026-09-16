@@ -1,0 +1,10 @@
+{
+  "name": "WealthRoute",
+  "short_name": "WealthRoute",
+  "description": "Local-first personal finance planner and dashboard.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f6f4ee",
+  "theme_color": "#0e6b57",
+  "icons": []
+}

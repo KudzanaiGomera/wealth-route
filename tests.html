@@ -17,7 +17,7 @@ window.WR = window.WR || {};
 
 (function () {
   const DB_NAME = 'wealthroute';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
 
   /** @type {Promise<IDBDatabase>|null} */
   let dbPromise = null;
@@ -32,6 +32,10 @@ window.WR = window.WR || {};
         db.createObjectStore('userProfile', { keyPath: 'id' });
         db.createObjectStore('incomeSources', { keyPath: 'id' });
         db.createObjectStore('expenseCategories', { keyPath: 'id' });
+        db.createObjectStore('fixedExpenses', { keyPath: 'id' });
+        db.createObjectStore('emergencyFundContributions', { keyPath: 'id' });
+        db.createObjectStore('dayToDayAccounts', { keyPath: 'id' });
+        db.createObjectStore('dayToDayTransactions', { keyPath: 'id' });
 
         const budgetLines = db.createObjectStore('budgetLines', { keyPath: 'id' });
         budgetLines.createIndex('by-month', 'month');
@@ -164,6 +168,10 @@ window.WR = window.WR || {};
     userProfile: WR.createRepository('userProfile'),
     incomeSources: WR.createRepository('incomeSources'),
     expenseCategories: WR.createRepository('expenseCategories'),
+    fixedExpenses: WR.createRepository('fixedExpenses'),
+    emergencyFundContributions: WR.createRepository('emergencyFundContributions'),
+    dayToDayAccounts: WR.createRepository('dayToDayAccounts'),
+    dayToDayTransactions: WR.createRepository('dayToDayTransactions'),
     budgetLines: WR.createRepository('budgetLines'),
     debts: WR.createRepository('debts'),
     debtPayments: WR.createRepository('debtPayments'),
@@ -379,6 +387,22 @@ window.WR = window.WR || {};
     return { id: newId(), ...fields };
   }
 
+  function createFixedExpense(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  function createEmergencyFundContribution(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  function createDayToDayAccount(fields) {
+    return { id: newId(), ...fields };
+  }
+
+  function createDayToDayTransaction(fields) {
+    return { id: newId(), ...fields };
+  }
+
   WR.models = {
     newId,
     createUserProfile,
@@ -391,6 +415,10 @@ window.WR = window.WR || {};
     createInvestment,
     createNetWorthSnapshot,
     createExchangeRate,
+    createFixedExpense,
+    createEmergencyFundContribution,
+    createDayToDayAccount,
+    createDayToDayTransaction,
   };
 })();
 // Cash flow, savings rate, and expense-split calculations.
@@ -1572,7 +1600,84 @@ WR.charts = WR.charts || {};
     </svg>`;
   }
 
-  WR.charts = { barChart, lineChart };
+  function pieChart(data, options) {
+    const opts = options || {};
+    const size = opts.size || 180;
+    const radius = size / 2 - 8;
+    const innerRadius = opts.innerRadius || radius * 0.58;
+    const cx = size / 2;
+    const cy = size / 2;
+
+    const valid = (data || []).filter((d) => Number(d.value) > 0);
+    const total = valid.reduce((sum, d) => sum + Number(d.value || 0), 0);
+    if (!valid.length || total <= 0) {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="#d6d6d6" stroke-width="14"></circle><text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#888">No data</text></svg>`;
+    }
+
+    const arcs = [];
+    let start = -Math.PI / 2;
+    valid.forEach((item, i) => {
+      const angle = (Number(item.value) / total) * Math.PI * 2;
+      const end = start + angle;
+      const x1 = cx + Math.cos(start) * radius;
+      const y1 = cy + Math.sin(start) * radius;
+      const x2 = cx + Math.cos(end) * radius;
+      const y2 = cy + Math.sin(end) * radius;
+      const large = angle > Math.PI ? 1 : 0;
+      const color = PALETTE[i % PALETTE.length];
+      arcs.push(`<path d="M ${cx} ${cy} L ${x1.toFixed(3)} ${y1.toFixed(3)} A ${radius} ${radius} 0 ${large} 1 ${x2.toFixed(3)} ${y2.toFixed(3)} Z" fill="${color}"></path>`);
+      start = end;
+    });
+
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${arcs.join('')}<circle cx="${cx}" cy="${cy}" r="${innerRadius}" fill="#fff"></circle><text x="${cx}" y="${cy - 8}" text-anchor="middle" font-size="11" fill="#666">Total</text><text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="14" fill="#222">${total.toFixed(0)}</text></svg>`;
+  }
+
+  WR.charts = { barChart, lineChart, pieChart };
+})();
+// Utility calculations used by new recurring-income/fixed-expense and
+// day-to-day flows.
+
+window.WR = window.WR || {};
+WR.uiCalc = WR.uiCalc || {};
+
+(function () {
+  function monthlyAmountFromFrequency(amount, frequency) {
+    const value = Number(amount) || 0;
+    if (frequency === 'weekly') return value * 52 / 12;
+    if (frequency === 'biweekly') return value * 26 / 12;
+    if (frequency === 'quarterly') return value / 3;
+    if (frequency === 'yearly' || frequency === 'annual') return value / 12;
+    return value;
+  }
+
+  function isActiveForMonth(record, monthKey) {
+    const start = record.startMonth || `${record.year || monthKey.slice(0, 4)}-01`;
+    const end = record.endMonth || `${record.year || monthKey.slice(0, 4)}-12`;
+    return String(monthKey) >= String(start) && String(monthKey) <= String(end);
+  }
+
+  function calculateDayToDaySummary(account, transactions, year) {
+    const opening = Number(account && account.startingBalance) || 0;
+    const added = transactions
+      .filter((tx) => Number(tx.year) === Number(year) && tx.kind === 'add')
+      .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    const spent = transactions
+      .filter((tx) => Number(tx.year) === Number(year) && tx.kind !== 'add')
+      .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    return {
+      opening,
+      added,
+      spent,
+      currentBalance: opening + added - spent,
+      totalTransactions: transactions.filter((tx) => Number(tx.year) === Number(year)).length,
+    };
+  }
+
+  WR.uiCalc = {
+    monthlyAmountFromFrequency,
+    isActiveForMonth,
+    calculateDayToDaySummary,
+  };
 })();
 // A deliberately tiny test runner — no dependency, runs by just opening
 // tests.html in a browser. Not a replacement for Jest/Vitest at scale, but
@@ -1803,6 +1908,52 @@ WR.testRuns.push(
 
     const history = await WR.queries.getNetWorthHistory();
     expect(history.map((h) => h.date)).toEqual(['2026-08-01', '2026-09-01']);
+  });
+
+  // --- new stores parity checks ----------------------------------------
+
+  await resetDB();
+  await test('fixedExpenses > adds and retrieves a recurring fixed expense', async () => {
+    const rent = WR.models.createFixedExpense({
+      name: 'Rent',
+      amount: 8500,
+      frequency: 'monthly',
+      startMonth: '2026-01',
+      endMonth: '2026-12',
+      currency: 'ZAR',
+    });
+    await WR.repos.fixedExpenses.add(rent);
+    const all = await WR.repos.fixedExpenses.getAll();
+    expect(all).toHaveLength(1);
+    expect(all[0].name).toBe('Rent');
+  });
+
+  await resetDB();
+  await test('emergencyFundContributions > removes a contribution record', async () => {
+    const c = WR.models.createEmergencyFundContribution({ date: '2026-09-01', amount: 1000, note: 'seed' });
+    await WR.repos.emergencyFundContributions.add(c);
+    await WR.repos.emergencyFundContributions.remove(c.id);
+    const all = await WR.repos.emergencyFundContributions.getAll();
+    expect(all).toHaveLength(0);
+  });
+
+  await resetDB();
+  await test('dayToDayAccounts > updates starting balance in place', async () => {
+    const account = WR.models.createDayToDayAccount({ year: 2026, startingBalance: 1200, currency: 'ZAR' });
+    await WR.repos.dayToDayAccounts.add(account);
+    await WR.repos.dayToDayAccounts.update({ ...account, startingBalance: 1750 });
+    const fetched = await WR.repos.dayToDayAccounts.getById(account.id);
+    expect(fetched.startingBalance).toBe(1750);
+  });
+
+  await resetDB();
+  await test('dayToDayTransactions > stores entries and keeps year for filtering', async () => {
+    const tx1 = WR.models.createDayToDayTransaction({ year: 2026, date: '2026-09-10', kind: 'spend', description: 'Groceries', amount: 250 });
+    const tx2 = WR.models.createDayToDayTransaction({ year: 2025, date: '2025-09-10', kind: 'add', description: 'Top-up', amount: 500 });
+    await WR.repos.dayToDayTransactions.add(tx1);
+    await WR.repos.dayToDayTransactions.add(tx2);
+    const all = await WR.repos.dayToDayTransactions.getAll();
+    expect(all.filter((x) => x.year === 2026)).toHaveLength(1);
   });
 
   })()
@@ -2185,6 +2336,44 @@ WR.testRuns.push(
       expect(spend.some((s) => s.label === 'Uncategorised' && s.value === 500)).toBeTruthy();
     });
 
+    await test('monthlyAmountFromFrequency > converts recurring frequencies to monthly equivalents', () => {
+      expect(WR.uiCalc.monthlyAmountFromFrequency(1200, 'monthly')).toBe(1200);
+      expect(WR.uiCalc.monthlyAmountFromFrequency(300, 'weekly')).toBeCloseTo(1300, 1);
+      expect(WR.uiCalc.monthlyAmountFromFrequency(600, 'biweekly')).toBeCloseTo(1300, 1);
+      expect(WR.uiCalc.monthlyAmountFromFrequency(900, 'quarterly')).toBe(300);
+      expect(WR.uiCalc.monthlyAmountFromFrequency(12000, 'yearly')).toBe(1000);
+    });
+
+    await test('isActiveForMonth > respects start/end month boundaries with sane defaults', () => {
+      const recurring = { year: 2026, startMonth: '2026-03', endMonth: '2026-06' };
+      expect(WR.uiCalc.isActiveForMonth(recurring, '2026-02')).toBe(false);
+      expect(WR.uiCalc.isActiveForMonth(recurring, '2026-03')).toBe(true);
+      expect(WR.uiCalc.isActiveForMonth(recurring, '2026-06')).toBe(true);
+      expect(WR.uiCalc.isActiveForMonth(recurring, '2026-07')).toBe(false);
+
+      const defaultRange = { year: 2026 };
+      expect(WR.uiCalc.isActiveForMonth(defaultRange, '2026-01')).toBe(true);
+      expect(WR.uiCalc.isActiveForMonth(defaultRange, '2026-12')).toBe(true);
+    });
+
+    await test('calculateDayToDaySummary > computes totals and current balance for selected year only', () => {
+      const summary = WR.uiCalc.calculateDayToDaySummary(
+        { year: 2026, startingBalance: 1000 },
+        [
+          { year: 2026, kind: 'add', amount: 500 },
+          { year: 2026, kind: 'spend', amount: 300 },
+          { year: 2026, kind: 'spend', amount: 200 },
+          { year: 2025, kind: 'add', amount: 9999 },
+        ],
+        2026,
+      );
+      expect(summary.opening).toBe(1000);
+      expect(summary.added).toBe(500);
+      expect(summary.spent).toBe(500);
+      expect(summary.currentBalance).toBe(1000);
+      expect(summary.totalTransactions).toBe(3);
+    });
+
     // --- charts (smoke test \u2014 valid SVG string, no exceptions) -----------
 
     await test('charts > barChart and lineChart return valid SVG for data and for empty input', () => {
@@ -2194,6 +2383,13 @@ WR.testRuns.push(
       expect(line.includes('<svg')).toBeTruthy();
       const empty = WR.charts.barChart([]);
       expect(empty.includes('No data')).toBeTruthy();
+    });
+
+    await test('charts > pieChart returns valid SVG and empty-state output', () => {
+      const pie = WR.charts.pieChart([{ label: 'Fixed', value: 1000 }, { label: 'Variable', value: 500 }], { size: 180 });
+      expect(pie.includes('<svg')).toBeTruthy();
+      const emptyPie = WR.charts.pieChart([]);
+      expect(emptyPie.includes('No data')).toBeTruthy();
     });
   })(),
 );

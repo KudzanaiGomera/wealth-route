@@ -1,9 +1,22 @@
 # WealthRoute
 
-Local-first personal finance & wealth planning assistant. Two files:
-`index.html` (the whole app) and `tests.html` (the whole test suite). No
+Local-first personal finance & wealth planning assistant. Core files:
+`index.html` (the whole app), `tests.html` (test suite),
+`manifest.webmanifest`, and `service-worker.js` (PWA install/offline shell).
+No
 npm, no bundler, no build step, no TypeScript compiler. Everything is
 inlined into a single `<script>`/`<style>` tag per file.
+
+## Latest UX changes
+
+- Navigation was simplified around the core objective: daily/annual money
+  management flows are primary, while Spreadsheet/Excel/Wealth Assistant are
+  grouped under **More**.
+- Mobile navigation now uses a hamburger menu with a dropdown panel.
+- Desktop includes a quick jump dropdown for section switching.
+- Dashboard top area is laid out as two responsive cards:
+  - **Your Financial Position**
+  - **Annual Financial Summary**
 
 ## Design
 
@@ -91,11 +104,9 @@ fully offline.
 
 ## Running tests
 
-Serve the folder (see above), open `tests.html`. **42 tests total**: 6
-storage-layer tests (need a real browser \u2014 IndexedDB) + 36 pure financial
-engine / rules engine / Excel-mapping / reports-aggregation / chart tests
-(verified independently in Node during development, not just
-syntax-checked). Results render directly on the page.
+Serve the folder (see above), open `tests.html`. Results render directly on
+the page. Storage-layer tests require a real browser because they use
+IndexedDB.
 
 ## What's built
 
@@ -123,9 +134,8 @@ investment growth), clearly labelled as a projection, not a promise.
 spending by month, spending by category, assets/liabilities history \u2014 built
 from every month of data on record.
 
-**Spreadsheet** \u2014 one editable table over every budget line across every
-month, writing directly to the same store the Dashboard reads \u2014 no separate
-sync step.
+**Spreadsheet** \u2014 month/year navigation with an editable table for the
+selected month, writing directly to the same store the Dashboard reads.
 
 **Excel** \u2014 import (upload \u2192 pick sheet \u2192 pick header row \u2192 map columns \u2192
 preview with per-row validation \u2192 confirm) and export (all current data to
@@ -219,3 +229,46 @@ Flagging what's still open rather than letting it be a surprise:
   (routing, forms, the Excel workflow, the Reports charts) is verified only
   by syntax-checking and code review, not by actually running it. You
   clicking through it is still the first real test.
+
+## Roadmap: Phase 1, 2, 3 (no demo data)
+
+This roadmap keeps WealthRoute lightweight and local-first while improving
+professionalism for sharing with a small group now and wider individual use
+later.
+
+### Phase 1 — Friend-ready polish (current distribution)
+
+- [x] Add a first-run setup flow: base currency, country, emergency target,
+  recurring income, and first debt.
+- [x] Add guided setup cues on the Dashboard and Settings so users know what to do next.
+- [x] Add stronger confirmation and safety UX for destructive actions
+  (restore/import/reset/delete).
+- [x] Add an audit trail panel for important events (imports, resets, snapshots,
+  debt payment edits).
+- [x] Add runtime validation messages for common data issues (invalid dates,
+  start/end month mismatches, payment over balance).
+- [ ] Run browser click-through QA across all routes and fix UX defects.
+- [~] Update tests.html schema/repository coverage to match index.html
+  (core store parity added; full logic parity still pending).
+
+### Phase 2 — Market-quality foundation
+
+- Split the single-file app into maintainable modules for storage,
+  calculations, and UI while preserving local-first behavior.
+- Create a dedicated, fully tested financial-core module for formulas.
+- Add integrity checks on app startup with non-blocking warnings.
+- Add import/export hardening: row-level failure report and stronger schema
+  migration checks.
+- Improve responsive behavior and mobile ergonomics across table-heavy views.
+- Add product-grade help content: methodology, assumptions, and limitations.
+
+### Phase 3 — Lightweight public release readiness
+
+- Package as a lightweight installable PWA.
+- Add optional secure sync architecture planning (while keeping local-first as
+  default mode).
+- Add release versioning, migration notes, and a user-facing changelog.
+- Publish clear privacy and data ownership messaging.
+- Add onboarding docs for first-time users and backup/restore recovery docs.
+- Add a simple feedback loop for early users to report UX and calculation
+  issues.
