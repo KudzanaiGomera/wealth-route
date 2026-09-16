@@ -93,7 +93,11 @@ body {
   align-items: center;
   gap: 0.5rem;
   letter-spacing: 0.01em;
+  color: var(--text);
+  text-decoration: none;
 }
+.brand:hover { color: var(--accent); }
+.brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .brand-mark { flex-shrink: 0; }
 .brand-mark path { stroke: var(--accent); }
 .brand-mark circle { fill: var(--accent); }
@@ -979,27 +983,30 @@ WR.financial = WR.financial || {};
 
   /**
    * Builds the core monthly cash flow picture from one month's budget lines.
-   * Mirrors the workbook's "Left to Spend" formula (income minus everything
-   * actually spent), but exposes each component separately so the dashboard
+  * Calculates available surplus after expenses and required debt payments,
+  * but exposes each component separately so the dashboard
    * and rules engine can reason about them individually rather than only
    * seeing one final number.
    *
-   * @param {Array} budgetLines - budget lines for a single month
+  * @param {Array} budgetLines - budget lines for a single month
+  * @param {number} [minimumDebtPayments] - required payments from debt records
    * @returns {{
    *   income: number, fixedExpenses: number, variableExpenses: number,
    *   savings: number, debtPayments: number, totalExpenses: number,
    *   availableSurplus: number, savingsRate: number
    * }}
    */
-  function calculateCashFlowSummary(budgetLines) {
+  function calculateCashFlowSummary(budgetLines, minimumDebtPayments) {
     const income = sumActualByType(budgetLines, 'income');
     const fixedExpenses = sumActualByType(budgetLines, 'fixed');
     const variableExpenses = sumActualByType(budgetLines, 'variable');
     const savings = sumActualByType(budgetLines, 'savings');
-    const debtPayments = sumActualByType(budgetLines, 'debtPayment');
+    const debtPayments = minimumDebtPayments === undefined
+      ? sumActualByType(budgetLines, 'debtPayment')
+      : Math.max(0, Number(minimumDebtPayments) || 0);
 
     const totalExpenses = fixedExpenses + variableExpenses;
-    const availableSurplus = income - fixedExpenses - variableExpenses - savings - debtPayments;
+    const availableSurplus = income - totalExpenses - debtPayments;
     const savingsRate = income > 0 ? savings / income : 0;
 
     return {
@@ -2373,7 +2380,8 @@ WR.ui = WR.ui || {};
       .concat(prevRecurringFixedLines);
 
     const F = WR.financial;
-    const cashflow = F.calculateCashFlowSummary(budgetLines);
+    const minimumDebtPayments = F.calculateTotalMinPayments(debts);
+    const cashflow = F.calculateCashFlowSummary(budgetLines, minimumDebtPayments);
     const split = F.calculateEssentialVsDiscretionary(budgetLines, expenseCategories);
     const prevSplit = F.calculateEssentialVsDiscretionary(prevBudgetLines, expenseCategories);
 
@@ -2424,7 +2432,7 @@ WR.ui = WR.ui || {};
         .filter((expense) => isActiveForMonth(expense, monthId))
         .map((expense) => ({ type: 'fixed', actualAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly') }));
       const fullLines = monthLines.concat(monthIncome).concat(monthFixed);
-      const monthCashflow = F.calculateCashFlowSummary(fullLines);
+      const monthCashflow = F.calculateCashFlowSummary(fullLines, minimumDebtPayments);
       return { month: monthId, cashflow: monthCashflow };
     });
 
@@ -2432,8 +2440,10 @@ WR.ui = WR.ui || {};
       summary.totalIncome += row.cashflow.income;
       summary.totalFixedExpenses += row.cashflow.fixedExpenses;
       summary.totalVariableExpenses += row.cashflow.variableExpenses;
+      summary.totalExpenses += row.cashflow.totalExpenses;
       summary.totalSaved += row.cashflow.savings;
       summary.totalDebtPaid += row.cashflow.debtPayments;
+      summary.availableSurplus += row.cashflow.availableSurplus;
       return summary;
     }, {
       totalIncome: 0,
@@ -2441,7 +2451,9 @@ WR.ui = WR.ui || {};
       totalInvested: 0,
       totalFixedExpenses: 0,
       totalVariableExpenses: 0,
+      totalExpenses: 0,
       totalDebtPaid: 0,
+      availableSurplus: 0,
     });
     annualSummary.totalInvested = annualSummary.totalSaved;
 
@@ -2645,6 +2657,7 @@ WR.ui = WR.ui || {};
     { hash: '#/dashboard', label: 'Dashboard' },
     { hash: '#/income', label: 'Income' },
     { hash: '#/fixed-expenses', label: 'Fixed Expenses' },
+    { hash: '#/savings', label: 'Savings' },
     { hash: '#/emergency-fund', label: 'Emergency Fund' },
     { hash: '#/day-to-day', label: 'Day-to-Day' },
     { hash: '#/transactions', label: 'Budget Planner' },
@@ -2685,13 +2698,13 @@ WR.ui = WR.ui || {};
     `;
     document.getElementById('app').innerHTML = `
       <header class="topbar">
-        <div class="brand">
+        <a class="brand" href="#/dashboard" aria-label="WealthRoute dashboard">
           <svg class="brand-mark" width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path d="M2 18 C 7 18, 7 8, 12 8 S 17 18, 22 18" stroke-width="1.6" stroke-dasharray="1 3.2" stroke-linecap="round"></path>
             <circle cx="22" cy="18" r="2"></circle>
           </svg>
           WealthRoute
-        </div>
+        </a>
         <nav id="nav">${nav}</nav>
         <div class="nav-controls">
           <select id="nav-jump" class="nav-jump" aria-label="Jump to section">
@@ -2768,7 +2781,7 @@ WR.ui = WR.ui || {};
         { label: 'Fixed', value: s.cashflow.fixedExpenses },
         { label: 'Variable', value: s.cashflow.variableExpenses },
         { label: 'Savings', value: s.cashflow.savings },
-        { label: 'Debt pmt', value: s.cashflow.debtPayments },
+        { label: 'Debt minimums', value: s.cashflow.debtPayments },
       ],
       { width: 460, height: 220 },
     );
@@ -2844,11 +2857,12 @@ WR.ui = WR.ui || {};
           <h2>Annual Financial Summary (${s.selectedYear})</h2>
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
+            <div class="stat"><span class="stat-label">Total Expenses</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalExpenses)}</span></div>
+            <div class="stat"><span class="stat-label">Available Surplus</span><span class="stat-value ${s.annualSummary.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.annualSummary.availableSurplus)}</span></div>
             <div class="stat"><span class="stat-label">Total Saved</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSaved)}</span></div>
-            <div class="stat"><span class="stat-label">Total Invested</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalInvested)}</span></div>
             <div class="stat"><span class="stat-label">Total Fixed Expenses</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalFixedExpenses)}</span></div>
             <div class="stat"><span class="stat-label">Total Variable Expenses</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalVariableExpenses)}</span></div>
-            <div class="stat"><span class="stat-label">Total Debt Paid</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
+            <div class="stat"><span class="stat-label">Minimum Debt Payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
             <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
             <div class="stat"><span class="stat-label">Net Worth</span><span class="stat-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span></div>
           </div>
@@ -2939,36 +2953,21 @@ WR.ui = WR.ui || {};
   WR.ui.priorityBadge = priorityBadge;
   WR.ui.renderDashboard = renderDashboard;
 })();
-// Transactions / Budget view: manage income, fixed, variable, savings and
-// debt-payment lines for a selected month. Every cell is directly editable,
+// Budget Planner view: manage variable expenses for a selected month.
+// Every cell is directly editable,
 // sortable by column, category-taggable, and confirms before deleting.
 
 window.WR = window.WR || {};
 WR.ui = WR.ui || {};
 
 (function () {
-  const TYPE_LABELS = {
-    income: 'Income',
-    fixed: 'Fixed expense',
-    variable: 'Variable expense',
-    savings: 'Savings/Investment',
-    debtPayment: 'Debt payment',
-  };
-
   const SORTABLE_COLUMNS = [
-    { field: 'type', label: 'Type' },
     { field: 'name', label: 'Name' },
     { field: 'categoryName', label: 'Category' },
     { field: 'budgetAmount', label: 'Budget' },
     { field: 'actualAmount', label: 'Actual' },
     { field: 'diff', label: 'Diff' },
   ];
-
-  function typeOptions(selected) {
-    return Object.entries(TYPE_LABELS)
-      .map(([v, l]) => `<option value="${v}" ${v === selected ? 'selected' : ''}>${l}</option>`)
-      .join('');
-  }
 
   function categoryOptions(categories, selectedId) {
     return (
@@ -3003,9 +3002,10 @@ WR.ui = WR.ui || {};
       WR.ui.getOrCreateProfile(),
       WR.repos.expenseCategories.getAll(),
     ]);
-    const categoriesById = Object.fromEntries(categories.map((c) => [c.id, c]));
+    const variableCategories = categories.filter((category) => category.type === 'variable');
+    const categoriesById = Object.fromEntries(variableCategories.map((c) => [c.id, c]));
 
-    const sortedLines = sortLines(lines, categoriesById, sort);
+    const sortedLines = sortLines(lines.filter((line) => line.type === 'variable'), categoriesById, sort);
 
     const headerCells = SORTABLE_COLUMNS.map(
       (col) =>
@@ -3016,9 +3016,8 @@ WR.ui = WR.ui || {};
       .map(
         (l) => `
       <tr data-id="${l.id}">
-        <td><select class="cell" data-field="type">${typeOptions(l.type)}</select></td>
         <td><input class="cell" data-field="name" value="${l.name}"></td>
-        <td><select class="cell" data-field="categoryId">${categoryOptions(categories, l.categoryId)}</select></td>
+        <td><select class="cell" data-field="categoryId">${categoryOptions(variableCategories, l.categoryId)}</select></td>
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="budgetAmount" value="${l.budgetAmount}"></td>
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="actualAmount" value="${l.actualAmount}"></td>
         <td class="num diff-cell">${WR.ui.fmt(l.diff)}</td>
@@ -3028,24 +3027,23 @@ WR.ui = WR.ui || {};
       .join('');
 
     container.innerHTML = `
-      <h1>Transactions</h1>
+      <h1>Budget Planner</h1>
       <div class="toolbar">
         <label>Month:
           <input type="month" id="month-picker" value="${month}">
         </label>
       </div>
-      <p class="fine-print">Edit any cell \u2014 changes save immediately. Click a column header to sort. Categories are managed in Settings.</p>
+      <p class="fine-print">Plan and record variable expenses for the selected month. Changes save immediately.</p>
 
       <table class="data-table">
         <thead><tr>${headerCells}<th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" class="empty">No lines yet for this month \u2014 add one below.</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="6" class="empty">No variable expenses yet for this month \u2014 add one below.</td></tr>'}</tbody>
       </table>
 
       <h3>Add a line</h3>
       <form id="add-line-form" class="inline-form">
-        <select name="type" required>${typeOptions()}</select>
-        <input name="name" placeholder="Name (e.g. Salary, Rent)" required>
-        <select name="categoryId">${categoryOptions(categories)}</select>
+        <input name="name" placeholder="Name (e.g. Groceries)" required>
+        <select name="categoryId">${categoryOptions(variableCategories)}</select>
         <input name="budgetAmount" type="number" step="0.01" min="0" placeholder="Budget" required>
         <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Actual" required>
         <button type="submit">Add</button>
@@ -3110,7 +3108,7 @@ WR.ui = WR.ui || {};
       const form = e.target;
       const line = WR.models.createBudgetLine({
         month,
-        type: form.type.value,
+        type: 'variable',
         name: form.name.value,
         categoryId: form.categoryId.value || undefined,
         budgetAmount: Math.max(0, parseFloat(form.budgetAmount.value) || 0),
@@ -3122,7 +3120,100 @@ WR.ui = WR.ui || {};
     });
   }
 
+  async function renderSavings(container) {
+    const month = WR.ui._savingsMonth || WR.ui.currentMonthKey();
+    WR.ui._savingsMonth = month;
+
+    const [lines, profile] = await Promise.all([
+      WR.queries.getBudgetLinesByMonth(month),
+      WR.ui.getOrCreateProfile(),
+    ]);
+    const savings = lines
+      .filter((line) => line.type === 'savings')
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const rows = savings.map((line) => `
+      <tr data-id="${line.id}">
+        <td><input class="cell" data-field="name" value="${line.name}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="budgetAmount" value="${line.budgetAmount}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="actualAmount" value="${line.actualAmount}"></td>
+        <td class="num diff-cell">${WR.ui.fmt(line.actualAmount - line.budgetAmount)}</td>
+        <td><button class="link-btn delete-saving" data-id="${line.id}">Delete</button></td>
+      </tr>
+    `).join('');
+
+    container.innerHTML = `
+      <h1>Savings</h1>
+      <div class="toolbar">
+        <label>Month:
+          <input type="month" id="savings-month-picker" value="${month}">
+        </label>
+      </div>
+      <p class="fine-print">Record planned and actual savings for each account or goal.</p>
+
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Planned</th><th>Saved</th><th>Difference</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" class="empty">No savings recorded for this month.</td></tr>'}</tbody>
+      </table>
+
+      <h3>Add savings</h3>
+      <form id="add-saving-form" class="inline-form">
+        <input name="name" placeholder="Name (e.g. Emergency fund)" required>
+        <input name="budgetAmount" type="number" step="0.01" min="0" placeholder="Planned" required>
+        <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Saved" required>
+        <button type="submit">Add</button>
+      </form>
+    `;
+
+    document.getElementById('savings-month-picker').addEventListener('change', (event) => {
+      WR.ui._savingsMonth = event.target.value;
+      renderSavings(container);
+    });
+
+    container.querySelectorAll('tbody tr[data-id]').forEach((row) => {
+      row.querySelectorAll('.cell').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const line = await WR.repos.budgetLines.getById(row.dataset.id);
+          if (!line) return;
+          const field = input.dataset.field;
+          line[field] = field === 'name' ? input.value : Math.max(0, parseFloat(input.value) || 0);
+          input.value = line[field];
+          await WR.repos.budgetLines.update(line);
+          WR.ui.flashSaved(input);
+          row.querySelector('.diff-cell').textContent = WR.ui.fmt(line.actualAmount - line.budgetAmount);
+        });
+      });
+    });
+
+    container.querySelectorAll('.delete-saving').forEach((button) => {
+      button.addEventListener('click', async () => {
+        if (!confirm('Delete this savings record?')) return;
+        await WR.ui.removeWithUndo({
+          repo: WR.repos.budgetLines,
+          id: button.dataset.id,
+          entityLabel: 'Savings record',
+          afterChange: async () => { await renderSavings(container); },
+        });
+      });
+    });
+
+    document.getElementById('add-saving-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      await WR.repos.budgetLines.add(WR.models.createBudgetLine({
+        month,
+        type: 'savings',
+        name: form.name.value,
+        budgetAmount: Math.max(0, parseFloat(form.budgetAmount.value) || 0),
+        actualAmount: Math.max(0, parseFloat(form.actualAmount.value) || 0),
+        currency: profile.baseCurrency,
+      }));
+      renderSavings(container);
+    });
+  }
+
   WR.ui.renderTransactions = renderTransactions;
+  WR.ui.renderSavings = renderSavings;
 })();
 // Dedicated pages for recurring income/fixed expenses, emergency fund,
 // day-to-day money, and financial insights.
@@ -4509,28 +4600,54 @@ WR.ui = WR.ui || {};
   }
 
   async function exportBackup() {
-    const data = {};
+    const stores = {};
     for (const [name, repo] of Object.entries(WR.repos)) {
-      data[name] = await repo.getAll();
+      stores[name] = await repo.getAll();
     }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const backup = {
+      format: 'wealthroute-backup',
+      formatVersion: 1,
+      appVersion: APP_VERSION,
+      exportedAt: new Date().toISOString(),
+      stores,
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `wealthroute-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   async function importBackup(jsonText) {
-    const data = JSON.parse(jsonText);
-    if (!data || typeof data !== 'object') throw new Error('Invalid backup format.');
-    if (Object.keys(data).length === 0) throw new Error('Backup file is empty.');
+    const backup = JSON.parse(jsonText);
+    if (!backup || typeof backup !== 'object' || Array.isArray(backup)) throw new Error('Invalid backup format.');
+    if (backup.format === 'wealthroute-backup' && backup.formatVersion !== 1) {
+      throw new Error('This backup version is not supported.');
+    }
+    const data = backup.format === 'wealthroute-backup' ? backup.stores : backup;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Backup has no data stores.');
+    const repositoryNames = Object.keys(WR.repos);
+    if (!repositoryNames.some((name) => Object.prototype.hasOwnProperty.call(data, name))) {
+      throw new Error('This is not a WealthRoute backup.');
+    }
+
     for (const [name, repo] of Object.entries(WR.repos)) {
-      if (Array.isArray(data[name])) {
-        await repo.clear();
-        for (const item of data[name]) await repo.add(item);
+      const records = data[name] === undefined ? [] : data[name];
+      if (!Array.isArray(records)) throw new Error(`Invalid ${name} data.`);
+      for (const item of records) {
+        if (!item || typeof item !== 'object' || Array.isArray(item) || typeof item.id !== 'string' || !item.id) {
+          throw new Error(`Invalid record in ${name}.`);
+        }
       }
+    }
+
+    for (const [name, repo] of Object.entries(WR.repos)) {
+      await repo.clear();
+      for (const item of data[name] || []) await repo.add(item);
     }
   }
 
@@ -4602,8 +4719,9 @@ WR.ui = WR.ui || {};
 
       <section>
         <h2>Data Management</h2>
+        <p class="fine-print">Download every WealthRoute record to move your data to another browser. Restoring replaces the data currently stored in this browser.</p>
         <button id="export-backup-btn">Export backup (JSON)</button>
-        <label class="file-label">Restore from backup:
+        <label class="file-label">Import backup (JSON):
           <input type="file" id="restore-input" accept=".json">
         </label>
         <button id="reset-btn" class="danger">Delete all data</button>
@@ -4620,7 +4738,7 @@ WR.ui = WR.ui || {};
         <h2>Methodology</h2>
         <p class="fine-print">WealthRoute is deterministic: formulas calculate outcomes and the assistant explains existing numbers only.</p>
         <ul>
-          <li>Monthly surplus = income - (fixed + variable + savings + debt payments).</li>
+          <li>Monthly surplus = income - fixed expenses - variable expenses - minimum debt payments.</li>
           <li>Emergency cover = liquid emergency-ready funds divided by essential monthly expenses.</li>
           <li>Financial health score blends cash flow, emergency cover, debt burden, savings rate, and net-worth trend.</li>
           <li>Forecasts are scenarios, not guarantees.</li>
@@ -4939,6 +5057,7 @@ WR.ui = WR.ui || {};
     '#/dashboard': 'renderDashboard',
     '#/income': 'renderIncome',
     '#/fixed-expenses': 'renderFixedExpenses',
+    '#/savings': 'renderSavings',
     '#/emergency-fund': 'renderEmergencyFund',
     '#/day-to-day': 'renderDayToDay',
     '#/transactions': 'renderTransactions',

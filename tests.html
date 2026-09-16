@@ -470,15 +470,17 @@ WR.financial = WR.financial || {};
    *   availableSurplus: number, savingsRate: number
    * }}
    */
-  function calculateCashFlowSummary(budgetLines) {
+  function calculateCashFlowSummary(budgetLines, minimumDebtPayments) {
     const income = sumActualByType(budgetLines, 'income');
     const fixedExpenses = sumActualByType(budgetLines, 'fixed');
     const variableExpenses = sumActualByType(budgetLines, 'variable');
     const savings = sumActualByType(budgetLines, 'savings');
-    const debtPayments = sumActualByType(budgetLines, 'debtPayment');
+    const debtPayments = minimumDebtPayments === undefined
+      ? sumActualByType(budgetLines, 'debtPayment')
+      : Math.max(0, Number(minimumDebtPayments) || 0);
 
     const totalExpenses = fixedExpenses + variableExpenses;
-    const availableSurplus = income - fixedExpenses - variableExpenses - savings - debtPayments;
+    const availableSurplus = income - totalExpenses - debtPayments;
     const savingsRate = income > 0 ? savings / income : 0;
 
     return {
@@ -1989,9 +1991,23 @@ WR.testRuns.push(
       expect(summary.totalExpenses).toBe(18400);
       expect(summary.savings).toBe(0);
       expect(summary.debtPayments).toBeCloseTo(3621.42);
-      // 31470.19 - 12800 - 5600 - 0 - 3621.42
+      // 31470.19 - 12800 - 5600 - 3621.42 (savings are tracked separately)
       expect(summary.availableSurplus).toBeCloseTo(9448.77);
       expect(summary.savingsRate).toBe(0); // R0 actually saved despite a budget of R2000
+    });
+
+    await test('calculateCashFlowSummary > uses required debt minimums and does not deduct savings from surplus', () => {
+      const summary = F.calculateCashFlowSummary([
+        { type: 'income', actualAmount: 10000, budgetAmount: 10000 },
+        { type: 'fixed', actualAmount: 3000, budgetAmount: 3000 },
+        { type: 'variable', actualAmount: 1500, budgetAmount: 1500 },
+        { type: 'savings', actualAmount: 1000, budgetAmount: 1000 },
+        { type: 'debtPayment', actualAmount: 900, budgetAmount: 900 },
+      ], 600);
+
+      expect(summary.totalExpenses).toBe(4500);
+      expect(summary.debtPayments).toBe(600);
+      expect(summary.availableSurplus).toBe(4900);
     });
 
     await test('calculateCashFlowSummary > returns a 0 savings rate rather than NaN when income is 0', () => {
