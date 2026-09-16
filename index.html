@@ -4703,12 +4703,17 @@ WR.ui = WR.ui || {};
 
       <section>
         <h2>Exchange Rates</h2>
-        <p class="fine-print">Manually entered \u2014 no live rate lookup in this version. Needed if you hold assets in more than one currency.</p>
+        <p class="fine-print">
+          Enter rates manually, or fetch today's rate from a live source (<a href="https://www.frankfurter.app/" target="_blank" rel="noopener">Frankfurter.app</a>,
+          which republishes European Central Bank reference rates \u2014 free, no account needed). Requires an internet connection; if the
+          request fails, just type the rate in yourself. Needed if you hold assets in more than one currency.
+        </p>
         <div id="rates-list"></div>
         <form id="rate-form" class="inline-form">
           <input name="fromCurrency" placeholder="From (e.g. USD)" maxlength="3" required>
           <input name="toCurrency" placeholder="To (e.g. ZAR)" maxlength="3" required>
           <input name="rate" type="number" step="0.0001" placeholder="Rate" required>
+          <button type="button" id="fetch-rate-btn" class="secondary">Fetch live rate</button>
           <button type="submit">Add rate</button>
         </form>
       </section>
@@ -4851,6 +4856,41 @@ WR.ui = WR.ui || {};
       );
     }
     renderRates();
+
+    document.getElementById('fetch-rate-btn').addEventListener('click', async (e) => {
+      const form = e.target.closest('form');
+      const from = form.fromCurrency.value.trim().toUpperCase();
+      const to = form.toCurrency.value.trim().toUpperCase();
+      if (!/^[A-Z]{3}$/.test(from) || !/^[A-Z]{3}$/.test(to)) {
+        WR.ui.notify('Enter valid 3-letter currency codes first (e.g. USD, ZAR).', 'error');
+        return;
+      }
+      const btn = e.target;
+      btn.disabled = true;
+      btn.textContent = 'Fetching\u2026';
+      try {
+        const res = await fetch(`https://api.frankfurter.app/latest?amount=1&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+        if (!res.ok) throw new Error(`Rate service returned ${res.status}`);
+        const data = await res.json();
+        const rate = data && data.rates && data.rates[to];
+        if (!rate) throw new Error('No rate returned for that currency pair.');
+        form.rate.value = rate;
+        WR.ui.notify(`Live rate fetched: 1 ${from} = ${rate} ${to}.`, 'success');
+      } catch (err) {
+        // Offline or the rate service is unreachable: fall back to the most recent rate on file.
+        const rates = await WR.repos.exchangeRates.getAll();
+        const fallback = WR.financial.convertCurrency(1, from, to, rates);
+        if (fallback.converted) {
+          form.rate.value = fallback.value;
+          WR.ui.notify(`No live rate available (${err.message}) \u2014 using last saved rate: 1 ${from} = ${fallback.value} ${to}.`, 'error');
+        } else {
+          WR.ui.notify(`Couldn't fetch a live rate (${err.message}) and no previous rate is saved for ${from}/${to}. Enter it manually.`, 'error');
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Fetch live rate';
+      }
+    });
 
     document.getElementById('profile-form').addEventListener('submit', async (e) => {
       e.preventDefault();
