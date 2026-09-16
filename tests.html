@@ -54,7 +54,12 @@ window.WR = window.WR || {};
         db.createObjectStore('exchangeRates', { keyPath: 'id' });
       };
 
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        // Without this, deleteDatabase() between tests blocks forever behind
+        // this still-open connection.
+        request.result.onversionchange = () => request.result.close();
+        resolve(request.result);
+      };
       request.onerror = () => reject(request.error);
     });
   }
@@ -68,13 +73,17 @@ window.WR = window.WR || {};
   }
 
   /** Test-only: drop the cached connection so a fresh open() happens next time. */
-  function resetConnection() {
+  async function resetConnection() {
+    if (dbPromise) {
+      const db = await dbPromise.catch(() => null);
+      if (db) db.close();
+    }
     dbPromise = null;
   }
 
   /** Test-only: fully delete the database so each test run starts clean. */
-  function deleteDatabase() {
-    dbPromise = null;
+  async function deleteDatabase() {
+    await resetConnection();
     return new Promise((resolve, reject) => {
       const req = indexedDB.deleteDatabase(DB_NAME);
       req.onsuccess = () => resolve();

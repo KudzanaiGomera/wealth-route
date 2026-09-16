@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wealthroute-shell-v3';
+const CACHE_NAME = 'wealthroute-shell-v4';
 const APP_SHELL = [
   './',
   './index.html',
@@ -24,6 +24,11 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Only same-origin http(s) requests are cacheable; chrome-extension:// and
+  // other schemes throw on Cache.put and must be passed straight through.
+  const url = new URL(event.request.url);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
