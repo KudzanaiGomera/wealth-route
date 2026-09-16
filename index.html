@@ -439,22 +439,28 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 
 .table-wrap {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--panel);
   margin: 0.75rem 0;
 }
-.data-table { width: 100%; border-collapse: collapse; background: var(--panel); border: none; border-radius: 0; overflow: visible; margin: 0; min-width: 640px; }
-.data-table th, .data-table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.88rem; }
+.data-table { width: 100%; min-width: max-content; border-collapse: collapse; background: var(--panel); border: none; border-radius: 0; overflow: visible; margin: 0; }
+.data-table th, .data-table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.88rem; white-space: nowrap; }
 .data-table th { background: var(--panel-alt); font-weight: 600; color: var(--muted); font-size: 0.8rem; }
 .data-table th.sortable { cursor: pointer; user-select: none; }
 .data-table th.sortable:hover { color: var(--accent); }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .data-table .empty { color: var(--muted); text-align: center; padding: 1.25rem; }
-.data-table td input.cell, .data-table td select.cell { width: 100%; border: 1px solid transparent; background: transparent; color: var(--text); font-size: 0.85rem; padding: 0.2rem; font-family: var(--font-sans); transition: background-color 0.5s ease; }
+.data-table td input.cell, .data-table td select.cell { width: 100%; min-width: 7rem; border: 1px solid transparent; background: transparent; color: var(--text); font-size: 0.85rem; padding: 0.2rem; font-family: var(--font-sans); transition: background-color 0.5s ease; }
+.data-table td input.cell[data-field="name"] { min-width: 12rem; }
+.data-table.debts-table { min-width: 1120px; }
+.debts-table td:nth-child(8), .debts-table td:nth-child(9) { min-width: 11rem; }
+.debts-table td:nth-child(10), .debts-table td:nth-child(11) { min-width: 8rem; }
 .data-table td input.cell:focus, .data-table td select.cell:focus { border-color: var(--accent); background: var(--panel-alt); }
 .data-table td input.cell.just-saved, .data-table td select.cell.just-saved { background: color-mix(in srgb, var(--success) 22%, transparent); }
 .invalid-row { background: color-mix(in srgb, var(--danger) 10%, var(--panel)); }
@@ -526,7 +532,6 @@ button.danger { background: var(--danger); color: #fff; }
   .inline-form input, .inline-form select, .inline-form button, .stacked-form input, .stacked-form select, .stacked-form button, textarea { width: 100%; }
   .stat-grid { grid-template-columns: 1fr; }
   .score-breakdown { flex-direction: column; gap: 0.25rem; }
-  .data-table { min-width: 560px; }
   .summary-charts { grid-template-columns: 1fr; }
   .pie-layout { grid-template-columns: 1fr; }
 }
@@ -2423,7 +2428,8 @@ WR.ui = WR.ui || {};
     }
 
     const annualMonths = Array.from({ length: 12 }, (_, index) => `${selectedYear}-${String(index + 1).padStart(2, '0')}`);
-    const annualRows = annualMonths.map((monthId) => {
+    const recordedAnnualMonths = annualMonths.filter((monthId) => allBudgetLines.some((line) => line.month === monthId));
+    const annualRows = recordedAnnualMonths.map((monthId) => {
       const monthLines = allBudgetLines.filter((line) => line.month === monthId && line.type !== 'income' && line.type !== 'fixed');
       const monthIncome = incomeSources
         .filter((source) => Number(source.year || selectedYear) === selectedYear && isActiveForMonth(source, monthId))
@@ -3817,7 +3823,7 @@ WR.ui = WR.ui || {};
     container.innerHTML = `
       <h1>Debts</h1>
       <p class="fine-print">Edit any cell \u2014 changes save immediately and update the payoff projection below.</p>
-      <table class="data-table">
+      <table class="data-table debts-table">
         <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate %/yr</th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Expected completion</th><th>Payments remaining</th><th>Total paid</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="12" class="empty">No debts recorded.</td></tr>'}</tbody>
       </table>
