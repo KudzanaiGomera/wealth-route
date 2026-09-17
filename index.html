@@ -2676,7 +2676,7 @@ WR.ui = WR.ui || {};
     { hash: '#/savings', label: 'Savings' },
     { hash: '#/emergency-fund', label: 'Emergency Fund' },
     { hash: '#/day-to-day', label: 'Day-to-Day' },
-    { hash: '#/transactions', label: 'Budget Planner' },
+    { hash: '#/transactions', label: 'Variable Expenses' },
     { hash: '#/debts', label: 'Debts' },
     { hash: '#/assets', label: 'Assets' },
     { hash: '#/investments', label: 'Investments' },
@@ -2687,7 +2687,6 @@ WR.ui = WR.ui || {};
   ];
 
   const SECONDARY_NAV_ITEMS = [
-    { hash: '#/spreadsheet', label: 'Spreadsheet' },
     { hash: '#/excel', label: 'Excel' },
     { hash: '#/assistant', label: 'Wealth Assistant' },
   ];
@@ -2969,7 +2968,7 @@ WR.ui = WR.ui || {};
   WR.ui.priorityBadge = priorityBadge;
   WR.ui.renderDashboard = renderDashboard;
 })();
-// Budget Planner view: manage variable expenses for a selected month.
+// Variable Expenses view: manage variable expenses for a selected month.
 // Every cell is directly editable,
 // sortable by column, category-taggable, and confirms before deleting.
 
@@ -3022,6 +3021,8 @@ WR.ui = WR.ui || {};
     const categoriesById = Object.fromEntries(variableCategories.map((c) => [c.id, c]));
 
     const sortedLines = sortLines(lines.filter((line) => line.type === 'variable'), categoriesById, sort);
+    const totalBudget = sortedLines.reduce((sum, l) => sum + l.budgetAmount, 0);
+    const totalActual = sortedLines.reduce((sum, l) => sum + l.actualAmount, 0);
 
     const headerCells = SORTABLE_COLUMNS.map(
       (col) =>
@@ -3043,13 +3044,19 @@ WR.ui = WR.ui || {};
       .join('');
 
     container.innerHTML = `
-      <h1>Budget Planner</h1>
+      <h1>Variable Expenses</h1>
       <div class="toolbar">
         <label>Month:
           <input type="month" id="month-picker" value="${month}">
         </label>
       </div>
       <p class="fine-print">Plan and record variable expenses for the selected month. Changes save immediately.</p>
+
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Total Budgeted</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalBudget)}</span></div>
+        <div class="stat"><span class="stat-label">Total Actual</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalActual)}</span></div>
+        <div class="stat"><span class="stat-label">Difference</span><span class="stat-value ${totalActual - totalBudget > 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(totalActual - totalBudget)}</span></div>
+      </div>
 
       <table class="data-table">
         <thead><tr>${headerCells}<th></th></tr></thead>
@@ -3147,6 +3154,8 @@ WR.ui = WR.ui || {};
     const savings = lines
       .filter((line) => line.type === 'savings')
       .sort((a, b) => a.name.localeCompare(b.name));
+    const totalPlanned = savings.reduce((sum, l) => sum + l.budgetAmount, 0);
+    const totalSaved = savings.reduce((sum, l) => sum + l.actualAmount, 0);
 
     const rows = savings.map((line) => `
       <tr data-id="${line.id}">
@@ -3166,6 +3175,11 @@ WR.ui = WR.ui || {};
         </label>
       </div>
       <p class="fine-print">Record planned and actual savings for each account or goal.</p>
+
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Total Planned</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalPlanned)}</span></div>
+        <div class="stat"><span class="stat-label">Total Saved</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalSaved)}</span></div>
+      </div>
 
       <table class="data-table">
         <thead><tr><th>Name</th><th>Planned</th><th>Saved</th><th>Difference</th><th></th></tr></thead>
@@ -3277,11 +3291,17 @@ WR.ui = WR.ui || {};
           <td><button class="link-btn delete-income" data-id="${item.id}">Delete</button></td>
         </tr>`)
       .join('');
+    const totalIncome = incomes
+      .filter((item) => Number(item.year || year) === year)
+      .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     container.innerHTML = `
       <h1>Income</h1>
       <p class="fine-print">Set recurring income for a year once. It is applied automatically in monthly and annual calculations.</p>
       <div class="toolbar"><label>Year: <select id="income-year">${WR.ui.yearsAroundCurrent(3, 4).map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></label></div>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
+      </div>
       <table class="data-table">
         <thead><tr><th>Source</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Start month</th><th>End month</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="6" class="empty">No income sources for this year.</td></tr>'}</tbody>
@@ -3386,10 +3406,14 @@ WR.ui = WR.ui || {};
           <td><button class="link-btn delete-fixed-expense" data-id="${expense.id}">Delete</button></td>
         </tr>`)
       .join('');
+    const totalFixedExpenses = expenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
 
     container.innerHTML = `
       <h1>Fixed Expenses</h1>
       <p class="fine-print">Recurring fixed expenses are entered once and automatically applied to every applicable month.</p>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Total Fixed Expenses</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalFixedExpenses)}</span></div>
+      </div>
       <table class="data-table">
         <thead><tr><th>Name</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Category</th><th>Start month</th><th>End month</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="7" class="empty">No fixed expenses yet.</td></tr>'}</tbody>
@@ -3943,7 +3967,7 @@ WR.ui = WR.ui || {};
   WR.ui.renderDebts = renderDebts;
 })();
 // Assets and Investments views. Both inline-editable, matching the pattern
-// used across Transactions, Debts, and Spreadsheet: edits flash to confirm
+// used across Transactions and Debts: edits flash to confirm
 // they saved, values can't go negative, deletes ask for confirmation first.
 
 window.WR = window.WR || {};
@@ -4307,125 +4331,6 @@ WR.ui = WR.ui || {};
 
   WR.ui.renderReports = renderReports;
 })();
-// Spreadsheet editor: every budget line, across every month, in one
-// editable table. Edits write directly to the same IndexedDB store the
-// dashboard reads from \u2014 there's no separate "spreadsheet data" to keep in
-// sync, by design (see Sprint 0 notes on the spreadsheet/model sync problem).
-
-window.WR = window.WR || {};
-WR.ui = WR.ui || {};
-
-(function () {
-  const TYPES = ['income', 'fixed', 'variable', 'savings', 'debtPayment'];
-
-  function categoryOptions(categories, selectedId) {
-    return (
-      `<option value="">\u2014 none \u2014</option>` +
-      categories.map((c) => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.name}</option>`).join('')
-    );
-  }
-
-  async function renderSpreadsheet(container) {
-    const [allLines, profile, categories] = await Promise.all([
-      WR.repos.budgetLines.getAll(),
-      WR.ui.getOrCreateProfile(),
-      WR.repos.expenseCategories.getAll(),
-    ]);
-    const lines = allLines.sort((a, b) => (a.month < b.month ? 1 : -1) || a.type.localeCompare(b.type));
-
-    const rows = lines
-      .map(
-        (l) => `
-      <tr data-id="${l.id}">
-        <td><input type="month" class="cell" data-field="month" value="${l.month}"></td>
-        <td>
-          <select class="cell" data-field="type">
-            ${TYPES.map((t) => `<option value="${t}" ${t === l.type ? 'selected' : ''}>${t}</option>`).join('')}
-          </select>
-        </td>
-        <td><input class="cell" data-field="name" value="${l.name}"></td>
-        <td><select class="cell" data-field="categoryId">${categoryOptions(categories, l.categoryId)}</select></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="budgetAmount" value="${l.budgetAmount}"></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="actualAmount" value="${l.actualAmount}"></td>
-        <td><button class="link-btn delete-row" data-id="${l.id}">Delete</button></td>
-      </tr>`,
-      )
-      .join('');
-
-    container.innerHTML = `
-      <h1>Spreadsheet</h1>
-      <p class="fine-print">Edit any cell \u2014 changes save immediately and the Dashboard updates to match.</p>
-      <table class="data-table spreadsheet">
-        <thead><tr><th>Month</th><th>Type</th><th>Name</th><th>Category</th><th>Budget</th><th>Actual</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" class="empty">No budget lines yet.</td></tr>'}</tbody>
-      </table>
-
-      <h3>Add a row</h3>
-      <form id="add-row-form" class="inline-form">
-        <input type="month" name="month" value="${WR.ui.currentMonthKey()}" required>
-        <select name="type">${TYPES.map((t) => `<option value="${t}">${t}</option>`).join('')}</select>
-        <input name="name" placeholder="Name" required>
-        <select name="categoryId">${categoryOptions(categories)}</select>
-        <input name="budgetAmount" type="number" step="0.01" min="0" placeholder="Budget" required>
-        <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Actual" required>
-        <button type="submit">Add</button>
-      </form>
-    `;
-
-    // Save on change, per cell \u2014 no separate "save" button, matching the
-    // "spreadsheet and financial model stay synchronised" requirement.
-    container.querySelectorAll('tbody tr').forEach((tr) => {
-      const id = tr.dataset.id;
-      tr.querySelectorAll('.cell').forEach((input) => {
-        input.addEventListener('change', async () => {
-          const line = await WR.repos.budgetLines.getById(id);
-          if (!line) return;
-          const field = input.dataset.field;
-          if (field === 'budgetAmount' || field === 'actualAmount') {
-            line[field] = Math.max(0, parseFloat(input.value) || 0);
-            input.value = line[field];
-          } else if (field === 'categoryId') {
-            line.categoryId = input.value || undefined;
-          } else {
-            line[field] = input.value;
-          }
-          await WR.repos.budgetLines.update(line);
-          WR.ui.flashSaved(input);
-        });
-      });
-    });
-
-    container.querySelectorAll('.delete-row').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Delete this row? This cannot be undone.')) return;
-        await WR.ui.removeWithUndo({
-          repo: WR.repos.budgetLines,
-          id: btn.dataset.id,
-          entityLabel: 'Budget row',
-          afterChange: async () => { await renderSpreadsheet(container); },
-        });
-      });
-    });
-
-    document.getElementById('add-row-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const line = WR.models.createBudgetLine({
-        month: form.month.value,
-        type: form.type.value,
-        name: form.name.value,
-        categoryId: form.categoryId.value || undefined,
-        budgetAmount: Math.max(0, parseFloat(form.budgetAmount.value) || 0),
-        actualAmount: Math.max(0, parseFloat(form.actualAmount.value) || 0),
-        currency: profile.baseCurrency,
-      });
-      await WR.repos.budgetLines.add(line);
-      renderSpreadsheet(container);
-    });
-  }
-
-  WR.ui.renderSpreadsheet = renderSpreadsheet;
-})();
 // Excel view: upload -> pick sheet -> pick header row -> map columns ->
 // preview -> confirm import, plus export of current data to a new workbook.
 
@@ -4722,7 +4627,7 @@ WR.ui = WR.ui || {};
         <h2>Expense Categories</h2>
         <p class="fine-print">
           Tag your fixed and variable expenses as essential or discretionary here, then assign them to
-          transactions on the Transactions or Spreadsheet tabs. This drives the emergency fund calculation
+          transactions on the Transactions tab. This drives the emergency fund calculation
           (essential expenses only) and the "discretionary spending increased" recommendation \u2014 without any
           categories tagged, those fall back to rough approximations.
         </p>
@@ -5123,7 +5028,6 @@ WR.ui = WR.ui || {};
     '#/insights': 'renderInsights',
     '#/forecast': 'renderForecast',
     '#/reports': 'renderReports',
-    '#/spreadsheet': 'renderSpreadsheet',
     '#/excel': 'renderExcel',
     '#/assistant': 'renderAssistant',
     '#/settings': 'renderSettings',
