@@ -343,6 +343,16 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .health-score h2 { margin-top: 0; }
 .score-breakdown { display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: 0.83rem; color: var(--muted); margin: 0.5rem 0; }
 .fine-print { font-size: 0.8rem; color: var(--muted); }
+.suggestions-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.95rem 1.1rem;
+  margin: 1rem 0;
+}
+.suggestions-card h3 { margin-top: 0; }
+.suggestions-card ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+.suggestions-card li { margin-bottom: 0.4rem; }
 
 /* ---------- Recommendations ---------- */
 
@@ -2885,7 +2895,7 @@ WR.ui = WR.ui || {};
       </section>
 
       <section class="health-score">
-        <h2>Financial Health: ${s.healthScore.score}/100</h2>
+        <h2>Financial Health: ${s.healthScore.score}/100 ${WR.ui.moodEmoji(s.healthScore.score, { good: 70, bad: 40 })}</h2>
         <div class="score-breakdown">
           <div>Cash flow: ${s.healthScore.breakdown.cashFlow.toFixed(0)}</div>
           <div>Emergency fund: ${s.healthScore.breakdown.emergencyFund.toFixed(0)}</div>
@@ -3808,23 +3818,84 @@ WR.ui = WR.ui || {};
     `;
   }
 
+  function computeDebtOverviewHtml(debts, exchangeRates, profile) {
+    if (debts.length === 0) return '';
+    const base = profile.baseCurrency;
+
+    let totalCurrent = 0;
+    let totalOriginal = 0;
+    const unconvertedNames = [];
+    debts.forEach((d) => {
+      const currency = d.currency || base;
+      const current = WR.financial.convertCurrency(d.currentBalance, currency, base, exchangeRates);
+      const original = WR.financial.convertCurrency(d.originalBalance || d.currentBalance, currency, base, exchangeRates);
+      totalCurrent += current.value;
+      totalOriginal += original.value;
+      if (!current.converted) unconvertedNames.push(d.name);
+    });
+
+    const remainingPct = totalOriginal > 0 ? (totalCurrent / totalOriginal) * 100 : 0;
+    const isHighRemaining = remainingPct > 50;
+
+    const strategy = WR.ui._debtStrategy || 'avalanche';
+    const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
+    let orderedDebts = [];
+    if (strategy === 'avalanche') orderedDebts = WR.financial.orderDebtsAvalanche(debts);
+    else if (strategy === 'snowball') orderedDebts = WR.financial.orderDebtsSnowball(debts);
+    else orderedDebts = WR.financial.orderDebtsHybrid(debts);
+
+    const minimumsOnly = WR.financial.simulateDebtPayoff(orderedDebts, 0);
+    const currentPlan = WR.financial.simulateDebtPayoff(orderedDebts, extra);
+
+    const timeLeftLabel = currentPlan.reachedSafetyCap
+      ? '50+ years (never at this rate)'
+      : `${Math.floor(currentPlan.months / 12)}y ${currentPlan.months % 12}m`;
+
+    let statement = '';
+    if (minimumsOnly.reachedSafetyCap) {
+      statement = 'At minimum payments alone, this debt will never be fully paid off \u2014 increase your monthly payment or consider a better repayment plan.';
+    } else if (extra <= 0 && minimumsOnly.months > 60) {
+      statement = `Paying only the minimums will take about ${Math.round(minimumsOnly.months / 12)} years. Adding an extra monthly payment could clear this debt much sooner.`;
+    } else if (isHighRemaining) {
+      statement = 'You still owe over half of your original debt \u2014 consider increasing your monthly payment or reviewing your payoff plan.';
+    }
+
+    return `
+      <div class="stat-grid debt-overview">
+        <div class="stat"><span class="stat-label">Total Debt</span><span class="stat-value">${base} ${WR.ui.fmt(totalCurrent)}</span></div>
+        <div class="stat"><span class="stat-label">Debt Remaining</span><span class="stat-value ${isHighRemaining ? 'negative' : ''}">${remainingPct.toFixed(0)}%</span></div>
+        <div class="stat"><span class="stat-label">Time Left (current plan)</span><span class="stat-value">${timeLeftLabel}</span></div>
+      </div>
+      ${statement ? `<p class="warning">${statement}</p>` : ''}
+      ${unconvertedNames.length > 0 ? `<p class="fine-print">No exchange rate on file for: ${unconvertedNames.join(', ')} \u2014 shown at face value.</p>` : ''}
+    `;
+  }
+
   async function refreshPayoffSection(container) {
-    const debts = await WR.repos.debts.getAll();
+    const [debts, exchangeRates] = await Promise.all([
+      WR.repos.debts.getAll(),
+      WR.repos.exchangeRates.getAll(),
+    ]);
     const profile = await WR.ui.getOrCreateProfile();
     const strategy = WR.ui._debtStrategy || 'avalanche';
     const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
     const section = container.querySelector('.payoff-results');
     if (section) section.innerHTML = computePayoffHtml(debts, strategy, extra, profile);
+    const overview = container.querySelector('.debt-overview-wrap');
+    if (overview) overview.innerHTML = computeDebtOverviewHtml(debts, exchangeRates, profile);
   }
 
   async function renderDebts(container) {
-    const [debts, payments] = await Promise.all([
+    const [debts, payments, exchangeRates] = await Promise.all([
       WR.repos.debts.getAll(),
       WR.repos.debtPayments.getAll(),
+      WR.repos.exchangeRates.getAll(),
     ]);
     const profile = await WR.ui.getOrCreateProfile();
     const strategy = WR.ui._debtStrategy || 'avalanche';
     const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
+
+    const overviewHtml = computeDebtOverviewHtml(debts, exchangeRates, profile);
 
     const rows = debts
       .map(
@@ -3857,6 +3928,7 @@ WR.ui = WR.ui || {};
     container.innerHTML = `
       <h1>Debts</h1>
       <p class="fine-print">Edit any cell \u2014 changes save immediately and update the payoff projection below.</p>
+      <div class="debt-overview-wrap">${overviewHtml}</div>
       <table class="data-table debts-table">
         <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate %/yr</th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Expected completion</th><th>Payments remaining</th><th>Total paid</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="12" class="empty">No debts recorded.</td></tr>'}</tbody>
@@ -3982,8 +4054,30 @@ WR.ui = WR.ui || {};
     return list.map((v) => `<option value="${v}" ${v === selected ? 'selected' : ''}>${labelFn ? labelFn(v) : v}</option>`).join('');
   }
 
+  /** Sums a list's currency-tagged value field into the base currency, tracking any that couldn't be converted. */
+  function sumInBaseCurrency(items, valueField, exchangeRates, baseCurrency) {
+    let total = 0;
+    const unconvertedNames = [];
+    items.forEach((item) => {
+      const { value, converted } = WR.financial.convertCurrency(
+        item[valueField],
+        item.currency || baseCurrency,
+        baseCurrency,
+        exchangeRates,
+      );
+      total += value;
+      if (!converted) unconvertedNames.push(item.name);
+    });
+    return { total, unconvertedNames };
+  }
+
   async function renderAssets(container) {
-    const assets = await WR.repos.assets.getAll();
+    const [assets, exchangeRates, profile] = await Promise.all([
+      WR.repos.assets.getAll(),
+      WR.repos.exchangeRates.getAll(),
+      WR.ui.getOrCreateProfile(),
+    ]);
+    const { total: totalValue, unconvertedNames } = sumInBaseCurrency(assets, 'currentValue', exchangeRates, profile.baseCurrency);
     const rows = assets
       .map(
         (a) => `
@@ -4001,6 +4095,10 @@ WR.ui = WR.ui || {};
     container.innerHTML = `
       <h1>Assets</h1>
       <p class="fine-print">Edit any cell \u2014 changes save immediately. "High" liquidity counts toward your emergency fund calculation.</p>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Total Asset Value</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalValue)}</span></div>
+      </div>
+      ${unconvertedNames.length > 0 ? `<p class="fine-print">No exchange rate on file for: ${unconvertedNames.join(', ')} \u2014 shown at face value.</p>` : ''}
       <table class="data-table">
         <thead><tr><th>Name</th><th>Type</th><th>Value</th><th>Currency</th><th>Liquidity</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="6" class="empty">No assets recorded.</td></tr>'}</tbody>
@@ -4067,8 +4165,57 @@ WR.ui = WR.ui || {};
     });
   }
 
+  /** Returns an emoji reflecting good/neutral/bad performance for a value against thresholds. */
+  function moodEmoji(value, { good = 5, bad = 0 } = {}) {
+    if (value > good) return '\u{1F60A}'; // 😊
+    if (value < bad) return '\u{1F61E}'; // 😞
+    return '\u{1F610}'; // 😐
+  }
+
+  WR.ui.moodEmoji = moodEmoji;
+
+  function computeInvestmentSuggestions(investments, totalValue, totalContributions, gainPct) {
+    const suggestions = [];
+    if (investments.length === 0) {
+      return suggestions;
+    }
+
+    const riskCategories = new Set(investments.map((inv) => inv.riskCategory || 'medium'));
+    if (investments.length > 1 && riskCategories.size === 1) {
+      suggestions.push('All your investments share the same risk category \u2014 diversifying across low, medium, and high risk assets can smooth out returns over time.');
+    }
+
+    const largest = investments.reduce((max, inv) => (inv.currentValue > (max?.currentValue || 0) ? inv : max), null);
+    if (largest && totalValue > 0 && largest.currentValue / totalValue > 0.7) {
+      suggestions.push(`${largest.name} makes up over 70% of your portfolio \u2014 consider spreading contributions to reduce concentration risk.`);
+    }
+
+    if (totalContributions > 0 && gainPct < 0) {
+      suggestions.push('Your portfolio is currently below what you\u2019ve contributed \u2014 review underperforming holdings or consider low-cost diversified index funds/ETFs for steadier long-term growth.');
+    } else if (totalContributions > 0 && gainPct >= 0 && gainPct <= 5) {
+      suggestions.push('Growth is modest so far \u2014 if your risk tolerance and timeline allow, exploring higher-growth options like equity ETFs could improve long-term returns.');
+    } else if (totalContributions > 0 && gainPct > 15) {
+      suggestions.push('Strong growth so far \u2014 consider rebalancing periodically to lock in gains and keep your risk mix on target.');
+    }
+
+    if (suggestions.length === 0) {
+      suggestions.push('Your portfolio looks reasonably balanced \u2014 keep contributing consistently and review it periodically.');
+    }
+    return suggestions;
+  }
+
   async function renderInvestments(container) {
-    const investments = await WR.repos.investments.getAll();
+    const [investments, exchangeRates, profile] = await Promise.all([
+      WR.repos.investments.getAll(),
+      WR.repos.exchangeRates.getAll(),
+      WR.ui.getOrCreateProfile(),
+    ]);
+    const { total: totalValue, unconvertedNames } = sumInBaseCurrency(investments, 'currentValue', exchangeRates, profile.baseCurrency);
+    const { total: totalContributions } = sumInBaseCurrency(investments, 'totalContributions', exchangeRates, profile.baseCurrency);
+    const totalGain = totalValue - totalContributions;
+    const gainPct = totalContributions > 0 ? (totalGain / totalContributions) * 100 : 0;
+    const suggestions = computeInvestmentSuggestions(investments, totalValue, totalContributions, gainPct);
+
     const rows = investments
       .map(
         (inv) => `
@@ -4087,6 +4234,17 @@ WR.ui = WR.ui || {};
     container.innerHTML = `
       <h1>Investments</h1>
       <p class="fine-print">Manual tracking only \u2014 update values yourself as they change. No live market data. Edit any cell to update.</p>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Total Value</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalValue)}</span></div>
+        <div class="stat"><span class="stat-label">Total Contributions</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalContributions)}</span></div>
+        <div class="stat"><span class="stat-label">Total Gain/Loss</span><span class="stat-value ${totalGain < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(totalGain)} ${totalContributions > 0 ? `(${gainPct.toFixed(1)}%)` : ''} ${investments.length > 0 ? moodEmoji(gainPct) : ''}</span></div>
+      </div>
+      ${unconvertedNames.length > 0 ? `<p class="fine-print">No exchange rate on file for: ${unconvertedNames.join(', ')} \u2014 shown at face value.</p>` : ''}
+      ${investments.length > 0 ? `
+      <div class="suggestions-card">
+        <h3>Suggestions</h3>
+        <ul>${suggestions.map((s) => `<li>${s}</li>`).join('')}</ul>
+      </div>` : ''}
       <table class="data-table">
         <thead><tr><th>Name</th><th>Type</th><th>Current value</th><th>Contributions</th><th>Currency</th><th>Risk</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="7" class="empty">No investments recorded.</td></tr>'}</tbody>
