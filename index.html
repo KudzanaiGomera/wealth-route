@@ -354,6 +354,31 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .suggestions-card ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
 .suggestions-card li { margin-bottom: 0.4rem; }
 
+.debt-calendar-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.95rem 1.1rem;
+  margin-bottom: 0.9rem;
+}
+.debt-calendar-card h4 { margin: 0 0 0.5rem; }
+.debt-calendar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 0.4rem; margin: 0.5rem 0; }
+.month-btn {
+  padding: 0.4rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-alt);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+}
+.month-btn:hover { filter: brightness(1.08); }
+.month-btn.paid { background: var(--success); color: #fff; border-color: var(--success); }
+.debt-calendar-stats { display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: 0.85rem; margin-top: 0.4rem; }
+.debt-calendar-stats strong { font-family: var(--font-serif); }
+
 /* ---------- Recommendations ---------- */
 
 .recommendations { margin: 1.5rem 0; }
@@ -3885,6 +3910,67 @@ WR.ui = WR.ui || {};
     if (overview) overview.innerHTML = computeDebtOverviewHtml(debts, exchangeRates, profile);
   }
 
+  const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  function computeDebtCalendarHtml(debts, payments, profile, year) {
+    if (debts.length === 0) return '';
+    const cards = debts
+      .map((d) => {
+        const paidTotal = payments
+          .filter((p) => p.debtId === d.id)
+          .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        const months = MONTH_ABBR
+          .map((label, i) => {
+            const monthKey = `${year}-${String(i + 1).padStart(2, '0')}`;
+            const isPaid = payments.some((p) => p.debtId === d.id && p.month === monthKey);
+            return `<button type="button" class="month-btn ${isPaid ? 'paid' : ''}" data-debt-id="${d.id}" data-month="${monthKey}">${label}</button>`;
+          })
+          .join('');
+        return `
+      <div class="debt-calendar-card">
+        <h4>${d.name}</h4>
+        <div class="debt-calendar-grid">${months}</div>
+        <div class="debt-calendar-stats">
+          <span>Debt paid: <strong>${d.currency || profile.baseCurrency} ${WR.ui.fmt(paidTotal)}</strong></span>
+          <span>Debt left: <strong>${d.currency || profile.baseCurrency} ${WR.ui.fmt(d.currentBalance)}</strong></span>
+        </div>
+      </div>`;
+      })
+      .join('');
+
+    return `
+      <h2>Monthly Payment Tracker</h2>
+      <p class="fine-print">Tick a month once you've paid it \u2014 this deducts the minimum payment from the balance and undoes it if you untick.</p>
+      <div class="toolbar">
+        <label>Year:
+          <select id="debt-calendar-year">${WR.ui.yearsAroundCurrent(3, 3).map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select>
+        </label>
+      </div>
+      <div class="debt-calendar-list">${cards}</div>
+    `;
+  }
+
+  async function toggleDebtPayment(debtId, month, container) {
+    const debt = await WR.repos.debts.getById(debtId);
+    if (!debt) return;
+    const allPayments = await WR.repos.debtPayments.getAll();
+    const existing = allPayments.find((p) => p.debtId === debtId && p.month === month);
+    if (existing) {
+      await WR.repos.debtPayments.remove(existing.id);
+      debt.currentBalance = Math.max(0, (Number(debt.currentBalance) || 0) + existing.amount);
+    } else {
+      const amount = Math.max(0, Number(debt.minPayment) || 0);
+      if (amount <= 0) {
+        alert('Set a minimum payment for this debt before marking months as paid.');
+        return;
+      }
+      await WR.repos.debtPayments.add(WR.models.createDebtPayment({ debtId, month, amount }));
+      debt.currentBalance = Math.max(0, (Number(debt.currentBalance) || 0) - amount);
+    }
+    await WR.repos.debts.update(debt);
+    renderDebts(container);
+  }
+
   async function renderDebts(container) {
     const [debts, payments, exchangeRates] = await Promise.all([
       WR.repos.debts.getAll(),
@@ -3894,8 +3980,10 @@ WR.ui = WR.ui || {};
     const profile = await WR.ui.getOrCreateProfile();
     const strategy = WR.ui._debtStrategy || 'avalanche';
     const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
+    const calendarYear = WR.ui._debtCalendarYear || new Date().getFullYear();
 
     const overviewHtml = computeDebtOverviewHtml(debts, exchangeRates, profile);
+    const calendarHtml = computeDebtCalendarHtml(debts, payments, profile, calendarYear);
 
     const rows = debts
       .map(
@@ -3933,6 +4021,8 @@ WR.ui = WR.ui || {};
         <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate %/yr</th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Expected completion</th><th>Payments remaining</th><th>Total paid</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="12" class="empty">No debts recorded.</td></tr>'}</tbody>
       </table>
+
+      ${calendarHtml}
 
       <h3>Add a debt</h3>
       <form id="add-debt-form" class="inline-form">
@@ -4033,6 +4123,19 @@ WR.ui = WR.ui || {};
       WR.ui._debtExtra = Math.max(0, parseFloat(e.target.value) || 0);
       e.target.value = WR.ui._debtExtra;
       refreshPayoffSection(container);
+    });
+
+    const calendarYearPicker = document.getElementById('debt-calendar-year');
+    if (calendarYearPicker) {
+      calendarYearPicker.addEventListener('change', (e) => {
+        WR.ui._debtCalendarYear = Number(e.target.value);
+        renderDebts(container);
+      });
+    }
+    container.querySelectorAll('.month-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        toggleDebtPayment(btn.dataset.debtId, btn.dataset.month, container);
+      });
     });
   }
 
