@@ -536,23 +536,24 @@ button.danger { background: var(--danger); color: #fff; }
 
 .warning { color: var(--danger); }
 .loading { color: var(--muted); }
-.assistant-answer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.2rem; line-height: 1.6; box-shadow: var(--shadow); margin-top: 1rem; width: 100%; max-width: none; }
+.assistant-answer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.4rem; line-height: 1.65; box-shadow: var(--shadow); margin-top: 1rem; width: 100%; max-width: none; min-height: 12rem; }
 .assistant-answer::before { content: "Wealth Assistant"; display: block; color: var(--accent); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.65rem; }
 .assistant-answer h2, .assistant-answer h3 { font-family: var(--font-serif); margin: 1rem 0 0.4rem; font-size: 1.05rem; }
 .assistant-answer h2:first-of-type, .assistant-answer h3:first-of-type { margin-top: 0; }
 .assistant-answer p { margin: 0.45rem 0; }
-.assistant-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 1.5rem; align-items: start; }
+.assistant-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 1.5rem; align-items: start; }
 .assistant-main { min-width: 0; }
-.assistant-chat { max-width: none; }
-.assistant-chat textarea { min-height: 5.5rem; resize: vertical; }
+.assistant-chat { width: 100%; max-width: none; margin: 1rem 0 0; }
+.assistant-chat textarea { width: 100%; min-height: 7rem; resize: vertical; font-size: 1rem; line-height: 1.5; padding: 0.8rem 0.9rem; }
+.assistant-chat button { align-self: flex-end; }
 .assistant-status { min-height: 1.25rem; margin: 0.65rem 0 0; }
-.assistant-history { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.assistant-history { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: sticky; top: 5.5rem; }
 .assistant-history h2 { font-size: 1rem; padding: 0.8rem 0.9rem; margin: 0; border-bottom: 1px solid var(--border); }
 .assistant-history table { width: 100%; border-collapse: collapse; }
 .assistant-history th, .assistant-history td { padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.8rem; vertical-align: top; }
 .assistant-history th { color: var(--muted); font-weight: 600; }
 .assistant-history tr:last-child td { border-bottom: none; }
-.assistant-history .history-question { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assistant-history .history-question { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .assistant-history .link-btn { font-size: 0.78rem; }
 #content:has(.assistant-workspace) { width: min(1500px, calc(100vw - 3rem)); max-width: none; }
 
@@ -587,6 +588,7 @@ button.danger { background: var(--danger); color: #fff; }
   .stat-grid { grid-template-columns: 1fr; }
   .score-breakdown { flex-direction: column; gap: 0.25rem; }
   .assistant-workspace { grid-template-columns: 1fr; }
+  .assistant-history { position: static; }
   .summary-charts { grid-template-columns: 1fr; }
   .pie-layout { grid-template-columns: 1fr; }
 }
@@ -3557,10 +3559,14 @@ WR.ui = WR.ui || {};
       WR.ui.getOrCreateProfile(),
       WR.repos.emergencyFundContributions.getAll(),
     ]);
+    const month = WR.ui._emergencyFundMonth || WR.ui.currentMonthKey();
+    WR.ui._emergencyFundMonth = month;
     const sorted = contributions.sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const total = sorted.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const monthContributions = sorted.filter((item) => String(item.date || '').slice(0, 7) === month);
+    const monthNet = monthContributions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
-    const rows = sorted.map((item) => `
+    const rows = monthContributions.map((item) => `
       <tr data-id="${item.id}">
         <td><input class="cell" data-field="date" type="date" value="${item.date}"></td>
         <td><input class="cell" data-field="amount" type="number" step="0.01" value="${item.amount}"></td>
@@ -3572,11 +3578,13 @@ WR.ui = WR.ui || {};
       <h1>Emergency Fund</h1>
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Current emergency fund balance</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(total)}</span></div>
-        <div class="stat"><span class="stat-label">Total contributions</span><span class="stat-value">${sorted.length}</span></div>
+        <div class="stat"><span class="stat-label">Selected month net change</span><span class="stat-value ${monthNet < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(monthNet)}</span></div>
+        <div class="stat"><span class="stat-label">Entries this month</span><span class="stat-value">${monthContributions.length}</span></div>
       </div>
+      <div class="toolbar"><label>Month: <input id="emergency-fund-month" type="month" value="${month}"></label></div>
       <table class="data-table">
         <thead><tr><th>Date</th><th>Contribution (${profile.baseCurrency})</th><th>Note</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="4" class="empty">No emergency contributions yet.</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="4" class="empty">No emergency fund activity for this month.</td></tr>'}</tbody>
       </table>
 
       <h3>Add contribution</h3>
@@ -3596,6 +3604,11 @@ WR.ui = WR.ui || {};
         <button type="submit" class="secondary">Record borrowed amount</button>
       </form>
     `;
+
+    document.getElementById('emergency-fund-month').addEventListener('change', (event) => {
+      WR.ui._emergencyFundMonth = event.target.value;
+      renderEmergencyFund(container);
+    });
 
     container.querySelectorAll('tbody tr').forEach((tr) => {
       const id = tr.dataset.id;
