@@ -541,9 +541,20 @@ button.danger { background: var(--danger); color: #fff; }
 .assistant-answer h2, .assistant-answer h3 { font-family: var(--font-serif); margin: 1rem 0 0.4rem; font-size: 1.05rem; }
 .assistant-answer h2:first-of-type, .assistant-answer h3:first-of-type { margin-top: 0; }
 .assistant-answer p { margin: 0.45rem 0; }
-.assistant-chat { max-width: 760px; }
+.assistant-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; align-items: start; }
+.assistant-main { min-width: 0; }
+.assistant-chat { max-width: none; }
 .assistant-chat textarea { min-height: 5.5rem; resize: vertical; }
 .assistant-status { min-height: 1.25rem; margin: 0.65rem 0 0; }
+.assistant-history { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.assistant-history h2 { font-size: 1rem; padding: 0.8rem 0.9rem; margin: 0; border-bottom: 1px solid var(--border); }
+.assistant-history table { width: 100%; border-collapse: collapse; }
+.assistant-history th, .assistant-history td { padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.8rem; vertical-align: top; }
+.assistant-history th { color: var(--muted); font-weight: 600; }
+.assistant-history tr:last-child td { border-bottom: none; }
+.assistant-history .history-question { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.assistant-history .link-btn { font-size: 0.78rem; }
+#content:has(.assistant-workspace) { max-width: 1240px; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
@@ -575,6 +586,7 @@ button.danger { background: var(--danger); color: #fff; }
   .inline-form input, .inline-form select, .inline-form button, .stacked-form input, .stacked-form select, .stacked-form button, textarea { width: 100%; }
   .stat-grid { grid-template-columns: 1fr; }
   .score-breakdown { flex-direction: column; gap: 0.25rem; }
+  .assistant-workspace { grid-template-columns: 1fr; }
   .summary-charts { grid-template-columns: 1fr; }
   .pie-layout { grid-template-columns: 1fr; }
 }
@@ -593,7 +605,7 @@ window.WR = window.WR || {};
 
 (function () {
   const DB_NAME = 'wealthroute';
-  const DB_VERSION = 2;
+  const DB_VERSION = 3;
 
   /** @type {Promise<IDBDatabase>|null} */
   let dbPromise = null;
@@ -630,6 +642,7 @@ window.WR = window.WR || {};
         ensureStore(db, 'investments', { keyPath: 'id' });
         ensureStore(db, 'netWorthSnapshots', { keyPath: 'id' }, [{ name: 'by-date', keyPath: 'date' }]);
         ensureStore(db, 'exchangeRates', { keyPath: 'id' });
+        ensureStore(db, 'assistantChats', { keyPath: 'id' });
       };
 
       request.onsuccess = () => {
@@ -761,6 +774,7 @@ window.WR = window.WR || {};
     investments: WR.createRepository('investments'),
     netWorthSnapshots: WR.createRepository('netWorthSnapshots'),
     exchangeRates: WR.createRepository('exchangeRates'),
+    assistantChats: WR.createRepository('assistantChats'),
   };
 
   WR.queries = {
@@ -985,6 +999,10 @@ window.WR = window.WR || {};
     return { id: newId(), ...fields };
   }
 
+  function createAssistantChat(fields) {
+    return { id: newId(), ...fields };
+  }
+
   WR.models = {
     newId,
     createUserProfile,
@@ -1001,6 +1019,7 @@ window.WR = window.WR || {};
     createEmergencyFundContribution,
     createDayToDayAccount,
     createDayToDayTransaction,
+    createAssistantChat,
   };
 })();
 // Cash flow, savings rate, and expense-split calculations.
@@ -5322,22 +5341,48 @@ WR.ui = WR.ui || {};
 
   async function renderAssistant(container) {
     const workerUrl = localStorage.getItem('wr_worker_url') || '';
+    const chats = (await WR.repos.assistantChats.getAll()).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    const historyRows = chats.slice(0, 20).map((chat) => `
+      <tr data-id="${chat.id}">
+        <td>${new Date(chat.createdAt).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' })}</td>
+        <td class="history-question" title="${escapeHtml(chat.question)}">${escapeHtml(chat.question)}</td>
+        <td><button type="button" class="link-btn open-chat" data-id="${chat.id}">Open</button></td>
+      </tr>`).join('');
 
     container.innerHTML = `
       <h1>Wealth Assistant</h1>
       ${
         workerUrl
-          ? `<p class="fine-print">Answers use only the numbers already shown on your Dashboard. General information, not personalised financial advice.</p>
-             <form id="ask-form" class="stacked-form assistant-chat">
-               <textarea id="question-input" rows="2" placeholder="e.g. Should I pay debt or invest right now?" required></textarea>
-               <button type="submit">Ask</button>
-             </form>
-             <div id="answer-area" class="assistant-status" aria-live="polite"></div>`
+          ? `<div class="assistant-workspace">
+               <div class="assistant-main">
+                 <p class="fine-print">Answers use only the numbers already shown on your Dashboard. General information, not personalised financial advice.</p>
+                 <form id="ask-form" class="stacked-form assistant-chat">
+                   <textarea id="question-input" rows="3" placeholder="Ask about your cash flow, debt, emergency fund, or next financial priority." required></textarea>
+                   <button type="submit">Ask Wealth Assistant</button>
+                 </form>
+                 <div id="answer-area" class="assistant-status" aria-live="polite"></div>
+               </div>
+               <aside class="assistant-history">
+                 <h2>Recent conversations</h2>
+                 <table><thead><tr><th>Date</th><th>Question</th><th></th></tr></thead>
+                   <tbody>${historyRows || '<tr><td colspan="3" class="empty">Your previous questions appear here.</td></tr>'}</tbody>
+                 </table>
+               </aside>
+             </div>`
           : `<p class="empty">No Worker endpoint configured. Add your Cloudflare Worker URL in Settings to enable the assistant.</p>`
       }
     `;
 
     if (!workerUrl) return;
+
+    container.querySelectorAll('.open-chat').forEach((button) => {
+      button.addEventListener('click', () => {
+        const chat = chats.find((item) => item.id === button.dataset.id);
+        if (!chat) return;
+        document.getElementById('question-input').value = chat.question;
+        document.getElementById('answer-area').innerHTML = `<div class="assistant-answer">${formatAssistantAnswer(chat.answer)}</div>`;
+      });
+    });
 
     document.getElementById('ask-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -5348,7 +5393,15 @@ WR.ui = WR.ui || {};
       try {
         const snapshot = await WR.ui.buildSnapshot();
         const answer = await askAssistant(workerUrl, question, snapshot);
-        answerArea.innerHTML = `<div class="assistant-answer">${formatAssistantAnswer(answer)}</div>`;
+        await WR.repos.assistantChats.add(WR.models.createAssistantChat({
+          question,
+          answer,
+          createdAt: new Date().toISOString(),
+          month: snapshot.month,
+        }));
+        await renderAssistant(container);
+        document.getElementById('question-input').value = question;
+        document.getElementById('answer-area').innerHTML = `<div class="assistant-answer">${formatAssistantAnswer(answer)}</div>`;
       } catch (err) {
         answerArea.innerHTML = `<p class="warning">Something went wrong: ${err.message}</p>`;
       }
