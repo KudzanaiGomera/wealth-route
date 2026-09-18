@@ -4883,6 +4883,7 @@ WR.ui = WR.ui || {};
           <button type="button" id="fetch-rate-btn" class="secondary">Fetch live rate</button>
           <button type="submit">Add rate</button>
         </form>
+        <button type="button" id="refresh-rates-btn" class="secondary">Refresh saved rates</button>
       </section>
 
       <section>
@@ -5006,7 +5007,7 @@ WR.ui = WR.ui || {};
     async function renderRates() {
       const rates = await WR.repos.exchangeRates.getAll();
       document.getElementById('rates-list').innerHTML = rates.length
-        ? `<ul>${rates.map((r) => `<li>1 ${r.fromCurrency} = ${r.rate} ${r.toCurrency} <button class="link-btn delete-rate" data-id="${r.id}">Delete</button></li>`).join('')}</ul>`
+        ? `<ul>${rates.map((r) => `<li>1 ${r.fromCurrency} = ${r.rate} ${r.toCurrency}${r.source ? ` <span class="fine-print">(${r.source}, ${r.date})</span>` : ''} <button class="link-btn delete-rate" data-id="${r.id}">Delete</button></li>`).join('')}</ul>`
         : '<p class="empty">No exchange rates yet.</p>';
       document.querySelectorAll('.delete-rate').forEach((btn) =>
         btn.addEventListener('click', async () => {
@@ -5022,6 +5023,19 @@ WR.ui = WR.ui || {};
     }
     renderRates();
 
+    async function fetchLiveRate(from, to) {
+      const endpoint = localStorage.getItem('wr_worker_url') || '';
+      const rateUrl = endpoint
+        ? `${endpoint.replace(/\/$/, '')}/rates?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+        : `https://api.frankfurter.app/latest?amount=1&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+      const res = await fetch(rateUrl);
+      if (!res.ok) throw new Error(`Rate service returned ${res.status}`);
+      const data = await res.json();
+      const rate = data && data.rates && data.rates[to];
+      if (!rate) throw new Error('No rate returned for that currency pair.');
+      return { rate, date: data.date || new Date().toISOString().slice(0, 10), source: 'Frankfurter/ECB' };
+    }
+
     document.getElementById('fetch-rate-btn').addEventListener('click', async (e) => {
       const form = e.target.closest('form');
       const from = form.fromCurrency.value.trim().toUpperCase();
@@ -5034,17 +5048,11 @@ WR.ui = WR.ui || {};
       btn.disabled = true;
       btn.textContent = 'Fetching\u2026';
       try {
-        const endpoint = localStorage.getItem('wr_worker_url') || '';
-        const rateUrl = endpoint
-          ? `${endpoint.replace(/\/$/, '')}/rates?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
-          : `https://api.frankfurter.app/latest?amount=1&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-        const res = await fetch(rateUrl);
-        if (!res.ok) throw new Error(`Rate service returned ${res.status}`);
-        const data = await res.json();
-        const rate = data && data.rates && data.rates[to];
-        if (!rate) throw new Error('No rate returned for that currency pair.');
-        form.rate.value = rate;
-        WR.ui.notify(`Live rate fetched: 1 ${from} = ${rate} ${to}.`, 'success');
+        const liveRate = await fetchLiveRate(from, to);
+        form.rate.value = liveRate.rate;
+        form.dataset.rateDate = liveRate.date;
+        form.dataset.rateSource = liveRate.source;
+        WR.ui.notify(`Live rate fetched: 1 ${from} = ${liveRate.rate} ${to} (${liveRate.source}, ${liveRate.date}).`, 'success');
       } catch (err) {
         // Offline or the rate service is unreachable: fall back to the most recent rate on file.
         const rates = await WR.repos.exchangeRates.getAll();
@@ -5058,6 +5066,33 @@ WR.ui = WR.ui || {};
       } finally {
         btn.disabled = false;
         btn.textContent = 'Fetch live rate';
+      }
+    });
+
+    document.getElementById('refresh-rates-btn').addEventListener('click', async (e) => {
+      const btn = e.target;
+      const rates = await WR.repos.exchangeRates.getAll();
+      if (!rates.length) {
+        WR.ui.notify('Add an exchange rate before refreshing.', 'error');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Refreshing\u2026';
+      let updated = 0;
+      try {
+        for (const savedRate of rates) {
+          const liveRate = await fetchLiveRate(savedRate.fromCurrency, savedRate.toCurrency);
+          await WR.repos.exchangeRates.update({ ...savedRate, ...liveRate });
+          updated += 1;
+        }
+        await renderRates();
+        WR.ui.notify(`Refreshed ${updated} saved exchange rate${updated === 1 ? '' : 's'}.`, 'success');
+      } catch (err) {
+        await renderRates();
+        WR.ui.notify(`Refreshed ${updated} rate${updated === 1 ? '' : 's'} before the update failed: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Refresh saved rates';
       }
     });
 
@@ -5084,10 +5119,13 @@ WR.ui = WR.ui || {};
         fromCurrency: form.fromCurrency.value.toUpperCase(),
         toCurrency: form.toCurrency.value.toUpperCase(),
         rate: parseFloat(form.rate.value),
-        date: new Date().toISOString().slice(0, 10),
+        date: form.dataset.rateDate || new Date().toISOString().slice(0, 10),
+        source: form.dataset.rateSource || 'Manual',
       });
       await WR.repos.exchangeRates.add(rate);
       form.reset();
+      delete form.dataset.rateDate;
+      delete form.dataset.rateSource;
       WR.ui.notify('Exchange rate added.', 'success');
       renderRates();
     });
@@ -5163,6 +5201,26 @@ window.WR = window.WR || {};
 WR.ui = WR.ui || {};
 
 (function () {
+  function escapeHtml(text) {
+    const element = document.createElement('div');
+    element.textContent = String(text || '');
+    return element.innerHTML;
+  }
+
+  function formatAssistantAnswer(answer) {
+    const inline = (text) => escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    return String(answer || '')
+      .split(/\r?\n/)
+      .map((line) => {
+        if (/^###\s+/.test(line)) return `<h3>${inline(line.replace(/^###\s+/, ''))}</h3>`;
+        if (/^##\s+/.test(line)) return `<h2>${inline(line.replace(/^##\s+/, ''))}</h2>`;
+        if (/^#\s+/.test(line)) return `<h2>${inline(line.replace(/^#\s+/, ''))}</h2>`;
+        if (/^[-*]\s+/.test(line)) return `<p>• ${inline(line.replace(/^[-*]\s+/, ''))}</p>`;
+        return line.trim() ? `<p>${inline(line)}</p>` : '';
+      })
+      .join('');
+  }
+
   function snapshotForPrompt(s) {
     // A trimmed, explicitly-labelled version of the snapshot \u2014 numbers only,
     // no raw transaction-level detail, so the model has exactly what it
@@ -5241,7 +5299,7 @@ WR.ui = WR.ui || {};
       try {
         const snapshot = await WR.ui.buildSnapshot();
         const answer = await askAssistant(workerUrl, question, snapshot);
-        answerArea.innerHTML = `<div class="assistant-answer">${answer.replace(/\n/g, '<br>')}</div>`;
+        answerArea.innerHTML = `<div class="assistant-answer">${formatAssistantAnswer(answer)}</div>`;
       } catch (err) {
         answerArea.innerHTML = `<p class="warning">Something went wrong: ${err.message}</p>`;
       }
@@ -5251,6 +5309,7 @@ WR.ui = WR.ui || {};
   WR.ui.renderAssistant = renderAssistant;
   WR.ui._askAssistant = askAssistant; // exposed for testing snapshotForPrompt indirectly
   WR.ui._snapshotForPrompt = snapshotForPrompt;
+  WR.ui._formatAssistantAnswer = formatAssistantAnswer;
 })();
 // Hash-based router. No history API complexity needed for a single-page
 // local app \u2014 #/dashboard, #/transactions, etc. map directly to render
