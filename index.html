@@ -536,7 +536,14 @@ button.danger { background: var(--danger); color: #fff; }
 
 .warning { color: var(--danger); }
 .loading { color: var(--muted); }
-.assistant-answer { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; line-height: 1.55; box-shadow: var(--shadow); }
+.assistant-answer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.2rem; line-height: 1.6; box-shadow: var(--shadow); margin-top: 1rem; max-width: 760px; }
+.assistant-answer::before { content: "Wealth Assistant"; display: block; color: var(--accent); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.65rem; }
+.assistant-answer h2, .assistant-answer h3 { font-family: var(--font-serif); margin: 1rem 0 0.4rem; font-size: 1.05rem; }
+.assistant-answer h2:first-of-type, .assistant-answer h3:first-of-type { margin-top: 0; }
+.assistant-answer p { margin: 0.45rem 0; }
+.assistant-chat { max-width: 760px; }
+.assistant-chat textarea { min-height: 5.5rem; resize: vertical; }
+.assistant-status { min-height: 1.25rem; margin: 0.65rem 0 0; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
@@ -3537,7 +3544,7 @@ WR.ui = WR.ui || {};
     const rows = sorted.map((item) => `
       <tr data-id="${item.id}">
         <td><input class="cell" data-field="date" type="date" value="${item.date}"></td>
-        <td><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${item.amount}"></td>
+        <td><input class="cell" data-field="amount" type="number" step="0.01" value="${item.amount}"></td>
         <td><input class="cell" data-field="note" value="${item.note || ''}"></td>
         <td><button class="link-btn delete-emergency" data-id="${item.id}">Delete</button></td>
       </tr>`).join('');
@@ -3560,6 +3567,15 @@ WR.ui = WR.ui || {};
         <input name="note" placeholder="Optional note">
         <button type="submit">Add</button>
       </form>
+
+      <h3>Borrow from emergency fund</h3>
+      <p class="fine-print">This reduces the fund balance and records the same amount as a variable expense named “Emergency Fund Borrowed” for the selected month.</p>
+      <form id="emergency-borrow-form" class="inline-form">
+        <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
+        <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount borrowed" required>
+        <input name="note" placeholder="Reason (optional)">
+        <button type="submit" class="secondary">Record borrowed amount</button>
+      </form>
     `;
 
     container.querySelectorAll('tbody tr').forEach((tr) => {
@@ -3569,7 +3585,7 @@ WR.ui = WR.ui || {};
           const row = await WR.repos.emergencyFundContributions.getById(id);
           if (!row) return;
           const field = input.dataset.field;
-          row[field] = field === 'amount' ? Math.max(0, parseFloat(input.value) || 0) : input.value;
+          row[field] = field === 'amount' ? parseFloat(input.value) || 0 : input.value;
           await WR.repos.emergencyFundContributions.update(row);
           WR.ui.flashSaved(input);
           WR.ui.refreshIntegrityNotice();
@@ -3603,6 +3619,35 @@ WR.ui = WR.ui || {};
       WR.ui.refreshIntegrityNotice();
       renderEmergencyFund(container);
     });
+
+    document.getElementById('emergency-borrow-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const amount = Math.max(0, parseFloat(form.amount.value) || 0);
+      if (!amount) return;
+      if (amount > total) {
+        WR.ui.notify(`You can borrow up to ${profile.baseCurrency} ${WR.ui.fmt(total)} from the current emergency fund.`, 'error');
+        return;
+      }
+      const date = form.date.value;
+      const note = form.note.value.trim();
+      await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
+        date,
+        amount: -amount,
+        note: note ? `Borrowed: ${note}` : 'Borrowed from emergency fund',
+      }));
+      await WR.repos.budgetLines.add(WR.models.createBudgetLine({
+        month: date.slice(0, 7),
+        type: 'variable',
+        name: 'Emergency Fund Borrowed',
+        budgetAmount: amount,
+        actualAmount: amount,
+        currency: profile.baseCurrency,
+      }));
+      WR.ui.refreshIntegrityNotice();
+      WR.ui.notify('Borrowed amount recorded and added to variable expenses.', 'success');
+      renderEmergencyFund(container);
+    });
   }
 
   async function renderDayToDay(container) {
@@ -3611,16 +3656,20 @@ WR.ui = WR.ui || {};
       WR.repos.dayToDayAccounts.getAll(),
       WR.repos.dayToDayTransactions.getAll(),
     ]);
-    const year = WR.ui._dayYear || new Date().getFullYear();
+    const month = WR.ui._dayMonth || WR.ui.currentMonthKey();
+    const year = Number(month.slice(0, 4));
     WR.ui._dayYear = year;
+    WR.ui._dayMonth = month;
     const account = accounts.find((item) => Number(item.year) === year) || null;
-    const yearTx = transactions.filter((item) => Number(item.year) === year).sort((a, b) => String(b.date).localeCompare(String(a.date)));
-    const added = yearTx.filter((item) => item.kind === 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const spent = yearTx.filter((item) => item.kind !== 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const monthTx = transactions.filter((item) => String(item.date || '').slice(0, 7) === month).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const added = monthTx.filter((item) => item.kind === 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const spent = monthTx.filter((item) => item.kind !== 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     const opening = Number(account?.startingBalance) || 0;
-    const current = opening + added - spent;
+    const beforeMonth = transactions.filter((item) => Number(item.year) === year && String(item.date || '').slice(0, 7) < month);
+    const balanceBeforeMonth = opening + beforeMonth.reduce((sum, item) => sum + (item.kind === 'add' ? 1 : -1) * (Number(item.amount) || 0), 0);
+    const current = balanceBeforeMonth + added - spent;
 
-    const rows = yearTx.map((item) => `
+    const rows = monthTx.map((item) => `
       <tr data-id="${item.id}">
         <td><input class="cell" data-field="date" type="date" value="${item.date}"></td>
         <td><select class="cell" data-field="kind"><option value="spend" ${item.kind !== 'add' ? 'selected' : ''}>Spend</option><option value="add" ${item.kind === 'add' ? 'selected' : ''}>Add money</option></select></td>
@@ -3634,14 +3683,14 @@ WR.ui = WR.ui || {};
     container.innerHTML = `
       <h1>Day-to-Day</h1>
       <p class="fine-print">Track daily account money separately from budget categories. Spend entries deduct from the current day-to-day balance.</p>
-      <div class="toolbar"><label>Year: <select id="day-year">${WR.ui.yearsAroundCurrent(3, 4).map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></label></div>
+      <div class="toolbar"><label>Month: <input id="day-month" type="month" value="${month}"></label></div>
 
       <div class="stat-grid">
-        <div class="stat"><span class="stat-label">Starting balance</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(opening)}</span></div>
+        <div class="stat"><span class="stat-label">Balance at start of month</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(balanceBeforeMonth)}</span></div>
         <div class="stat"><span class="stat-label">Money added</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(added)}</span></div>
         <div class="stat"><span class="stat-label">Money spent</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(spent)}</span></div>
         <div class="stat"><span class="stat-label">Current balance</span><span class="stat-value ${current < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(current)}</span></div>
-        <div class="stat"><span class="stat-label">Total transactions</span><span class="stat-value">${yearTx.length}</span></div>
+        <div class="stat"><span class="stat-label">Transactions this month</span><span class="stat-value">${monthTx.length}</span></div>
       </div>
 
       <h3>Starting balance</h3>
@@ -3667,8 +3716,8 @@ WR.ui = WR.ui || {};
       </form>
     `;
 
-    document.getElementById('day-year').addEventListener('change', (event) => {
-      WR.ui._dayYear = Number(event.target.value);
+    document.getElementById('day-month').addEventListener('change', (event) => {
+      WR.ui._dayMonth = event.target.value;
       renderDayToDay(container);
     });
 
@@ -5279,11 +5328,11 @@ WR.ui = WR.ui || {};
       ${
         workerUrl
           ? `<p class="fine-print">Answers use only the numbers already shown on your Dashboard. General information, not personalised financial advice.</p>
-             <form id="ask-form" class="stacked-form">
+             <form id="ask-form" class="stacked-form assistant-chat">
                <textarea id="question-input" rows="2" placeholder="e.g. Should I pay debt or invest right now?" required></textarea>
                <button type="submit">Ask</button>
              </form>
-             <div id="answer-area"></div>`
+             <div id="answer-area" class="assistant-status" aria-live="polite"></div>`
           : `<p class="empty">No Worker endpoint configured. Add your Cloudflare Worker URL in Settings to enable the assistant.</p>`
       }
     `;
