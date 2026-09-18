@@ -536,12 +536,12 @@ button.danger { background: var(--danger); color: #fff; }
 
 .warning { color: var(--danger); }
 .loading { color: var(--muted); }
-.assistant-answer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.2rem; line-height: 1.6; box-shadow: var(--shadow); margin-top: 1rem; max-width: 760px; }
+.assistant-answer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.2rem; line-height: 1.6; box-shadow: var(--shadow); margin-top: 1rem; width: 100%; max-width: none; }
 .assistant-answer::before { content: "Wealth Assistant"; display: block; color: var(--accent); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.65rem; }
 .assistant-answer h2, .assistant-answer h3 { font-family: var(--font-serif); margin: 1rem 0 0.4rem; font-size: 1.05rem; }
 .assistant-answer h2:first-of-type, .assistant-answer h3:first-of-type { margin-top: 0; }
 .assistant-answer p { margin: 0.45rem 0; }
-.assistant-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; align-items: start; }
+.assistant-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 1.5rem; align-items: start; }
 .assistant-main { min-width: 0; }
 .assistant-chat { max-width: none; }
 .assistant-chat textarea { min-height: 5.5rem; resize: vertical; }
@@ -554,7 +554,7 @@ button.danger { background: var(--danger); color: #fff; }
 .assistant-history tr:last-child td { border-bottom: none; }
 .assistant-history .history-question { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .assistant-history .link-btn { font-size: 0.78rem; }
-#content:has(.assistant-workspace) { max-width: 1240px; }
+#content:has(.assistant-workspace) { width: min(1500px, calc(100vw - 3rem)); max-width: none; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
