@@ -31,11 +31,15 @@ Question: ${question}`;
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname === '/' && request.method === 'GET') {
+      return json({ status: 'WealthRoute API is running.' }, 200, '*');
+    }
+
     const origin = allowedOrigin(request, env);
     if (!origin) return json({ error: 'Origin is not allowed.' }, 403, 'null');
     if (request.method === 'OPTIONS') return new Response(null, { headers: { ...CORS_HEADERS, 'Access-Control-Allow-Origin': origin } });
 
-    const url = new URL(request.url);
     if (url.pathname === '/rates' && request.method === 'GET') {
       const from = (url.searchParams.get('from') || '').toUpperCase();
       const to = (url.searchParams.get('to') || '').toUpperCase();
