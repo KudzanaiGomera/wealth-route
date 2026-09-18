@@ -1,0 +1,8 @@
+name = "wealthroute-api"
+main = "worker.js"
+compatibility_date = "2026-09-18"
+
+# Set this in Cloudflare after deployment to the origin serving the app, for
+# example: https://your-account.github.io. Never add GEMINI_API_KEY here.
+# [vars]
+# ALLOWED_ORIGINS = "https://your-app.example"

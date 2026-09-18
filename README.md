@@ -141,12 +141,41 @@ selected month, writing directly to the same store the Dashboard reads.
 preview with per-row validation \u2192 confirm) and export (all current data to
 a new workbook).
 
-**Wealth Assistant** \u2014 optional, off by default. See "AI Assistant" below.
+**Wealth Assistant** \u2014 optional, off by default. Uses a Cloudflare Worker so the provider key never reaches the browser. See "Live updates and assistant" below.
 
 **Settings** \u2014 base currency, country, emergency fund target, assumed
 investment return, risk profile, expense categories (essential/
-discretionary tagging), manually-entered exchange rates, JSON
+discretionary tagging), live or manually-entered exchange rates, JSON
 backup/export/restore, delete-all-data.
+
+## Live updates and assistant
+
+`worker.js` is a Cloudflare Worker with two routes: `/rates` proxies the
+free Frankfurter exchange-rate service and `/assistant` sends only the
+calculated financial snapshot to Google Gemini. The provider key is a
+Cloudflare secret, never a browser setting or repository file.
+
+1. Create a free Gemini API key in Google AI Studio. Gemini's free developer
+  tier is suitable for personal use, subject to Google's current quotas.
+2. Install Wrangler, sign in, and deploy from this folder:
+  ```bash
+  npm install -g wrangler
+  wrangler login
+  wrangler secret put GEMINI_API_KEY
+  wrangler deploy
+  ```
+3. In the Cloudflare Worker dashboard, add a plain-text `ALLOWED_ORIGINS`
+  variable with the exact app origin, for example
+  `https://your-account.github.io`. For local testing add
+  `http://localhost:8000` too, comma-separated.
+4. Copy the deployed `https://...workers.dev` URL into Settings > Live
+  Updates & Wealth Assistant.
+
+For a second free option, Groq offers a rate-limited developer API and can
+replace the Gemini request in `worker.js`. Do not put either provider key in
+`index.html`, local storage, or `wrangler.toml`. Configure Cloudflare rate
+limiting/WAF before sharing a public Worker, because browser-origin checks
+are helpful but are not user authentication.
 
 ## Honest deviations from the original 42-point brief
 
@@ -156,11 +185,9 @@ than left for you to discover:
 
 - **Goal Tracker and Habit Tracker**: excluded entirely, per your explicit
   instruction. No representation anywhere in the data model or UI.
-- **AI Assistant is not a built-in AI.** A static file has no server to hold
-  credentials safely, so this only works if you paste in your own Anthropic
-  API key (Settings \u2192 Wealth Assistant). It's off by default, the key stays
-  in your browser's local storage, and it costs your own API usage \u2014 this
-  is the most significant deviation from "just works out of the box."
+- **AI Assistant needs your deployed Worker.** It is off by default and
+  works only after a Cloudflare Worker URL and Gemini secret are configured.
+  Provider free tiers are quota-limited and may change.
 - **Excel import uses generic column mapping**, not a hardcoded parser tied
   to your exact 16-sheet workbook layout. This is more robust (survives
   structural differences, works with any spreadsheet) but means it won't
@@ -185,11 +212,10 @@ than left for you to discover:
 - **No income-opportunity suggestions** (section 19's "eventually suggest
   income-generating opportunities based on skills/capital/time") \u2014 out of
   scope for a static app with no external data sources.
-- **Multi-currency requires exchange rates entered manually** in Settings.
-  No live rate lookup (matches your MVP instruction to avoid required paid
-  APIs) \u2014 but it does fix the source workbook's actual bug (USD assets, and
-  now foreign-currency debts too, are properly converted into the net worth
-  total instead of silently assumed to already be in base currency).
+- **Multi-currency supports a free live lookup** through the Worker, with
+  manual entry and the last saved rate retained as fallbacks. It fixes the
+  source workbook's actual bug: USD assets and foreign-currency debts are
+  converted into net worth instead of silently assumed to be at parity.
 
 ## Project layout (development only \u2014 not part of the shipped app)
 

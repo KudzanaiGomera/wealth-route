@@ -4766,9 +4766,8 @@ WR.ui = WR.ui || {};
   WR.ui.renderExcel = renderExcel;
 })();
 // Settings view: base currency, country, emergency fund target, assumed
-// investment return, JSON backup/restore/reset, and the optional AI
-// assistant API key (stored locally only, never sent anywhere but
-// Anthropic's API when you actually use the assistant).
+// investment return, JSON backup/restore/reset, and the optional Cloudflare
+// Worker endpoint for live rates and the AI assistant.
 
 window.WR = window.WR || {};
 WR.ui = WR.ui || {};
@@ -4841,7 +4840,7 @@ WR.ui = WR.ui || {};
 
   async function renderSettings(container) {
     const profile = await WR.ui.getOrCreateProfile();
-    const apiKey = localStorage.getItem('wr_anthropic_api_key') || '';
+    const workerUrl = localStorage.getItem('wr_worker_url') || '';
 
     container.innerHTML = `
       <h1>Settings</h1>
@@ -4872,9 +4871,9 @@ WR.ui = WR.ui || {};
       <section>
         <h2>Exchange Rates</h2>
         <p class="fine-print">
-          Enter rates manually, or fetch today's rate from a live source (<a href="https://www.frankfurter.app/" target="_blank" rel="noopener">Frankfurter.app</a>,
-          which republishes European Central Bank reference rates \u2014 free, no account needed). Requires an internet connection; if the
-          request fails, just type the rate in yourself. Needed if you hold assets in more than one currency.
+          Enter rates manually, or fetch today's rate from a live source. When configured below, the request goes through your Cloudflare Worker;
+          otherwise it uses <a href="https://www.frankfurter.app/" target="_blank" rel="noopener">Frankfurter.app</a>'s free public endpoint.
+          Requires an internet connection; if the request fails, type the rate in yourself.
         </p>
         <div id="rates-list"></div>
         <form id="rate-form" class="inline-form">
@@ -4952,18 +4951,16 @@ WR.ui = WR.ui || {};
       </section>
 
       <section>
-        <h2>Wealth Assistant (optional)</h2>
+        <h2>Live Updates & Wealth Assistant (optional)</h2>
         <p class="fine-print">
-          Off by default. This app has no server, so there's no safe place to store an API key on your behalf \u2014
-          if you enable this, you're pasting in your own Anthropic API key, which is stored only in this browser's
-          local storage and sent directly from your browser to Anthropic's API when you ask a question. This is not
-          free \u2014 it uses your own Anthropic API usage/billing. Never share this key; anyone with it can use your
-          API quota.
+          Add your deployed Cloudflare Worker URL (for example, https://wealthroute-api.your-subdomain.workers.dev). The browser sends no API key:
+          the Worker holds your Gemini key as a Cloudflare secret and handles assistant questions and optional live-rate requests. Gemini has a
+          free developer tier; responses are general educational information, not personalised financial advice.
         </p>
-        <form id="api-key-form" class="inline-form">
-          <input type="password" id="api-key-input" placeholder="sk-ant-\u2026" value="${apiKey}">
-          <button type="submit">Save key</button>
-          <button type="button" id="clear-key-btn" class="secondary">Clear key</button>
+        <form id="worker-url-form" class="inline-form">
+          <input type="url" id="worker-url-input" placeholder="https://your-worker.workers.dev" value="${workerUrl}">
+          <button type="submit">Save endpoint</button>
+          <button type="button" id="clear-worker-url-btn" class="secondary">Clear endpoint</button>
         </form>
       </section>
     `;
@@ -5037,7 +5034,11 @@ WR.ui = WR.ui || {};
       btn.disabled = true;
       btn.textContent = 'Fetching\u2026';
       try {
-        const res = await fetch(`https://api.frankfurter.app/latest?amount=1&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+        const endpoint = localStorage.getItem('wr_worker_url') || '';
+        const rateUrl = endpoint
+          ? `${endpoint.replace(/\/$/, '')}/rates?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+          : `https://api.frankfurter.app/latest?amount=1&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+        const res = await fetch(rateUrl);
         if (!res.ok) throw new Error(`Rate service returned ${res.status}`);
         const data = await res.json();
         const rate = data && data.rates && data.rates[to];
@@ -5125,15 +5126,20 @@ WR.ui = WR.ui || {};
       renderSettings(container);
     });
 
-    document.getElementById('api-key-form').addEventListener('submit', (e) => {
+    document.getElementById('worker-url-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      localStorage.setItem('wr_anthropic_api_key', document.getElementById('api-key-input').value.trim());
-      WR.ui.notify('Key saved locally.', 'success');
+      const url = document.getElementById('worker-url-input').value.trim().replace(/\/$/, '');
+      if (url && !/^https:\/\//i.test(url)) {
+        WR.ui.notify('Enter an HTTPS Worker URL.', 'error');
+        return;
+      }
+      localStorage.setItem('wr_worker_url', url);
+      WR.ui.notify('Worker endpoint saved.', 'success');
     });
-    document.getElementById('clear-key-btn').addEventListener('click', () => {
-      localStorage.removeItem('wr_anthropic_api_key');
-      document.getElementById('api-key-input').value = '';
-      WR.ui.notify('Key cleared.', 'success');
+    document.getElementById('clear-worker-url-btn').addEventListener('click', () => {
+      localStorage.removeItem('wr_worker_url');
+      document.getElementById('worker-url-input').value = '';
+      WR.ui.notify('Worker endpoint cleared.', 'success');
     });
 
     document.getElementById('run-integrity-btn').addEventListener('click', async () => {
@@ -5149,18 +5155,14 @@ WR.ui = WR.ui || {};
   WR.ui.importBackup = importBackup;
   WR.ui.resetAllData = resetAllData;
 })();
-// Wealth Assistant: sends the already-computed FinancialSnapshot (not raw
-// data, not permission to act) to Anthropic's API along with the user's
-// question, using their own API key. The model only ever explains numbers
-// the deterministic engine already produced \u2014 it cannot change any stored
-// data, per the "AI explains, engine calculates" separation from the brief.
+// Wealth Assistant sends a small calculated snapshot to the user's Cloudflare
+// Worker. The Worker holds the provider key, so no secret is shipped to the
+// browser. The model cannot change stored data.
 
 window.WR = window.WR || {};
 WR.ui = WR.ui || {};
 
 (function () {
-  const MODEL = 'claude-sonnet-5';
-
   function snapshotForPrompt(s) {
     // A trimmed, explicitly-labelled version of the snapshot \u2014 numbers only,
     // no raw transaction-level detail, so the model has exactly what it
@@ -5190,32 +5192,15 @@ WR.ui = WR.ui || {};
     };
   }
 
-  async function askAssistant(apiKey, question, snapshot) {
-    const systemPrompt =
-      'You are the Wealth Assistant inside WealthRoute, a personal finance app. ' +
-      'You are given a JSON snapshot of numbers WealthRoute\u2019s own calculation engine already computed. ' +
-      'Explain and answer using only these numbers \u2014 do not invent figures that are not present. ' +
-      'You are not a licensed financial adviser; be clear this is general educational information, not personalised financial advice. ' +
-      'Never state investment returns as guaranteed. Keep answers concise and concrete.';
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+  async function askAssistant(workerUrl, question, snapshot) {
+    const response = await fetch(`${workerUrl.replace(/\/$/, '')}/assistant`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: [
-          {
-            role: 'user',
-            content: `Financial snapshot:\n${JSON.stringify(snapshotForPrompt(snapshot), null, 2)}\n\nQuestion: ${question}`,
-          },
-        ],
+        question,
+        snapshot: snapshotForPrompt(snapshot),
       }),
     });
 
@@ -5224,30 +5209,28 @@ WR.ui = WR.ui || {};
       throw new Error(`API error ${response.status}: ${errText}`);
     }
     const data = await response.json();
-    return data.content
-      .filter((block) => block.type === 'text')
-      .map((block) => block.text)
-      .join('\n');
+    if (!data.answer) throw new Error('Assistant returned no answer.');
+    return data.answer;
   }
 
   async function renderAssistant(container) {
-    const apiKey = localStorage.getItem('wr_anthropic_api_key') || '';
+    const workerUrl = localStorage.getItem('wr_worker_url') || '';
 
     container.innerHTML = `
       <h1>Wealth Assistant</h1>
       ${
-        apiKey
+        workerUrl
           ? `<p class="fine-print">Answers use only the numbers already shown on your Dashboard. General information, not personalised financial advice.</p>
              <form id="ask-form" class="stacked-form">
                <textarea id="question-input" rows="2" placeholder="e.g. Should I pay debt or invest right now?" required></textarea>
                <button type="submit">Ask</button>
              </form>
              <div id="answer-area"></div>`
-          : `<p class="empty">No API key configured. Add your own Anthropic API key in Settings to enable this \u2014 it's optional and off by default.</p>`
+          : `<p class="empty">No Worker endpoint configured. Add your Cloudflare Worker URL in Settings to enable the assistant.</p>`
       }
     `;
 
-    if (!apiKey) return;
+    if (!workerUrl) return;
 
     document.getElementById('ask-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -5257,7 +5240,7 @@ WR.ui = WR.ui || {};
       answerArea.innerHTML = '<p class="loading">Thinking\u2026</p>';
       try {
         const snapshot = await WR.ui.buildSnapshot();
-        const answer = await askAssistant(apiKey, question, snapshot);
+        const answer = await askAssistant(workerUrl, question, snapshot);
         answerArea.innerHTML = `<div class="assistant-answer">${answer.replace(/\n/g, '<br>')}</div>`;
       } catch (err) {
         answerArea.innerHTML = `<p class="warning">Something went wrong: ${err.message}</p>`;
