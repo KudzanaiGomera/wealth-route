@@ -2,7 +2,7 @@ name = "wealth-route"
 main = "worker.js"
 compatibility_date = "2026-09-18"
 
-# Set this in Cloudflare after deployment to the origin serving the app, for
-# example: https://your-account.github.io. Never add GEMINI_API_KEY here.
-# [vars]
-# ALLOWED_ORIGINS = "https://your-app.example"
+# Public CORS origins for the WealthRoute site and local development. Never add
+# GEMINI_API_KEY here; keep it as a Cloudflare secret.
+[vars]
+ALLOWED_ORIGINS = "https://kudzanaigomera.github.io,http://localhost:8000"

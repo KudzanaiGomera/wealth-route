@@ -3,6 +3,7 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
   'Content-Type': 'application/json; charset=utf-8',
 };
+const GEMINI_MODEL = 'gemini-3.6-flash';
 
 function json(body, status = 200, origin) {
   return new Response(JSON.stringify(body), {
@@ -13,7 +14,17 @@ function json(body, status = 200, origin) {
 
 function allowedOrigin(request, env) {
   const origin = request.headers.get('Origin');
-  const allowed = (env.ALLOWED_ORIGINS || '').split(',').map((value) => value.trim()).filter(Boolean);
+  const allowed = (env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => {
+      try {
+        return new URL(value).origin;
+      } catch {
+        return value;
+      }
+    });
   return origin && allowed.includes(origin) ? origin : null;
 }
 
@@ -65,7 +76,7 @@ export default {
       }
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
