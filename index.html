@@ -4230,6 +4230,7 @@ WR.ui = WR.ui || {};
     const strategy = WR.ui._debtStrategy || 'avalanche';
     const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
     const calendarYear = WR.ui._debtCalendarYear || new Date().getFullYear();
+    const interestPeriod = WR.ui._debtInterestPeriod || 'yearly';
 
     const overviewHtml = computeDebtOverviewHtml(debts, exchangeRates, profile);
     const calendarHtml = computeDebtCalendarHtml(debts, payments, profile, calendarYear);
@@ -4249,7 +4250,7 @@ WR.ui = WR.ui || {};
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="originalBalance" value="${d.originalBalance || d.currentBalance}"></td>
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentBalance" value="${d.currentBalance}"></td>
         <td><select class="cell" data-field="currency">${currencyOptions(d.currency || profile.baseCurrency)}</select></td>
-        <td><input class="cell num" type="number" step="0.1" min="0" data-field="interestRatePct" value="${(d.interestRate * 100).toFixed(2)}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="interestRatePct" value="${(d.interestRate * (interestPeriod === 'monthly' ? 100 / 12 : 100)).toFixed(2)}"></td>
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="minPayment" value="${d.minPayment}"></td>
         <td><select class="cell" data-field="paymentFrequency">${paymentFrequencyOptions(d.paymentFrequency || 'monthly')}</select></td>
         <td><input class="cell" type="date" data-field="startDate" value="${d.startDate || ''}"></td>
@@ -4268,7 +4269,7 @@ WR.ui = WR.ui || {};
       <div class="debt-overview-wrap">${overviewHtml}</div>
       <div class="table-wrap">
         <table class="data-table debts-table">
-          <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate %/yr</th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Expected completion</th><th>Payments remaining</th><th>Total paid</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate <select id="debt-interest-period" class="table-header-select" aria-label="Interest rate period"><option value="yearly" ${interestPeriod === 'yearly' ? 'selected' : ''}>%/yr</option><option value="monthly" ${interestPeriod === 'monthly' ? 'selected' : ''}>%/mo</option></select></th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Expected completion</th><th>Payments remaining</th><th>Total paid</th><th></th></tr></thead>
           <tbody>${rows || '<tr><td colspan="12" class="empty">No debts recorded.</td></tr>'}</tbody>
         </table>
       </div>
@@ -4313,7 +4314,8 @@ WR.ui = WR.ui || {};
           if (!debt) return;
           const field = input.dataset.field;
           if (field === 'interestRatePct') {
-            debt.interestRate = Math.max(0, parseFloat(input.value) || 0) / 100;
+            const enteredRate = Math.max(0, parseFloat(input.value) || 0) / 100;
+            debt.interestRate = interestPeriod === 'monthly' ? enteredRate * 12 : enteredRate;
           } else if (field === 'name' || field === 'currency' || field === 'paymentFrequency' || field === 'startDate' || field === 'expectedCompletionDate') {
             debt[field] = input.value;
           } else {
@@ -4343,6 +4345,11 @@ WR.ui = WR.ui || {};
           afterChange: async () => { await renderDebts(container); },
         });
       });
+    });
+
+    document.getElementById('debt-interest-period').addEventListener('change', (e) => {
+      WR.ui._debtInterestPeriod = e.target.value;
+      renderDebts(container);
     });
 
     document.getElementById('add-debt-form').addEventListener('submit', async (e) => {
