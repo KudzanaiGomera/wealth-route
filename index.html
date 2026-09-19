@@ -293,42 +293,100 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .position-summary-grid {
   display: grid;
   grid-template-columns: 1.2fr 0.9fr;
-  gap: 1rem;
+  gap: 1.35rem;
   margin: 0.3rem 0 1rem;
   align-items: stretch;
 }
 .dashboard-card {
-  background: var(--panel-alt);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--panel-alt) 92%, var(--accent)) 0%, var(--panel) 54%, color-mix(in srgb, var(--panel-alt) 92%, var(--gold)) 100%);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1rem;
-  box-shadow: var(--shadow);
+  border-radius: 16px;
+  padding: 1.4rem 1.45rem;
+  box-shadow: 0 16px 36px rgba(23, 26, 25, 0.08);
 }
+.dashboard-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 38%, transparent), transparent 36%),
+    radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--gold) 18%, transparent), transparent 28%);
+  opacity: 0.55;
+}
+.dashboard-card > * { position: relative; }
 .dashboard-card h2 {
   margin-top: 0;
 }
+.dashboard-card h1, .dashboard-card h2 { letter-spacing: 0.01em; }
+.position-card { border-left: 4px solid var(--accent); }
+.annual-card { border-left: 4px solid var(--gold); }
+.annual-card h2 { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.annual-card h2::after {
+  content: "Year to date";
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--gold);
+  border: 1px solid color-mix(in srgb, var(--gold) 42%, var(--border));
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--gold) 8%, var(--panel));
+}
 .hero-headline {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1.75rem 2rem;
-  box-shadow: var(--shadow);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--panel) 90%, var(--accent)), var(--panel) 60%),
+    var(--panel);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
+  border-radius: 14px;
+  padding: 2rem 2.1rem;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 28%, transparent), 0 12px 28px rgba(23, 26, 25, 0.08);
   margin: 1rem 0 1.25rem;
 }
 .hero-headline .stat-label { font-size: 0.85rem; }
 .hero-headline .hero-value {
   display: block;
   font-family: var(--font-serif);
-  font-size: 2.75rem;
+  font-size: clamp(2.35rem, 5vw, 4rem);
   line-height: 1.15;
   margin-top: 0.15rem;
 }
 .hero-headline .hero-value.negative { color: var(--danger); }
 
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.65rem; margin: 1rem 0; }
+.dashboard-card .stat-grid { gap: 0.8rem; }
 .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 0.9rem; }
+.dashboard-card .stat {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  border-color: color-mix(in srgb, var(--border) 82%, var(--accent));
+  border-radius: 12px;
+  min-height: 5.7rem;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 22%, transparent);
+}
+.dashboard-card .stat::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--gold) 72%, var(--accent)));
+  opacity: 0.75;
+}
+.annual-card .stat:nth-child(2n)::after { background: linear-gradient(90deg, var(--gold), var(--accent)); }
+.dashboard-card .stat:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 .stat-label { display: block; font-size: 0.78rem; color: var(--muted); }
 .stat-value { display: block; font-family: var(--font-serif); font-size: 1.3rem; margin-top: 0.2rem; }
+.dashboard-card .stat-value { font-size: clamp(1.25rem, 2.2vw, 1.65rem); line-height: 1.2; }
 .stat-value.negative { color: var(--danger); }
 
 .day-category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
@@ -587,6 +645,8 @@ button.danger { background: var(--danger); color: #fff; }
   }
   #content { padding: 1.1rem 0.9rem 2.4rem; }
   .position-summary-grid { grid-template-columns: 1fr; }
+  .dashboard-card { padding: 1.15rem; border-radius: 14px; }
+  .dashboard-card .stat { min-height: 5rem; }
   .hero-headline { padding: 1.25rem 1.4rem; }
   .hero-headline .hero-value { font-size: 2.25rem; }
 }
@@ -599,6 +659,8 @@ button.danger { background: var(--danger); color: #fff; }
   .inline-form { flex-direction: column; align-items: stretch; }
   .inline-form input, .inline-form select, .inline-form button, .stacked-form input, .stacked-form select, .stacked-form button, textarea { width: 100%; }
   .stat-grid { grid-template-columns: 1fr; }
+  .dashboard-card .stat { min-height: 4.6rem; }
+  .annual-card h2 { align-items: flex-start; flex-direction: column; gap: 0.45rem; }
   .score-breakdown { flex-direction: column; gap: 0.25rem; }
   .assistant-workspace { grid-template-columns: 1fr; }
   .assistant-history { position: static; }
@@ -2924,7 +2986,7 @@ WR.ui = WR.ui || {};
       `}
 
       <section class="position-summary-grid">
-        <div class="hero dashboard-card">
+        <div class="hero dashboard-card position-card">
           <p class="greeting">${greeting(s.profile.displayName)}</p>
           <h1>Your Financial Position</h1>
           <p class="month-label">${s.monthLabel}</p>
@@ -2944,7 +3006,7 @@ WR.ui = WR.ui || {};
           </div>
         </div>
 
-        <div class="dashboard-card">
+        <div class="dashboard-card annual-card">
           <h2>Annual Financial Summary (${s.selectedYear})</h2>
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
