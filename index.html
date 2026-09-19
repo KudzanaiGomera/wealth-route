@@ -331,6 +331,19 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .stat-value { display: block; font-family: var(--font-serif); font-size: 1.3rem; margin-top: 0.2rem; }
 .stat-value.negative { color: var(--danger); }
 
+.day-category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+.day-category-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem; box-shadow: var(--shadow); }
+.day-category-card.top-spend { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); background: color-mix(in srgb, var(--gold) 7%, var(--panel)); }
+.day-category-card h3 { margin: 0; font-size: 0.88rem; color: var(--muted); }
+.day-category-card .amount { display: block; font-family: var(--font-serif); font-size: 1.45rem; margin-top: 0.3rem; }
+.day-category-card .share { display: block; color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
+.day-category-meter { height: 0.45rem; border-radius: 999px; background: var(--panel-alt); overflow: hidden; margin-top: 0.65rem; border: 1px solid var(--border); }
+.day-category-meter span { display: block; height: 100%; width: var(--share); background: linear-gradient(90deg, var(--accent), var(--gold)); }
+.day-suggestion-card { background: color-mix(in srgb, var(--accent) 7%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); border-radius: 8px; padding: 1rem; margin: 1rem 0; box-shadow: var(--shadow); }
+.day-suggestion-card h2 { margin: 0 0 0.35rem; }
+.day-suggestion-card p { margin: 0.25rem 0; color: var(--text); font-size: 0.92rem; }
+.day-suggestion-card .fine-print { margin-top: 0.55rem; }
+
 /* ---------- Health score ---------- */
 
 .health-score {
@@ -3562,17 +3575,26 @@ WR.ui = WR.ui || {};
     const month = WR.ui._emergencyFundMonth || WR.ui.currentMonthKey();
     WR.ui._emergencyFundMonth = month;
     const sorted = contributions.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-    const total = sorted.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const countedAmount = (item) => {
+      const amount = Number(item.amount) || 0;
+      return item.returned && amount < 0 ? 0 : amount;
+    };
+    const total = sorted.reduce((sum, item) => sum + countedAmount(item), 0);
     const monthContributions = sorted.filter((item) => String(item.date || '').slice(0, 7) === month);
-    const monthNet = monthContributions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const monthNet = monthContributions.reduce((sum, item) => sum + countedAmount(item), 0);
 
-    const rows = monthContributions.map((item) => `
+    const rows = monthContributions.map((item) => {
+      const isBorrowed = (Number(item.amount) || 0) < 0;
+      const returned = Boolean(item.returned);
+      return `
       <tr data-id="${item.id}">
         <td><input class="cell" data-field="date" type="date" value="${item.date}"></td>
         <td><input class="cell" data-field="amount" type="number" step="0.01" value="${item.amount}"></td>
         <td><input class="cell" data-field="note" value="${item.note || ''}"></td>
+        <td>${isBorrowed ? `<button class="link-btn toggle-emergency-return" data-id="${item.id}">${returned ? 'Unmark returned' : 'Mark returned'}</button>` : ''}</td>
         <td><button class="link-btn delete-emergency" data-id="${item.id}">Delete</button></td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
 
     container.innerHTML = `
       <h1>Emergency Fund</h1>
@@ -3583,8 +3605,8 @@ WR.ui = WR.ui || {};
       </div>
       <div class="toolbar"><label>Month: <input id="emergency-fund-month" type="month" value="${month}"></label></div>
       <table class="data-table">
-        <thead><tr><th>Date</th><th>Contribution (${profile.baseCurrency})</th><th>Note</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="4" class="empty">No emergency fund activity for this month.</td></tr>'}</tbody>
+        <thead><tr><th>Date</th><th>Contribution (${profile.baseCurrency})</th><th>Note</th><th>Returned</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5" class="empty">No emergency fund activity for this month.</td></tr>'}</tbody>
       </table>
 
       <h3>Add contribution</h3>
@@ -3618,10 +3640,22 @@ WR.ui = WR.ui || {};
           if (!row) return;
           const field = input.dataset.field;
           row[field] = field === 'amount' ? parseFloat(input.value) || 0 : input.value;
+          if (field === 'amount' && row.amount >= 0) row.returned = false;
           await WR.repos.emergencyFundContributions.update(row);
           WR.ui.flashSaved(input);
           WR.ui.refreshIntegrityNotice();
         });
+      });
+    });
+
+    container.querySelectorAll('.toggle-emergency-return').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const row = await WR.repos.emergencyFundContributions.getById(button.dataset.id);
+        if (!row) return;
+        row.returned = !row.returned;
+        await WR.repos.emergencyFundContributions.update(row);
+        await WR.ui.refreshIntegrityNotice();
+        renderEmergencyFund(container);
       });
     });
 
@@ -3667,6 +3701,7 @@ WR.ui = WR.ui || {};
         date,
         amount: -amount,
         note: note ? `Borrowed: ${note}` : 'Borrowed from emergency fund',
+        returned: false,
       }));
       await WR.repos.budgetLines.add(WR.models.createBudgetLine({
         month: date.slice(0, 7),
@@ -3683,15 +3718,31 @@ WR.ui = WR.ui || {};
   }
 
   async function renderDayToDay(container) {
-    const [profile, accounts, transactions] = await Promise.all([
+    const [profile, accounts, transactions, expenseCategories, emergencyFundContributions] = await Promise.all([
       WR.ui.getOrCreateProfile(),
       WR.repos.dayToDayAccounts.getAll(),
       WR.repos.dayToDayTransactions.getAll(),
+      WR.repos.expenseCategories.getAll(),
+      WR.repos.emergencyFundContributions.getAll(),
     ]);
     const month = WR.ui._dayMonth || WR.ui.currentMonthKey();
     const year = Number(month.slice(0, 4));
     WR.ui._dayYear = year;
     WR.ui._dayMonth = month;
+    const defaultCategories = ['Alcohol', 'Eating out', 'Transport', 'Bank charges', 'Additional groceries'];
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+    const categoryNames = [];
+    [...defaultCategories, ...expenseCategories.map((category) => category.name), ...transactions.map((transaction) => transaction.category)]
+      .map((category) => String(category || '').trim())
+      .filter(Boolean)
+      .forEach((category) => {
+        if (!categoryNames.some((name) => name.toLowerCase() === category.toLowerCase())) categoryNames.push(category);
+      });
+    const categoryOptions = (selectedCategory) => {
+      const selected = String(selectedCategory || '').trim();
+      const options = categoryNames.map((category) => `<option value="${escapeHtml(category)}" ${category.toLowerCase() === selected.toLowerCase() ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('');
+      return `<option value="" ${selected ? '' : 'selected'}>None</option>${options}`;
+    };
     const account = accounts.find((item) => Number(item.year) === year) || null;
     const monthTx = transactions.filter((item) => String(item.date || '').slice(0, 7) === month).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const added = monthTx.filter((item) => item.kind === 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -3700,14 +3751,44 @@ WR.ui = WR.ui || {};
     const beforeMonth = transactions.filter((item) => Number(item.year) === year && String(item.date || '').slice(0, 7) < month);
     const balanceBeforeMonth = opening + beforeMonth.reduce((sum, item) => sum + (item.kind === 'add' ? 1 : -1) * (Number(item.amount) || 0), 0);
     const current = balanceBeforeMonth + added - spent;
+    const spendByCategory = new Map();
+    monthTx.filter((item) => item.kind !== 'add').forEach((item) => {
+      const category = String(item.category || '').trim() || 'Uncategorised';
+      spendByCategory.set(category, (spendByCategory.get(category) || 0) + (Number(item.amount) || 0));
+    });
+    const categorySpend = Array.from(spendByCategory, ([category, amount]) => ({ category, amount })).sort((left, right) => right.amount - left.amount);
+    const topSpend = categorySpend[0] || null;
+    const previousMonth = WR.ui.previousMonthKey(month);
+    const emergencyFundAddedLastMonth = emergencyFundContributions.some((item) => String(item.date || '').slice(0, 7) === previousMonth && (Number(item.amount) || 0) > 0);
+    const reductionAmount = topSpend ? Math.max(1, Math.round(topSpend.amount * 0.1)) : 0;
+    const reductionDestination = emergencyFundAddedLastMonth ? 'your day-to-day buffer' : 'your emergency fund';
+    const reductionContext = emergencyFundAddedLastMonth
+      ? `You added to your emergency fund last month, so keeping this reduction in ${reductionDestination} will improve cash flow.`
+      : `Last month had no emergency fund contribution, so this is a good place to direct the freed-up money.`;
+    const reductionCard = topSpend ? `
+      <section class="day-suggestion-card">
+        <h2>Spending suggestion</h2>
+        <p>Reduce ${escapeHtml(topSpend.category)} by about ${profile.baseCurrency} ${WR.ui.fmt(reductionAmount)} this month and direct it to ${reductionDestination}.</p>
+        <p class="fine-print">${escapeHtml(reductionContext)} ${escapeHtml(topSpend.category)} is currently your highest day-to-day category at ${profile.baseCurrency} ${WR.ui.fmt(topSpend.amount)}.</p>
+      </section>` : '';
+    const categoryCards = categorySpend.map((item, index) => {
+      const share = spent > 0 ? (item.amount / spent) * 100 : 0;
+      return `
+        <article class="day-category-card ${index === 0 ? 'top-spend' : ''}">
+          <h3>${escapeHtml(item.category)}${index === 0 ? ' · Most spent' : ''}</h3>
+          <span class="amount">${profile.baseCurrency} ${WR.ui.fmt(item.amount)}</span>
+          <span class="share">${share.toFixed(0)}% of this month's day-to-day spending</span>
+          <div class="day-category-meter" aria-hidden="true"><span style="--share: ${Math.max(3, share).toFixed(0)}%"></span></div>
+        </article>`;
+    }).join('');
 
     const rows = monthTx.map((item) => `
       <tr data-id="${item.id}">
-        <td><input class="cell" data-field="date" type="date" value="${item.date}"></td>
+        <td><input class="cell" data-field="date" type="date" value="${escapeHtml(item.date)}"></td>
         <td><select class="cell" data-field="kind"><option value="spend" ${item.kind !== 'add' ? 'selected' : ''}>Spend</option><option value="add" ${item.kind === 'add' ? 'selected' : ''}>Add money</option></select></td>
-        <td><input class="cell" data-field="description" value="${item.description || ''}"></td>
-        <td><input class="cell" data-field="category" value="${item.category || ''}"></td>
-        <td><input class="cell" data-field="note" value="${item.note || ''}"></td>
+        <td><input class="cell" data-field="description" value="${escapeHtml(item.description || '')}"></td>
+        <td><select class="cell" data-field="category">${categoryOptions(item.category)}</select></td>
+        <td><input class="cell" data-field="note" value="${escapeHtml(item.note || '')}"></td>
         <td><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${item.amount}"></td>
         <td><button class="link-btn delete-day" data-id="${item.id}">Delete</button></td>
       </tr>`).join('');
@@ -3725,10 +3806,23 @@ WR.ui = WR.ui || {};
         <div class="stat"><span class="stat-label">Transactions this month</span><span class="stat-value">${monthTx.length}</span></div>
       </div>
 
+      ${reductionCard}
+
+      <section>
+        <h2>Where your money is going</h2>
+        <div class="day-category-grid">${categoryCards || '<p class="empty">No spending recorded for this month yet.</p>'}</div>
+      </section>
+
       <h3>Starting balance</h3>
       <form id="day-balance-form" class="inline-form">
         <input name="startingBalance" type="number" step="0.01" min="0" value="${opening}">
         <button type="submit">Save starting balance</button>
+      </form>
+
+      <h3>Add category</h3>
+      <form id="day-category-form" class="inline-form">
+        <input name="name" placeholder="New category" required>
+        <button type="submit" class="secondary">Add category</button>
       </form>
 
       <table class="data-table">
@@ -3741,7 +3835,7 @@ WR.ui = WR.ui || {};
         <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
         <select name="kind"><option value="spend">Spend</option><option value="add">Add money</option></select>
         <input name="description" placeholder="Description" required>
-        <input name="category" placeholder="Optional category">
+        <select name="category">${categoryOptions()}</select>
         <input name="note" placeholder="Optional note">
         <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
         <button type="submit">Add</button>
@@ -3761,6 +3855,18 @@ WR.ui = WR.ui || {};
       record.currency = profile.baseCurrency;
       record.startingBalance = Math.max(0, parseFloat(form.startingBalance.value) || 0);
       await WR.repos.dayToDayAccounts.update(record);
+      renderDayToDay(container);
+    });
+
+    document.getElementById('day-category-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const name = form.name.value.trim();
+      if (!name) return;
+      if (!categoryNames.some((category) => category.toLowerCase() === name.toLowerCase())) {
+        await WR.repos.expenseCategories.add(WR.models.createExpenseCategory({ name, type: 'variable', essential: false }));
+        WR.ui.notify('Day-to-day category added.', 'success');
+      }
       renderDayToDay(container);
     });
 
