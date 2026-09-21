@@ -10,209 +10,158 @@
     <h1>WealthRoute &mdash; Full test suite</h1>
     <div id="results"></div>
     <script>
-// IndexedDB schema, opened with the native browser API directly — no
-// external library, no bundler needed to resolve an import for one.
+// Test-harness auth: signs in anonymously against the same Firebase project
+// index.html uses, so these tests exercise the real Firestore-backed storage
+// layer (not a mock). Anonymous auth needs enabling once in Firebase Console
+// -> Authentication -> Sign-in method -> Anonymous; no password to manage,
+// and the existing Firestore rules (request.auth.uid == uid) already cover
+// anonymous users since they still get a real uid. Each browser profile
+// reuses the same anonymous user across test runs (Firebase Auth's default
+// persistence), and every test below clears its own data via resetDB()
+// first, so leftover state from a previous run never leaks into a test.
 
 window.WR = window.WR || {};
+WR.testAuth = {};
 
 (function () {
-  const DB_NAME = 'wealthroute';
-  const DB_VERSION = 2;
+  const FIREBASE_CONFIG = {
+    apiKey: 'AIzaSyBGtuB9rwkdCCyhjqr_L7t6QJ_bqkEu3Xs',
+    authDomain: 'wealthroute-cabd6.firebaseapp.com',
+    projectId: 'wealthroute-cabd6',
+    storageBucket: 'wealthroute-cabd6.firebasestorage.app',
+    messagingSenderId: '978392756825',
+    appId: '1:978392756825:web:5ae08cc9d3f859c0ca3748',
+  };
+  const SDK_VERSION = '10.14.1';
 
-  /** @type {Promise<IDBDatabase>|null} */
-  let dbPromise = null;
+  let currentUser = null;
+  let db = null;
+  let firestoreApi = null;
+  let initPromise = null;
 
-  function openDatabase() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-      request.onupgradeneeded = (event) => {
-        const db = /** @type {IDBDatabase} */ (event.target.result);
-
-        db.createObjectStore('userProfile', { keyPath: 'id' });
-        db.createObjectStore('incomeSources', { keyPath: 'id' });
-        db.createObjectStore('expenseCategories', { keyPath: 'id' });
-        db.createObjectStore('fixedExpenses', { keyPath: 'id' });
-        db.createObjectStore('emergencyFundContributions', { keyPath: 'id' });
-        db.createObjectStore('dayToDayAccounts', { keyPath: 'id' });
-        db.createObjectStore('dayToDayTransactions', { keyPath: 'id' });
-
-        const budgetLines = db.createObjectStore('budgetLines', { keyPath: 'id' });
-        budgetLines.createIndex('by-month', 'month');
-
-        db.createObjectStore('debts', { keyPath: 'id' });
-
-        const debtPayments = db.createObjectStore('debtPayments', { keyPath: 'id' });
-        debtPayments.createIndex('by-debt', 'debtId');
-
-        db.createObjectStore('assets', { keyPath: 'id' });
-        db.createObjectStore('investments', { keyPath: 'id' });
-
-        const netWorthSnapshots = db.createObjectStore('netWorthSnapshots', { keyPath: 'id' });
-        netWorthSnapshots.createIndex('by-date', 'date');
-
-        db.createObjectStore('exchangeRates', { keyPath: 'id' });
-      };
-
-      request.onsuccess = () => {
-        // Without this, deleteDatabase() between tests blocks forever behind
-        // this still-open connection.
-        request.result.onversionchange = () => request.result.close();
-        resolve(request.result);
-      };
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  /** @returns {Promise<IDBDatabase>} */
-  function getDB() {
-    if (!dbPromise) {
-      dbPromise = openDatabase();
+  function ensureInit() {
+    if (!initPromise) {
+      initPromise = (async () => {
+        const [{ initializeApp }, authModule, firestoreModule] = await Promise.all([
+          import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-app.js`),
+          import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-auth.js`),
+          import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-firestore.js`),
+        ]);
+        const app = initializeApp(FIREBASE_CONFIG);
+        firestoreApi = firestoreModule;
+        const auth = authModule.getAuth(app);
+        db = firestoreModule.getFirestore(app);
+        const cred = await authModule.signInAnonymously(auth);
+        currentUser = cred.user;
+      })();
     }
-    return dbPromise;
+    return initPromise;
   }
 
-  /** Test-only: drop the cached connection so a fresh open() happens next time. */
-  async function resetConnection() {
-    if (dbPromise) {
-      const db = await dbPromise.catch(() => null);
-      if (db) db.close();
-    }
-    dbPromise = null;
-  }
-
-  /** Test-only: fully delete the database so each test run starts clean. */
-  async function deleteDatabase() {
-    await resetConnection();
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.deleteDatabase(DB_NAME);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-      req.onblocked = () => resolve();
-    });
-  }
-
-  WR.db = { getDB, resetConnection, deleteDatabase, DB_NAME };
+  WR.testAuth.ensureInit = ensureInit;
+  WR.testAuth.getCurrentUser = () => currentUser;
+  WR.testAuth.getDb = () => db;
+  WR.testAuth.getFirestoreApi = () => firestoreApi;
 })();
-// Generic CRUD repository over a single IndexedDB object store. Every entity
-// in the data model gets one of these via WR.createRepository(storeName).
-// Index-backed queries (e.g. "budget lines for a given month") live in
-// repositories.js instead, since they're store-specific.
+// Firestore-backed data layer \u2014 mirrors index.html's real storage layer
+// exactly (same users/{uid}/{storeName}/{id} shape, same interface), so these
+// tests validate the actual persistence code path, not a stand-in for it.
 
 window.WR = window.WR || {};
 
 (function () {
-  /**
-   * @param {IDBRequest} request
-   * @returns {Promise<any>}
-   */
-  function requestToPromise(request) {
-    return new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
+  function requireContext() {
+    const user = WR.testAuth.getCurrentUser();
+    if (!user) throw new Error('Test auth not ready \u2014 call WR.testAuth.ensureInit() first.');
+    return { uid: user.uid, api: WR.testAuth.getFirestoreApi(), db: WR.testAuth.getDb() };
   }
 
-  /**
-   * @param {string} storeName
-   */
+  /** @param {string} storeName */
   function createRepository(storeName) {
+    function collectionRef() {
+      const { uid, api, db } = requireContext();
+      return api.collection(db, 'users', uid, storeName);
+    }
+    function docRef(id) {
+      const { uid, api, db } = requireContext();
+      return api.doc(db, 'users', uid, storeName, id);
+    }
     return {
       async getAll() {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readonly');
-        return requestToPromise(tx.objectStore(storeName).getAll());
+        const { api } = requireContext();
+        const snap = await api.getDocs(collectionRef());
+        return snap.docs.map((d) => d.data());
       },
       /** @param {string} id */
       async getById(id) {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readonly');
-        return requestToPromise(tx.objectStore(storeName).get(id));
+        const { api } = requireContext();
+        const snap = await api.getDoc(docRef(id));
+        return snap.exists() ? snap.data() : undefined;
       },
       /** @param {{id: string}} item */
       async add(item) {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readwrite');
-        await requestToPromise(tx.objectStore(storeName).put(item));
+        const { api } = requireContext();
+        await api.setDoc(docRef(item.id), item);
         return item.id;
       },
       /** @param {{id: string}} item */
       async update(item) {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readwrite');
-        await requestToPromise(tx.objectStore(storeName).put(item));
+        const { api } = requireContext();
+        await api.setDoc(docRef(item.id), item);
         return item.id;
       },
       /** @param {string} id */
       async remove(id) {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readwrite');
-        await requestToPromise(tx.objectStore(storeName).delete(id));
+        const { api } = requireContext();
+        await api.deleteDoc(docRef(id));
       },
       async clear() {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readwrite');
-        await requestToPromise(tx.objectStore(storeName).clear());
+        const { api } = requireContext();
+        const snap = await api.getDocs(collectionRef());
+        await Promise.all(snap.docs.map((d) => api.deleteDoc(d.ref)));
       },
     };
   }
 
   WR.createRepository = createRepository;
-})();
-// One repository per entity, plus the index-backed queries the generic
-// repository can't express on its own.
-
-window.WR = window.WR || {};
-
-(function () {
-  /** @param {IDBRequest} request */
-  function requestToPromise(request) {
-    return new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
 
   WR.repos = {
-    userProfile: WR.createRepository('userProfile'),
-    incomeSources: WR.createRepository('incomeSources'),
-    expenseCategories: WR.createRepository('expenseCategories'),
-    fixedExpenses: WR.createRepository('fixedExpenses'),
-    emergencyFundContributions: WR.createRepository('emergencyFundContributions'),
-    dayToDayAccounts: WR.createRepository('dayToDayAccounts'),
-    dayToDayTransactions: WR.createRepository('dayToDayTransactions'),
-    budgetLines: WR.createRepository('budgetLines'),
-    debts: WR.createRepository('debts'),
-    debtPayments: WR.createRepository('debtPayments'),
-    assets: WR.createRepository('assets'),
-    investments: WR.createRepository('investments'),
-    netWorthSnapshots: WR.createRepository('netWorthSnapshots'),
-    exchangeRates: WR.createRepository('exchangeRates'),
+    userProfile: createRepository('userProfile'),
+    incomeSources: createRepository('incomeSources'),
+    expenseCategories: createRepository('expenseCategories'),
+    fixedExpenses: createRepository('fixedExpenses'),
+    emergencyFundContributions: createRepository('emergencyFundContributions'),
+    dayToDayAccounts: createRepository('dayToDayAccounts'),
+    dayToDayTransactions: createRepository('dayToDayTransactions'),
+    budgetLines: createRepository('budgetLines'),
+    debts: createRepository('debts'),
+    debtPayments: createRepository('debtPayments'),
+    assets: createRepository('assets'),
+    investments: createRepository('investments'),
+    netWorthSnapshots: createRepository('netWorthSnapshots'),
+    exchangeRates: createRepository('exchangeRates'),
   };
 
   WR.queries = {
     /** All budget lines (income/fixed/variable/savings/debt) for a 'YYYY-MM' month. */
     async getBudgetLinesByMonth(month) {
-      const db = await WR.db.getDB();
-      const tx = db.transaction('budgetLines', 'readonly');
-      const index = tx.objectStore('budgetLines').index('by-month');
-      return requestToPromise(index.getAll(month));
+      const { uid, api, db } = requireContext();
+      const snap = await api.getDocs(api.query(api.collection(db, 'users', uid, 'budgetLines'), api.where('month', '==', month)));
+      return snap.docs.map((d) => d.data());
     },
 
     /** All recorded payments made against a specific debt, across all months. */
     async getDebtPaymentsForDebt(debtId) {
-      const db = await WR.db.getDB();
-      const tx = db.transaction('debtPayments', 'readonly');
-      const index = tx.objectStore('debtPayments').index('by-debt');
-      return requestToPromise(index.getAll(debtId));
+      const { uid, api, db } = requireContext();
+      const snap = await api.getDocs(api.query(api.collection(db, 'users', uid, 'debtPayments'), api.where('debtId', '==', debtId)));
+      return snap.docs.map((d) => d.data());
     },
 
     /** Full net worth history, oldest first — powers the net worth trend chart. */
     async getNetWorthHistory() {
-      const db = await WR.db.getDB();
-      const tx = db.transaction('netWorthSnapshots', 'readonly');
-      const index = tx.objectStore('netWorthSnapshots').index('by-date');
-      return requestToPromise(index.getAll());
+      const { uid, api, db } = requireContext();
+      const snap = await api.getDocs(api.query(api.collection(db, 'users', uid, 'netWorthSnapshots'), api.orderBy('date')));
+      return snap.docs.map((d) => d.data());
     },
   };
 })();
@@ -1782,8 +1731,14 @@ WR.testRuns.push(
   (async function () {
     const { test, expect } = WR.test;
 
+  /** Clears every Firestore collection for the anonymous test user, so each
+   * test starts from an empty slate \u2014 the Firestore equivalent of the old
+   * deleteDatabase()-between-tests approach. */
   async function resetDB() {
-    await WR.db.deleteDatabase();
+    await WR.testAuth.ensureInit();
+    for (const repo of Object.values(WR.repos)) {
+      await repo.clear();
+    }
   }
 
   // --- incomeSources ---------------------------------------------------

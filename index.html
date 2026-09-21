@@ -861,225 +861,112 @@ button.danger { background: var(--danger); color: #fff; }
   <body>
     <div id="app"></div>
     <script>
-// IndexedDB schema and migration layer.
+// Firestore-backed data layer. Every entity lives under
+// users/{uid}/{storeName}/{id} in the signed-in user's own document tree, so
+// data is naturally isolated per account and available from any device \u2014
+// there is no local database and nothing to "sync" separately. WR.createRepository
+// keeps the exact interface (getAll/getById/add/update/remove/clear) the rest
+// of the app already calls, so none of the ~15 feature pages needed to change.
+// WR.account (defined further down, loaded async) owns the actual Firestore
+// connection; these functions just look it up each time they're called, which
+// is safe because nothing here ever runs before the user is signed in.
 
 window.WR = window.WR || {};
 
 (function () {
-  const DB_NAME = 'wealthroute';
-  const DB_VERSION = 4;
-
-  /** @type {Promise<IDBDatabase>|null} */
-  let dbPromise = null;
-
-  function ensureStore(db, name, options, indexes) {
-    const store = db.objectStoreNames.contains(name)
-      ? null
-      : db.createObjectStore(name, options || { keyPath: 'id' });
-    if (!store || !indexes || !indexes.length) return;
-    indexes.forEach((indexDef) => {
-      if (!store.indexNames.contains(indexDef.name)) {
-        store.createIndex(indexDef.name, indexDef.keyPath, indexDef.options || undefined);
-      }
-    });
+  function requireContext() {
+    const user = WR.account.getCurrentUser();
+    if (!user) throw new Error('Not signed in.');
+    return { uid: user.uid, api: WR.account.getFirestoreApi(), db: WR.account.getDb() };
   }
 
-  function openDatabase() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        ensureStore(db, 'userProfile', { keyPath: 'id' });
-        ensureStore(db, 'incomeSources', { keyPath: 'id' });
-        ensureStore(db, 'fixedExpenses', { keyPath: 'id' });
-        ensureStore(db, 'expenseCategories', { keyPath: 'id' });
-        ensureStore(db, 'budgetLines', { keyPath: 'id' }, [{ name: 'by-month', keyPath: 'month' }]);
-        ensureStore(db, 'debts', { keyPath: 'id' });
-        ensureStore(db, 'debtPayments', { keyPath: 'id' }, [{ name: 'by-debt', keyPath: 'debtId' }]);
-        ensureStore(db, 'emergencyFundContributions', { keyPath: 'id' });
-        ensureStore(db, 'dayToDayAccounts', { keyPath: 'id' });
-        ensureStore(db, 'dayToDayTransactions', { keyPath: 'id' });
-        ensureStore(db, 'assets', { keyPath: 'id' });
-        ensureStore(db, 'investments', { keyPath: 'id' });
-        ensureStore(db, 'netWorthSnapshots', { keyPath: 'id' }, [{ name: 'by-date', keyPath: 'date' }]);
-        ensureStore(db, 'exchangeRates', { keyPath: 'id' });
-        ensureStore(db, 'assistantChats', { keyPath: 'id' });
-        // Misc app-level settings (e.g. a saved auto-backup folder handle) — kept
-        // out of WR.repos so it's never swept into JSON export/import/reset.
-        ensureStore(db, 'appSettings', { keyPath: 'id' });
-      };
-
-      request.onsuccess = () => {
-        // Without this, a later deleteDatabase()/version bump blocks forever
-        // behind this still-open connection.
-        request.result.onversionchange = () => request.result.close();
-        resolve(request.result);
-      };
-      request.onerror = () => {
-        const error = request.error;
-        if (error && error.name === 'VersionError') {
-          // This browser's IndexedDB is already newer than what this loaded copy of
-          // index.html expects — almost always a stale service-worker-cached page
-          // (bump CACHE_NAME in service-worker.js on every release to avoid this).
-          reject(Object.assign(new Error('This browser already has a newer version of your data than this page expects, most likely because you\'re viewing a cached copy of the app. Reload the app below to fetch the latest version.'), { name: 'VersionError', cause: error }));
-          return;
-        }
-        reject(error);
-      };
-    });
-  }
-
-  function getDB() {
-    if (!dbPromise) dbPromise = openDatabase();
-    return dbPromise;
-  }
-
-  async function resetConnection() {
-    if (dbPromise) {
-      const db = await dbPromise.catch(() => null);
-      if (db) db.close();
-    }
-    dbPromise = null;
-  }
-
-  async function deleteDatabase() {
-    await resetConnection();
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.deleteDatabase(DB_NAME);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-      req.onblocked = () => resolve();
-    });
-  }
-
-  WR.db = { getDB, resetConnection, deleteDatabase, DB_NAME, DB_VERSION };
-})();
-// Generic CRUD repository over a single IndexedDB object store. Every entity
-// in the data model gets one of these via WR.createRepository(storeName).
-// Index-backed queries (e.g. "budget lines for a given month") live in
-// repositories.js instead, since they're store-specific.
-
-window.WR = window.WR || {};
-
-(function () {
-  /**
-   * @param {IDBRequest} request
-   * @returns {Promise<any>}
-   */
-  function requestToPromise(request) {
-    return new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  /**
-   * @param {string} storeName
-   */
+  /** @param {string} storeName */
   function createRepository(storeName) {
+    function collectionRef() {
+      const { uid, api, db } = requireContext();
+      return api.collection(db, 'users', uid, storeName);
+    }
+    function docRef(id) {
+      const { uid, api, db } = requireContext();
+      return api.doc(db, 'users', uid, storeName, id);
+    }
     return {
       async getAll() {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readonly');
-        return requestToPromise(tx.objectStore(storeName).getAll());
+        const { api } = requireContext();
+        const snap = await api.getDocs(collectionRef());
+        return snap.docs.map((d) => d.data());
       },
       /** @param {string} id */
       async getById(id) {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readonly');
-        return requestToPromise(tx.objectStore(storeName).get(id));
+        const { api } = requireContext();
+        const snap = await api.getDoc(docRef(id));
+        return snap.exists() ? snap.data() : undefined;
       },
       /** @param {{id: string}} item */
       async add(item) {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readwrite');
-        await requestToPromise(tx.objectStore(storeName).put(item));
+        const { api } = requireContext();
+        await api.setDoc(docRef(item.id), item);
         return item.id;
       },
       /** @param {{id: string}} item */
       async update(item) {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readwrite');
-        await requestToPromise(tx.objectStore(storeName).put(item));
+        const { api } = requireContext();
+        await api.setDoc(docRef(item.id), item);
         return item.id;
       },
       /** @param {string} id */
       async remove(id) {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readwrite');
-        await requestToPromise(tx.objectStore(storeName).delete(id));
+        const { api } = requireContext();
+        await api.deleteDoc(docRef(id));
       },
       async clear() {
-        const db = await WR.db.getDB();
-        const tx = db.transaction(storeName, 'readwrite');
-        await requestToPromise(tx.objectStore(storeName).clear());
+        const { api } = requireContext();
+        const snap = await api.getDocs(collectionRef());
+        await Promise.all(snap.docs.map((d) => api.deleteDoc(d.ref)));
       },
     };
   }
 
   WR.createRepository = createRepository;
-})();
-// One repository per entity, plus the index-backed queries the generic
-// repository can't express on its own.
-
-window.WR = window.WR || {};
-
-(function () {
-  /** @param {IDBRequest} request */
-  function requestToPromise(request) {
-    return new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
 
   WR.repos = {
-    userProfile: WR.createRepository('userProfile'),
-    incomeSources: WR.createRepository('incomeSources'),
-    fixedExpenses: WR.createRepository('fixedExpenses'),
-    expenseCategories: WR.createRepository('expenseCategories'),
-    budgetLines: WR.createRepository('budgetLines'),
-    debts: WR.createRepository('debts'),
-    debtPayments: WR.createRepository('debtPayments'),
-    emergencyFundContributions: WR.createRepository('emergencyFundContributions'),
-    dayToDayAccounts: WR.createRepository('dayToDayAccounts'),
-    dayToDayTransactions: WR.createRepository('dayToDayTransactions'),
-    assets: WR.createRepository('assets'),
-    investments: WR.createRepository('investments'),
-    netWorthSnapshots: WR.createRepository('netWorthSnapshots'),
-    exchangeRates: WR.createRepository('exchangeRates'),
-    assistantChats: WR.createRepository('assistantChats'),
+    userProfile: createRepository('userProfile'),
+    incomeSources: createRepository('incomeSources'),
+    fixedExpenses: createRepository('fixedExpenses'),
+    expenseCategories: createRepository('expenseCategories'),
+    budgetLines: createRepository('budgetLines'),
+    debts: createRepository('debts'),
+    debtPayments: createRepository('debtPayments'),
+    emergencyFundContributions: createRepository('emergencyFundContributions'),
+    dayToDayAccounts: createRepository('dayToDayAccounts'),
+    dayToDayTransactions: createRepository('dayToDayTransactions'),
+    assets: createRepository('assets'),
+    investments: createRepository('investments'),
+    netWorthSnapshots: createRepository('netWorthSnapshots'),
+    exchangeRates: createRepository('exchangeRates'),
+    assistantChats: createRepository('assistantChats'),
   };
-
-  // Not part of WR.repos on purpose: exportBackup/importBackup/resetAllData all
-  // loop over WR.repos and assume JSON-serializable records, but this store can
-  // hold a FileSystemDirectoryHandle, which isn't.
-  WR.appSettingsRepo = WR.createRepository('appSettings');
 
   WR.queries = {
     /** All budget lines (income/fixed/variable/savings/debt) for a 'YYYY-MM' month. */
     async getBudgetLinesByMonth(month) {
-      const db = await WR.db.getDB();
-      const tx = db.transaction('budgetLines', 'readonly');
-      const index = tx.objectStore('budgetLines').index('by-month');
-      return requestToPromise(index.getAll(month));
+      const { uid, api, db } = requireContext();
+      const snap = await api.getDocs(api.query(api.collection(db, 'users', uid, 'budgetLines'), api.where('month', '==', month)));
+      return snap.docs.map((d) => d.data());
     },
 
     /** All recorded payments made against a specific debt, across all months. */
     async getDebtPaymentsForDebt(debtId) {
-      const db = await WR.db.getDB();
-      const tx = db.transaction('debtPayments', 'readonly');
-      const index = tx.objectStore('debtPayments').index('by-debt');
-      return requestToPromise(index.getAll(debtId));
+      const { uid, api, db } = requireContext();
+      const snap = await api.getDocs(api.query(api.collection(db, 'users', uid, 'debtPayments'), api.where('debtId', '==', debtId)));
+      return snap.docs.map((d) => d.data());
     },
 
     /** Full net worth history, oldest first — powers the net worth trend chart. */
     async getNetWorthHistory() {
-      const db = await WR.db.getDB();
-      const tx = db.transaction('netWorthSnapshots', 'readonly');
-      const index = tx.objectStore('netWorthSnapshots').index('by-date');
-      return requestToPromise(index.getAll());
+      const { uid, api, db } = requireContext();
+      const snap = await api.getDocs(api.query(api.collection(db, 'users', uid, 'netWorthSnapshots'), api.orderBy('date')));
+      return snap.docs.map((d) => d.data());
     },
   };
 })();
@@ -2990,40 +2877,11 @@ WR.ui = WR.ui || {};
     return warnings;
   }
 
-  const BACKUP_REMINDER_DAYS = 14;
-
-  /** Null if no data recorded yet, a whole-day count since the last successful
-   * backup (manual export, local auto-backup, or cloud sync) otherwise. */
-  async function getDaysSinceLastBackup() {
-    const lastBackupAt = localStorage.getItem('wr_last_backup_at');
-    if (!lastBackupAt) return null;
-    const ms = Date.now() - new Date(lastBackupAt).getTime();
-    return Math.floor(ms / (24 * 60 * 60 * 1000));
-  }
-
-  async function hasAnyData() {
-    for (const repo of Object.values(WR.repos)) {
-      if ((await repo.getAll()).length > 0) return true;
-    }
-    return false;
-  }
-
-  async function getBackupReminder() {
-    if (!(await hasAnyData())) return null;
-    const days = await getDaysSinceLastBackup();
-    if (days === null) return 'You have data but no backup on record. Export a backup (Settings \u2192 Data Management) in case this browser\'s storage is cleared.';
-    if (days >= BACKUP_REMINDER_DAYS) return `Your last backup was ${days} days ago. Consider exporting a fresh one \u2014 clearing browser data or cache erases everything stored here.`;
-    return null;
-  }
-
   async function refreshIntegrityNotice() {
     const host = document.getElementById('global-notice');
     if (!host) return;
-    const [warnings, backupReminder] = await Promise.all([getIntegrityWarnings(), getBackupReminder()]);
-    const cards = [];
-    if (backupReminder) cards.push(`<div class="notice-card"><strong>Backup reminder:</strong> ${backupReminder}</div>`);
-    if (warnings.length) cards.push(`<div class="notice-card"><strong>Data check:</strong> ${warnings.join(' ')}</div>`);
-    host.innerHTML = cards.join('');
+    const warnings = await getIntegrityWarnings();
+    host.innerHTML = warnings.length ? `<div class="notice-card"><strong>Data check:</strong> ${warnings.join(' ')}</div>` : '';
   }
 
   function enhanceResponsiveContent(container) {
@@ -3076,10 +2934,7 @@ WR.ui = WR.ui || {};
     }
     const user = WR.account.getCurrentUser();
     host.innerHTML = user
-      ? `
-        <span class="nav-account-email" title="${user.email}">${user.email}</span>
-        <button type="button" id="nav-logout-btn" class="link-btn">Log out</button>
-      `
+      ? `<button type="button" id="nav-logout-btn" class="link-btn">Log out</button>`
       : `
         <a href="#/settings" class="nav-account-link">Log in</a>
         <a href="#/settings" class="nav-account-link nav-account-link-accent">Sign up</a>
@@ -3110,14 +2965,6 @@ WR.ui = WR.ui || {};
       <div class="nav-section-title">More</div>
       ${secondaryNavLinks}
     `;
-    const navOptions = `
-      <optgroup label="Core">
-        ${PRIMARY_NAV_ITEMS.map((i) => `<option value="${i.hash}">${i.label}</option>`).join('')}
-      </optgroup>
-      <optgroup label="More">
-        ${SECONDARY_NAV_ITEMS.map((i) => `<option value="${i.hash}">${i.label}</option>`).join('')}
-      </optgroup>
-    `;
     document.getElementById('app').innerHTML = `
       <header class="topbar">
         <a class="brand" href="#/dashboard" aria-label="WealthRoute dashboard">
@@ -3131,9 +2978,6 @@ WR.ui = WR.ui || {};
         <nav id="nav" aria-label="All sections">${nav}</nav>
         <div id="nav-account" class="nav-account"></div>
         <div class="nav-controls">
-          <select id="nav-jump" class="nav-jump" aria-label="Jump to section">
-            ${navOptions}
-          </select>
           <button id="nav-toggle-btn" class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation">
             <span class="nav-toggle-bars"><span></span><span></span><span></span></span>
           </button>
@@ -3146,9 +2990,6 @@ WR.ui = WR.ui || {};
     `;
     WR.ui.updateToggleIcon(document.documentElement.getAttribute('data-theme') || 'light');
     document.getElementById('theme-toggle-btn').addEventListener('click', WR.ui.toggleTheme);
-    document.getElementById('nav-jump').addEventListener('change', (event) => {
-      window.location.hash = event.target.value;
-    });
     document.getElementById('nav-toggle-btn').addEventListener('click', () => {
       const topbar = document.querySelector('.topbar');
       const isOpen = topbar.classList.toggle('nav-open');
@@ -3162,8 +3003,6 @@ WR.ui = WR.ui || {};
     document.querySelectorAll('#nav a, .nav-horizontal a').forEach((a) => {
       a.classList.toggle('active', a.getAttribute('data-hash') === hash);
     });
-    const jump = document.getElementById('nav-jump');
-    if (jump) jump.value = hash;
     const topbar = document.querySelector('.topbar');
     const toggle = document.getElementById('nav-toggle-btn');
     if (topbar) topbar.classList.remove('nav-open');
@@ -3259,7 +3098,7 @@ WR.ui = WR.ui || {};
 
       <section class="position-summary-grid">
         <div class="hero dashboard-card position-card">
-          <p class="greeting">${greeting(s.profile.displayName)}</p>
+          <p class="greeting">${greeting(WR.account.getUsername() || s.profile.displayName)}</p>
           <h1>Your Financial Position</h1>
           <p class="month-label">${s.monthLabel}</p>
 
@@ -5325,11 +5164,6 @@ WR.ui = WR.ui || {};
     };
   }
 
-  function markBackupTaken() {
-    localStorage.setItem('wr_last_backup_at', new Date().toISOString());
-    WR.ui.refreshIntegrityNotice();
-  }
-
   async function exportBackup() {
     const backup = await buildBackupPayload();
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -5341,7 +5175,6 @@ WR.ui = WR.ui || {};
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 0);
-    markBackupTaken();
   }
 
   async function importBackup(jsonText) {
@@ -5380,8 +5213,6 @@ WR.ui = WR.ui || {};
   async function renderSettings(container) {
     const profile = await WR.ui.getOrCreateProfile();
     const workerUrl = localStorage.getItem('wr_worker_url') || '';
-    const autobackupStatus = await WR.autobackup.getStatus();
-    const lastAutoBackupAt = localStorage.getItem('wr_last_auto_backup_at');
     await WR.account.ensureInit();
     const accountUser = WR.account.isConfigured() ? WR.account.getCurrentUser() : null;
 
@@ -5389,24 +5220,29 @@ WR.ui = WR.ui || {};
       <h1>Settings</h1>
 
       <section>
-        <h2>Account</h2>
+        <h2>Profile</h2>
         ${!WR.account.isConfigured() ? `
           <p class="fine-print">Not available in this build.</p>
         ` : accountUser ? `
-          <p class="fine-print">Signed in as <strong>${accountUser.email}</strong>. Your data syncs automatically every few minutes while you're signed in, and right before you log out.</p>
+          <p class="fine-print">Signed in as <strong>${accountUser.email}</strong>${WR.account.getUsername() ? ` (@${WR.account.getUsername()})` : ''}.</p>
+          <form id="username-form" class="inline-form">
+            <input type="text" id="username-input" placeholder="Username" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" value="${WR.account.getUsername() || ''}" required>
+            <button type="submit">${WR.account.getUsername() ? 'Update username' : 'Choose username'}</button>
+          </form>
+          <p id="username-result" class="fine-print"></p>
+          ${WR.account.usesPasswordProvider() ? `
+            <button type="button" id="reset-password-btn" class="secondary">Send password reset email</button>
+            <p id="reset-password-result" class="fine-print"></p>
+          ` : `
+            <p class="fine-print">Signed in with Google \u2014 manage your password through your Google account.</p>
+          `}
+          <p class="fine-print">Your data syncs automatically every few minutes while you're signed in, and right before you log out.</p>
           <button id="account-sync-now-btn" class="secondary">Sync now</button>
           <button id="account-load-cloud-btn" class="secondary">Load cloud data</button>
           <button id="account-logout-btn" class="danger">Log out</button>
           <p id="account-result" class="fine-print"></p>
         ` : `
-          <p class="fine-print">Create an account to access your data from any device \u2014 phone, tablet, or another computer.</p>
-          <form id="account-form" class="inline-form">
-            <input type="email" id="account-email-input" placeholder="Email" required>
-            <input type="password" id="account-password-input" placeholder="Password (min 6 characters)" minlength="6" required>
-            <button type="submit" id="account-login-btn">Log in</button>
-            <button type="button" id="account-signup-btn" class="secondary">Sign up</button>
-          </form>
-          <p id="account-result" class="fine-print"></p>
+          <p class="fine-print">You're not signed in.</p>
         `}
       </section>
 
@@ -5473,62 +5309,12 @@ WR.ui = WR.ui || {};
 
       <section>
         <h2>Data Management</h2>
-        <p class="fine-print">Download every WealthRoute record to move your data to another browser. Restoring replaces the data currently stored in this browser.</p>
+        <p class="fine-print">Download every record in your account as a JSON file, or restore from one \u2014 useful for moving between accounts or keeping an offline copy. Your data already lives in your account and is available on any device you log into; this isn't required for that.</p>
         <button id="export-backup-btn">Export backup (JSON)</button>
         <label class="file-label">Import backup (JSON):
           <input type="file" id="restore-input" accept=".json">
         </label>
         <button id="reset-btn" class="danger">Delete all data</button>
-      </section>
-
-      <section>
-        <h2>Automatic Local Backup</h2>
-        <p class="fine-print">Pick a folder once and WealthRoute writes a dated JSON backup file there automatically (roughly once a day) — no more remembering to click Export. Supported on Chromium browsers (Chrome, Edge, Brave); the folder and its files stay entirely on your device.</p>
-        ${autobackupStatus === 'unsupported' ? '<p class="fine-print">Not supported in this browser.</p>' : ''}
-        ${autobackupStatus === 'none' ? '<button id="choose-backup-folder-btn">Choose backup folder…</button>' : ''}
-        ${autobackupStatus === 'granted' ? `
-          <p class="fine-print">Backup folder connected.${lastAutoBackupAt ? ` Last written: ${new Date(lastAutoBackupAt).toLocaleString()}.` : ' No backup written yet.'}</p>
-          <button id="backup-now-btn" class="secondary">Back up now</button>
-          <button id="disable-autobackup-btn" class="danger">Stop auto-backup</button>
-        ` : ''}
-        ${autobackupStatus === 'prompt' ? `
-          <p class="fine-print">A backup folder was chosen before, but the browser needs you to reconfirm access.</p>
-          <button id="reconnect-backup-folder-btn">Reconnect folder</button>
-          <button id="disable-autobackup-btn" class="danger">Stop auto-backup</button>
-        ` : ''}
-        ${autobackupStatus === 'denied' ? `
-          <p class="fine-print">Access to the chosen folder was denied. Choose a different folder.</p>
-          <button id="disable-autobackup-btn">Choose a different folder</button>
-        ` : ''}
-      </section>
-
-      <section>
-        <h2>Encrypted Cloud Backup (optional)</h2>
-        ${workerUrl ? `
-          <p class="fine-print">
-            Encrypts your data in this browser with a passphrase only you know, then stores the ciphertext via your Cloudflare Worker
-            (set one up under Live Updates below). The passphrase never leaves your device and isn't stored anywhere — if you lose it,
-            the cloud backup can't be recovered. Use this to survive a full browser wipe or restore on a different device.
-          </p>
-          <p class="fine-print">
-            <strong>Account id</strong> (below) keeps your backup separate from anyone else who happens to use the same Worker URL, even
-            if you both pick the same passphrase. It isn't secret, but you need both it and your passphrase to restore elsewhere — write
-            them down together.
-          </p>
-          <div class="inline-form">
-            <input type="text" id="cloud-account-id-display" value="${WR.cloudBackup.getOrCreateAccountId()}" readonly>
-            <button type="button" id="copy-account-id-btn" class="secondary">Copy account id</button>
-          </div>
-          <form id="cloud-backup-form" class="inline-form">
-            <input type="text" id="cloud-account-id-input" placeholder="Account id (leave blank to use this device's)">
-            <input type="password" id="cloud-passphrase-input" placeholder="Backup passphrase" autocomplete="new-password" required>
-            <button type="submit" id="cloud-upload-btn">Upload to cloud</button>
-            <button type="button" id="cloud-restore-btn" class="secondary">Restore from cloud</button>
-          </form>
-          <p id="cloud-backup-result" class="fine-print"></p>
-        ` : `
-          <p class="fine-print">Not set up yet. This needs a Cloudflare Worker endpoint (Live Updates section below) with its own backup storage configured, so it's off for now. Local export/import and Automatic Local Backup above already cover this device without any setup.</p>
-        `}
       </section>
 
       <section>
@@ -5551,8 +5337,8 @@ WR.ui = WR.ui || {};
 
       <section>
         <h2>Privacy & Ownership</h2>
-        <p class="fine-print">Your financial records stay in this browser's local storage/IndexedDB. Cloud sync only happens if you explicitly set up encrypted cloud backup above \u2014 nothing leaves this device otherwise.</p>
-        <p class="fine-print">You own your data. Export backups regularly and keep them securely, or set up automatic local/cloud backup above.</p>
+        <p class="fine-print">Your financial records are stored in your account (Firestore), scoped to you alone \u2014 nobody else who signs into this app can see them, on this device or any other.</p>
+        <p class="fine-print">You own your data. Use Export above any time for a personal copy.</p>
       </section>
 
       <section>
@@ -5747,31 +5533,38 @@ WR.ui = WR.ui || {};
 
     if (WR.account.isConfigured()) {
       const accountResult = document.getElementById('account-result');
-      const accountForm = document.getElementById('account-form');
-      if (accountForm) {
-        const readCredentials = () => ({
-          email: document.getElementById('account-email-input').value.trim(),
-          password: document.getElementById('account-password-input').value,
-        });
-        document.getElementById('account-signup-btn').addEventListener('click', async () => {
-          const { email, password } = readCredentials();
+      const usernameForm = document.getElementById('username-form');
+      if (usernameForm) {
+        usernameForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const usernameResult = document.getElementById('username-result');
+          const input = document.getElementById('username-input');
+          const btn = usernameForm.querySelector('button');
+          btn.disabled = true;
           try {
-            await WR.account.signUp(email, password);
-            WR.ui.notify('Account created and signed in.', 'success');
-            renderSettings(container);
+            await WR.account.updateUsername(input.value);
+            usernameResult.textContent = 'Username saved.';
+            WR.ui.notify('Username saved.', 'success');
+            WR.ui.renderNavAccount();
           } catch (err) {
-            accountResult.textContent = `Sign up failed: ${err.message}`;
+            usernameResult.textContent = err.message;
+          } finally {
+            btn.disabled = false;
           }
         });
-        accountForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const { email, password } = readCredentials();
+      }
+      const resetPasswordBtn = document.getElementById('reset-password-btn');
+      if (resetPasswordBtn) {
+        resetPasswordBtn.addEventListener('click', async () => {
+          const resultEl = document.getElementById('reset-password-result');
+          resetPasswordBtn.disabled = true;
           try {
-            await WR.account.signIn(email, password);
-            WR.ui.notify('Logged in.', 'success');
-            renderSettings(container);
+            await WR.account.sendPasswordReset();
+            resultEl.textContent = 'Password reset email sent \u2014 check your inbox.';
           } catch (err) {
-            accountResult.textContent = `Log in failed: ${err.message}`;
+            resultEl.textContent = `Couldn't send reset email: ${err.message}`;
+          } finally {
+            resetPasswordBtn.disabled = false;
           }
         });
       }
@@ -5812,7 +5605,6 @@ WR.ui = WR.ui || {};
           try {
             await WR.account.signOut();
             WR.ui.notify('Logged out.', 'success');
-            renderSettings(container);
           } catch (err) {
             WR.ui.notify(`Log out failed: ${err.message}`, 'error');
           }
@@ -5821,110 +5613,6 @@ WR.ui = WR.ui || {};
     }
 
     document.getElementById('export-backup-btn').addEventListener('click', exportBackup);
-
-    const chooseFolderBtn = document.getElementById('choose-backup-folder-btn');
-    if (chooseFolderBtn) {
-      chooseFolderBtn.addEventListener('click', async () => {
-        try {
-          await WR.autobackup.chooseFolder();
-          WR.ui.notify('Backup folder connected.', 'success');
-          renderSettings(container);
-        } catch (err) {
-          if (err.name !== 'AbortError') WR.ui.notify(`Couldn't connect folder: ${err.message}`, 'error');
-        }
-      });
-    }
-    const reconnectFolderBtn = document.getElementById('reconnect-backup-folder-btn');
-    if (reconnectFolderBtn) {
-      reconnectFolderBtn.addEventListener('click', async () => {
-        try {
-          await WR.autobackup.reconnect();
-          WR.ui.notify('Backup folder reconnected.', 'success');
-          renderSettings(container);
-        } catch (err) {
-          WR.ui.notify(`Reconnect failed: ${err.message}`, 'error');
-        }
-      });
-    }
-    const backupNowBtn = document.getElementById('backup-now-btn');
-    if (backupNowBtn) {
-      backupNowBtn.addEventListener('click', async () => {
-        backupNowBtn.disabled = true;
-        try {
-          await WR.autobackup.writeNow();
-          WR.ui.notify('Backup written to your folder.', 'success');
-          renderSettings(container);
-        } catch (err) {
-          WR.ui.notify(`Backup failed: ${err.message}`, 'error');
-        } finally {
-          backupNowBtn.disabled = false;
-        }
-      });
-    }
-    const disableAutobackupBtn = document.getElementById('disable-autobackup-btn');
-    if (disableAutobackupBtn) {
-      disableAutobackupBtn.addEventListener('click', async () => {
-        await WR.autobackup.disable();
-        WR.ui.notify('Auto-backup folder disconnected.', 'success');
-        renderSettings(container);
-      });
-    }
-
-    if (workerUrl) {
-    document.getElementById('copy-account-id-btn').addEventListener('click', async () => {
-      const value = document.getElementById('cloud-account-id-display').value;
-      try {
-        await navigator.clipboard.writeText(value);
-        WR.ui.notify('Account id copied.', 'success');
-      } catch {
-        WR.ui.notify('Could not copy automatically \u2014 select and copy the text manually.', 'error');
-      }
-    });
-
-    document.getElementById('cloud-backup-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const passphrase = document.getElementById('cloud-passphrase-input').value;
-      const accountId = document.getElementById('cloud-account-id-input').value;
-      const result = document.getElementById('cloud-backup-result');
-      const btn = document.getElementById('cloud-upload-btn');
-      btn.disabled = true;
-      try {
-        await WR.cloudBackup.upload(passphrase, accountId);
-        result.textContent = 'Uploaded to cloud backup.';
-        WR.ui.notify('Cloud backup uploaded.', 'success');
-        document.getElementById('cloud-account-id-display').value = WR.cloudBackup.getOrCreateAccountId();
-      } catch (err) {
-        result.textContent = `Upload failed: ${err.message}`;
-        WR.ui.notify(`Cloud backup failed: ${err.message}`, 'error');
-      } finally {
-        btn.disabled = false;
-      }
-    });
-
-    document.getElementById('cloud-restore-btn').addEventListener('click', async () => {
-      const passphrase = document.getElementById('cloud-passphrase-input').value;
-      const accountId = document.getElementById('cloud-account-id-input').value;
-      if (!passphrase) {
-        WR.ui.notify('Enter the passphrase used for the cloud backup.', 'error');
-        return;
-      }
-      if (!(await hardConfirm('replace your current data with the cloud backup'))) {
-        WR.ui.notify('Restore canceled.', 'error');
-        return;
-      }
-      const result = document.getElementById('cloud-backup-result');
-      try {
-        await WR.cloudBackup.restore(passphrase, accountId);
-        result.textContent = 'Restored from cloud backup.';
-        WR.ui.notify('Cloud backup restored.', 'success');
-        WR.ui.refreshIntegrityNotice();
-        renderSettings(container);
-      } catch (err) {
-        result.textContent = `Restore failed: ${err.message}`;
-        WR.ui.notify(`Cloud restore failed: ${err.message}`, 'error');
-      }
-    });
-    }
 
     document.getElementById('restore-input').addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -5948,7 +5636,7 @@ WR.ui = WR.ui || {};
     });
 
     document.getElementById('reset-btn').addEventListener('click', async () => {
-      if (!(await hardConfirm('delete all WealthRoute data in this browser'))) {
+      if (!(await hardConfirm('delete all WealthRoute data in your account'))) {
         WR.ui.notify('Delete canceled.', 'error');
         return;
       }
@@ -5987,235 +5675,17 @@ WR.ui = WR.ui || {};
   WR.ui.importBackup = importBackup;
   WR.ui.resetAllData = resetAllData;
   WR.ui.buildBackupPayload = buildBackupPayload;
-  WR.ui.markBackupTaken = markBackupTaken;
 })();
-// Local auto-backup: on browsers that support the File System Access API,
-// the user picks a folder once and WealthRoute periodically writes a JSON
-// backup there without any further prompts \u2014 a safety net for people who
-// forget to export manually before clearing browser data. The directory
-// handle is stored in IndexedDB (structured-clone only, not JSON), kept out
-// of WR.repos so normal backup/restore/reset never touch it.
-
-window.WR = window.WR || {};
-WR.autobackup = {};
-
-(function () {
-  const HANDLE_KEY = 'backupFolderHandle';
-  const INTERVAL_MS = 24 * 60 * 60 * 1000;
-  const FILE_PREFIX = 'wealthroute-autobackup-';
-
-  function supported() {
-    return typeof window.showDirectoryPicker === 'function';
-  }
-
-  async function getSavedHandle() {
-    const record = await WR.appSettingsRepo.getById(HANDLE_KEY);
-    return record ? record.handle : null;
-  }
-
-  async function chooseFolder() {
-    const handle = await window.showDirectoryPicker({ id: 'wealthroute-backup', mode: 'readwrite' });
-    await WR.appSettingsRepo.update({ id: HANDLE_KEY, handle });
-    return handle;
-  }
-
-  async function disable() {
-    await WR.appSettingsRepo.remove(HANDLE_KEY);
-  }
-
-  /** 'none' | 'granted' | 'prompt' | 'denied' */
-  async function getStatus() {
-    if (!supported()) return 'unsupported';
-    const handle = await getSavedHandle();
-    if (!handle) return 'none';
-    const permission = await handle.queryPermission({ mode: 'readwrite' });
-    return permission; // 'granted' | 'prompt' | 'denied'
-  }
-
-  /** Re-requests permission; must be called from a user gesture (button click). */
-  async function reconnect() {
-    const handle = await getSavedHandle();
-    if (!handle) throw new Error('No backup folder saved yet.');
-    const permission = await handle.requestPermission({ mode: 'readwrite' });
-    if (permission !== 'granted') throw new Error('Permission to write to the folder was not granted.');
-    return handle;
-  }
-
-  async function writeNow() {
-    const handle = await getSavedHandle();
-    if (!handle) throw new Error('No backup folder chosen yet.');
-    let permission = await handle.queryPermission({ mode: 'readwrite' });
-    if (permission !== 'granted') permission = await handle.requestPermission({ mode: 'readwrite' });
-    if (permission !== 'granted') throw new Error('Permission to write to the folder was not granted.');
-    const payload = await WR.ui.buildBackupPayload();
-    const fileHandle = await handle.getFileHandle(`${FILE_PREFIX}${new Date().toISOString().slice(0, 10)}.json`, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify(payload, null, 2));
-    await writable.close();
-    localStorage.setItem('wr_last_auto_backup_at', new Date().toISOString());
-    WR.ui.markBackupTaken();
-  }
-
-  /** Called once at startup; silently writes a fresh backup if it's been a
-   * while and permission is already granted (no prompt = no user gesture needed). */
-  async function maybeRunScheduled() {
-    if (!supported()) return;
-    const handle = await getSavedHandle();
-    if (!handle) return;
-    const permission = await handle.queryPermission({ mode: 'readwrite' });
-    if (permission !== 'granted') return;
-    const lastAt = localStorage.getItem('wr_last_auto_backup_at');
-    if (lastAt && Date.now() - new Date(lastAt).getTime() < INTERVAL_MS) return;
-    try {
-      await writeNow();
-    } catch (err) {
-      console.warn('Scheduled local auto-backup failed', err);
-    }
-  }
-
-  WR.autobackup.supported = supported;
-  WR.autobackup.chooseFolder = chooseFolder;
-  WR.autobackup.disable = disable;
-  WR.autobackup.getStatus = getStatus;
-  WR.autobackup.reconnect = reconnect;
-  WR.autobackup.writeNow = writeNow;
-  WR.autobackup.maybeRunScheduled = maybeRunScheduled;
-})();
-// Encrypted cloud backup (optional): passphrase-derived AES-GCM encryption
-// entirely in the browser, uploaded to the user's own Cloudflare Worker.
-// The passphrase never leaves the device \u2014 only a SHA-256 derived id (used
-// as the storage key) and ciphertext are sent, so the Worker/KV operator
-// never sees plaintext data or the passphrase itself. Losing the passphrase
-// means the backup is unrecoverable; there is no reset path by design.
-//
-// The storage id is derived from BOTH a random per-install account id and the
-// passphrase (not the passphrase alone). Without the account id, two strangers
-// sharing the same Worker who happen to pick the same passphrase would land on
-// the same storage key and silently overwrite each other's backup. The account
-// id isn't secret \u2014 it only needs to be unique, not secret \u2014 but it must be
-// saved (alongside the passphrase) to restore on another device.
-
-window.WR = window.WR || {};
-WR.cloudBackup = {};
-
-(function () {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  const ACCOUNT_ID_KEY = 'wr_backup_account_id';
-
-  function toBase64(bytes) {
-    let binary = '';
-    bytes.forEach((b) => { binary += String.fromCharCode(b); });
-    return btoa(binary);
-  }
-
-  function fromBase64(base64) {
-    return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  }
-
-  function getOrCreateAccountId() {
-    let accountId = localStorage.getItem(ACCOUNT_ID_KEY);
-    if (!accountId) {
-      accountId = crypto.randomUUID ? crypto.randomUUID() : toBase64(crypto.getRandomValues(new Uint8Array(16)));
-      localStorage.setItem(ACCOUNT_ID_KEY, accountId);
-    }
-    return accountId;
-  }
-
-  async function deriveId(accountId, passphrase) {
-    const digest = await crypto.subtle.digest('SHA-256', encoder.encode(`wealthroute-backup-id:${accountId}:${passphrase}`));
-    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  async function deriveKey(passphrase, salt) {
-    const material = await crypto.subtle.importKey('raw', encoder.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
-    return crypto.subtle.deriveKey(
-      { name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' },
-      material,
-      { name: 'AES-GCM', length: 256 },
-      false,
-      ['encrypt', 'decrypt'],
-    );
-  }
-
-  async function encryptJSON(obj, passphrase) {
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const key = await deriveKey(passphrase, salt);
-    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(JSON.stringify(obj)));
-    return {
-      salt: toBase64(salt),
-      iv: toBase64(iv),
-      ciphertext: toBase64(new Uint8Array(ciphertext)),
-    };
-  }
-
-  async function decryptJSON(payload, passphrase) {
-    const salt = fromBase64(payload.salt);
-    const iv = fromBase64(payload.iv);
-    const key = await deriveKey(passphrase, salt);
-    let plaintext;
-    try {
-      plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, fromBase64(payload.ciphertext));
-    } catch {
-      throw new Error('Wrong passphrase or account id, or the backup is corrupted.');
-    }
-    return JSON.parse(decoder.decode(plaintext));
-  }
-
-  function workerUrl() {
-    return (localStorage.getItem('wr_worker_url') || '').replace(/\/$/, '');
-  }
-
-  async function upload(passphrase, accountId) {
-    const endpoint = workerUrl();
-    if (!endpoint) throw new Error('Set a Cloudflare Worker endpoint first (Settings \u2192 Live Updates & Wealth Assistant).');
-    const resolvedAccountId = (accountId || '').trim() || getOrCreateAccountId();
-    const payload = await WR.ui.buildBackupPayload();
-    const encrypted = await encryptJSON(payload, passphrase);
-    const id = await deriveId(resolvedAccountId, passphrase);
-    const res = await fetch(`${endpoint}/backup/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(encrypted),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || `Upload failed (${res.status}).`);
-    }
-    WR.ui.markBackupTaken();
-    // Pairs this device to whichever account id it just uploaded under.
-    localStorage.setItem(ACCOUNT_ID_KEY, resolvedAccountId);
-    return resolvedAccountId;
-  }
-
-  async function restore(passphrase, accountId) {
-    const endpoint = workerUrl();
-    if (!endpoint) throw new Error('Set a Cloudflare Worker endpoint first (Settings \u2192 Live Updates & Wealth Assistant).');
-    const resolvedAccountId = (accountId || '').trim() || getOrCreateAccountId();
-    const id = await deriveId(resolvedAccountId, passphrase);
-    const res = await fetch(`${endpoint}/backup/${id}`);
-    if (res.status === 404) throw new Error('No cloud backup found for this account id and passphrase.');
-    if (!res.ok) throw new Error(`Download failed (${res.status}).`);
-    const encrypted = await res.json();
-    const payload = await decryptJSON(encrypted, passphrase);
-    await WR.ui.importBackup(JSON.stringify(payload));
-    // Pairs this device to the restored account id, so future uploads from here land on the same key.
-    localStorage.setItem(ACCOUNT_ID_KEY, resolvedAccountId);
-  }
-
-  WR.cloudBackup.getOrCreateAccountId = getOrCreateAccountId;
-  WR.cloudBackup.upload = upload;
-  WR.cloudBackup.restore = restore;
-})();
-// Cross-device account (Firebase Auth + Firestore). Unlike WR.cloudBackup
-// above (a passphrase you manage yourself), this is a real email/password
-// account: sign up once, then log in from any device to get your data back.
-// End users never see or configure anything backend-related \u2014 the project
-// config below is filled in once by whoever deploys this app; FIREBASE_CONFIG
-// values are public client identifiers, not secrets (real access control is
-// enforced by Firestore security rules scoping each document to its owner's
-// uid, not by keeping this config hidden).
+// Cross-device account (Firebase Auth + Firestore). Firestore is the ONLY
+// data store the app uses \u2014 every WR.repos call reads/writes
+// users/{uid}/{store}/{id} in this signed-in user's own tree (see the
+// createRepository IIFE near the top of this file), so data is isolated per
+// account and available from any device automatically, with no separate
+// "sync" step. End users never see or configure anything backend-related \u2014
+// the project config below is filled in once by whoever deploys this app;
+// FIREBASE_CONFIG values are public client identifiers, not secrets (real
+// access control is enforced by Firestore security rules, not by keeping
+// this config hidden).
 
 window.WR = window.WR || {};
 WR.account = {};
@@ -6238,10 +5708,10 @@ WR.account = {};
   let currentUser = null;
   let onChangeCallback = null;
   let initPromise = null;
-  let syncTimer = null;
   let firstUserResolved = false;
   let resolveFirstUser;
   const firstUserPromise = new Promise((resolve) => { resolveFirstUser = resolve; });
+  let cachedUsername = null;
 
   function isConfigured() {
     return !Object.values(FIREBASE_CONFIG).some((v) => !v || v.startsWith('REPLACE_ME'));
@@ -6260,15 +5730,27 @@ WR.account = {};
         authApi = authModule;
         firestoreApi = firestoreModule;
         auth = authModule.getAuth(app);
-        db = firestoreModule.getFirestore(app);
+        // persistentLocalCache turns on Firestore's own offline cache (backed by
+        // its own private IndexedDB, invisible to app code) so reads work
+        // instantly from cache and writes queue automatically while offline,
+        // syncing once the connection returns.
+        db = firestoreModule.initializeFirestore(app, {
+          localCache: firestoreModule.persistentLocalCache({
+            tabManager: firestoreModule.persistentSingleTabManager(),
+          }),
+        });
         authModule.onAuthStateChanged(auth, (user) => {
           currentUser = user;
+          if (!user) cachedUsername = null;
           if (!firstUserResolved) {
             firstUserResolved = true;
             resolveFirstUser(user);
           }
-          if (user) startAutoSync(); else stopAutoSync();
           if (onChangeCallback) onChangeCallback(user);
+          // Username isn't in the Firebase Auth user object itself, so a
+          // restored session (page reload) needs a follow-up fetch + re-notify
+          // once it arrives, e.g. so the Dashboard greeting can show it.
+          if (user) loadProfile().then(() => { if (onChangeCallback) onChangeCallback(user); });
         });
       })();
     }
@@ -6290,67 +5772,98 @@ WR.account = {};
     return currentUser;
   }
 
-  async function hasLocalData() {
-    for (const repo of Object.values(WR.repos)) {
-      if ((await repo.getAll()).length > 0) return true;
-    }
-    return false;
+  /** Exposed so WR.createRepository (Firestore-backed) can build collection/
+   * document references without re-initializing Firebase itself. */
+  function getDb() {
+    return db;
   }
 
-  async function pushBackup() {
-    if (!currentUser) throw new Error('Not signed in.');
-    const payload = await WR.ui.buildBackupPayload();
-    await firestoreApi.setDoc(firestoreApi.doc(db, 'backups', currentUser.uid), {
-      payload: JSON.stringify(payload),
-      updatedAt: firestoreApi.serverTimestamp(),
-    });
-    WR.ui.markBackupTaken();
+  function getFirestoreApi() {
+    return firestoreApi;
   }
 
-  /** @returns {Promise<boolean>} whether a cloud copy existed and was loaded */
-  async function pullBackup() {
-    if (!currentUser) throw new Error('Not signed in.');
-    const snap = await firestoreApi.getDoc(firestoreApi.doc(db, 'backups', currentUser.uid));
-    if (!snap.exists()) return false;
-    await WR.ui.importBackup(snap.data().payload);
-    WR.ui.markBackupTaken();
-    return true;
+  function getUsername() {
+    return cachedUsername;
   }
 
-  /** Runs once right after sign-in. Only auto-loads the cloud copy when this
-   * device has nothing to lose; otherwise leaves both sides alone and tells
-   * the user to pick explicitly, rather than silently overwriting either. */
-  async function reconcileOnLogin() {
-    let cloudExists = false;
+  /** Loads (or refreshes) the cached username for the current user from the
+   * users/{uid} profile doc. Safe to call even if no profile exists yet. */
+  async function loadProfile() {
+    if (!currentUser) { cachedUsername = null; return null; }
     try {
-      const snap = await firestoreApi.getDoc(firestoreApi.doc(db, 'backups', currentUser.uid));
-      cloudExists = snap.exists();
-      if (cloudExists) {
-        if (!(await hasLocalData())) {
-          await WR.ui.importBackup(snap.data().payload);
-          WR.ui.markBackupTaken();
-        } else {
-          WR.ui.notify('You have data both on this device and in your account. Use "Sync now" or "Load cloud data" in Settings to choose.', 'error');
-        }
-      } else if (await hasLocalData()) {
-        await pushBackup();
-      }
+      const snap = await firestoreApi.getDoc(firestoreApi.doc(db, 'users', currentUser.uid));
+      cachedUsername = snap.exists() ? snap.data().username || null : null;
     } catch (err) {
-      console.warn('Cloud reconcile on login failed', err);
+      console.warn('Loading profile failed', err);
     }
+    return cachedUsername;
   }
 
-  async function signUp(email, password) {
+  function normalizeUsername(username) {
+    const trimmed = (username || '').trim();
+    const lower = trimmed.toLowerCase();
+    if (!/^[a-z0-9_]{3,20}$/.test(lower)) {
+      throw new Error('Username must be 3-20 characters: letters, numbers, and underscores only.');
+    }
+    return { display: trimmed, lower };
+  }
+
+  async function isUsernameAvailable(usernameLower) {
+    const snap = await firestoreApi.getDoc(firestoreApi.doc(db, 'usernames', usernameLower));
+    return !snap.exists() || (currentUser && snap.data().uid === currentUser.uid);
+  }
+
+  /** Atomically claims a username for a uid, releasing any previous claim by
+   * that same uid. Throws if the username is taken by someone else. */
+  async function claimUsername(uid, username, email) {
+    const { display, lower } = normalizeUsername(username);
+    const usernameRef = firestoreApi.doc(db, 'usernames', lower);
+    const userRef = firestoreApi.doc(db, 'users', uid);
+    await firestoreApi.runTransaction(db, async (tx) => {
+      const [usernameSnap, userSnap] = await Promise.all([tx.get(usernameRef), tx.get(userRef)]);
+      if (usernameSnap.exists() && usernameSnap.data().uid !== uid) {
+        throw new Error('That username is already taken.');
+      }
+      const previousLower = userSnap.exists() ? userSnap.data().usernameLower : null;
+      if (previousLower && previousLower !== lower) {
+        tx.delete(firestoreApi.doc(db, 'usernames', previousLower));
+      }
+      tx.set(usernameRef, { uid });
+      tx.set(userRef, { username: display, usernameLower: lower, email: email || null }, { merge: true });
+    });
+    cachedUsername = display;
+    return display;
+  }
+
+  /** For the Settings/Profile page: change the signed-in user's username. */
+  async function updateUsername(username) {
+    if (!currentUser) throw new Error('Not signed in.');
+    return claimUsername(currentUser.uid, username, currentUser.email);
+  }
+
+  async function sendPasswordReset() {
+    if (!currentUser || !currentUser.email) throw new Error('Not signed in.');
     await ensureInit();
+    await authApi.sendPasswordResetEmail(auth, currentUser.email);
+  }
+
+  function usesPasswordProvider() {
+    return !!currentUser && currentUser.providerData.some((p) => p.providerId === 'password');
+  }
+
+  async function signUp(email, password, username) {
+    await ensureInit();
+    const { lower } = normalizeUsername(username);
+    if (!(await isUsernameAvailable(lower))) throw new Error('That username is already taken.');
     const cred = await authApi.createUserWithEmailAndPassword(auth, email, password);
-    await pushBackup();
+    await claimUsername(cred.user.uid, username, email);
     return cred.user;
   }
 
   async function signIn(email, password) {
     await ensureInit();
     const cred = await authApi.signInWithEmailAndPassword(auth, email, password);
-    await reconcileOnLogin();
+    await loadProfile();
     return cred.user;
   }
 
@@ -6358,30 +5871,16 @@ WR.account = {};
     await ensureInit();
     const provider = new authApi.GoogleAuthProvider();
     const cred = await authApi.signInWithPopup(auth, provider);
-    await reconcileOnLogin();
+    await loadProfile();
+    if (!cachedUsername) {
+      WR.ui.notify('Welcome! Choose a username in Settings \u2192 Profile to finish setting up your account.', 'error');
+    }
     return cred.user;
   }
 
   async function signOutUser() {
     await ensureInit();
-    try {
-      await pushBackup();
-    } catch (err) {
-      console.warn('Final sync before logout failed', err);
-    }
     await authApi.signOut(auth);
-  }
-
-  function startAutoSync() {
-    if (syncTimer) return;
-    syncTimer = setInterval(() => {
-      if (currentUser) pushBackup().catch((err) => console.warn('Auto-sync failed', err));
-    }, 5 * 60 * 1000);
-  }
-
-  function stopAutoSync() {
-    if (syncTimer) clearInterval(syncTimer);
-    syncTimer = null;
   }
 
   WR.account.isConfigured = isConfigured;
@@ -6389,12 +5888,17 @@ WR.account = {};
   WR.account.waitForFirstUser = waitForFirstUser;
   WR.account.onAuthChange = onAuthChange;
   WR.account.getCurrentUser = getCurrentUser;
+  WR.account.getDb = getDb;
+  WR.account.getFirestoreApi = getFirestoreApi;
+  WR.account.getUsername = getUsername;
+  WR.account.updateUsername = updateUsername;
+  WR.account.isUsernameAvailable = isUsernameAvailable;
+  WR.account.sendPasswordReset = sendPasswordReset;
+  WR.account.usesPasswordProvider = usesPasswordProvider;
   WR.account.signUp = signUp;
   WR.account.signIn = signIn;
   WR.account.signInWithGoogle = signInWithGoogle;
   WR.account.signOut = signOutUser;
-  WR.account.pushBackup = pushBackup;
-  WR.account.pullBackup = pullBackup;
 })();
 // Full-screen sign in / sign up gate. Rendered instead of the app shell
 // whenever WR.account.isConfigured() is true and no one is signed in \u2014 no
@@ -6431,6 +5935,11 @@ WR.ui = WR.ui || {};
             <div class="auth-divider"><span>or</span></div>
 
             <form id="auth-form" class="auth-form" novalidate>
+              ${isSignup ? `
+              <label>Username
+                <input type="text" id="auth-username-input" autocomplete="username" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" placeholder="letters, numbers, underscores" required>
+              </label>
+              ` : ''}
               <label>Email
                 <input type="email" id="auth-email-input" autocomplete="email" required>
               </label>
@@ -6462,10 +5971,11 @@ WR.ui = WR.ui || {};
         errorEl.textContent = '';
         const email = document.getElementById('auth-email-input').value.trim();
         const password = document.getElementById('auth-password-input').value;
+        const usernameInput = document.getElementById('auth-username-input');
         submitBtn.disabled = true;
         submitBtn.textContent = isSignup ? 'Creating account\u2026' : 'Logging in\u2026';
         try {
-          if (isSignup) await WR.account.signUp(email, password);
+          if (isSignup) await WR.account.signUp(email, password, usernameInput.value);
           else await WR.account.signIn(email, password);
           // Success flips the app over via the global auth-state listener; nothing else to do here.
         } catch (err) {
@@ -6729,25 +6239,40 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.warn('Service worker registration failed', err);
     });
   }
-  // Asks the browser not to auto-evict IndexedDB under storage pressure.
-  // Best-effort only \u2014 browsers may ignore it, so it's not a substitute for backups.
+  // Asks the browser not to auto-evict IndexedDB under storage pressure \u2014
+  // Firestore's own offline cache uses IndexedDB internally, so this still helps.
   if (navigator.storage && navigator.storage.persist) {
     navigator.storage.persist().catch(() => {});
   }
-  WR.autobackup.maybeRunScheduled().catch((err) => console.warn('Auto-backup check failed', err));
 
   if (!WR.account.isConfigured()) {
-    // No Firebase project wired up in this build \u2014 nothing to gate behind, so
-    // the app behaves exactly as it did before accounts existed.
-    bootApp();
+    // Firestore is now the only data store the app knows how to use, so without
+    // a Firebase project wired up there's genuinely nothing to show.
+    document.getElementById('app').innerHTML = `
+      <div class="auth-screen">
+        <div class="auth-card">
+          <div class="auth-brand">WealthRoute</div>
+          <h1>Setup required</h1>
+          <p class="auth-subtitle">This build has no Firebase project configured, so there's no account system to store data in. Contact whoever deployed this app.</p>
+        </div>
+      </div>
+    `;
     return;
   }
 
   try {
     await WR.account.ensureInit();
   } catch (err) {
-    console.warn('Account init failed', err);
-    bootApp();
+    console.error('Account init failed', err);
+    document.getElementById('app').innerHTML = `
+      <div class="auth-screen">
+        <div class="auth-card">
+          <div class="auth-brand">WealthRoute</div>
+          <h1>Couldn't connect</h1>
+          <p class="auth-subtitle">${err.message || 'Something went wrong starting the app. Check your connection and reload.'}</p>
+        </div>
+      </div>
+    `;
     return;
   }
 
@@ -6757,7 +6282,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Single global listener from here on: flips the whole app between the
   // auth screen and the real shell as sign-in state changes, and keeps the
-  // topbar/Settings in sync while already inside the app.
+  // topbar/current page in sync (e.g. the Dashboard greeting picking up a
+  // username that finishes loading a moment after sign-in resolves).
   WR.account.onAuthChange((user) => {
     if (user) {
       if (!document.getElementById('nav')) {
@@ -6765,7 +6291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
       WR.ui.renderNavAccount();
-      if (window.location.hash === '#/settings') WR.ui.reRenderCurrentRoute();
+      WR.ui.reRenderCurrentRoute();
     } else {
       WR.ui.renderAuthScreen();
     }
