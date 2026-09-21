@@ -1083,6 +1083,15 @@ window.WR = window.WR || {};
   }
 
   /** @param {string} storeName */
+  /** Firestore's setDoc() rejects any field whose value is undefined; drop them instead of erroring. */
+  function stripUndefined(obj) {
+    const out = {};
+    for (const key of Object.keys(obj)) {
+      if (obj[key] !== undefined) out[key] = obj[key];
+    }
+    return out;
+  }
+
   function createRepository(storeName) {
     function collectionRef() {
       const { uid, api, db } = requireContext();
@@ -1107,13 +1116,13 @@ window.WR = window.WR || {};
       /** @param {{id: string}} item */
       async add(item) {
         const { api } = requireContext();
-        await api.setDoc(docRef(item.id), item);
+        await api.setDoc(docRef(item.id), stripUndefined(item));
         return item.id;
       },
       /** @param {{id: string}} item */
       async update(item) {
         const { api } = requireContext();
-        await api.setDoc(docRef(item.id), item);
+        await api.setDoc(docRef(item.id), stripUndefined(item));
         return item.id;
       },
       /** @param {string} id */
