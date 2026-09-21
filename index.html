@@ -11,8 +11,10 @@
     <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png" />
     <link rel="apple-touch-icon" href="icon-512.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="WealthRoute" />
+    <meta name="application-name" content="WealthRoute" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
 /* WealthRoute design tokens. A "private ledger" feel: warm paper or deep
@@ -77,10 +79,102 @@ body {
     radial-gradient(circle at 90% 0%, color-mix(in srgb, var(--gold) 12%, transparent) 0, transparent 28%),
     var(--bg);
   color: var(--text);
+  -webkit-tap-highlight-color: transparent;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ---------- Auth gate ---------- */
+.app-splash {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(1.5rem + env(safe-area-inset-top)) calc(1.5rem + env(safe-area-inset-right)) calc(1.5rem + env(safe-area-inset-bottom)) calc(1.5rem + env(safe-area-inset-left));
+  background:
+    radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--accent) 18%, transparent) 0, transparent 40%),
+    var(--bg);
+}
+.app-splash {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(1.5rem + env(safe-area-inset-top)) calc(1.5rem + env(safe-area-inset-right)) calc(1.5rem + env(safe-area-inset-bottom)) calc(1.5rem + env(safe-area-inset-left));
+  background:
+    radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--accent) 18%, transparent) 0, transparent 40%),
+    var(--bg);
+  animation: splash-enter 0.45s ease-out;
+  transition: opacity 0.32s ease, transform 0.32s ease, filter 0.32s ease;
+}
+.app-splash.is-hiding {
+  opacity: 0;
+  transform: scale(0.98);
+  filter: blur(2px);
+}
+.app-splash-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.95rem;
+  width: min(300px, 72vw);
+  padding: 1.5rem 1.25rem 1.1rem;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+  animation: splash-card-rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.splash-mark {
+  width: 64px;
+  height: 64px;
+  filter: drop-shadow(0 10px 18px color-mix(in srgb, var(--accent) 18%, transparent));
+}
+.splash-mark path { stroke: var(--accent); }
+.splash-mark circle { fill: var(--accent); }
+.splash-name {
+  font-family: var(--font-serif);
+  font-size: clamp(1.2rem, 2.2vw, 1.5rem);
+  letter-spacing: 0.03em;
+}
+.splash-status {
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.splash-bar {
+  width: 140px;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 74%, transparent);
+  overflow: hidden;
+}
+.splash-bar span {
+  display: block;
+  width: 34%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 52%, var(--gold)));
+  animation: splash-pulse 1.2s ease-in-out infinite;
+}
+@keyframes splash-enter {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes splash-card-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes splash-pulse {
+  0% { transform: translateX(-25%) scaleX(0.75); opacity: 0.6; }
+  50% { transform: translateX(150%) scaleX(1); opacity: 1; }
+  100% { transform: translateX(330%) scaleX(0.75); opacity: 0.6; }
+}
 .auth-screen {
   min-height: 100vh;
   display: flex;
@@ -329,10 +423,27 @@ body {
   padding: 0.45rem 0.55rem;
   border-radius: 7px;
   cursor: pointer;
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
 }
 .nav-action-item:hover { background: var(--panel-alt); }
 .nav-action-item.nav-action-danger { color: var(--danger); }
 .nav-action-item.nav-action-danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.nav-install-btn {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 10px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 13%, var(--panel)), var(--panel));
+  color: var(--accent);
+  font-weight: 700;
+  text-align: center;
+  padding: 0.6rem 0.8rem;
+  margin: 0.2rem 0 0.35rem;
+}
+.nav-install-btn:hover {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 18%, var(--panel)), var(--panel-alt));
+}
 #nav a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -3003,7 +3114,7 @@ WR.ui = WR.ui || {};
       return;
     }
     if (deferredInstallPrompt) {
-      host.innerHTML = '<button type="button" id="nav-install-btn" class="nav-action-item">Install App</button>';
+      host.innerHTML = '<button type="button" id="nav-install-btn" class="nav-install-btn">Install WealthRoute</button>';
       document.getElementById('nav-install-btn').addEventListener('click', async () => {
         const promptEvent = deferredInstallPrompt;
         if (!promptEvent) return;
@@ -3017,9 +3128,9 @@ WR.ui = WR.ui || {};
     if (isIOS()) {
       // iOS Safari has no install-prompt API at all — "Add to Home Screen" only
       // exists in the browser's own Share sheet, so this is instructions, not a button.
-      host.innerHTML = '<button type="button" id="nav-install-btn" class="nav-action-item">Install App</button>';
+      host.innerHTML = '<button type="button" id="nav-install-btn" class="nav-install-btn">Add to Home Screen</button>';
       document.getElementById('nav-install-btn').addEventListener('click', () => {
-        WR.ui.notify('Tap the Share icon, then "Add to Home Screen".', 'success');
+        WR.ui.notify('Tap the Share icon, then “Add to Home Screen”.', 'success');
       });
       return;
     }
@@ -6350,11 +6461,40 @@ function bootApp() {
   WR.ui.initRouter();
 }
 
+function renderSplashScreen() {
+  document.getElementById('app').innerHTML = `
+    <div class="app-splash" aria-live="polite" aria-busy="true">
+      <div class="app-splash-card">
+        <svg class="splash-mark" width="64" height="64" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M2 18 C 7 18, 7 8, 12 8 S 17 18, 22 18" stroke-width="1.6" stroke-dasharray="1 3.2" stroke-linecap="round"></path>
+          <circle cx="22" cy="18" r="2"></circle>
+        </svg>
+        <div class="splash-name">WealthRoute</div>
+        <div class="splash-status">Preparing your dashboard</div>
+        <div class="splash-bar"><span></span></div>
+      </div>
+    </div>
+  `;
+}
+
+function hideSplashScreen() {
+  const splash = document.querySelector('.app-splash');
+  if (!splash) return;
+  splash.classList.add('is-hiding');
+  setTimeout(() => {
+    splash.remove();
+  }, 320);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  renderSplashScreen();
+  const splashStartedAt = performance.now();
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./service-worker.js').catch((err) => {
-      console.warn('Service worker registration failed', err);
-    });
+    navigator.serviceWorker.register('./service-worker.js')
+      .then((reg) => reg.update().catch(() => {}))
+      .catch((err) => {
+        console.warn('Service worker registration failed', err);
+      });
   }
   // Asks the browser not to auto-evict IndexedDB under storage pressure \u2014
   // Firestore's own offline cache uses IndexedDB internally, so this still helps.
@@ -6394,6 +6534,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const initialUser = await WR.account.waitForFirstUser();
+  const elapsed = performance.now() - splashStartedAt;
+  const remaining = 260 - elapsed;
+  if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+  hideSplashScreen();
   if (initialUser) bootApp();
   else WR.ui.renderAuthScreen();
 
