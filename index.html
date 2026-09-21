@@ -311,6 +311,22 @@ body {
   background: var(--border);
   margin: 0.3rem 0.2rem;
 }
+.nav-action-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.nav-action-item:hover { background: var(--panel-alt); }
+.nav-action-item.nav-action-danger { color: var(--danger); }
+.nav-action-item.nav-action-danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
 #nav a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -2941,25 +2957,66 @@ WR.ui = WR.ui || {};
     }
     const user = WR.account.getCurrentUser();
     host.innerHTML = user
-      ? `<button type="button" id="nav-logout-btn" class="link-btn">Log out</button>`
+      ? ''
       : `
         <a href="#/settings" class="nav-account-link">Log in</a>
         <a href="#/settings" class="nav-account-link nav-account-link-accent">Sign up</a>
       `;
-    const logoutBtn = document.getElementById('nav-logout-btn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', async () => {
-        logoutBtn.disabled = true;
-        try {
-          await WR.account.signOut();
-          WR.ui.notify('Logged out.', 'success');
-        } catch (err) {
-          WR.ui.notify(`Log out failed: ${err.message}`, 'error');
-          logoutBtn.disabled = false;
-        }
-      });
-    }
   }
+
+  // Chrome/Edge/Android fire this when the site meets install criteria; we
+  // stash the event and only trigger it from the dropdown button, since
+  // browsers require it to be used inside a direct user gesture.
+  let deferredInstallPrompt = null;
+
+  function isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  function isIOS() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  }
+
+  function renderNavInstall() {
+    const host = document.getElementById('nav-install');
+    if (!host) return;
+    if (isStandalone()) {
+      host.innerHTML = '';
+      return;
+    }
+    if (deferredInstallPrompt) {
+      host.innerHTML = '<button type="button" id="nav-install-btn" class="nav-action-item">Install App</button>';
+      document.getElementById('nav-install-btn').addEventListener('click', async () => {
+        const promptEvent = deferredInstallPrompt;
+        if (!promptEvent) return;
+        deferredInstallPrompt = null;
+        renderNavInstall();
+        promptEvent.prompt();
+        await promptEvent.userChoice;
+      });
+      return;
+    }
+    if (isIOS()) {
+      // iOS Safari has no install-prompt API at all — "Add to Home Screen" only
+      // exists in the browser's own Share sheet, so this is instructions, not a button.
+      host.innerHTML = '<button type="button" id="nav-install-btn" class="nav-action-item">Install App</button>';
+      document.getElementById('nav-install-btn').addEventListener('click', () => {
+        WR.ui.notify('Tap the Share icon, then "Add to Home Screen".', 'success');
+      });
+      return;
+    }
+    host.innerHTML = '';
+  }
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    renderNavInstall();
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    renderNavInstall();
+  });
 
   function renderShell() {
     const horizontalNavLinks = HORIZONTAL_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
@@ -2975,6 +3032,11 @@ WR.ui = WR.ui || {};
       <div class="nav-divider"></div>
       <div class="nav-section-title">More</div>
       ${secondaryNavLinks}
+      <div class="nav-divider"></div>
+      <div id="nav-install"></div>
+      ${WR.account.isConfigured() && WR.account.getCurrentUser() ? `
+        <button type="button" id="nav-logout-btn" class="nav-action-item nav-action-danger">Log out</button>
+      ` : ''}
     `;
     document.getElementById('app').innerHTML = `
       <header class="topbar">
@@ -3006,7 +3068,21 @@ WR.ui = WR.ui || {};
       const isOpen = topbar.classList.toggle('nav-open');
       document.getElementById('nav-toggle-btn').setAttribute('aria-expanded', String(isOpen));
     });
+    const logoutBtn = document.getElementById('nav-logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        logoutBtn.disabled = true;
+        try {
+          await WR.account.signOut();
+          WR.ui.notify('Logged out.', 'success');
+        } catch (err) {
+          WR.ui.notify(`Log out failed: ${err.message}`, 'error');
+          logoutBtn.disabled = false;
+        }
+      });
+    }
     renderNavAccount();
+    renderNavInstall();
     refreshIntegrityNotice();
   }
 
