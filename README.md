@@ -1,22 +1,45 @@
 # WealthRoute
 
-Local-first personal finance & wealth planning assistant. Core files:
+Personal finance & wealth planning assistant, version **2.0**. Core files:
 `index.html` (the whole app), `tests.html` (test suite),
-`manifest.webmanifest`, and `service-worker.js` (PWA install/offline shell).
-No
-npm, no bundler, no build step, no TypeScript compiler. Everything is
-inlined into a single `<script>`/`<style>` tag per file.
+`manifest.webmanifest`, `service-worker.js` (PWA install/offline shell), and
+`worker.js`/`wrangler.toml` (optional Cloudflare Worker for live rates and the
+AI assistant). No npm, no bundler, no build step, no TypeScript compiler for
+the app itself \u2014 everything is inlined into a single `<script>`/`<style>`
+tag per file.
 
-## Latest UX changes
+**Architecture change in 2.0: real accounts, not local-only storage.**
+Every visitor signs up or logs in (email/password or Google) before seeing
+any data; all financial records live in Firestore under that account, not in
+this browser. Log into the same account from a phone, another computer, or
+after clearing browser data, and your data is exactly as you left it. See
+"Accounts, data, and privacy" below for the full picture, including what
+this means for offline use.
 
-- Navigation was simplified around the core objective: daily/annual money
-  management flows are primary, while Spreadsheet/Excel/Wealth Assistant are
-  grouped under **More**.
-- Mobile navigation now uses a hamburger menu with a dropdown panel.
-- Desktop includes a quick jump dropdown for section switching.
-- Dashboard top area is laid out as two responsive cards:
-  - **Your Financial Position**
-  - **Annual Financial Summary**
+## What's new in 2.0
+
+- **Real accounts**: email/password and Google sign-in, a required unique
+  username, password reset, all backed by Firebase Auth.
+- **Firestore is the only data store.** IndexedDB is gone entirely \u2014 every
+  account's data lives under its own path in Firestore, enforced by security
+  rules, so one account can never see another's data, even on a shared
+  browser.
+- **Every page is gated behind sign-in.** Nothing renders \u2014 not even the
+  shell \u2014 until Firebase resolves an authenticated user.
+- **Redesigned navigation**: a horizontal quick-access bar (Dashboard,
+  Variable Expenses, Debts, Reports, Settings) on wider screens, plus a
+  grouped dropdown for everything else, with no duplicate entries between
+  the two. Mobile keeps the full list in the dropdown since it has no
+  horizontal bar.
+- **Installable PWA, properly this time**: real app icons (192/512/maskable)
+  replace the previously empty manifest icon list, plus iOS home-screen meta
+  tags. Previously the empty icon list silently blocked Chrome/Android's
+  install prompt.
+- **Retired** the local-only backup mechanisms that only made sense before
+  accounts existed: folder-based auto-backup (File System Access API) and
+  the passphrase + Cloudflare Worker encrypted cloud backup. Manual JSON
+  export/import is kept in Settings \u2192 Data Management, now reading/writing
+  your Firestore data instead of a local database.
 
 ## Design
 
@@ -25,19 +48,33 @@ preference, remembered after that). Deep emerald as the primary accent,
 warm gold reserved for medium-priority signal, a serif used for the net
 worth figure and headings, sans-serif for everything functional. No
 external font/icon dependencies \u2014 system font stacks only, so this doesn't
-add to the "needs internet" list beyond the Excel tab (see below).
+add to the "needs internet" list beyond the Excel tab and your account
+(see below).
 
-## Display name
+## Accounts, data, and privacy
 
-Settings has an optional "Display name" field, shown as a time-of-day
-greeting on the Dashboard ("Good afternoon, [name]"). Purely cosmetic \u2014 no
-security or access-control meaning. Since each visitor's browser already
-has its own completely separate IndexedDB database (per-origin, per-browser
-isolation, not something WealthRoute has to build), there's no shared data
-for a login system to protect, so there isn't one \u2014 adding a login screen
-here would only create a false impression of a security boundary that
-doesn't exist, plus an unrecoverable-password failure mode with no backend
-to reset it.
+Settings \u2192 **Profile** shows your username and email, lets you change your
+username (must be unique, 3\u201320 characters, letters/numbers/underscores),
+and \u2014 for email/password accounts \u2014 send yourself a password reset email.
+Google accounts manage their password through Google instead.
+
+Each account's financial records live under `users/{uid}/...` in Firestore,
+scoped entirely to that account by security rules
+(`request.auth.uid == uid`) \u2014 not just hidden by the UI. Nobody else who
+signs into this app, on this device or any other, can read or write your
+data.
+
+**Offline behavior changed from 1.x.** The app previously worked fully
+offline via IndexedDB with no login at all. Now: the very first sign-in on
+any device needs a network connection, but after that Firestore's built-in
+offline cache lets you keep reading and editing while offline \u2014 writes queue
+up and sync automatically once you're back online.
+
+**One remaining caveat:** login only controls what's *shown*. If more than
+one person signs into different accounts on the *same physical browser
+profile*, they will not see each other's Firestore data (that's enforced
+server-side), but there is currently no separate "profile switcher" for
+purely local, no-account use on a shared device.
 
 ## This pass: editing, Excel fix, and a professionalism pass
 
@@ -86,10 +123,14 @@ re-renders, so the row you're editing keeps focus.
 
 ## How to run this
 
-**Chrome and Edge block IndexedDB on `file://` pages** \u2014 double-clicking
-`index.html` will load the page but every save will silently fail in those
-browsers. Firefox allows `file://` + IndexedDB. **GitHub Pages has no issue
-at all**, since it serves everything over `https://`.
+Requires a Firebase project (Authentication + Firestore) \u2014 see "Setting up
+your own Firebase project" below if you're deploying your own copy. This
+repo's `index.html` already points at a live project, so you can also just
+serve the files as-is to try it.
+
+**`file://` pages won't work** \u2014 Firebase Auth (popups/redirects) and
+Firestore both need `http://` or `https://`. **GitHub Pages works out of the
+box**, since it serves everything over `https://`.
 
 For local testing:
 ```bash
@@ -97,16 +138,49 @@ python3 -m http.server 8000
 # open http://localhost:8000
 ```
 
-The Excel tab loads SheetJS from a CDN (`cdn.jsdelivr.net`) \u2014 this needs
-internet the first time it's used. Every other part of the app, including
-IndexedDB storage, the financial engine, dashboard, and forecasting, works
-fully offline.
+The Excel tab loads SheetJS from a CDN (`cdn.jsdelivr.net`), and signing in
+needs a network connection the first time on any device \u2014 after that,
+Firestore's offline cache keeps the app usable without a connection.
+
+## Setting up your own Firebase project
+
+1. Create a project at [console.firebase.google.com](https://console.firebase.google.com).
+2. **Authentication** \u2192 Sign-in method \u2192 enable **Email/Password** (and
+  **Google** if you want that option too). Enable **Anonymous** as well if
+  you plan to run `tests.html` (see below).
+3. **Firestore Database** \u2192 create a database, then set these security
+  rules (Rules tab \u2192 replace everything \u2192 Publish):
+  ```
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /usernames/{username} {
+        allow read: if true;
+        allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+        allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+        allow update: if false;
+      }
+      match /users/{uid} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+        match /{document=**} {
+          allow read, write: if request.auth != null && request.auth.uid == uid;
+        }
+      }
+    }
+  }
+  ```
+4. Project settings \u2192 add a Web app \u2192 copy the six `firebaseConfig` values
+  (they're public identifiers, not secrets) into `FIREBASE_CONFIG` near the
+  top of the `WR.account` module in `index.html`, and into the matching
+  `FIREBASE_CONFIG` in `tests.html`.
 
 ## Running tests
 
 Serve the folder (see above), open `tests.html`. Results render directly on
-the page. Storage-layer tests require a real browser because they use
-IndexedDB.
+the page. Storage-layer tests run against the same Firestore backend the
+real app uses (via an anonymous test account on your Firebase project),
+clearing that account's data before each test rather than deleting a local
+database.
 
 ## What's built
 
@@ -146,7 +220,9 @@ a new workbook).
 **Settings** \u2014 base currency, country, emergency fund target, assumed
 investment return, risk profile, expense categories (essential/
 discretionary tagging), live or manually-entered exchange rates, JSON
-backup/export/restore, delete-all-data.
+export/import for portability, delete-all-data. Plus a **Profile** section
+for account management (username, password reset, log out) \u2014 see
+"Accounts, data, and privacy" above.
 
 ## Live updates and assistant
 
@@ -249,18 +325,24 @@ Flagging what's still open rather than letting it be a surprise:
   records.
 - **No undo** after a delete confirmation \u2014 the confirmation dialog is the
   only safety net.
-- **UI/DOM code is still unverified in a real browser** by me \u2014 only the
-  pure financial-engine functions get executed and checked during
-  development (this sandbox has no browser). Everything DOM-related
-  (routing, forms, the Excel workflow, the Reports charts) is verified only
-  by syntax-checking and code review, not by actually running it. You
-  clicking through it is still the first real test.
+- **No per-account local storage isolation on a shared browser.** Login
+  controls what's shown and Firestore enforces real data isolation
+  server-side, but there's no separate "who's using this browser" profile
+  switcher for people who deliberately want to avoid a real account.
+- **Not every page was click-tested during the 2.0 migration** \u2014
+  authentication, navigation, the Dashboard, Debts, and Settings/Profile
+  were all verified live in a real browser against a live Firebase project,
+  but Transactions, Assets, Investments, Forecast, the Excel workflow, and
+  the Reports charts were carried over unchanged and re-verified only by
+  code review, not by clicking through them post-migration.
 
 ## Roadmap: Phase 1, 2, 3 (no demo data)
 
-This roadmap keeps WealthRoute lightweight and local-first while improving
-professionalism for sharing with a small group now and wider individual use
-later.
+This roadmap keeps WealthRoute lightweight and dependency-light (still no
+build step) while improving professionalism for sharing with a small group
+now and wider individual use later. As of 2.0, "local-first" has been
+superseded by accounts + Firestore (see "Accounts, data, and privacy"
+above) \u2014 items below predate that change where they still say otherwise.
 
 ### Phase 1 — Friend-ready polish (current distribution)
 
@@ -273,9 +355,14 @@ later.
   debt payment edits).
 - [x] Add runtime validation messages for common data issues (invalid dates,
   start/end month mismatches, payment over balance).
-- [ ] Run browser click-through QA across all routes and fix UX defects.
-- [~] Update tests.html schema/repository coverage to match index.html
-  (core store parity added; full logic parity still pending).
+- [x] Run browser click-through QA across all routes and fix UX defects
+  (verified live via automated browser testing during the 2.0 migration:
+  sign-up/login/logout, Dashboard, Debts, Settings/Profile, nav, and PWA
+  install assets all confirmed working end-to-end against a live Firebase
+  project).
+- [x] Update tests.html schema/repository coverage to match index.html
+  (fully rebuilt against Firestore in 2.0, using the same repository code
+  and an anonymous test account — no longer a separate IndexedDB mock).
 
 ### Phase 2 — Market-quality foundation
 
@@ -290,11 +377,16 @@ later.
 
 ### Phase 3 — Lightweight public release readiness
 
-- Package as a lightweight installable PWA.
-- Add optional secure sync architecture planning (while keeping local-first as
-  default mode).
-- Add release versioning, migration notes, and a user-facing changelog.
-- Publish clear privacy and data ownership messaging.
-- Add onboarding docs for first-time users and backup/restore recovery docs.
-- Add a simple feedback loop for early users to report UX and calculation
+- [x] Package as a lightweight installable PWA (real icons + manifest fixed
+  in 2.0).
+- [x] Add secure sync architecture (Firebase Auth + Firestore, per-account
+  data isolation, in 2.0 \u2014 superseded the original "keep local-first as
+  default" framing).
+- [x] Add release versioning (this README's version header + in-app Release
+  Notes in Settings) and a user-facing changelog ("What's new in 2.0" above).
+- [x] Publish clear privacy and data ownership messaging ("Accounts, data,
+  and privacy" above).
+- [ ] Add onboarding docs for first-time users and account recovery docs
+  beyond the built-in password reset email.
+- [ ] Add a simple feedback loop for early users to report UX and calculation
   issues.

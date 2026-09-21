@@ -1,21 +1,9 @@
 const CORS_HEADERS = {
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Content-Type': 'application/json; charset=utf-8',
 };
 const GEMINI_MODEL = 'gemini-3.6-flash';
-const BACKUP_ID_RE = /^[a-f0-9]{64}$/;
-const MAX_BACKUP_BYTES = 2 * 1024 * 1024; // 2 MB ciphertext ceiling per user.
-
-function isBackupPayload(body) {
-  return (
-    body &&
-    typeof body === 'object' &&
-    typeof body.salt === 'string' &&
-    typeof body.iv === 'string' &&
-    typeof body.ciphertext === 'string'
-  );
-}
 
 function json(body, status = 200, origin) {
   return new Response(JSON.stringify(body), {
@@ -72,40 +60,6 @@ export default {
       const response = await fetch(`https://api.frankfurter.app/latest?amount=1&from=${from}&to=${to}`);
       if (!response.ok) return json({ error: 'Rate provider is unavailable.' }, 502, origin);
       return json(await response.json(), 200, origin);
-    }
-
-    const backupMatch = url.pathname.match(/^\/backup\/([a-f0-9]{0,64})$/);
-    if (backupMatch) {
-      if (!env.BACKUPS) return json({ error: 'Cloud backup storage is not configured on this Worker.' }, 500, origin);
-      const id = backupMatch[1];
-      if (!BACKUP_ID_RE.test(id)) return json({ error: 'Invalid backup id.' }, 400, origin);
-
-      if (request.method === 'GET') {
-        const stored = await env.BACKUPS.get(id);
-        if (!stored) return json({ error: 'No backup found.' }, 404, origin);
-        return new Response(stored, { headers: { ...CORS_HEADERS, 'Access-Control-Allow-Origin': origin } });
-      }
-
-      if (request.method === 'PUT') {
-        const raw = await request.text();
-        if (raw.length > MAX_BACKUP_BYTES) return json({ error: 'Backup is too large.' }, 413, origin);
-        let payload;
-        try {
-          payload = JSON.parse(raw);
-        } catch {
-          return json({ error: 'Request body must be JSON.' }, 400, origin);
-        }
-        if (!isBackupPayload(payload)) return json({ error: 'Invalid backup payload shape.' }, 400, origin);
-        await env.BACKUPS.put(id, raw);
-        return json({ ok: true }, 200, origin);
-      }
-
-      if (request.method === 'DELETE') {
-        await env.BACKUPS.delete(id);
-        return json({ ok: true }, 200, origin);
-      }
-
-      return json({ error: 'Method not allowed.' }, 405, origin);
     }
 
     if (url.pathname === '/assistant' && request.method === 'POST') {

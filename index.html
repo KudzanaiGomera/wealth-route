@@ -6,7 +6,11 @@
     <title>WealthRoute</title>
     <meta name="theme-color" content="#0e6b57" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="icon" href="data:;base64,iVBORw0KGgo=" />
+    <link rel="icon" href="icon-192.png" type="image/png" />
+    <link rel="apple-touch-icon" href="icon-512.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="WealthRoute" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
 /* WealthRoute design tokens. A "private ledger" feel: warm paper or deep
@@ -855,6 +859,9 @@ button.danger { background: var(--danger); color: #fff; }
 
 @media (min-width: 901px) {
   .nav-horizontal { display: flex; }
+  /* Same links are already on the horizontal bar at this width, so hide the
+     duplicate entries in the dropdown; mobile (no horizontal bar) still needs them. */
+  #nav a.in-horizontal-nav { display: none; }
 }
     </style>
   </head>
@@ -2956,8 +2963,12 @@ WR.ui = WR.ui || {};
 
   function renderShell() {
     const horizontalNavLinks = HORIZONTAL_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
-    const primaryNavLinks = PRIMARY_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
-    const secondaryNavLinks = SECONDARY_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
+    // Marked (not removed) so CSS can hide these specific dropdown entries only
+    // once the horizontal bar showing the same links is actually visible
+    // (>=901px) — mobile still needs the full list since it has no horizontal bar.
+    const navLink = (i) => `<a href="${i.hash}" data-hash="${i.hash}"${HORIZONTAL_NAV_HASHES.includes(i.hash) ? ' class="in-horizontal-nav"' : ''}>${i.label}</a>`;
+    const primaryNavLinks = PRIMARY_NAV_ITEMS.map(navLink).join('');
+    const secondaryNavLinks = SECONDARY_NAV_ITEMS.map(navLink).join('');
     const nav = `
       <div class="nav-section-title">Core</div>
       ${primaryNavLinks}
@@ -5141,7 +5152,7 @@ window.WR = window.WR || {};
 WR.ui = WR.ui || {};
 
 (function () {
-  const APP_VERSION = '1.0.0';
+  const APP_VERSION = '2.0.0';
 
   function hardConfirm(actionLabel) {
     return new Promise((resolve) => {
@@ -5345,10 +5356,12 @@ WR.ui = WR.ui || {};
         <h2>Release Notes</h2>
         <p class="fine-print">Version ${APP_VERSION}</p>
         <ul>
-          <li>Improved interface polish and mobile spacing.</li>
-          <li>Added startup and on-demand integrity checks.</li>
-          <li>Added stronger confirmation flow for restore/reset.</li>
-          <li>Added installable PWA metadata and offline shell caching.</li>
+          <li>Real accounts: email/password and Google sign-in, with a required unique username.</li>
+          <li>Data now lives in your account (Firestore), not this browser — log in from any device to see the same data, fully isolated per account.</li>
+          <li>Every page is gated behind sign-in; nothing renders until you're authenticated.</li>
+          <li>Retired local-only backup mechanisms (folder auto-backup, passphrase cloud backup) now that your account is the durable store; manual JSON export/import kept for portability.</li>
+          <li>Redesigned navigation: a horizontal quick-access bar on desktop plus a grouped dropdown for everything else, with no duplicate entries.</li>
+          <li>Installable as a proper PWA on Android/iOS (real app icons, manifest fixed).</li>
         </ul>
       </section>
 

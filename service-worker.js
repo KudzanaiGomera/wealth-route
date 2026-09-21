@@ -1,9 +1,12 @@
-const CACHE_NAME = 'wealthroute-shell-v14';
+const CACHE_NAME = 'wealthroute-shell-v17';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './tests.html'
+  './tests.html',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-512-maskable.png'
 ];
 
 self.addEventListener('install', (event) => {
