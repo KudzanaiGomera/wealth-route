@@ -74,6 +74,112 @@ body {
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+/* ---------- Auth gate ---------- */
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 2rem 1.75rem;
+}
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  color: var(--text);
+  margin-bottom: 1.4rem;
+}
+.auth-brand .brand-mark path { stroke: var(--accent); }
+.auth-brand .brand-mark circle { fill: var(--accent); }
+.auth-card h1 { margin: 0 0 0.35rem; font-size: 1.5rem; }
+.auth-subtitle { margin: 0 0 1.3rem; color: var(--muted); font-size: 0.9rem; line-height: 1.4; }
+.auth-google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.65rem;
+  border-radius: 9px;
+}
+.auth-google-btn:hover { background: var(--panel-alt); }
+.auth-google-btn:disabled { opacity: 0.6; }
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.1rem 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.auth-divider::before, .auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.auth-form { display: flex; flex-direction: column; gap: 0.9rem; }
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.83rem;
+  color: var(--muted);
+}
+.auth-form input {
+  height: 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-alt);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  padding: 0 0.75rem;
+}
+.auth-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.auth-form button[type="submit"] {
+  height: 2.6rem;
+  border: none;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-family: var(--font-sans);
+  font-size: 0.94rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+.auth-form button[type="submit"]:disabled { opacity: 0.7; }
+.auth-error {
+  margin: 0;
+  min-height: 1.1em;
+  color: var(--danger);
+  font-size: 0.83rem;
+}
+.auth-switch {
+  margin: 1.3rem 0 0;
+  text-align: center;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+.auth-switch .link-btn { font-weight: 600; }
+
 /* ---------- Top bar ---------- */
 
 .topbar {
@@ -6133,6 +6239,9 @@ WR.account = {};
   let onChangeCallback = null;
   let initPromise = null;
   let syncTimer = null;
+  let firstUserResolved = false;
+  let resolveFirstUser;
+  const firstUserPromise = new Promise((resolve) => { resolveFirstUser = resolve; });
 
   function isConfigured() {
     return !Object.values(FIREBASE_CONFIG).some((v) => !v || v.startsWith('REPLACE_ME'));
@@ -6154,12 +6263,23 @@ WR.account = {};
         db = firestoreModule.getFirestore(app);
         authModule.onAuthStateChanged(auth, (user) => {
           currentUser = user;
+          if (!firstUserResolved) {
+            firstUserResolved = true;
+            resolveFirstUser(user);
+          }
           if (user) startAutoSync(); else stopAutoSync();
           if (onChangeCallback) onChangeCallback(user);
         });
       })();
     }
     return initPromise;
+  }
+
+  /** Resolves once with whatever user Firebase restores from a previous
+   * session (or null) — use this once at boot to decide whether to show the
+   * app or the auth screen, before subscribing to further changes. */
+  function waitForFirstUser() {
+    return firstUserPromise;
   }
 
   function onAuthChange(callback) {
@@ -6234,6 +6354,14 @@ WR.account = {};
     return cred.user;
   }
 
+  async function signInWithGoogle() {
+    await ensureInit();
+    const provider = new authApi.GoogleAuthProvider();
+    const cred = await authApi.signInWithPopup(auth, provider);
+    await reconcileOnLogin();
+    return cred.user;
+  }
+
   async function signOutUser() {
     await ensureInit();
     try {
@@ -6258,13 +6386,117 @@ WR.account = {};
 
   WR.account.isConfigured = isConfigured;
   WR.account.ensureInit = ensureInit;
+  WR.account.waitForFirstUser = waitForFirstUser;
   WR.account.onAuthChange = onAuthChange;
   WR.account.getCurrentUser = getCurrentUser;
   WR.account.signUp = signUp;
   WR.account.signIn = signIn;
+  WR.account.signInWithGoogle = signInWithGoogle;
   WR.account.signOut = signOutUser;
   WR.account.pushBackup = pushBackup;
   WR.account.pullBackup = pullBackup;
+})();
+// Full-screen sign in / sign up gate. Rendered instead of the app shell
+// whenever WR.account.isConfigured() is true and no one is signed in \u2014 no
+// dashboard, tabs, or financial data are ever mounted into the DOM until
+// Firebase resolves an authenticated user.
+
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+
+(function () {
+  function renderAuthScreen() {
+    let mode = 'login'; // 'login' | 'signup'
+
+    function googleIcon() {
+      return `<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.6 15.6 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4c-7.6 0-14.2 4.3-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.4C29.6 35.3 27 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.7 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.4C41.5 36 44 30.6 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>`;
+    }
+
+    function render() {
+      const isSignup = mode === 'signup';
+      document.getElementById('app').innerHTML = `
+        <div class="auth-screen">
+          <div class="auth-card">
+            <div class="auth-brand">
+              <svg class="brand-mark" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M2 18 C 7 18, 7 8, 12 8 S 17 18, 22 18" stroke-width="1.6" stroke-dasharray="1 3.2" stroke-linecap="round"></path>
+                <circle cx="22" cy="18" r="2"></circle>
+              </svg>
+              WealthRoute
+            </div>
+            <h1>${isSignup ? 'Create your account' : 'Log in'}</h1>
+            <p class="auth-subtitle">${isSignup ? 'Track your money, debts, and net worth \u2014 synced to every device you use.' : 'Welcome back \u2014 log in to see your dashboard.'}</p>
+
+            <button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button>
+            <div class="auth-divider"><span>or</span></div>
+
+            <form id="auth-form" class="auth-form" novalidate>
+              <label>Email
+                <input type="email" id="auth-email-input" autocomplete="email" required>
+              </label>
+              <label>Password
+                <input type="password" id="auth-password-input" autocomplete="${isSignup ? 'new-password' : 'current-password'}" minlength="6" required>
+              </label>
+              <p id="auth-error" class="auth-error" role="alert"></p>
+              <button type="submit" id="auth-submit-btn">${isSignup ? 'Sign up' : 'Log in'}</button>
+            </form>
+
+            <p class="auth-switch">
+              ${isSignup ? 'Already have an account?' : "Don't have an account?"}
+              <button type="button" id="auth-switch-btn" class="link-btn">${isSignup ? 'Log in' : 'Sign up'}</button>
+            </p>
+          </div>
+        </div>
+      `;
+
+      const form = document.getElementById('auth-form');
+      const errorEl = document.getElementById('auth-error');
+      const submitBtn = document.getElementById('auth-submit-btn');
+
+      function showError(err) {
+        errorEl.textContent = err && err.message ? err.message.replace(/^Firebase:\s*/, '').replace(/\s*\(auth\/[a-z-]+\)\.?$/i, '') : 'Something went wrong. Try again.';
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorEl.textContent = '';
+        const email = document.getElementById('auth-email-input').value.trim();
+        const password = document.getElementById('auth-password-input').value;
+        submitBtn.disabled = true;
+        submitBtn.textContent = isSignup ? 'Creating account\u2026' : 'Logging in\u2026';
+        try {
+          if (isSignup) await WR.account.signUp(email, password);
+          else await WR.account.signIn(email, password);
+          // Success flips the app over via the global auth-state listener; nothing else to do here.
+        } catch (err) {
+          showError(err);
+          submitBtn.disabled = false;
+          submitBtn.textContent = isSignup ? 'Sign up' : 'Log in';
+        }
+      });
+
+      document.getElementById('auth-google-btn').addEventListener('click', async () => {
+        errorEl.textContent = '';
+        const googleBtn = document.getElementById('auth-google-btn');
+        googleBtn.disabled = true;
+        try {
+          await WR.account.signInWithGoogle();
+        } catch (err) {
+          showError(err);
+          googleBtn.disabled = false;
+        }
+      });
+
+      document.getElementById('auth-switch-btn').addEventListener('click', () => {
+        mode = isSignup ? 'login' : 'signup';
+        render();
+      });
+    }
+
+    render();
+  }
+
+  WR.ui.renderAuthScreen = renderAuthScreen;
 })();
 // Worker. The Worker holds the provider key, so no secret is shipped to the
 // browser. The model cannot change stored data.
@@ -6486,9 +6718,12 @@ WR.ui = WR.ui || {};
   WR.ui.initRouter = initRouter;
   WR.ui.reRenderCurrentRoute = handleRoute;
 })();
-document.addEventListener('DOMContentLoaded', () => {
+function bootApp() {
   WR.ui.renderShell();
   WR.ui.initRouter();
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./service-worker.js').catch((err) => {
       console.warn('Service worker registration failed', err);
@@ -6500,18 +6735,41 @@ document.addEventListener('DOMContentLoaded', () => {
     navigator.storage.persist().catch(() => {});
   }
   WR.autobackup.maybeRunScheduled().catch((err) => console.warn('Auto-backup check failed', err));
-  // Preloads the Firebase SDK + restores any existing session early, so
-  // background sync is already running by the time someone opens Settings.
-  if (WR.account.isConfigured()) {
-    WR.account.ensureInit().then(() => {
-      // Single global listener keeps the topbar's login state in sync everywhere,
-      // and re-renders Settings too if that's the page currently open.
-      WR.account.onAuthChange(() => {
-        WR.ui.renderNavAccount();
-        if (window.location.hash === '#/settings') WR.ui.reRenderCurrentRoute();
-      });
-    }).catch((err) => console.warn('Account init failed', err));
+
+  if (!WR.account.isConfigured()) {
+    // No Firebase project wired up in this build \u2014 nothing to gate behind, so
+    // the app behaves exactly as it did before accounts existed.
+    bootApp();
+    return;
   }
+
+  try {
+    await WR.account.ensureInit();
+  } catch (err) {
+    console.warn('Account init failed', err);
+    bootApp();
+    return;
+  }
+
+  const initialUser = await WR.account.waitForFirstUser();
+  if (initialUser) bootApp();
+  else WR.ui.renderAuthScreen();
+
+  // Single global listener from here on: flips the whole app between the
+  // auth screen and the real shell as sign-in state changes, and keeps the
+  // topbar/Settings in sync while already inside the app.
+  WR.account.onAuthChange((user) => {
+    if (user) {
+      if (!document.getElementById('nav')) {
+        bootApp();
+        return;
+      }
+      WR.ui.renderNavAccount();
+      if (window.location.hash === '#/settings') WR.ui.reRenderCurrentRoute();
+    } else {
+      WR.ui.renderAuthScreen();
+    }
+  });
 });
 
     </script>
