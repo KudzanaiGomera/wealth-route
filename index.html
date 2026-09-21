@@ -105,6 +105,57 @@ body {
 .brand-mark path { stroke: var(--accent); }
 .brand-mark circle { fill: var(--accent); }
 
+.nav-horizontal {
+  display: none;
+  align-items: center;
+  gap: 0.15rem;
+  flex-wrap: wrap;
+}
+.nav-horizontal a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.86rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 7px;
+  white-space: nowrap;
+}
+.nav-horizontal a.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-weight: 600;
+}
+.nav-horizontal a:hover { background: var(--panel-alt); }
+
+.nav-account {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+.nav-account-email {
+  font-size: 0.8rem;
+  color: var(--muted);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-account-link {
+  font-size: 0.86rem;
+  text-decoration: none;
+  color: var(--muted);
+  padding: 0.4rem 0.6rem;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+}
+.nav-account-link:hover { background: var(--panel-alt); }
+.nav-account-link-accent {
+  color: var(--accent-contrast, #fff);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.nav-account-link-accent:hover { opacity: 0.9; background: var(--accent); }
+
 #nav {
   display: flex;
   gap: 0.2rem;
@@ -697,7 +748,7 @@ button.danger { background: var(--danger); color: #fff; }
 }
 
 @media (min-width: 901px) {
-  .nav-toggle { display: none; }
+  .nav-horizontal { display: flex; }
 }
     </style>
   </head>
@@ -759,7 +810,17 @@ window.WR = window.WR || {};
         request.result.onversionchange = () => request.result.close();
         resolve(request.result);
       };
-      request.onerror = () => reject(request.error);
+      request.onerror = () => {
+        const error = request.error;
+        if (error && error.name === 'VersionError') {
+          // This browser's IndexedDB is already newer than what this loaded copy of
+          // index.html expects — almost always a stale service-worker-cached page
+          // (bump CACHE_NAME in service-worker.js on every release to avoid this).
+          reject(Object.assign(new Error('This browser already has a newer version of your data than this page expects, most likely because you\'re viewing a cached copy of the app. Reload the app below to fetch the latest version.'), { name: 'VersionError', cause: error }));
+          return;
+        }
+        reject(error);
+      };
     });
   }
 
@@ -2894,7 +2955,46 @@ WR.ui = WR.ui || {};
 
   const NAV_ITEMS = PRIMARY_NAV_ITEMS.concat(SECONDARY_NAV_ITEMS);
 
+  // A handful of the most-used destinations, always visible in the topbar on
+  // wider screens. Everything else (including these, for keyboard/mobile
+  // users) still lives in the grouped hamburger dropdown below.
+  const HORIZONTAL_NAV_HASHES = ['#/dashboard', '#/transactions', '#/debts', '#/reports', '#/settings'];
+  const HORIZONTAL_NAV_ITEMS = HORIZONTAL_NAV_HASHES.map((hash) => NAV_ITEMS.find((i) => i.hash === hash)).filter(Boolean);
+
+  function renderNavAccount() {
+    const host = document.getElementById('nav-account');
+    if (!host) return;
+    if (!WR.account.isConfigured()) {
+      host.innerHTML = '';
+      return;
+    }
+    const user = WR.account.getCurrentUser();
+    host.innerHTML = user
+      ? `
+        <span class="nav-account-email" title="${user.email}">${user.email}</span>
+        <button type="button" id="nav-logout-btn" class="link-btn">Log out</button>
+      `
+      : `
+        <a href="#/settings" class="nav-account-link">Log in</a>
+        <a href="#/settings" class="nav-account-link nav-account-link-accent">Sign up</a>
+      `;
+    const logoutBtn = document.getElementById('nav-logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        logoutBtn.disabled = true;
+        try {
+          await WR.account.signOut();
+          WR.ui.notify('Logged out.', 'success');
+        } catch (err) {
+          WR.ui.notify(`Log out failed: ${err.message}`, 'error');
+          logoutBtn.disabled = false;
+        }
+      });
+    }
+  }
+
   function renderShell() {
+    const horizontalNavLinks = HORIZONTAL_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
     const primaryNavLinks = PRIMARY_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
     const secondaryNavLinks = SECONDARY_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
     const nav = `
@@ -2921,7 +3021,9 @@ WR.ui = WR.ui || {};
           </svg>
           WealthRoute
         </a>
-        <nav id="nav">${nav}</nav>
+        <nav class="nav-horizontal" aria-label="Primary">${horizontalNavLinks}</nav>
+        <nav id="nav" aria-label="All sections">${nav}</nav>
+        <div id="nav-account" class="nav-account"></div>
         <div class="nav-controls">
           <select id="nav-jump" class="nav-jump" aria-label="Jump to section">
             ${navOptions}
@@ -2946,11 +3048,12 @@ WR.ui = WR.ui || {};
       const isOpen = topbar.classList.toggle('nav-open');
       document.getElementById('nav-toggle-btn').setAttribute('aria-expanded', String(isOpen));
     });
+    renderNavAccount();
     refreshIntegrityNotice();
   }
 
   function setActiveNav(hash) {
-    document.querySelectorAll('#nav a').forEach((a) => {
+    document.querySelectorAll('#nav a, .nav-horizontal a').forEach((a) => {
       a.classList.toggle('active', a.getAttribute('data-hash') === hash);
     });
     const jump = document.getElementById('nav-jump');
@@ -3165,6 +3268,7 @@ WR.ui = WR.ui || {};
   WR.ui.enhanceResponsiveContent = enhanceResponsiveContent;
   WR.ui.NAV_ITEMS = NAV_ITEMS;
   WR.ui.renderShell = renderShell;
+  WR.ui.renderNavAccount = renderNavAccount;
   WR.ui.setActiveNav = setActiveNav;
   WR.ui.priorityBadge = priorityBadge;
   WR.ui.renderDashboard = renderDashboard;
@@ -5608,9 +5712,6 @@ WR.ui = WR.ui || {};
           }
         });
       }
-      WR.account.onAuthChange(() => {
-        if (window.location.hash === '#/settings') renderSettings(container);
-      });
     }
 
     document.getElementById('export-backup-btn').addEventListener('click', exportBackup);
@@ -6353,8 +6454,26 @@ WR.ui = WR.ui || {};
       await WR.ui[renderFnName](content);
       if (WR.ui.enhanceResponsiveContent) WR.ui.enhanceResponsiveContent(content);
     } catch (err) {
-      content.innerHTML = `<p class="warning">Something went wrong loading this page: ${err.message}</p>`;
-      console.error(err);
+      if (err && err.name === 'VersionError') {
+        content.innerHTML = `
+          <p class="warning">${err.message}</p>
+          <button id="version-error-reload-btn">Reload app</button>
+        `;
+        document.getElementById('version-error-reload-btn').addEventListener('click', async () => {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((reg) => reg.unregister()));
+          }
+          if (window.caches) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((key) => caches.delete(key)));
+          }
+          window.location.reload();
+        });
+      } else {
+        content.innerHTML = `<p class="warning">Something went wrong loading this page: ${err.message}</p>`;
+        console.error(err);
+      }
     }
   }
 
@@ -6365,6 +6484,7 @@ WR.ui = WR.ui || {};
   }
 
   WR.ui.initRouter = initRouter;
+  WR.ui.reRenderCurrentRoute = handleRoute;
 })();
 document.addEventListener('DOMContentLoaded', () => {
   WR.ui.renderShell();
@@ -6383,7 +6503,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Preloads the Firebase SDK + restores any existing session early, so
   // background sync is already running by the time someone opens Settings.
   if (WR.account.isConfigured()) {
-    WR.account.ensureInit().catch((err) => console.warn('Account init failed', err));
+    WR.account.ensureInit().then(() => {
+      // Single global listener keeps the topbar's login state in sync everywhere,
+      // and re-renders Settings too if that's the page currently open.
+      WR.account.onAuthChange(() => {
+        WR.ui.renderNavAccount();
+        if (window.location.hash === '#/settings') WR.ui.reRenderCurrentRoute();
+      });
+    }).catch((err) => console.warn('Account init failed', err));
   }
 });
 
