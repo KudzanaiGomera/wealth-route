@@ -775,10 +775,17 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   color: var(--text);
   font-family: var(--font-sans);
 }
+button, input, select, textarea {
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
 button {
+  min-height: 44px;
   padding: 0.48rem 0.95rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 12px;
   background: var(--accent);
   color: var(--accent-contrast);
   font-size: 0.88rem;
@@ -6287,6 +6294,10 @@ WR.ui = WR.ui || {};
   };
 
   async function handleRoute() {
+    if (!window.location.hash || window.location.hash === '#') {
+      window.location.hash = '#/dashboard';
+      return;
+    }
     const hash = window.location.hash || '#/dashboard';
     const renderFnName = ROUTES[hash] || 'renderDashboard';
     WR.ui.setActiveNav(ROUTES[hash] ? hash : '#/dashboard');
@@ -6321,7 +6332,10 @@ WR.ui = WR.ui || {};
 
   function initRouter() {
     window.addEventListener('hashchange', handleRoute);
-    if (!window.location.hash) window.location.hash = '#/dashboard';
+    if (!window.location.hash || window.location.hash === '#') {
+      window.location.hash = '#/dashboard';
+      return;
+    }
     handleRoute();
   }
 
@@ -6329,6 +6343,9 @@ WR.ui = WR.ui || {};
   WR.ui.reRenderCurrentRoute = handleRoute;
 })();
 function bootApp() {
+  if (!window.location.hash || window.location.hash === '#') {
+    window.location.hash = '#/dashboard';
+  }
   WR.ui.renderShell();
   WR.ui.initRouter();
 }
