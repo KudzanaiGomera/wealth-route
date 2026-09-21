@@ -6,7 +6,9 @@
     <title>WealthRoute</title>
     <meta name="theme-color" content="#0e6b57" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="icon" href="icon-192.png" type="image/png" />
+    <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="favicon-16.png" sizes="16x16" type="image/png" />
+    <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png" />
     <link rel="apple-touch-icon" href="icon-512.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -241,6 +243,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   margin-left: auto;
+  flex-shrink: 0;
 }
 .nav-account-email {
   font-size: 0.8rem;
@@ -257,6 +260,7 @@ body {
   padding: 0.4rem 0.6rem;
   border-radius: 7px;
   border: 1px solid var(--border);
+  white-space: nowrap;
 }
 .nav-account-link:hover { background: var(--panel-alt); }
 .nav-account-link-accent {
@@ -343,6 +347,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   margin-left: auto;
+  flex-shrink: 0;
 }
 
 .nav-jump {
@@ -865,8 +870,12 @@ button.danger { background: var(--danger); color: #fff; }
 
 @media (max-width: 420px) {
   #content { padding-left: 0.7rem; padding-right: 0.7rem; }
-  .topbar { padding-left: 0.7rem; padding-right: 0.7rem; }
+  .topbar { padding-left: 0.7rem; padding-right: 0.7rem; gap: 0.4rem; }
   .brand-mark { width: 1.25rem; height: 1.25rem; }
+  .brand-text { display: none; }
+  .nav-account { gap: 0.35rem; }
+  .nav-account-link { padding: 0.35rem 0.45rem; font-size: 0.78rem; }
+  .nav-account-email { max-width: 90px; }
   .theme-toggle, .nav-toggle { width: 1.9rem; height: 1.9rem; }
   .hero-headline .hero-value { font-size: 1.9rem; overflow-wrap: anywhere; }
   .debt-calendar-stats { gap: 0.7rem; }
@@ -3045,7 +3054,7 @@ WR.ui = WR.ui || {};
             <path d="M2 18 C 7 18, 7 8, 12 8 S 17 18, 22 18" stroke-width="1.6" stroke-dasharray="1 3.2" stroke-linecap="round"></path>
             <circle cx="22" cy="18" r="2"></circle>
           </svg>
-          WealthRoute
+          <span class="brand-text">WealthRoute</span>
         </a>
         <nav class="nav-horizontal" aria-label="Primary">${horizontalNavLinks}</nav>
         <nav id="nav" aria-label="All sections">${nav}</nav>

@@ -1,9 +1,11 @@
-const CACHE_NAME = 'wealthroute-shell-v19';
+const CACHE_NAME = 'wealthroute-shell-v20';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './tests.html',
+  './favicon-16.png',
+  './favicon-32.png',
   './icon-192.png',
   './icon-512.png',
   './icon-512-maskable.png'
