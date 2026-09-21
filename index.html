@@ -710,7 +710,7 @@ window.WR = window.WR || {};
 
 (function () {
   const DB_NAME = 'wealthroute';
-  const DB_VERSION = 3;
+  const DB_VERSION = 4;
 
   /** @type {Promise<IDBDatabase>|null} */
   let dbPromise = null;
@@ -748,6 +748,9 @@ window.WR = window.WR || {};
         ensureStore(db, 'netWorthSnapshots', { keyPath: 'id' }, [{ name: 'by-date', keyPath: 'date' }]);
         ensureStore(db, 'exchangeRates', { keyPath: 'id' });
         ensureStore(db, 'assistantChats', { keyPath: 'id' });
+        // Misc app-level settings (e.g. a saved auto-backup folder handle) — kept
+        // out of WR.repos so it's never swept into JSON export/import/reset.
+        ensureStore(db, 'appSettings', { keyPath: 'id' });
       };
 
       request.onsuccess = () => {
@@ -881,6 +884,11 @@ window.WR = window.WR || {};
     exchangeRates: WR.createRepository('exchangeRates'),
     assistantChats: WR.createRepository('assistantChats'),
   };
+
+  // Not part of WR.repos on purpose: exportBackup/importBackup/resetAllData all
+  // loop over WR.repos and assume JSON-serializable records, but this store can
+  // hold a FileSystemDirectoryHandle, which isn't.
+  WR.appSettingsRepo = WR.createRepository('appSettings');
 
   WR.queries = {
     /** All budget lines (income/fixed/variable/savings/debt) for a 'YYYY-MM' month. */
@@ -2815,13 +2823,40 @@ WR.ui = WR.ui || {};
     return warnings;
   }
 
+  const BACKUP_REMINDER_DAYS = 14;
+
+  /** Null if no data recorded yet, a whole-day count since the last successful
+   * backup (manual export, local auto-backup, or cloud sync) otherwise. */
+  async function getDaysSinceLastBackup() {
+    const lastBackupAt = localStorage.getItem('wr_last_backup_at');
+    if (!lastBackupAt) return null;
+    const ms = Date.now() - new Date(lastBackupAt).getTime();
+    return Math.floor(ms / (24 * 60 * 60 * 1000));
+  }
+
+  async function hasAnyData() {
+    for (const repo of Object.values(WR.repos)) {
+      if ((await repo.getAll()).length > 0) return true;
+    }
+    return false;
+  }
+
+  async function getBackupReminder() {
+    if (!(await hasAnyData())) return null;
+    const days = await getDaysSinceLastBackup();
+    if (days === null) return 'You have data but no backup on record. Export a backup (Settings \u2192 Data Management) in case this browser\'s storage is cleared.';
+    if (days >= BACKUP_REMINDER_DAYS) return `Your last backup was ${days} days ago. Consider exporting a fresh one \u2014 clearing browser data or cache erases everything stored here.`;
+    return null;
+  }
+
   async function refreshIntegrityNotice() {
     const host = document.getElementById('global-notice');
     if (!host) return;
-    const warnings = await getIntegrityWarnings();
-    host.innerHTML = warnings.length
-      ? `<div class="notice-card"><strong>Data check:</strong> ${warnings.join(' ')}</div>`
-      : '';
+    const [warnings, backupReminder] = await Promise.all([getIntegrityWarnings(), getBackupReminder()]);
+    const cards = [];
+    if (backupReminder) cards.push(`<div class="notice-card"><strong>Backup reminder:</strong> ${backupReminder}</div>`);
+    if (warnings.length) cards.push(`<div class="notice-card"><strong>Data check:</strong> ${warnings.join(' ')}</div>`);
+    host.innerHTML = cards.join('');
   }
 
   function enhanceResponsiveContent(container) {
@@ -5066,18 +5101,27 @@ WR.ui = WR.ui || {};
     });
   }
 
-  async function exportBackup() {
+  async function buildBackupPayload() {
     const stores = {};
     for (const [name, repo] of Object.entries(WR.repos)) {
       stores[name] = await repo.getAll();
     }
-    const backup = {
+    return {
       format: 'wealthroute-backup',
       formatVersion: 1,
       appVersion: APP_VERSION,
       exportedAt: new Date().toISOString(),
       stores,
     };
+  }
+
+  function markBackupTaken() {
+    localStorage.setItem('wr_last_backup_at', new Date().toISOString());
+    WR.ui.refreshIntegrityNotice();
+  }
+
+  async function exportBackup() {
+    const backup = await buildBackupPayload();
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -5087,6 +5131,7 @@ WR.ui = WR.ui || {};
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 0);
+    markBackupTaken();
   }
 
   async function importBackup(jsonText) {
@@ -5125,9 +5170,35 @@ WR.ui = WR.ui || {};
   async function renderSettings(container) {
     const profile = await WR.ui.getOrCreateProfile();
     const workerUrl = localStorage.getItem('wr_worker_url') || '';
+    const autobackupStatus = await WR.autobackup.getStatus();
+    const lastAutoBackupAt = localStorage.getItem('wr_last_auto_backup_at');
+    await WR.account.ensureInit();
+    const accountUser = WR.account.isConfigured() ? WR.account.getCurrentUser() : null;
 
     container.innerHTML = `
       <h1>Settings</h1>
+
+      <section>
+        <h2>Account</h2>
+        ${!WR.account.isConfigured() ? `
+          <p class="fine-print">Not available in this build.</p>
+        ` : accountUser ? `
+          <p class="fine-print">Signed in as <strong>${accountUser.email}</strong>. Your data syncs automatically every few minutes while you're signed in, and right before you log out.</p>
+          <button id="account-sync-now-btn" class="secondary">Sync now</button>
+          <button id="account-load-cloud-btn" class="secondary">Load cloud data</button>
+          <button id="account-logout-btn" class="danger">Log out</button>
+          <p id="account-result" class="fine-print"></p>
+        ` : `
+          <p class="fine-print">Create an account to access your data from any device \u2014 phone, tablet, or another computer.</p>
+          <form id="account-form" class="inline-form">
+            <input type="email" id="account-email-input" placeholder="Email" required>
+            <input type="password" id="account-password-input" placeholder="Password (min 6 characters)" minlength="6" required>
+            <button type="submit" id="account-login-btn">Log in</button>
+            <button type="button" id="account-signup-btn" class="secondary">Sign up</button>
+          </form>
+          <p id="account-result" class="fine-print"></p>
+        `}
+      </section>
 
       <section>
         <h2>Profile & Assumptions</h2>
@@ -5201,6 +5272,56 @@ WR.ui = WR.ui || {};
       </section>
 
       <section>
+        <h2>Automatic Local Backup</h2>
+        <p class="fine-print">Pick a folder once and WealthRoute writes a dated JSON backup file there automatically (roughly once a day) — no more remembering to click Export. Supported on Chromium browsers (Chrome, Edge, Brave); the folder and its files stay entirely on your device.</p>
+        ${autobackupStatus === 'unsupported' ? '<p class="fine-print">Not supported in this browser.</p>' : ''}
+        ${autobackupStatus === 'none' ? '<button id="choose-backup-folder-btn">Choose backup folder…</button>' : ''}
+        ${autobackupStatus === 'granted' ? `
+          <p class="fine-print">Backup folder connected.${lastAutoBackupAt ? ` Last written: ${new Date(lastAutoBackupAt).toLocaleString()}.` : ' No backup written yet.'}</p>
+          <button id="backup-now-btn" class="secondary">Back up now</button>
+          <button id="disable-autobackup-btn" class="danger">Stop auto-backup</button>
+        ` : ''}
+        ${autobackupStatus === 'prompt' ? `
+          <p class="fine-print">A backup folder was chosen before, but the browser needs you to reconfirm access.</p>
+          <button id="reconnect-backup-folder-btn">Reconnect folder</button>
+          <button id="disable-autobackup-btn" class="danger">Stop auto-backup</button>
+        ` : ''}
+        ${autobackupStatus === 'denied' ? `
+          <p class="fine-print">Access to the chosen folder was denied. Choose a different folder.</p>
+          <button id="disable-autobackup-btn">Choose a different folder</button>
+        ` : ''}
+      </section>
+
+      <section>
+        <h2>Encrypted Cloud Backup (optional)</h2>
+        ${workerUrl ? `
+          <p class="fine-print">
+            Encrypts your data in this browser with a passphrase only you know, then stores the ciphertext via your Cloudflare Worker
+            (set one up under Live Updates below). The passphrase never leaves your device and isn't stored anywhere — if you lose it,
+            the cloud backup can't be recovered. Use this to survive a full browser wipe or restore on a different device.
+          </p>
+          <p class="fine-print">
+            <strong>Account id</strong> (below) keeps your backup separate from anyone else who happens to use the same Worker URL, even
+            if you both pick the same passphrase. It isn't secret, but you need both it and your passphrase to restore elsewhere — write
+            them down together.
+          </p>
+          <div class="inline-form">
+            <input type="text" id="cloud-account-id-display" value="${WR.cloudBackup.getOrCreateAccountId()}" readonly>
+            <button type="button" id="copy-account-id-btn" class="secondary">Copy account id</button>
+          </div>
+          <form id="cloud-backup-form" class="inline-form">
+            <input type="text" id="cloud-account-id-input" placeholder="Account id (leave blank to use this device's)">
+            <input type="password" id="cloud-passphrase-input" placeholder="Backup passphrase" autocomplete="new-password" required>
+            <button type="submit" id="cloud-upload-btn">Upload to cloud</button>
+            <button type="button" id="cloud-restore-btn" class="secondary">Restore from cloud</button>
+          </form>
+          <p id="cloud-backup-result" class="fine-print"></p>
+        ` : `
+          <p class="fine-print">Not set up yet. This needs a Cloudflare Worker endpoint (Live Updates section below) with its own backup storage configured, so it's off for now. Local export/import and Automatic Local Backup above already cover this device without any setup.</p>
+        `}
+      </section>
+
+      <section>
         <h2>Integrity Check</h2>
         <p class="fine-print">Runs lightweight local checks for invalid month formats, negative budget amounts, and invalid debt balances.</p>
         <button id="run-integrity-btn" class="secondary">Run data check now</button>
@@ -5220,8 +5341,8 @@ WR.ui = WR.ui || {};
 
       <section>
         <h2>Privacy & Ownership</h2>
-        <p class="fine-print">Your financial records stay in this browser's local storage/IndexedDB. No automatic cloud sync is performed by this app version.</p>
-        <p class="fine-print">You own your data. Export backups regularly and keep them securely.</p>
+        <p class="fine-print">Your financial records stay in this browser's local storage/IndexedDB. Cloud sync only happens if you explicitly set up encrypted cloud backup above \u2014 nothing leaves this device otherwise.</p>
+        <p class="fine-print">You own your data. Export backups regularly and keep them securely, or set up automatic local/cloud backup above.</p>
       </section>
 
       <section>
@@ -5414,7 +5535,189 @@ WR.ui = WR.ui || {};
       renderRates();
     });
 
+    if (WR.account.isConfigured()) {
+      const accountResult = document.getElementById('account-result');
+      const accountForm = document.getElementById('account-form');
+      if (accountForm) {
+        const readCredentials = () => ({
+          email: document.getElementById('account-email-input').value.trim(),
+          password: document.getElementById('account-password-input').value,
+        });
+        document.getElementById('account-signup-btn').addEventListener('click', async () => {
+          const { email, password } = readCredentials();
+          try {
+            await WR.account.signUp(email, password);
+            WR.ui.notify('Account created and signed in.', 'success');
+            renderSettings(container);
+          } catch (err) {
+            accountResult.textContent = `Sign up failed: ${err.message}`;
+          }
+        });
+        accountForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const { email, password } = readCredentials();
+          try {
+            await WR.account.signIn(email, password);
+            WR.ui.notify('Logged in.', 'success');
+            renderSettings(container);
+          } catch (err) {
+            accountResult.textContent = `Log in failed: ${err.message}`;
+          }
+        });
+      }
+      const syncNowBtn = document.getElementById('account-sync-now-btn');
+      if (syncNowBtn) {
+        syncNowBtn.addEventListener('click', async () => {
+          try {
+            await WR.account.pushBackup();
+            accountResult.textContent = 'Synced to your account.';
+            WR.ui.notify('Synced.', 'success');
+          } catch (err) {
+            accountResult.textContent = `Sync failed: ${err.message}`;
+          }
+        });
+      }
+      const loadCloudBtn = document.getElementById('account-load-cloud-btn');
+      if (loadCloudBtn) {
+        loadCloudBtn.addEventListener('click', async () => {
+          if (!(await hardConfirm('replace your current data with the copy in your account'))) {
+            WR.ui.notify('Canceled.', 'error');
+            return;
+          }
+          try {
+            const loaded = await WR.account.pullBackup();
+            accountResult.textContent = loaded ? 'Loaded your synced data.' : 'Nothing synced to your account yet.';
+            if (loaded) {
+              WR.ui.refreshIntegrityNotice();
+              renderSettings(container);
+            }
+          } catch (err) {
+            accountResult.textContent = `Load failed: ${err.message}`;
+          }
+        });
+      }
+      const logoutBtn = document.getElementById('account-logout-btn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+          try {
+            await WR.account.signOut();
+            WR.ui.notify('Logged out.', 'success');
+            renderSettings(container);
+          } catch (err) {
+            WR.ui.notify(`Log out failed: ${err.message}`, 'error');
+          }
+        });
+      }
+      WR.account.onAuthChange(() => {
+        if (window.location.hash === '#/settings') renderSettings(container);
+      });
+    }
+
     document.getElementById('export-backup-btn').addEventListener('click', exportBackup);
+
+    const chooseFolderBtn = document.getElementById('choose-backup-folder-btn');
+    if (chooseFolderBtn) {
+      chooseFolderBtn.addEventListener('click', async () => {
+        try {
+          await WR.autobackup.chooseFolder();
+          WR.ui.notify('Backup folder connected.', 'success');
+          renderSettings(container);
+        } catch (err) {
+          if (err.name !== 'AbortError') WR.ui.notify(`Couldn't connect folder: ${err.message}`, 'error');
+        }
+      });
+    }
+    const reconnectFolderBtn = document.getElementById('reconnect-backup-folder-btn');
+    if (reconnectFolderBtn) {
+      reconnectFolderBtn.addEventListener('click', async () => {
+        try {
+          await WR.autobackup.reconnect();
+          WR.ui.notify('Backup folder reconnected.', 'success');
+          renderSettings(container);
+        } catch (err) {
+          WR.ui.notify(`Reconnect failed: ${err.message}`, 'error');
+        }
+      });
+    }
+    const backupNowBtn = document.getElementById('backup-now-btn');
+    if (backupNowBtn) {
+      backupNowBtn.addEventListener('click', async () => {
+        backupNowBtn.disabled = true;
+        try {
+          await WR.autobackup.writeNow();
+          WR.ui.notify('Backup written to your folder.', 'success');
+          renderSettings(container);
+        } catch (err) {
+          WR.ui.notify(`Backup failed: ${err.message}`, 'error');
+        } finally {
+          backupNowBtn.disabled = false;
+        }
+      });
+    }
+    const disableAutobackupBtn = document.getElementById('disable-autobackup-btn');
+    if (disableAutobackupBtn) {
+      disableAutobackupBtn.addEventListener('click', async () => {
+        await WR.autobackup.disable();
+        WR.ui.notify('Auto-backup folder disconnected.', 'success');
+        renderSettings(container);
+      });
+    }
+
+    if (workerUrl) {
+    document.getElementById('copy-account-id-btn').addEventListener('click', async () => {
+      const value = document.getElementById('cloud-account-id-display').value;
+      try {
+        await navigator.clipboard.writeText(value);
+        WR.ui.notify('Account id copied.', 'success');
+      } catch {
+        WR.ui.notify('Could not copy automatically \u2014 select and copy the text manually.', 'error');
+      }
+    });
+
+    document.getElementById('cloud-backup-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const passphrase = document.getElementById('cloud-passphrase-input').value;
+      const accountId = document.getElementById('cloud-account-id-input').value;
+      const result = document.getElementById('cloud-backup-result');
+      const btn = document.getElementById('cloud-upload-btn');
+      btn.disabled = true;
+      try {
+        await WR.cloudBackup.upload(passphrase, accountId);
+        result.textContent = 'Uploaded to cloud backup.';
+        WR.ui.notify('Cloud backup uploaded.', 'success');
+        document.getElementById('cloud-account-id-display').value = WR.cloudBackup.getOrCreateAccountId();
+      } catch (err) {
+        result.textContent = `Upload failed: ${err.message}`;
+        WR.ui.notify(`Cloud backup failed: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('cloud-restore-btn').addEventListener('click', async () => {
+      const passphrase = document.getElementById('cloud-passphrase-input').value;
+      const accountId = document.getElementById('cloud-account-id-input').value;
+      if (!passphrase) {
+        WR.ui.notify('Enter the passphrase used for the cloud backup.', 'error');
+        return;
+      }
+      if (!(await hardConfirm('replace your current data with the cloud backup'))) {
+        WR.ui.notify('Restore canceled.', 'error');
+        return;
+      }
+      const result = document.getElementById('cloud-backup-result');
+      try {
+        await WR.cloudBackup.restore(passphrase, accountId);
+        result.textContent = 'Restored from cloud backup.';
+        WR.ui.notify('Cloud backup restored.', 'success');
+        WR.ui.refreshIntegrityNotice();
+        renderSettings(container);
+      } catch (err) {
+        result.textContent = `Restore failed: ${err.message}`;
+        WR.ui.notify(`Cloud restore failed: ${err.message}`, 'error');
+      }
+    });
+    }
 
     document.getElementById('restore-input').addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -5476,8 +5779,392 @@ WR.ui = WR.ui || {};
   WR.ui.exportBackup = exportBackup;
   WR.ui.importBackup = importBackup;
   WR.ui.resetAllData = resetAllData;
+  WR.ui.buildBackupPayload = buildBackupPayload;
+  WR.ui.markBackupTaken = markBackupTaken;
 })();
-// Wealth Assistant sends a small calculated snapshot to the user's Cloudflare
+// Local auto-backup: on browsers that support the File System Access API,
+// the user picks a folder once and WealthRoute periodically writes a JSON
+// backup there without any further prompts \u2014 a safety net for people who
+// forget to export manually before clearing browser data. The directory
+// handle is stored in IndexedDB (structured-clone only, not JSON), kept out
+// of WR.repos so normal backup/restore/reset never touch it.
+
+window.WR = window.WR || {};
+WR.autobackup = {};
+
+(function () {
+  const HANDLE_KEY = 'backupFolderHandle';
+  const INTERVAL_MS = 24 * 60 * 60 * 1000;
+  const FILE_PREFIX = 'wealthroute-autobackup-';
+
+  function supported() {
+    return typeof window.showDirectoryPicker === 'function';
+  }
+
+  async function getSavedHandle() {
+    const record = await WR.appSettingsRepo.getById(HANDLE_KEY);
+    return record ? record.handle : null;
+  }
+
+  async function chooseFolder() {
+    const handle = await window.showDirectoryPicker({ id: 'wealthroute-backup', mode: 'readwrite' });
+    await WR.appSettingsRepo.update({ id: HANDLE_KEY, handle });
+    return handle;
+  }
+
+  async function disable() {
+    await WR.appSettingsRepo.remove(HANDLE_KEY);
+  }
+
+  /** 'none' | 'granted' | 'prompt' | 'denied' */
+  async function getStatus() {
+    if (!supported()) return 'unsupported';
+    const handle = await getSavedHandle();
+    if (!handle) return 'none';
+    const permission = await handle.queryPermission({ mode: 'readwrite' });
+    return permission; // 'granted' | 'prompt' | 'denied'
+  }
+
+  /** Re-requests permission; must be called from a user gesture (button click). */
+  async function reconnect() {
+    const handle = await getSavedHandle();
+    if (!handle) throw new Error('No backup folder saved yet.');
+    const permission = await handle.requestPermission({ mode: 'readwrite' });
+    if (permission !== 'granted') throw new Error('Permission to write to the folder was not granted.');
+    return handle;
+  }
+
+  async function writeNow() {
+    const handle = await getSavedHandle();
+    if (!handle) throw new Error('No backup folder chosen yet.');
+    let permission = await handle.queryPermission({ mode: 'readwrite' });
+    if (permission !== 'granted') permission = await handle.requestPermission({ mode: 'readwrite' });
+    if (permission !== 'granted') throw new Error('Permission to write to the folder was not granted.');
+    const payload = await WR.ui.buildBackupPayload();
+    const fileHandle = await handle.getFileHandle(`${FILE_PREFIX}${new Date().toISOString().slice(0, 10)}.json`, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(payload, null, 2));
+    await writable.close();
+    localStorage.setItem('wr_last_auto_backup_at', new Date().toISOString());
+    WR.ui.markBackupTaken();
+  }
+
+  /** Called once at startup; silently writes a fresh backup if it's been a
+   * while and permission is already granted (no prompt = no user gesture needed). */
+  async function maybeRunScheduled() {
+    if (!supported()) return;
+    const handle = await getSavedHandle();
+    if (!handle) return;
+    const permission = await handle.queryPermission({ mode: 'readwrite' });
+    if (permission !== 'granted') return;
+    const lastAt = localStorage.getItem('wr_last_auto_backup_at');
+    if (lastAt && Date.now() - new Date(lastAt).getTime() < INTERVAL_MS) return;
+    try {
+      await writeNow();
+    } catch (err) {
+      console.warn('Scheduled local auto-backup failed', err);
+    }
+  }
+
+  WR.autobackup.supported = supported;
+  WR.autobackup.chooseFolder = chooseFolder;
+  WR.autobackup.disable = disable;
+  WR.autobackup.getStatus = getStatus;
+  WR.autobackup.reconnect = reconnect;
+  WR.autobackup.writeNow = writeNow;
+  WR.autobackup.maybeRunScheduled = maybeRunScheduled;
+})();
+// Encrypted cloud backup (optional): passphrase-derived AES-GCM encryption
+// entirely in the browser, uploaded to the user's own Cloudflare Worker.
+// The passphrase never leaves the device \u2014 only a SHA-256 derived id (used
+// as the storage key) and ciphertext are sent, so the Worker/KV operator
+// never sees plaintext data or the passphrase itself. Losing the passphrase
+// means the backup is unrecoverable; there is no reset path by design.
+//
+// The storage id is derived from BOTH a random per-install account id and the
+// passphrase (not the passphrase alone). Without the account id, two strangers
+// sharing the same Worker who happen to pick the same passphrase would land on
+// the same storage key and silently overwrite each other's backup. The account
+// id isn't secret \u2014 it only needs to be unique, not secret \u2014 but it must be
+// saved (alongside the passphrase) to restore on another device.
+
+window.WR = window.WR || {};
+WR.cloudBackup = {};
+
+(function () {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  const ACCOUNT_ID_KEY = 'wr_backup_account_id';
+
+  function toBase64(bytes) {
+    let binary = '';
+    bytes.forEach((b) => { binary += String.fromCharCode(b); });
+    return btoa(binary);
+  }
+
+  function fromBase64(base64) {
+    return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  }
+
+  function getOrCreateAccountId() {
+    let accountId = localStorage.getItem(ACCOUNT_ID_KEY);
+    if (!accountId) {
+      accountId = crypto.randomUUID ? crypto.randomUUID() : toBase64(crypto.getRandomValues(new Uint8Array(16)));
+      localStorage.setItem(ACCOUNT_ID_KEY, accountId);
+    }
+    return accountId;
+  }
+
+  async function deriveId(accountId, passphrase) {
+    const digest = await crypto.subtle.digest('SHA-256', encoder.encode(`wealthroute-backup-id:${accountId}:${passphrase}`));
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function deriveKey(passphrase, salt) {
+    const material = await crypto.subtle.importKey('raw', encoder.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' },
+      material,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt'],
+    );
+  }
+
+  async function encryptJSON(obj, passphrase) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveKey(passphrase, salt);
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(JSON.stringify(obj)));
+    return {
+      salt: toBase64(salt),
+      iv: toBase64(iv),
+      ciphertext: toBase64(new Uint8Array(ciphertext)),
+    };
+  }
+
+  async function decryptJSON(payload, passphrase) {
+    const salt = fromBase64(payload.salt);
+    const iv = fromBase64(payload.iv);
+    const key = await deriveKey(passphrase, salt);
+    let plaintext;
+    try {
+      plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, fromBase64(payload.ciphertext));
+    } catch {
+      throw new Error('Wrong passphrase or account id, or the backup is corrupted.');
+    }
+    return JSON.parse(decoder.decode(plaintext));
+  }
+
+  function workerUrl() {
+    return (localStorage.getItem('wr_worker_url') || '').replace(/\/$/, '');
+  }
+
+  async function upload(passphrase, accountId) {
+    const endpoint = workerUrl();
+    if (!endpoint) throw new Error('Set a Cloudflare Worker endpoint first (Settings \u2192 Live Updates & Wealth Assistant).');
+    const resolvedAccountId = (accountId || '').trim() || getOrCreateAccountId();
+    const payload = await WR.ui.buildBackupPayload();
+    const encrypted = await encryptJSON(payload, passphrase);
+    const id = await deriveId(resolvedAccountId, passphrase);
+    const res = await fetch(`${endpoint}/backup/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(encrypted),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Upload failed (${res.status}).`);
+    }
+    WR.ui.markBackupTaken();
+    // Pairs this device to whichever account id it just uploaded under.
+    localStorage.setItem(ACCOUNT_ID_KEY, resolvedAccountId);
+    return resolvedAccountId;
+  }
+
+  async function restore(passphrase, accountId) {
+    const endpoint = workerUrl();
+    if (!endpoint) throw new Error('Set a Cloudflare Worker endpoint first (Settings \u2192 Live Updates & Wealth Assistant).');
+    const resolvedAccountId = (accountId || '').trim() || getOrCreateAccountId();
+    const id = await deriveId(resolvedAccountId, passphrase);
+    const res = await fetch(`${endpoint}/backup/${id}`);
+    if (res.status === 404) throw new Error('No cloud backup found for this account id and passphrase.');
+    if (!res.ok) throw new Error(`Download failed (${res.status}).`);
+    const encrypted = await res.json();
+    const payload = await decryptJSON(encrypted, passphrase);
+    await WR.ui.importBackup(JSON.stringify(payload));
+    // Pairs this device to the restored account id, so future uploads from here land on the same key.
+    localStorage.setItem(ACCOUNT_ID_KEY, resolvedAccountId);
+  }
+
+  WR.cloudBackup.getOrCreateAccountId = getOrCreateAccountId;
+  WR.cloudBackup.upload = upload;
+  WR.cloudBackup.restore = restore;
+})();
+// Cross-device account (Firebase Auth + Firestore). Unlike WR.cloudBackup
+// above (a passphrase you manage yourself), this is a real email/password
+// account: sign up once, then log in from any device to get your data back.
+// End users never see or configure anything backend-related \u2014 the project
+// config below is filled in once by whoever deploys this app; FIREBASE_CONFIG
+// values are public client identifiers, not secrets (real access control is
+// enforced by Firestore security rules scoping each document to its owner's
+// uid, not by keeping this config hidden).
+
+window.WR = window.WR || {};
+WR.account = {};
+
+(function () {
+  const FIREBASE_CONFIG = {
+    apiKey: 'AIzaSyBGtuB9rwkdCCyhjqr_L7t6QJ_bqkEu3Xs',
+    authDomain: 'wealthroute-cabd6.firebaseapp.com',
+    projectId: 'wealthroute-cabd6',
+    storageBucket: 'wealthroute-cabd6.firebasestorage.app',
+    messagingSenderId: '978392756825',
+    appId: '1:978392756825:web:5ae08cc9d3f859c0ca3748',
+  };
+  const SDK_VERSION = '10.14.1';
+
+  let auth = null;
+  let db = null;
+  let authApi = null;
+  let firestoreApi = null;
+  let currentUser = null;
+  let onChangeCallback = null;
+  let initPromise = null;
+  let syncTimer = null;
+
+  function isConfigured() {
+    return !Object.values(FIREBASE_CONFIG).some((v) => !v || v.startsWith('REPLACE_ME'));
+  }
+
+  function ensureInit() {
+    if (!isConfigured()) return Promise.resolve(null);
+    if (!initPromise) {
+      initPromise = (async () => {
+        const [{ initializeApp }, authModule, firestoreModule] = await Promise.all([
+          import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-app.js`),
+          import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-auth.js`),
+          import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-firestore.js`),
+        ]);
+        const app = initializeApp(FIREBASE_CONFIG);
+        authApi = authModule;
+        firestoreApi = firestoreModule;
+        auth = authModule.getAuth(app);
+        db = firestoreModule.getFirestore(app);
+        authModule.onAuthStateChanged(auth, (user) => {
+          currentUser = user;
+          if (user) startAutoSync(); else stopAutoSync();
+          if (onChangeCallback) onChangeCallback(user);
+        });
+      })();
+    }
+    return initPromise;
+  }
+
+  function onAuthChange(callback) {
+    onChangeCallback = callback;
+  }
+
+  function getCurrentUser() {
+    return currentUser;
+  }
+
+  async function hasLocalData() {
+    for (const repo of Object.values(WR.repos)) {
+      if ((await repo.getAll()).length > 0) return true;
+    }
+    return false;
+  }
+
+  async function pushBackup() {
+    if (!currentUser) throw new Error('Not signed in.');
+    const payload = await WR.ui.buildBackupPayload();
+    await firestoreApi.setDoc(firestoreApi.doc(db, 'backups', currentUser.uid), {
+      payload: JSON.stringify(payload),
+      updatedAt: firestoreApi.serverTimestamp(),
+    });
+    WR.ui.markBackupTaken();
+  }
+
+  /** @returns {Promise<boolean>} whether a cloud copy existed and was loaded */
+  async function pullBackup() {
+    if (!currentUser) throw new Error('Not signed in.');
+    const snap = await firestoreApi.getDoc(firestoreApi.doc(db, 'backups', currentUser.uid));
+    if (!snap.exists()) return false;
+    await WR.ui.importBackup(snap.data().payload);
+    WR.ui.markBackupTaken();
+    return true;
+  }
+
+  /** Runs once right after sign-in. Only auto-loads the cloud copy when this
+   * device has nothing to lose; otherwise leaves both sides alone and tells
+   * the user to pick explicitly, rather than silently overwriting either. */
+  async function reconcileOnLogin() {
+    let cloudExists = false;
+    try {
+      const snap = await firestoreApi.getDoc(firestoreApi.doc(db, 'backups', currentUser.uid));
+      cloudExists = snap.exists();
+      if (cloudExists) {
+        if (!(await hasLocalData())) {
+          await WR.ui.importBackup(snap.data().payload);
+          WR.ui.markBackupTaken();
+        } else {
+          WR.ui.notify('You have data both on this device and in your account. Use "Sync now" or "Load cloud data" in Settings to choose.', 'error');
+        }
+      } else if (await hasLocalData()) {
+        await pushBackup();
+      }
+    } catch (err) {
+      console.warn('Cloud reconcile on login failed', err);
+    }
+  }
+
+  async function signUp(email, password) {
+    await ensureInit();
+    const cred = await authApi.createUserWithEmailAndPassword(auth, email, password);
+    await pushBackup();
+    return cred.user;
+  }
+
+  async function signIn(email, password) {
+    await ensureInit();
+    const cred = await authApi.signInWithEmailAndPassword(auth, email, password);
+    await reconcileOnLogin();
+    return cred.user;
+  }
+
+  async function signOutUser() {
+    await ensureInit();
+    try {
+      await pushBackup();
+    } catch (err) {
+      console.warn('Final sync before logout failed', err);
+    }
+    await authApi.signOut(auth);
+  }
+
+  function startAutoSync() {
+    if (syncTimer) return;
+    syncTimer = setInterval(() => {
+      if (currentUser) pushBackup().catch((err) => console.warn('Auto-sync failed', err));
+    }, 5 * 60 * 1000);
+  }
+
+  function stopAutoSync() {
+    if (syncTimer) clearInterval(syncTimer);
+    syncTimer = null;
+  }
+
+  WR.account.isConfigured = isConfigured;
+  WR.account.ensureInit = ensureInit;
+  WR.account.onAuthChange = onAuthChange;
+  WR.account.getCurrentUser = getCurrentUser;
+  WR.account.signUp = signUp;
+  WR.account.signIn = signIn;
+  WR.account.signOut = signOutUser;
+  WR.account.pushBackup = pushBackup;
+  WR.account.pullBackup = pullBackup;
+})();
 // Worker. The Worker holds the provider key, so no secret is shipped to the
 // browser. The model cannot change stored data.
 
@@ -5686,6 +6373,17 @@ document.addEventListener('DOMContentLoaded', () => {
     navigator.serviceWorker.register('./service-worker.js').catch((err) => {
       console.warn('Service worker registration failed', err);
     });
+  }
+  // Asks the browser not to auto-evict IndexedDB under storage pressure.
+  // Best-effort only \u2014 browsers may ignore it, so it's not a substitute for backups.
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().catch(() => {});
+  }
+  WR.autobackup.maybeRunScheduled().catch((err) => console.warn('Auto-backup check failed', err));
+  // Preloads the Firebase SDK + restores any existing session early, so
+  // background sync is already running by the time someone opens Settings.
+  if (WR.account.isConfigured()) {
+    WR.account.ensureInit().catch((err) => console.warn('Account init failed', err));
   }
 });
 

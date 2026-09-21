@@ -6,3 +6,11 @@ compatibility_date = "2026-09-18"
 # GEMINI_API_KEY here; keep it as a Cloudflare secret.
 [vars]
 ALLOWED_ORIGINS = "https://kudzanaigomera.github.io,http://localhost:8000"
+
+# Optional: stores encrypted cloud-backup blobs for Settings -> Encrypted Cloud
+# Backup. Create with `wrangler kv namespace create BACKUPS`, then paste the
+# generated id below. Without this binding, /backup/* returns HTTP 500 and the
+# feature is simply unavailable \u2014 everything else in the app still works.
+# [[kv_namespaces]]
+# binding = "BACKUPS"
+# id = "replace-with-your-kv-namespace-id"
