@@ -2425,6 +2425,16 @@ WR.testRuns.push(
       expect(summary.totalTransactions).toBe(2);
     });
 
+    await test('calculateDayToDayMonthBalance > carries a single initial balance into later years', () => {
+      const balance = WR.uiCalc.calculateDayToDayMonthBalance(
+        [{ year: 2026, startingBalance: 91 }],
+        [{ year: 2027, date: '2027-01-04', kind: 'add', amount: 50 }],
+        '2027-01',
+      );
+      expect(balance.balanceBeforeMonth).toBe(91);
+      expect(balance.currentBalance).toBe(141);
+    });
+
     // --- charts (smoke test \u2014 valid SVG string, no exceptions) -----------
 
     await test('charts > barChart and lineChart return valid SVG for data and for empty input', () => {
