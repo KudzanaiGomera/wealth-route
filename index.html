@@ -3003,6 +3003,7 @@ WR.ui = WR.ui || {};
   WR.ui.monthName = monthName;
   WR.ui.yearsAroundCurrent = yearsAroundCurrent;
   WR.ui.getOrCreateProfile = getOrCreateProfile;
+  WR.ui.calculateDayToDayMonthBalance = calculateDayToDayMonthBalance;
   WR.ui.buildSnapshot = buildSnapshot;
 })();
 // UI layer, part 1: layout shell, DOM helpers, and the Dashboard view.
@@ -4236,7 +4237,7 @@ WR.ui = WR.ui || {};
     const monthTx = transactions.filter((item) => String(item.date || '').slice(0, 7) === month).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const added = monthTx.filter((item) => item.kind === 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     const spent = monthTx.filter((item) => item.kind !== 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const monthBalance = calculateDayToDayMonthBalance(accounts, transactions, month);
+    const monthBalance = WR.ui.calculateDayToDayMonthBalance(accounts, transactions, month);
     const opening = Number(account?.startingBalance) || 0;
     const balanceBeforeMonth = monthBalance.balanceBeforeMonth;
     const current = monthBalance.currentBalance;
