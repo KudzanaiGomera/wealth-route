@@ -4217,6 +4217,8 @@ WR.ui = WR.ui || {};
     ]);
     const month = WR.ui._dayMonth || WR.ui.currentMonthKey();
     const year = Number(month.slice(0, 4));
+    const today = new Date().toISOString().slice(0, 10);
+    const transactionDate = today.slice(0, 7) === month ? today : `${month}-01`;
     WR.ui._dayYear = year;
     WR.ui._dayMonth = month;
     const defaultCategories = ['Alcohol', 'Eating out', 'Transport', 'Bank charges', 'Additional groceries'];
@@ -4295,6 +4297,7 @@ WR.ui = WR.ui || {};
         <div class="stat"><span class="stat-label">Current balance</span><span class="stat-value ${current < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(current)}</span></div>
         <div class="stat"><span class="stat-label">Transactions this month</span><span class="stat-value">${monthTx.length}</span></div>
       </div>
+      <p class="fine-print">Balance at start of month + money added - money spent = current balance. Add a transaction to top up the balance; it will carry into future months automatically.</p>
 
       ${reductionCard}
 
@@ -4303,11 +4306,12 @@ WR.ui = WR.ui || {};
         <div class="day-category-grid">${categoryCards || '<p class="empty">No spending recorded for this month yet.</p>'}</div>
       </section>
 
-      <h3>Opening balance for ${year}</h3>
+      <h3>Initial balance for ${year}</h3>
       <form id="day-balance-form" class="inline-form">
         <input name="startingBalance" type="number" step="0.01" min="0" value="${opening}">
-        <button type="submit">Save starting balance</button>
+        <button type="submit">Correct initial balance</button>
       </form>
+      <p class="fine-print">Use this only to correct the amount you had at the beginning of ${year}. It replaces the initial amount and recalculates every later balance. To add new money, use “Add day-to-day transaction” below.</p>
 
       <h3>Add category</h3>
       <form id="day-category-form" class="inline-form">
@@ -4322,7 +4326,7 @@ WR.ui = WR.ui || {};
 
       <h3>Add day-to-day transaction</h3>
       <form id="day-add-form" class="inline-form">
-        <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
+        <input name="date" type="date" value="${transactionDate}" required>
         <select name="kind"><option value="spend">Spend</option><option value="add">Add money</option></select>
         <input name="description" placeholder="Description" required>
         <select name="category">${categoryOptions()}</select>
