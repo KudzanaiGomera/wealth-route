@@ -685,6 +685,11 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .stat-value { display: block; font-family: var(--font-serif); font-size: 1.3rem; margin-top: 0.2rem; }
 .dashboard-card .stat-value { font-size: clamp(1.25rem, 2.2vw, 1.65rem); line-height: 1.2; }
 .stat-value.negative { color: var(--danger); }
+.delta { display: block; font-size: 0.76rem; font-weight: 600; margin-top: 0.2rem; }
+.delta.positive { color: var(--success); }
+.delta.negative { color: var(--danger); }
+.delta.neutral { color: var(--muted); font-weight: 500; }
+.hero-headline .delta { font-size: 0.85rem; margin-top: 0.35rem; }
 
 .day-category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
 .day-category-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem; box-shadow: var(--shadow); }
@@ -699,6 +704,46 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .day-suggestion-card p { margin: 0.25rem 0; color: var(--text); font-size: 0.92rem; }
 .day-suggestion-card .fine-print { margin-top: 0.55rem; }
 
+/* ---------- Emergency fund ---------- */
+
+.ef-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--panel-alt) 92%, var(--accent)) 0%, var(--panel) 60%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.4rem 1.5rem;
+  margin: 1rem 0 1.25rem;
+  box-shadow: 0 16px 36px rgba(23, 26, 25, 0.06);
+}
+.ef-summary-main .stat-label { font-size: 0.85rem; }
+.ef-summary-value { display: block; font-family: var(--font-serif); font-size: clamp(2rem, 4vw, 3rem); line-height: 1.15; margin-top: 0.15rem; }
+.ef-summary-value.negative { color: var(--danger); }
+.ef-summary-side { display: flex; gap: 1.75rem; flex-wrap: wrap; }
+.ef-summary-side .stat-value { font-size: 1.15rem; margin-top: 0.15rem; }
+
+.ef-account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.9rem; margin: 0 0 1.35rem; }
+.ef-account-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; box-shadow: var(--shadow); }
+.ef-account-card h3 { margin: 0; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+.ef-account-card .amount { display: block; font-family: var(--font-serif); font-size: 1.55rem; margin-top: 0.3rem; }
+.ef-account-card .amount.negative { color: var(--danger); }
+.ef-account-card .share { display: block; color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
+.ef-meter { height: 0.45rem; border-radius: 999px; background: var(--panel-alt); overflow: hidden; margin-top: 0.65rem; border: 1px solid var(--border); }
+.ef-meter span { display: block; height: 100%; width: var(--share); background: linear-gradient(90deg, var(--accent), var(--gold)); }
+
+.ef-activity-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.2rem; margin: 0 0 1.35rem; box-shadow: var(--shadow); }
+.ef-activity-card h3 { margin-top: 0; }
+.ef-activity-card .toolbar { margin-top: 0; }
+
+.ef-forms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin: 1.25rem 0; }
+.ef-form-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); }
+.ef-form-card h3 { margin-top: 0; }
+.ef-form-card.borrow { border-color: color-mix(in srgb, var(--gold) 40%, var(--border)); background: color-mix(in srgb, var(--gold) 6%, var(--panel)); }
+.ef-form-card .inline-form { margin: 0.5rem 0 0; }
+
 /* ---------- Health score ---------- */
 
 .health-score {
@@ -709,7 +754,11 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   margin: 1.25rem 0;
 }
 .health-score h2 { margin-top: 0; }
-.score-breakdown { display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: 0.83rem; color: var(--muted); margin: 0.5rem 0; }
+.score-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.9rem; margin: 0.75rem 0; }
+.score-item-head { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.83rem; color: var(--muted); margin-bottom: 0.35rem; }
+.score-item-head strong { color: var(--text); font-weight: 600; }
+.score-meter { height: 0.4rem; border-radius: 999px; background: var(--panel-alt); overflow: hidden; border: 1px solid var(--border); }
+.score-meter span { display: block; height: 100%; }
 .fine-print { font-size: 0.8rem; color: var(--muted); }
 .suggestions-card {
   background: var(--panel);
@@ -1023,7 +1072,7 @@ button.danger { background: var(--danger); color: #fff; }
   .stat-grid { grid-template-columns: 1fr; }
   .dashboard-card .stat { min-height: 4.6rem; }
   .annual-card h2 { align-items: flex-start; flex-direction: column; gap: 0.45rem; }
-  .score-breakdown { flex-direction: column; gap: 0.25rem; }
+  .score-breakdown { grid-template-columns: 1fr 1fr; }
   .assistant-workspace { grid-template-columns: 1fr; }
   .assistant-history { position: static; }
   .summary-charts { grid-template-columns: 1fr; }
@@ -1032,6 +1081,8 @@ button.danger { background: var(--danger); color: #fff; }
   .nav-controls { gap: 0.35rem; }
   .brand { font-size: 1.1rem; }
   .dashboard-card, .hero-headline, .health-score, .chart-block, .pie-card { padding: 0.95rem; }
+  .ef-summary { flex-direction: column; align-items: stretch; padding: 1.1rem; }
+  .ef-summary-side { gap: 1rem; }
   .data-table th, .data-table td { padding: 0.48rem 0.55rem; font-size: 0.82rem; }
   .data-table td input.cell, .data-table td select.cell { font-size: 0.82rem; }
   .toast-stack { right: calc(0.6rem + env(safe-area-inset-right)); bottom: calc(0.6rem + env(safe-area-inset-bottom)); left: calc(0.6rem + env(safe-area-inset-left)); }
@@ -2871,6 +2922,8 @@ WR.ui = WR.ui || {};
     const F = WR.financial;
     const minimumDebtPayments = F.calculateTotalMinPayments(debts);
     const cashflow = F.calculateCashFlowSummary(budgetLines, minimumDebtPayments);
+    const prevCashflow = F.calculateCashFlowSummary(prevBudgetLines, minimumDebtPayments);
+    const surplusDelta = prevBudgetLines.length > 0 ? cashflow.availableSurplus - prevCashflow.availableSurplus : null;
     const split = F.calculateEssentialVsDiscretionary(budgetLines, expenseCategories);
     const prevSplit = F.calculateEssentialVsDiscretionary(prevBudgetLines, expenseCategories);
 
@@ -2885,6 +2938,13 @@ WR.ui = WR.ui || {};
     const emergencyFundMonths = F.calculateEmergencyFundMonths(liquidAssets, essentialMonthlyExpenses);
 
     const netWorth = F.calculateNetWorth(assets, investments, debts, exchangeRates, profile.baseCurrency);
+    // Compare the live net worth figure against the most recent PAST snapshot (not one recorded today),
+    // so "record today's snapshot" doesn't just diff against itself and show a flat 0 delta.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const priorNetWorthEntries = netWorthHistory.filter((h) => h.date < todayIso);
+    const netWorthDelta = priorNetWorthEntries.length
+      ? netWorth.netWorth - priorNetWorthEntries[priorNetWorthEntries.length - 1].netWorth
+      : null;
 
     const assumedInvestmentReturn = profile.assumedInvestmentReturn || 0.08;
 
@@ -2964,6 +3024,7 @@ WR.ui = WR.ui || {};
       cashflow,
       income: cashflow.income,
       availableSurplus: cashflow.availableSurplus,
+      surplusDelta,
       savingsRate: cashflow.savingsRate,
       essentialVsDiscretionary: split,
       discretionarySpendChangePct,
@@ -2973,6 +3034,7 @@ WR.ui = WR.ui || {};
       emergencyFundMonths,
       emergencyFundTargetMonths: profile.emergencyFundTargetMonths,
       netWorth,
+      netWorthDelta,
       assumedInvestmentReturn,
       investmentReadiness,
       healthScore,
@@ -3330,6 +3392,15 @@ WR.ui = WR.ui || {};
     return `<span class="badge p-${priority}">${labels[priority]}</span>`;
   }
 
+  /** Small "▲/▼ vs previous period" indicator; `value === null` renders nothing (no baseline to compare against yet). */
+  function deltaBadge(value, currency, fmt, label) {
+    if (value === null || value === undefined || !Number.isFinite(value)) return '';
+    if (Math.abs(value) < 0.005) return `<span class="delta neutral">No change ${label}</span>`;
+    const positive = value > 0;
+    const arrow = positive ? '\u25B2' : '\u25BC';
+    return `<span class="delta ${positive ? 'positive' : 'negative'}">${arrow} ${currency} ${fmt(Math.abs(value))} ${label}</span>`;
+  }
+
   async function renderDashboard(container) {
     container.innerHTML = '<p class="loading">Loading your financial position...</p>';
     const s = await WR.ui.buildSnapshot();
@@ -3421,12 +3492,13 @@ WR.ui = WR.ui || {};
           <div class="hero-headline">
             <span class="stat-label">Net Worth</span>
             <span class="hero-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span>
+            ${deltaBadge(s.netWorthDelta, currency, fmt, 'since last recorded snapshot')}
           </div>
 
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Monthly Income</span><span class="stat-value">${currency} ${fmt(s.income)}</span></div>
             <div class="stat"><span class="stat-label">Monthly Expenses</span><span class="stat-value">${currency} ${fmt(s.cashflow.totalExpenses)}</span></div>
-            <div class="stat"><span class="stat-label">Available Surplus</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
+            <div class="stat"><span class="stat-label">Available Surplus</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span>${deltaBadge(s.surplusDelta, currency, fmt, 'vs last month')}</div>
             <div class="stat"><span class="stat-label">Total Debt</span><span class="stat-value">${currency} ${fmt(s.totalDebt)}</span></div>
             <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
             <div class="stat"><span class="stat-label">Day-to-Day Balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
@@ -3435,16 +3507,15 @@ WR.ui = WR.ui || {};
 
         <div class="dashboard-card annual-card">
           <h2>Annual Financial Summary (${s.selectedYear})</h2>
+          <p class="fine-print">Totals below are added up across every month of ${s.selectedYear} recorded so far \u2014 balances like Net Worth and Emergency Fund are shown above instead, since they're a snapshot, not a yearly total.</p>
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
             <div class="stat"><span class="stat-label">Total Expenses</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalExpenses)}</span></div>
             <div class="stat"><span class="stat-label">Available Surplus</span><span class="stat-value ${s.annualSummary.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.annualSummary.availableSurplus)}</span></div>
-            <div class="stat"><span class="stat-label">Total Saved</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSaved)}</span></div>
+            <div class="stat"><span class="stat-label" title="Sum of all monthly savings contributions recorded this year — a cumulative flow total, not your current savings balance.">Total Saved (year to date)</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSaved)}</span></div>
             <div class="stat"><span class="stat-label">Total Fixed Expenses</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalFixedExpenses)}</span></div>
             <div class="stat"><span class="stat-label">Total Variable Expenses</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalVariableExpenses)}</span></div>
             <div class="stat"><span class="stat-label">Minimum Debt Payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
-            <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
-            <div class="stat"><span class="stat-label">Net Worth</span><span class="stat-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span></div>
           </div>
         </div>
       </section>
@@ -3452,11 +3523,21 @@ WR.ui = WR.ui || {};
       <section class="health-score">
         <h2>Financial Health: ${s.healthScore.score}/100 ${WR.ui.moodEmoji(s.healthScore.score, { good: 70, bad: 40 })}</h2>
         <div class="score-breakdown">
-          <div>Cash flow: ${s.healthScore.breakdown.cashFlow.toFixed(0)}</div>
-          <div>Emergency fund: ${s.healthScore.breakdown.emergencyFund.toFixed(0)}</div>
-          <div>Debt burden: ${s.healthScore.breakdown.debtBurden.toFixed(0)}</div>
-          <div>Savings rate: ${s.healthScore.breakdown.savingsRate.toFixed(0)}</div>
-          <div>Net worth trend: ${s.healthScore.breakdown.netWorthTrend.toFixed(0)}</div>
+          ${[
+            ['Cash flow', s.healthScore.breakdown.cashFlow],
+            ['Emergency fund', s.healthScore.breakdown.emergencyFund],
+            ['Debt burden', s.healthScore.breakdown.debtBurden],
+            ['Savings rate', s.healthScore.breakdown.savingsRate],
+            ['Net worth trend', s.healthScore.breakdown.netWorthTrend],
+          ].map(([label, value]) => {
+            const pct = Math.max(0, Math.min(100, value));
+            const color = pct >= 70 ? 'var(--success)' : pct >= 40 ? 'var(--gold)' : 'var(--danger)';
+            return `
+            <div class="score-item">
+              <div class="score-item-head"><span>${label}</span><strong>${value.toFixed(0)}</strong></div>
+              <div class="score-meter"><span style="width:${pct}%; background:${color}"></span></div>
+            </div>`;
+          }).join('')}
         </div>
         <p class="fine-print">Every component above is a plain formula - see Settings for assumptions.</p>
       </section>
@@ -3492,6 +3573,7 @@ WR.ui = WR.ui || {};
           <h3>Net Worth History</h3>
           ${netWorthChart}
           <button id="snapshot-networth-btn" class="secondary">Record today's net worth snapshot</button>
+          ${s.netWorthHistory.length < 3 ? '<p class="fine-print">Record a snapshot every month to build a trend line here \u2014 with only one or two points it can\u2019t show much yet.</p>' : ''}
         </div>
       </section>
     `;
@@ -4057,6 +4139,15 @@ WR.ui = WR.ui || {};
     });
   }
 
+  const EMERGENCY_FUND_ACCOUNTS = [
+    { id: 'moneyclub', label: 'MoneyClub Emergency Fund' },
+    { id: 'fnb', label: 'FNB Emergency Fund' },
+  ];
+  const emergencyFundAccountLabel = (accountId) =>
+    (EMERGENCY_FUND_ACCOUNTS.find((a) => a.id === accountId) || EMERGENCY_FUND_ACCOUNTS[0]).label;
+  const emergencyFundAccountOptions = (selected) => EMERGENCY_FUND_ACCOUNTS.map((a) =>
+    `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${a.label}</option>`).join('');
+
   async function renderEmergencyFund(container) {
     const [profile, contributions] = await Promise.all([
       WR.ui.getOrCreateProfile(),
@@ -4069,9 +4160,15 @@ WR.ui = WR.ui || {};
       const amount = Number(item.amount) || 0;
       return item.returned && amount < 0 ? 0 : amount;
     };
+    const accountOf = (item) => item.account || EMERGENCY_FUND_ACCOUNTS[0].id;
     const total = sorted.reduce((sum, item) => sum + countedAmount(item), 0);
+    const totalsByAccount = EMERGENCY_FUND_ACCOUNTS.map((a) => ({
+      ...a,
+      total: sorted.filter((item) => accountOf(item) === a.id).reduce((sum, item) => sum + countedAmount(item), 0),
+    }));
     const monthContributions = sorted.filter((item) => String(item.date || '').slice(0, 7) === month);
     const monthNet = monthContributions.reduce((sum, item) => sum + countedAmount(item), 0);
+    const shareOf = (accountTotal) => (total > 0 ? Math.max(0, Math.min(100, (accountTotal / total) * 100)) : 0);
 
     const rows = monthContributions.map((item) => {
       const isBorrowed = (Number(item.amount) || 0) < 0;
@@ -4079,6 +4176,7 @@ WR.ui = WR.ui || {};
       return `
       <tr data-id="${item.id}">
         <td><input class="cell" data-field="date" type="date" value="${item.date}"></td>
+        <td><select class="cell" data-field="account">${emergencyFundAccountOptions(accountOf(item))}</select></td>
         <td><input class="cell" data-field="amount" type="number" step="0.01" value="${item.amount}"></td>
         <td><input class="cell" data-field="note" value="${item.note || ''}"></td>
         <td>${isBorrowed ? `<button class="link-btn toggle-emergency-return" data-id="${item.id}">${returned ? 'Unmark returned' : 'Mark returned'}</button>` : ''}</td>
@@ -4088,33 +4186,62 @@ WR.ui = WR.ui || {};
 
     container.innerHTML = `
       <h1>Emergency Fund</h1>
-      <div class="stat-grid">
-        <div class="stat"><span class="stat-label">Current emergency fund balance</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(total)}</span></div>
-        <div class="stat"><span class="stat-label">Selected month net change</span><span class="stat-value ${monthNet < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(monthNet)}</span></div>
-        <div class="stat"><span class="stat-label">Entries this month</span><span class="stat-value">${monthContributions.length}</span></div>
+      <p class="month-label">Track contributions and borrowing across both of your emergency fund accounts.</p>
+
+      <div class="ef-summary">
+        <div class="ef-summary-main">
+          <span class="stat-label">Combined balance</span>
+          <span class="ef-summary-value ${total < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(total)}</span>
+        </div>
+        <div class="ef-summary-side">
+          <div><span class="stat-label">Selected month net change</span><span class="stat-value ${monthNet < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(monthNet)}</span></div>
+          <div><span class="stat-label">Entries this month</span><span class="stat-value">${monthContributions.length}</span></div>
+        </div>
       </div>
-      <div class="toolbar"><label>Month: <input id="emergency-fund-month" type="month" value="${month}"></label></div>
-      <table class="data-table">
-        <thead><tr><th>Date</th><th>Contribution (${profile.baseCurrency})</th><th>Note</th><th>Returned</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="5" class="empty">No emergency fund activity for this month.</td></tr>'}</tbody>
-      </table>
 
-      <h3>Add contribution</h3>
-      <form id="emergency-add-form" class="inline-form">
-        <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
-        <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
-        <input name="note" placeholder="Optional note">
-        <button type="submit">Add</button>
-      </form>
+      <div class="ef-account-grid">
+        ${totalsByAccount.map((a) => `
+        <div class="ef-account-card">
+          <h3>${a.label}</h3>
+          <span class="amount ${a.total < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(a.total)}</span>
+          <span class="share">${shareOf(a.total).toFixed(0)}% of combined balance</span>
+          <div class="ef-meter"><span style="--share:${shareOf(a.total)}%"></span></div>
+        </div>`).join('')}
+      </div>
 
-      <h3>Borrow from emergency fund</h3>
-      <p class="fine-print">This reduces the fund balance and records the same amount as a variable expense named “Emergency Fund Borrowed” for the selected month.</p>
-      <form id="emergency-borrow-form" class="inline-form">
-        <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
-        <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount borrowed" required>
-        <input name="note" placeholder="Reason (optional)">
-        <button type="submit" class="secondary">Record borrowed amount</button>
-      </form>
+      <div class="ef-activity-card">
+        <h3>Activity</h3>
+        <div class="toolbar"><label>Month: <input id="emergency-fund-month" type="month" value="${month}"></label></div>
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Account</th><th>Contribution (${profile.baseCurrency})</th><th>Note</th><th>Returned</th><th></th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="6" class="empty">No emergency fund activity for this month.</td></tr>'}</tbody>
+        </table>
+      </div>
+
+      <div class="ef-forms-grid">
+        <div class="ef-form-card">
+          <h3>Add contribution</h3>
+          <form id="emergency-add-form" class="inline-form">
+            <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
+            <select name="account" required>${emergencyFundAccountOptions()}</select>
+            <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
+            <input name="note" placeholder="Optional note">
+            <button type="submit">Add</button>
+          </form>
+        </div>
+
+        <div class="ef-form-card borrow">
+          <h3>Borrow from emergency fund</h3>
+          <p class="fine-print">This reduces the selected account's balance and records the same amount as a variable expense named “Emergency Fund Borrowed” for the selected month.</p>
+          <form id="emergency-borrow-form" class="inline-form">
+            <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
+            <select name="account" required>${emergencyFundAccountOptions()}</select>
+            <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount borrowed" required>
+            <input name="note" placeholder="Reason (optional)">
+            <button type="submit" class="secondary">Record borrowed amount</button>
+          </form>
+        </div>
+      </div>
     `;
 
     document.getElementById('emergency-fund-month').addEventListener('change', (event) => {
@@ -4169,6 +4296,7 @@ WR.ui = WR.ui || {};
       const form = event.target;
       await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
         date: form.date.value,
+        account: form.account.value,
         amount: Math.max(0, parseFloat(form.amount.value) || 0),
         note: form.note.value.trim() || undefined,
       }));
@@ -4181,14 +4309,17 @@ WR.ui = WR.ui || {};
       const form = event.target;
       const amount = Math.max(0, parseFloat(form.amount.value) || 0);
       if (!amount) return;
-      if (amount > total) {
-        WR.ui.notify(`You can borrow up to ${profile.baseCurrency} ${WR.ui.fmt(total)} from the current emergency fund.`, 'error');
+      const account = form.account.value;
+      const accountTotal = (totalsByAccount.find((a) => a.id === account) || { total: 0 }).total;
+      if (amount > accountTotal) {
+        WR.ui.notify(`You can borrow up to ${profile.baseCurrency} ${WR.ui.fmt(accountTotal)} from ${emergencyFundAccountLabel(account)}.`, 'error');
         return;
       }
       const date = form.date.value;
       const note = form.note.value.trim();
       await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
         date,
+        account,
         amount: -amount,
         note: note ? `Borrowed: ${note}` : 'Borrowed from emergency fund',
         returned: false,
