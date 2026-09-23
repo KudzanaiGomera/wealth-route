@@ -2739,20 +2739,55 @@ WR.ui = WR.ui || {};
     return String(monthKey) >= String(start) && String(monthKey) <= String(end);
   }
 
-  function calculateDayToDaySummary(account, transactions, year) {
-    const opening = Number(account?.startingBalance) || 0;
-    const inAmount = transactions
-      .filter((tx) => Number(tx.year) === Number(year) && tx.kind === 'add')
+  function getDayToDayOpeningAccount(accounts, year) {
+    return accounts
+      .filter((account) => Number(account.year) <= Number(year))
+      .sort((left, right) => Number(right.year) - Number(left.year))[0] || null;
+  }
+
+  function calculateDayToDaySummary(accountsOrAccount, transactions, throughMonth) {
+    const accounts = Array.isArray(accountsOrAccount) ? accountsOrAccount : [accountsOrAccount].filter(Boolean);
+    const month = typeof throughMonth === 'number' ? `${throughMonth}-12` : throughMonth;
+    const year = Number(month.slice(0, 4));
+    const openingAccount = getDayToDayOpeningAccount(accounts, year);
+    const openingYear = Number(openingAccount?.year) || Number(year);
+    const opening = Number(openingAccount?.startingBalance) || 0;
+    const yearTransactions = transactions.filter((tx) => {
+      const transactionMonth = String(tx.date || '').slice(0, 7);
+      return transactionMonth >= `${openingYear}-01` && transactionMonth <= month;
+    });
+    const inAmount = yearTransactions
+      .filter((tx) => tx.kind === 'add')
       .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-    const spent = transactions
-      .filter((tx) => Number(tx.year) === Number(year) && tx.kind !== 'add')
+    const spent = yearTransactions
+      .filter((tx) => tx.kind !== 'add')
       .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
     return {
       opening,
       added: inAmount,
       spent,
       currentBalance: opening + inAmount - spent,
-      totalTransactions: transactions.filter((tx) => Number(tx.year) === Number(year)).length,
+      totalTransactions: yearTransactions.length,
+    };
+  }
+
+  function calculateDayToDayMonthBalance(accounts, transactions, month) {
+    const year = Number(month.slice(0, 4));
+    const openingAccount = getDayToDayOpeningAccount(accounts, year);
+    const openingYear = Number(openingAccount?.year) || year;
+    const opening = Number(openingAccount?.startingBalance) || 0;
+    const relevantTransactions = transactions.filter((tx) => {
+      const transactionMonth = String(tx.date || '').slice(0, 7);
+      return transactionMonth >= `${openingYear}-01` && transactionMonth <= month;
+    });
+    const beforeMonth = relevantTransactions.filter((tx) => String(tx.date || '').slice(0, 7) < month);
+    const monthTransactions = relevantTransactions.filter((tx) => String(tx.date || '').slice(0, 7) === month);
+    const netAmount = (items) => items.reduce((sum, tx) => sum + (tx.kind === 'add' ? 1 : -1) * (Number(tx.amount) || 0), 0);
+    return {
+      opening,
+      balanceBeforeMonth: opening + netAmount(beforeMonth),
+      currentBalance: opening + netAmount(relevantTransactions),
+      monthTransactions,
     };
   }
 
@@ -2918,8 +2953,8 @@ WR.ui = WR.ui || {};
       const amount = Number(item.amount) || 0;
       return sum + (item.returned && amount < 0 ? 0 : amount);
     }, 0);
-    const dayToDayAccount = dayToDayAccounts.find((item) => Number(item.year) === selectedYear) || null;
-    const dayToDaySummary = calculateDayToDaySummary(dayToDayAccount, dayToDayTransactions, selectedYear);
+    const dayToDayAccount = getDayToDayOpeningAccount(dayToDayAccounts, selectedYear);
+    const dayToDaySummary = calculateDayToDaySummary(dayToDayAccounts, dayToDayTransactions, month);
 
     const snapshot = {
       month,
@@ -4201,10 +4236,10 @@ WR.ui = WR.ui || {};
     const monthTx = transactions.filter((item) => String(item.date || '').slice(0, 7) === month).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const added = monthTx.filter((item) => item.kind === 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     const spent = monthTx.filter((item) => item.kind !== 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const monthBalance = calculateDayToDayMonthBalance(accounts, transactions, month);
     const opening = Number(account?.startingBalance) || 0;
-    const beforeMonth = transactions.filter((item) => Number(item.year) === year && String(item.date || '').slice(0, 7) < month);
-    const balanceBeforeMonth = opening + beforeMonth.reduce((sum, item) => sum + (item.kind === 'add' ? 1 : -1) * (Number(item.amount) || 0), 0);
-    const current = balanceBeforeMonth + added - spent;
+    const balanceBeforeMonth = monthBalance.balanceBeforeMonth;
+    const current = monthBalance.currentBalance;
     const spendByCategory = new Map();
     monthTx.filter((item) => item.kind !== 'add').forEach((item) => {
       const category = String(item.category || '').trim() || 'Uncategorised';
@@ -4267,7 +4302,7 @@ WR.ui = WR.ui || {};
         <div class="day-category-grid">${categoryCards || '<p class="empty">No spending recorded for this month yet.</p>'}</div>
       </section>
 
-      <h3>Starting balance</h3>
+      <h3>Opening balance for ${year}</h3>
       <form id="day-balance-form" class="inline-form">
         <input name="startingBalance" type="number" step="0.01" min="0" value="${opening}">
         <button type="submit">Save starting balance</button>

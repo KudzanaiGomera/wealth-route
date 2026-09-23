@@ -1625,20 +1625,53 @@ WR.uiCalc = WR.uiCalc || {};
     return String(monthKey) >= String(start) && String(monthKey) <= String(end);
   }
 
-  function calculateDayToDaySummary(account, transactions, year) {
-    const opening = Number(account && account.startingBalance) || 0;
-    const added = transactions
-      .filter((tx) => Number(tx.year) === Number(year) && tx.kind === 'add')
+  function getDayToDayOpeningAccount(accounts, year) {
+    return accounts
+      .filter((account) => Number(account.year) <= Number(year))
+      .sort((left, right) => Number(right.year) - Number(left.year))[0] || null;
+  }
+
+  function calculateDayToDaySummary(accountsOrAccount, transactions, throughMonth) {
+    const accounts = Array.isArray(accountsOrAccount) ? accountsOrAccount : [accountsOrAccount].filter(Boolean);
+    const month = typeof throughMonth === 'number' ? `${throughMonth}-12` : throughMonth;
+    const year = Number(month.slice(0, 4));
+    const openingAccount = getDayToDayOpeningAccount(accounts, year);
+    const openingYear = Number(openingAccount && openingAccount.year) || Number(year);
+    const opening = Number(openingAccount && openingAccount.startingBalance) || 0;
+    const yearTransactions = transactions.filter((tx) => {
+      const transactionMonth = String(tx.date || '').slice(0, 7);
+      return transactionMonth >= `${openingYear}-01` && transactionMonth <= month;
+    });
+    const added = yearTransactions
+      .filter((tx) => tx.kind === 'add')
       .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-    const spent = transactions
-      .filter((tx) => Number(tx.year) === Number(year) && tx.kind !== 'add')
+    const spent = yearTransactions
+      .filter((tx) => tx.kind !== 'add')
       .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
     return {
       opening,
       added,
       spent,
       currentBalance: opening + added - spent,
-      totalTransactions: transactions.filter((tx) => Number(tx.year) === Number(year)).length,
+      totalTransactions: yearTransactions.length,
+    };
+  }
+
+  function calculateDayToDayMonthBalance(accounts, transactions, month) {
+    const year = Number(month.slice(0, 4));
+    const openingAccount = getDayToDayOpeningAccount(accounts, year);
+    const openingYear = Number(openingAccount && openingAccount.year) || year;
+    const opening = Number(openingAccount && openingAccount.startingBalance) || 0;
+    const relevantTransactions = transactions.filter((tx) => {
+      const date = String(tx.date || '');
+      return Number(tx.year) >= openingYear && date.slice(0, 7) <= month;
+    });
+    const beforeMonth = relevantTransactions.filter((tx) => String(tx.date || '').slice(0, 7) < month);
+    const netAmount = (items) => items.reduce((sum, tx) => sum + (tx.kind === 'add' ? 1 : -1) * (Number(tx.amount) || 0), 0);
+    return {
+      opening,
+      balanceBeforeMonth: opening + netAmount(beforeMonth),
+      currentBalance: opening + netAmount(relevantTransactions),
     };
   }
 
@@ -1646,6 +1679,7 @@ WR.uiCalc = WR.uiCalc || {};
     monthlyAmountFromFrequency,
     isActiveForMonth,
     calculateDayToDaySummary,
+    calculateDayToDayMonthBalance,
   };
 })();
 // A deliberately tiny test runner — no dependency, runs by just opening
@@ -2361,6 +2395,34 @@ WR.testRuns.push(
       expect(summary.spent).toBe(500);
       expect(summary.currentBalance).toBe(1000);
       expect(summary.totalTransactions).toBe(3);
+    });
+
+    await test('calculateDayToDayMonthBalance > carries September money into October and deducts October spending', () => {
+      const balance = WR.uiCalc.calculateDayToDayMonthBalance(
+        [{ year: 2026, startingBalance: 0 }],
+        [
+          { year: 2026, date: '2026-09-01', kind: 'add', amount: 91 },
+          { year: 2026, date: '2026-09-15', kind: 'add', amount: 40 },
+          { year: 2026, date: '2026-10-03', kind: 'spend', amount: 25 },
+        ],
+        '2026-10',
+      );
+      expect(balance.balanceBeforeMonth).toBe(131);
+      expect(balance.currentBalance).toBe(106);
+    });
+
+    await test('calculateDayToDaySummary > uses the selected month and carries an unused balance into a new year', () => {
+      const summary = WR.uiCalc.calculateDayToDaySummary(
+        [{ year: 2026, startingBalance: 0 }],
+        [
+          { year: 2026, date: '2026-09-01', kind: 'add', amount: 91 },
+          { year: 2027, date: '2027-01-03', kind: 'add', amount: 20 },
+          { year: 2027, date: '2027-02-01', kind: 'spend', amount: 10 },
+        ],
+        '2027-01',
+      );
+      expect(summary.currentBalance).toBe(111);
+      expect(summary.totalTransactions).toBe(2);
     });
 
     // --- charts (smoke test \u2014 valid SVG string, no exceptions) -----------
