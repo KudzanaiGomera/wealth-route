@@ -742,6 +742,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .ef-form-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); }
 .ef-form-card h3 { margin-top: 0; }
 .ef-form-card.borrow { border-color: color-mix(in srgb, var(--gold) 40%, var(--border)); background: color-mix(in srgb, var(--gold) 6%, var(--panel)); }
+.ef-form-card.transfer { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); background: color-mix(in srgb, var(--accent) 5%, var(--panel)); }
 .ef-form-card .inline-form { margin: 0.5rem 0 0; }
 
 /* ---------- Health score ---------- */
@@ -4171,7 +4172,7 @@ WR.ui = WR.ui || {};
     const shareOf = (accountTotal) => (total > 0 ? Math.max(0, Math.min(100, (accountTotal / total) * 100)) : 0);
 
     const rows = monthContributions.map((item) => {
-      const isBorrowed = (Number(item.amount) || 0) < 0;
+      const isBorrowed = (Number(item.amount) || 0) < 0 && !item.transferId;
       const returned = Boolean(item.returned);
       return `
       <tr data-id="${item.id}">
@@ -4239,6 +4240,19 @@ WR.ui = WR.ui || {};
             <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount borrowed" required>
             <input name="note" placeholder="Reason (optional)">
             <button type="submit" class="secondary">Record borrowed amount</button>
+          </form>
+        </div>
+
+        <div class="ef-form-card transfer">
+          <h3>Move funds</h3>
+          <p class="fine-print">Move money between your emergency fund accounts without changing the combined balance.</p>
+          <form id="emergency-transfer-form" class="inline-form">
+            <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
+            <select name="fromAccount" required>${emergencyFundAccountOptions()}</select>
+            <select name="toAccount" required>${emergencyFundAccountOptions()}</select>
+            <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount moved" required>
+            <input name="note" placeholder="Optional note">
+            <button type="submit" class="secondary">Move funds</button>
           </form>
         </div>
       </div>
@@ -4334,6 +4348,46 @@ WR.ui = WR.ui || {};
       }));
       WR.ui.refreshIntegrityNotice();
       WR.ui.notify('Borrowed amount recorded and added to variable expenses.', 'success');
+      renderEmergencyFund(container);
+    });
+
+    document.getElementById('emergency-transfer-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const fromAccount = form.fromAccount.value;
+      const toAccount = form.toAccount.value;
+      const amount = Math.max(0, parseFloat(form.amount.value) || 0);
+      if (fromAccount === toAccount) {
+        WR.ui.notify('Choose two different accounts to move funds.', 'error');
+        return;
+      }
+      const sourceTotal = (totalsByAccount.find((a) => a.id === fromAccount) || { total: 0 }).total;
+      if (!amount || amount > sourceTotal) {
+        WR.ui.notify(`You can move up to ${profile.baseCurrency} ${WR.ui.fmt(sourceTotal)} from ${emergencyFundAccountLabel(fromAccount)}.`, 'error');
+        return;
+      }
+      const transferId = WR.models.newId();
+      const date = form.date.value;
+      const note = form.note.value.trim();
+      const description = note ? `Transfer: ${note}` : 'Transfer between emergency fund accounts';
+      await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
+        date,
+        account: fromAccount,
+        amount: -amount,
+        note: `${description} to ${emergencyFundAccountLabel(toAccount)}`,
+        transferId,
+        transferDirection: 'out',
+      }));
+      await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
+        date,
+        account: toAccount,
+        amount,
+        note: `${description} from ${emergencyFundAccountLabel(fromAccount)}`,
+        transferId,
+        transferDirection: 'in',
+      }));
+      WR.ui.refreshIntegrityNotice();
+      WR.ui.notify('Funds moved successfully.', 'success');
       renderEmergencyFund(container);
     });
   }
