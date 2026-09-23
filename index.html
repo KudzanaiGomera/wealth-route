@@ -4236,7 +4236,9 @@ WR.ui = WR.ui || {};
       return `<option value="" ${selected ? '' : 'selected'}>None</option>${options}`;
     };
     const account = accounts.find((item) => Number(item.year) === year) || null;
-    const needsInitialBalance = accounts.length === 0;
+    const initialAccount = accounts.slice().sort((left, right) => Number(left.year) - Number(right.year))[0] || null;
+    const initialBalanceYear = Number(initialAccount?.year) || year;
+    const initialBalance = Number(initialAccount?.startingBalance) || 0;
     const monthTx = transactions.filter((item) => String(item.date || '').slice(0, 7) === month).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const added = monthTx.filter((item) => item.kind === 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     const spent = monthTx.filter((item) => item.kind !== 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -4307,16 +4309,12 @@ WR.ui = WR.ui || {};
         <div class="day-category-grid">${categoryCards || '<p class="empty">No spending recorded for this month yet.</p>'}</div>
       </section>
 
-      ${needsInitialBalance ? `
-        <h3>Set your initial balance</h3>
-        <form id="day-balance-form" class="inline-form">
-          <input name="startingBalance" type="number" step="0.01" min="0" placeholder="Balance before your first transaction" required>
-          <button type="submit">Set initial balance</button>
-        </form>
-        <p class="fine-print">Set this once for the money you already have. Afterwards, use “Add day-to-day transaction” to add money and record spending.</p>
-      ` : `
-        <p class="fine-print">Your initial balance is already set. Add money or spending as transactions; the balance carries forward automatically into every future month and year.</p>
-      `}
+      <h3>Initial amount</h3>
+      <form id="day-balance-form" class="inline-form">
+        <input name="startingBalance" type="number" step="0.01" min="0" value="${initialBalance}" required>
+        <button type="submit">Save initial amount</button>
+      </form>
+      <p class="fine-print">This is the amount you started with when you registered${initialAccount ? ` in ${initialBalanceYear}` : ''}. Change it only to correct that original amount: it recalculates all later balances. Use “Add day-to-day transaction” to add new money.</p>
 
       <h3>Add category</h3>
       <form id="day-category-form" class="inline-form">
@@ -4346,15 +4344,14 @@ WR.ui = WR.ui || {};
       renderDayToDay(container);
     });
 
-    document.getElementById('day-balance-form')?.addEventListener('submit', async (event) => {
+    document.getElementById('day-balance-form').addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (accounts.length > 0) return;
       const form = event.target;
-      await WR.repos.dayToDayAccounts.add(WR.models.createDayToDayAccount({
-        year,
-        startingBalance: Math.max(0, parseFloat(form.startingBalance.value) || 0),
-        currency: profile.baseCurrency,
-      }));
+      const record = initialAccount || WR.models.createDayToDayAccount({ year, startingBalance: 0, currency: profile.baseCurrency });
+      record.year = initialBalanceYear;
+      record.currency = profile.baseCurrency;
+      record.startingBalance = Math.max(0, parseFloat(form.startingBalance.value) || 0);
+      await WR.repos.dayToDayAccounts.update(record);
       renderDayToDay(container);
     });
 
