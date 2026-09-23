@@ -2912,7 +2912,12 @@ WR.ui = WR.ui || {};
     });
     annualSummary.totalInvested = annualSummary.totalSaved;
 
-    const emergencyFundBalance = emergencyFundContributions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    // Match the Emergency Fund page: a borrowed (negative) entry marked
+    // "returned" no longer counts against the balance once repaid.
+    const emergencyFundBalance = emergencyFundContributions.reduce((sum, item) => {
+      const amount = Number(item.amount) || 0;
+      return sum + (item.returned && amount < 0 ? 0 : amount);
+    }, 0);
     const dayToDayAccount = dayToDayAccounts.find((item) => Number(item.year) === selectedYear) || null;
     const dayToDaySummary = calculateDayToDaySummary(dayToDayAccount, dayToDayTransactions, selectedYear);
 
