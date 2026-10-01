@@ -15,7 +15,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="WealthRoute" />
     <meta name="application-name" content="WealthRoute" />
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js" />
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js" />
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js" />
     <style>
 /* WealthRoute design tokens. A "private ledger" feel: warm paper or deep
    ink backdrop, a literary serif for the numbers that matter, deep emerald
@@ -432,6 +436,16 @@ button, a, input, select, textarea {
 .nav-action-item:hover { background: var(--panel-alt); }
 .nav-action-item.nav-action-danger { color: var(--danger); }
 .nav-action-item.nav-action-danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+#nav a.nav-support-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  color: #128c4a;
+  font-weight: 600;
+}
+#nav a.nav-support-link:hover { background: color-mix(in srgb, #25d366 12%, transparent); }
+.nav-support-icon { width: 1.15rem; height: 1.15rem; fill: #25d366; flex-shrink: 0; }
 .nav-install-btn {
   width: 100%;
   min-height: 44px;
@@ -1097,6 +1111,61 @@ button.danger { background: var(--danger); color: #fff; }
 .assistant-history .link-btn { font-size: 0.78rem; }
 #content:has(.assistant-workspace) { width: min(1500px, calc(100vw - 3rem)); max-width: none; }
 
+/* ---------- Loading skeleton ---------- */
+.skeleton { display: grid; gap: 1rem; padding-top: 0.5rem; }
+.skeleton-line, .skeleton-card {
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--panel-alt) 25%, color-mix(in srgb, var(--panel-alt) 55%, var(--panel)) 50%, var(--panel-alt) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+.skeleton-line { height: 0.9rem; width: 80%; }
+.skeleton-title { height: 1.6rem; width: 40%; }
+.skeleton-short { width: 55%; }
+.skeleton-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+.skeleton-card { height: 6.5rem; }
+.skeleton-wide { height: 12rem; }
+@keyframes skeleton-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* ---------- Update banner ---------- */
+.update-banner {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: calc(100vw - 1.5rem);
+  padding: 0.65rem 0.75rem 0.65rem 1rem;
+  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  font-size: 0.9rem;
+}
+.update-banner button { white-space: nowrap; }
+.update-banner .update-banner-close { background: none; border: 0; color: var(--muted); font-size: 1.2rem; padding: 0 0.3rem; cursor: pointer; }
+
+/* ---------- Dashboard: debt-free + bills ---------- */
+.dashboard-insights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1rem; margin: 1.25rem 0; }
+.debt-free-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.debt-free-head strong { font-size: 1.6rem; }
+.debt-free-head span { color: var(--muted); font-size: 0.88rem; }
+.bill-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.bill-list li { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); }
+.bill-list li > div { display: grid; gap: 0.15rem; min-width: 0; }
+.bill-list li .fine-print { margin: 0; }
+.bill-list li.bill-soon { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
+.bill-amount { font-weight: 600; white-space: nowrap; }
+
+/* ---------- Copy budget / EF account management ---------- */
+.copy-budget-card { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin: 0.75rem 0; }
+.ef-account-manage { list-style: none; margin: 0 0 0.75rem; padding: 0; display: grid; gap: 0.45rem; }
+.ef-account-manage li { display: flex; gap: 0.5rem; align-items: center; }
+.ef-account-manage input { flex: 1; min-width: 0; }
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
@@ -1117,6 +1186,7 @@ button.danger { background: var(--danger); color: #fff; }
   }
   #content { padding: 1.1rem 1rem calc(6.5rem + env(safe-area-inset-bottom)); min-width: 0; }
   .topbar .nav-toggle { display: none; }
+  #nav a.in-mobile-nav { display: none; }
   .mobile-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; padding: 0.3rem max(0.3rem, env(safe-area-inset-right)) calc(0.3rem + env(safe-area-inset-bottom)) max(0.3rem, env(safe-area-inset-left)); gap: 0.2rem; background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.14); }
   .mobile-nav a, .mobile-nav button { display: grid; justify-items: center; align-content: center; gap: 0.2rem; height: 3.55rem; min-width: 0; color: var(--muted); background: transparent; border: 0; text-decoration: none; font: inherit; border-radius: 12px; cursor: pointer; transition: color 160ms ease, background-color 160ms ease; }
   .mobile-nav a.active, .mobile-nav button[aria-expanded="true"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, var(--panel)); font-weight: 600; }
@@ -1125,6 +1195,7 @@ button.danger { background: var(--danger); color: #fff; }
   .mobile-nav small { font-size: 0.67rem; line-height: 1; }
   .mobile-nav a:focus-visible, .mobile-nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .toast-stack { bottom: calc(5rem + env(safe-area-inset-bottom)); }
+  .update-banner { bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
   .position-summary-grid { grid-template-columns: 1fr; }
   .dashboard-card { padding: 1.15rem; }
   .dashboard-card .stat { min-height: 5rem; }
@@ -1224,6 +1295,62 @@ window.WR = window.WR || {};
     return out;
   }
 
+  // Reads are served instantly from Firestore's local cache, then refreshed
+  // from the server in the background; the page re-renders only if data changed.
+  const REVALIDATE_MS = 30000;
+  const lastRevalidated = new Map();
+  let rerenderTimer = null;
+
+  function scheduleRerender() {
+    clearTimeout(rerenderTimer);
+    rerenderTimer = setTimeout(() => {
+      const active = document.activeElement;
+      // Don't wipe out something the user is in the middle of typing.
+      if (active && active.closest && active.closest('#content') && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName)) return;
+      if (WR.ui && WR.ui.reRenderCurrentRoute) WR.ui.reRenderCurrentRoute();
+    }, 150);
+  }
+
+  function shouldRevalidate(key) {
+    if (Date.now() - (lastRevalidated.get(key) || 0) < REVALIDATE_MS) return false;
+    lastRevalidated.set(key, Date.now());
+    return true;
+  }
+
+  const snapSignature = (snap) => JSON.stringify(snap.docs.map((d) => [d.id, d.data()]));
+
+  async function readDocs(api, ref, key) {
+    let cached = null;
+    try { cached = await api.getDocsFromCache(ref); } catch (_) { cached = null; }
+    if (cached && !cached.empty) {
+      if (shouldRevalidate(key)) {
+        const before = snapSignature(cached);
+        api.getDocsFromServer(ref)
+          .then((fresh) => { if (snapSignature(fresh) !== before) scheduleRerender(); })
+          .catch(() => {});
+      }
+      return cached;
+    }
+    lastRevalidated.set(key, Date.now());
+    return api.getDocs(ref);
+  }
+
+  async function readDoc(api, ref) {
+    let cached = null;
+    try { cached = await api.getDocFromCache(ref); } catch (_) { cached = null; }
+    if (cached && cached.exists()) {
+      if (shouldRevalidate(ref.path)) {
+        const before = JSON.stringify(cached.data());
+        api.getDocFromServer(ref)
+          .then((fresh) => { if (JSON.stringify(fresh.exists() ? fresh.data() : null) !== before) scheduleRerender(); })
+          .catch(() => {});
+      }
+      return cached;
+    }
+    lastRevalidated.set(ref.path, Date.now());
+    return api.getDoc(ref);
+  }
+
   function createRepository(storeName) {
     function collectionRef() {
       const { uid, api, db } = requireContext();
@@ -1236,13 +1363,14 @@ window.WR = window.WR || {};
     return {
       async getAll() {
         const { api } = requireContext();
-        const snap = await api.getDocs(collectionRef());
+        const ref = collectionRef();
+        const snap = await readDocs(api, ref, ref.path);
         return snap.docs.map((d) => d.data());
       },
       /** @param {string} id */
       async getById(id) {
         const { api } = requireContext();
-        const snap = await api.getDoc(docRef(id));
+        const snap = await readDoc(api, docRef(id));
         return snap.exists() ? snap.data() : undefined;
       },
       /** @param {{id: string}} item */
@@ -1296,21 +1424,21 @@ window.WR = window.WR || {};
     /** All budget lines (income/fixed/variable/savings/debt) for a 'YYYY-MM' month. */
     async getBudgetLinesByMonth(month) {
       const { uid, api, db } = requireContext();
-      const snap = await api.getDocs(api.query(api.collection(db, 'users', uid, 'budgetLines'), api.where('month', '==', month)));
+      const snap = await readDocs(api, api.query(api.collection(db, 'users', uid, 'budgetLines'), api.where('month', '==', month)), `users/${uid}/budgetLines?month=${month}`);
       return snap.docs.map((d) => d.data());
     },
 
     /** All recorded payments made against a specific debt, across all months. */
     async getDebtPaymentsForDebt(debtId) {
       const { uid, api, db } = requireContext();
-      const snap = await api.getDocs(api.query(api.collection(db, 'users', uid, 'debtPayments'), api.where('debtId', '==', debtId)));
+      const snap = await readDocs(api, api.query(api.collection(db, 'users', uid, 'debtPayments'), api.where('debtId', '==', debtId)), `users/${uid}/debtPayments?debtId=${debtId}`);
       return snap.docs.map((d) => d.data());
     },
 
     /** Full net worth history, oldest first — powers the net worth trend chart. */
     async getNetWorthHistory() {
       const { uid, api, db } = requireContext();
-      const snap = await api.getDocs(api.query(api.collection(db, 'users', uid, 'netWorthSnapshots'), api.orderBy('date')));
+      const snap = await readDocs(api, api.query(api.collection(db, 'users', uid, 'netWorthSnapshots'), api.orderBy('date')), `users/${uid}/netWorthSnapshots?orderBy=date`);
       return snap.docs.map((d) => d.data());
     },
   };
@@ -2450,6 +2578,22 @@ window.WR = window.WR || {};
 WR.excel = WR.excel || {};
 
 (function () {
+  let xlsxPromise = null;
+  // SheetJS is ~900KB, so it's only fetched when the Excel page actually needs it.
+  function loadXlsx() {
+    if (typeof XLSX !== 'undefined') return Promise.resolve();
+    if (!xlsxPromise) {
+      xlsxPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+        script.onload = () => resolve();
+        script.onerror = () => { xlsxPromise = null; reject(new Error('Excel library failed to load')); };
+        document.head.appendChild(script);
+      });
+    }
+    return xlsxPromise;
+  }
+
   /**
    * Parses an uploaded file (ArrayBuffer) into a SheetJS workbook.
    * @param {ArrayBuffer} arrayBuffer
@@ -2614,6 +2758,7 @@ WR.excel = WR.excel || {};
   }
 
   WR.excel = {
+    loadXlsx,
     parseWorkbook,
     getSheetNames,
     readSheetRows,
@@ -3158,6 +3303,8 @@ WR.ui = WR.ui || {};
       dayToDayAccount,
       dayToDayTransactions,
       debts,
+      debtPayments,
+      exchangeRates,
       assets,
       investments,
       allBudgetLines,
@@ -3175,6 +3322,12 @@ WR.ui = WR.ui || {};
   WR.ui.monthName = monthName;
   WR.ui.yearsAroundCurrent = yearsAroundCurrent;
   WR.ui.getOrCreateProfile = getOrCreateProfile;
+  WR.ui.isActiveForMonth = isActiveForMonth;
+  /** Day-of-month 1-31, or undefined when blank/invalid (no reminder). */
+  WR.ui.parseDueDay = (value) => {
+    const day = Math.round(Number(value));
+    return day >= 1 && day <= 31 ? day : undefined;
+  };
   WR.ui.calculateDayToDayMonthBalance = calculateDayToDayMonthBalance;
   WR.ui.buildSnapshot = buildSnapshot;
 })();
@@ -3341,6 +3494,9 @@ WR.ui = WR.ui || {};
   // users) still lives in the grouped hamburger dropdown below.
   const HORIZONTAL_NAV_HASHES = ['#/dashboard', '#/transactions', '#/debts', '#/savings', '#/settings'];
   const HORIZONTAL_NAV_ITEMS = HORIZONTAL_NAV_HASHES.map((hash) => NAV_ITEMS.find((i) => i.hash === hash)).filter(Boolean);
+  // Must match the links in the mobile bottom bar (.mobile-nav) in renderShell().
+  const MOBILE_NAV_HASHES = ['#/dashboard', '#/debts', '#/savings'];
+  const SUPPORT_WHATSAPP_URL = 'https://wa.me/27625417921?text=' + encodeURIComponent('Hi WealthRoute support, I need help with...');
 
   function renderNavAccount() {
     const host = document.getElementById('nav-account');
@@ -3417,7 +3573,12 @@ WR.ui = WR.ui || {};
     // Marked (not removed) so CSS can hide these specific dropdown entries only
     // once the horizontal bar showing the same links is actually visible
     // (>=901px) — mobile still needs the full list since it has no horizontal bar.
-    const navLink = (i) => `<a href="${i.hash}" data-hash="${i.hash}"${HORIZONTAL_NAV_HASHES.includes(i.hash) ? ' class="in-horizontal-nav"' : ''}>${i.label}</a>`;
+    const navLink = (i) => {
+      const classes = [];
+      if (HORIZONTAL_NAV_HASHES.includes(i.hash)) classes.push('in-horizontal-nav');
+      if (MOBILE_NAV_HASHES.includes(i.hash)) classes.push('in-mobile-nav');
+      return `<a href="${i.hash}" data-hash="${i.hash}"${classes.length ? ` class="${classes.join(' ')}"` : ''}>${i.label}</a>`;
+    };
     const primaryNavLinks = PRIMARY_NAV_ITEMS.map(navLink).join('');
     const secondaryNavLinks = SECONDARY_NAV_ITEMS.map(navLink).join('');
     const nav = `
@@ -3425,6 +3586,10 @@ WR.ui = WR.ui || {};
       ${primaryNavLinks}
       ${secondaryNavLinks}
       <div class="nav-divider"></div>
+      <a href="${SUPPORT_WHATSAPP_URL}" target="_blank" rel="noopener noreferrer" class="nav-support-link">
+        <svg class="nav-support-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.5-.2Z"/></svg>
+        Contact support
+      </a>
       <div id="nav-install"></div>
       ${WR.account.isConfigured() && WR.account.getCurrentUser() ? `
         <button type="button" id="nav-logout-btn" class="nav-action-item nav-action-danger">Log out</button>
@@ -3514,11 +3679,122 @@ WR.ui = WR.ui || {};
     return `<span class="delta ${positive ? 'positive' : 'negative'}">${arrow} ${currency} ${fmt(Math.abs(value))} ${label}</span>`;
   }
 
+  /** Records one net worth snapshot per calendar month automatically; the fixed id makes repeat calls idempotent. */
+  async function ensureMonthlyNetWorthSnapshot(s) {
+    const today = new Date().toISOString().slice(0, 10);
+    const thisMonth = today.slice(0, 7);
+    const hasWealthData = s.assets.length || s.investments.length || s.debts.length;
+    if (!hasWealthData || s.netWorthHistory.some((h) => String(h.date).startsWith(thisMonth))) return;
+    const snap = {
+      id: `auto-${thisMonth}`,
+      date: today,
+      totalAssets: s.netWorth.totalAssets,
+      totalLiabilities: s.netWorth.totalLiabilities,
+      netWorth: s.netWorth.netWorth,
+      currency: s.profile.baseCurrency,
+      auto: true,
+    };
+    try {
+      await WR.repos.netWorthSnapshots.add(snap);
+      s.netWorthHistory.push(snap);
+    } catch (err) {
+      console.warn('Automatic net worth snapshot failed', err);
+    }
+  }
+
+  function calculateDebtFreeProgress(s) {
+    const F = WR.financial;
+    const base = s.profile.baseCurrency;
+    let original = 0;
+    let current = 0;
+    const open = [];
+    s.debts.forEach((d) => {
+      const from = d.currency || base;
+      const cur = F.convertCurrency(d.currentBalance, from, base, s.exchangeRates);
+      const orig = F.convertCurrency(d.originalBalance || d.currentBalance, from, base, s.exchangeRates);
+      const min = F.convertCurrency(d.minPayment, from, base, s.exchangeRates);
+      if (!cur.converted || !orig.converted || !min.converted) return;
+      original += Math.max(orig.value, cur.value);
+      current += cur.value;
+      if (cur.value > 0.01) open.push({ ...d, currentBalance: cur.value, minPayment: min.value });
+    });
+    if (!open.length) return null;
+    const strategy = WR.ui._debtStrategy || 'avalanche';
+    const ordered = strategy === 'snowball' ? F.orderDebtsSnowball(open)
+      : strategy === 'hybrid' ? F.orderDebtsHybrid(open)
+        : F.orderDebtsAvalanche(open);
+    const plan = F.simulateDebtPayoff(ordered, WR.ui._debtExtra || 0);
+    const freeDate = new Date();
+    freeDate.setDate(1);
+    freeDate.setMonth(freeDate.getMonth() + plan.months);
+    return {
+      paidPct: original > 0 ? Math.max(0, Math.min(100, ((original - current) / original) * 100)) : 0,
+      paid: Math.max(0, original - current),
+      remaining: current,
+      months: plan.reachedSafetyCap ? null : plan.months,
+      freeDateLabel: plan.reachedSafetyCap ? null : `${WR.ui.monthName(freeDate.getMonth() + 1)} ${freeDate.getFullYear()}`,
+      strategy,
+    };
+  }
+
+  /** Quarterly/yearly items are only due every 3/12 months counted from their anchor month. */
+  function isDueInMonth(frequency, anchorMonth, monthKey) {
+    if (frequency !== 'quarterly' && frequency !== 'yearly' && frequency !== 'annual') return true;
+    if (!anchorMonth) return true;
+    const elapsed = (Number(monthKey.slice(0, 4)) - Number(anchorMonth.slice(0, 4))) * 12
+      + Number(monthKey.slice(5, 7)) - Number(anchorMonth.slice(5, 7));
+    return elapsed >= 0 && elapsed % (frequency === 'quarterly' ? 3 : 12) === 0;
+  }
+
+  function upcomingBills(s, days) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const horizon = new Date(today);
+    horizon.setDate(horizon.getDate() + days);
+    const items = [];
+    s.fixedExpenses.forEach((e) => {
+      if (!(Number(e.dueDay) > 0)) return;
+      items.push({
+        name: e.name, kind: 'Bill', dueDay: Number(e.dueDay),
+        amount: Number(e.amount) || 0, currency: e.currency || s.profile.baseCurrency,
+        isDue: (mk) => WR.ui.isActiveForMonth(e, mk) && isDueInMonth(e.frequency, e.startMonth, mk),
+      });
+    });
+    s.debts.forEach((d) => {
+      if (!(Number(d.dueDay) > 0) || (Number(d.currentBalance) || 0) <= 0.01) return;
+      items.push({
+        name: d.name, kind: 'Debt payment', dueDay: Number(d.dueDay),
+        amount: Number(d.minPayment) || 0, currency: d.currency || s.profile.baseCurrency,
+        isDue: (mk) => isDueInMonth(d.paymentFrequency, String(d.startDate || '').slice(0, 7), mk)
+          && !s.debtPayments.some((p) => p.debtId === d.id && p.month === mk),
+      });
+    });
+    const bills = [];
+    items.forEach((item) => {
+      for (const offset of [0, 1]) {
+        const monthStart = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+        const monthKey = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+        const lastDay = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+        const due = new Date(monthStart.getFullYear(), monthStart.getMonth(), Math.min(item.dueDay, lastDay));
+        if (due < today || due > horizon || !item.isDue(monthKey)) continue;
+        bills.push({ ...item, due, daysAway: Math.round((due - today) / 86400000) });
+      }
+    });
+    return bills.sort((a, b) => a.due - b.due);
+  }
+
+  function escapeText(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  }
+
   async function renderDashboard(container) {
-    container.innerHTML = '<p class="loading">Loading your financial position...</p>';
     const s = await WR.ui.buildSnapshot();
     const currency = s.profile.baseCurrency;
     const setupComplete = s.budgetLines.length > 0 && (s.debts.length > 0 || s.assets.length > 0 || s.investments.length > 0);
+    await ensureMonthlyNetWorthSnapshot(s);
+    const debtProgress = calculateDebtFreeProgress(s);
+    const hasDueDays = s.fixedExpenses.some((e) => Number(e.dueDay) > 0) || s.debts.some((d) => Number(d.dueDay) > 0);
+    const bills = upcomingBills(s, 7);
 
     const recsHtml = s.recommendations.length
       ? s.recommendations
@@ -3626,6 +3902,29 @@ WR.ui = WR.ui || {};
         </div>
       </section>
 
+      <section class="dashboard-insights-grid">
+        ${debtProgress ? `
+        <article class="dashboard-card debt-free-card">
+          <h2>Road to debt-free</h2>
+          <div class="debt-free-head">
+            <strong>${debtProgress.months === null ? 'Not within 50 years' : debtProgress.months === 0 ? 'This month' : `${debtProgress.months} months`}</strong>
+            <span>${debtProgress.freeDateLabel ? `Debt-free by ${debtProgress.freeDateLabel}` : 'Increase payments to set a finish date'}</span>
+          </div>
+          <div class="goal-meter" role="progressbar" aria-valuenow="${debtProgress.paidPct.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${debtProgress.paidPct}%"></span></div>
+          <p class="fine-print">${debtProgress.paidPct.toFixed(0)}% paid off · ${currency} ${fmt(debtProgress.paid)} paid, ${currency} ${fmt(debtProgress.remaining)} to go. Based on your ${debtProgress.strategy} plan on the Debts page.</p>
+          <a class="link-btn" href="#/debts">View payoff plan</a>
+        </article>` : ''}
+        <article class="dashboard-card bills-card">
+          <h2>Upcoming bills</h2>
+          ${bills.length ? `<ul class="bill-list">${bills.map((b) => `
+            <li class="${b.daysAway <= 1 ? 'bill-soon' : ''}">
+              <div><strong>${escapeText(b.name)}</strong><span class="fine-print">${b.kind} · ${b.daysAway === 0 ? 'Due today' : b.daysAway === 1 ? 'Due tomorrow' : `Due in ${b.daysAway} days`} (${b.due.getDate()} ${WR.ui.monthName(b.due.getMonth() + 1).slice(0, 3)})</span></div>
+              <span class="bill-amount">${b.currency} ${fmt(b.amount)}</span>
+            </li>`).join('')}</ul>`
+            : `<p class="fine-print">${hasDueDays ? 'Nothing due in the next 7 days.' : 'Add a due day to your fixed expenses or debts to get reminders here.'}</p>`}
+        </article>
+      </section>
+
       <section class="health-score">
         <h2>Financial Health: ${s.healthScore.score}/100 ${WR.ui.moodEmoji(s.healthScore.score, { good: 70, bad: 40 })}</h2>
         <div class="score-breakdown">
@@ -3679,7 +3978,7 @@ WR.ui = WR.ui || {};
           <h3>Net Worth History</h3>
           ${netWorthChart}
           <button id="snapshot-networth-btn" class="secondary">Record today's net worth snapshot</button>
-          ${s.netWorthHistory.length < 3 ? '<p class="fine-print">Record a snapshot every month to build a trend line here \u2014 with only one or two points it can\u2019t show much yet.</p>' : ''}
+          ${s.netWorthHistory.length < 3 ? '<p class="fine-print">A snapshot is recorded automatically each month, so this trend line fills in over time.</p>' : ''}
         </div>
       </section>
     `;
@@ -3766,11 +4065,14 @@ WR.ui = WR.ui || {};
     const sort = WR.ui._transactionsSort || { field: 'type', dir: 'asc' };
     WR.ui._transactionsSort = sort;
 
-    const [lines, profile, categories] = await Promise.all([
+    const [lines, profile, categories, prevLines] = await Promise.all([
       WR.queries.getBudgetLinesByMonth(month),
       WR.ui.getOrCreateProfile(),
       WR.repos.expenseCategories.getAll(),
+      WR.queries.getBudgetLinesByMonth(WR.ui.previousMonthKey(month)),
     ]);
+    // Borrowed-from-emergency-fund lines are one-off events, not part of a recurring budget.
+    const prevVariableLines = prevLines.filter((line) => line.type === 'variable' && line.name !== 'Emergency Fund Borrowed');
     const variableCategories = categories.filter((category) => category.type === 'variable');
     const categoriesById = Object.fromEntries(variableCategories.map((c) => [c.id, c]));
 
@@ -3805,6 +4107,11 @@ WR.ui = WR.ui || {};
         </label>
       </div>
       <p class="fine-print">Plan and record variable expenses for the selected month. Changes save immediately.</p>
+      ${sortedLines.length === 0 && prevVariableLines.length > 0 ? `
+      <div class="notice-card copy-budget-card">
+        <span>Start from last month? Copies ${prevVariableLines.length} line${prevVariableLines.length === 1 ? '' : 's'} with their budget amounts (actuals start at 0).</span>
+        <button type="button" id="copy-last-month-btn">Copy last month's budget</button>
+      </div>` : ''}
 
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Total Budgeted</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalBudget)}</span></div>
@@ -3826,6 +4133,21 @@ WR.ui = WR.ui || {};
         <button type="submit">Add</button>
       </form>
     `;
+
+    document.getElementById('copy-last-month-btn')?.addEventListener('click', async (event) => {
+      event.currentTarget.disabled = true;
+      await Promise.all(prevVariableLines.map((line) => WR.repos.budgetLines.add(WR.models.createBudgetLine({
+        month,
+        type: 'variable',
+        name: line.name,
+        categoryId: line.categoryId,
+        budgetAmount: Number(line.budgetAmount) || 0,
+        actualAmount: 0,
+        currency: line.currency || profile.baseCurrency,
+      }))));
+      WR.ui.notify(`Copied ${prevVariableLines.length} budget line${prevVariableLines.length === 1 ? '' : 's'} from last month.`, 'success');
+      renderTransactions(container);
+    });
 
     document.getElementById('month-picker').addEventListener('change', (e) => {
       WR.ui._transactionsMonth = e.target.value;
@@ -4162,6 +4484,7 @@ WR.ui = WR.ui || {};
   }
 
   async function renderFixedExpenses(container) {
+    const parseDueDay = WR.ui.parseDueDay;
     const [profile, categories, expenses] = await Promise.all([
       WR.ui.getOrCreateProfile(),
       WR.repos.expenseCategories.getAll(),
@@ -4178,6 +4501,7 @@ WR.ui = WR.ui || {};
           <td><select class="cell" data-field="categoryId">${categoryOptions(categories, expense.categoryId, 'fixed')}</select></td>
           <td><input class="cell" data-field="startMonth" type="month" value="${expense.startMonth || WR.ui.currentMonthKey()}"></td>
           <td><input class="cell" data-field="endMonth" type="month" value="${expense.endMonth || ''}"></td>
+          <td><input class="cell num" data-field="dueDay" type="number" min="1" max="31" step="1" placeholder="—" value="${expense.dueDay || ''}"></td>
           <td><button class="link-btn delete-fixed-expense" data-id="${expense.id}">Delete</button></td>
         </tr>`)
       .join('');
@@ -4190,8 +4514,8 @@ WR.ui = WR.ui || {};
         <div class="stat"><span class="stat-label">Total Fixed Expenses</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalFixedExpenses)}</span></div>
       </div>
       <table class="data-table">
-        <thead><tr><th>Name</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Category</th><th>Start month</th><th>End month</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="7" class="empty">No fixed expenses yet.</td></tr>'}</tbody>
+        <thead><tr><th>Name</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Category</th><th>Start month</th><th>End month</th><th>Due day</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="8" class="empty">No fixed expenses yet.</td></tr>'}</tbody>
       </table>
 
       <h3>Add fixed expense</h3>
@@ -4202,6 +4526,7 @@ WR.ui = WR.ui || {};
         <select name="categoryId">${categoryOptions(categories, undefined, 'fixed')}</select>
         <input name="startMonth" type="month" value="${WR.ui.currentMonthKey()}">
         <input name="endMonth" type="month">
+        <input name="dueDay" type="number" min="1" max="31" step="1" placeholder="Due day (1-31)">
         <button type="submit">Add</button>
       </form>
       <p id="fixed-form-message" class="warning"></p>
@@ -4217,6 +4542,9 @@ WR.ui = WR.ui || {};
           if (field === 'amount') {
             expense.amount = Math.max(0, parseFloat(input.value) || 0);
             input.value = expense.amount;
+          } else if (field === 'dueDay') {
+            expense.dueDay = parseDueDay(input.value);
+            input.value = expense.dueDay || '';
           } else {
             expense[field] = input.value || undefined;
           }
@@ -4260,26 +4588,31 @@ WR.ui = WR.ui || {};
         categoryId: form.categoryId.value || undefined,
         startMonth: form.startMonth.value || WR.ui.currentMonthKey(),
         endMonth: form.endMonth.value || undefined,
+        dueDay: parseDueDay(form.dueDay.value),
         currency: profile.baseCurrency,
       }));
       renderFixedExpenses(container);
     });
   }
 
-  const EMERGENCY_FUND_ACCOUNTS = [
+  const DEFAULT_EMERGENCY_FUND_ACCOUNTS = [
     { id: 'moneyclub', label: 'MoneyClub Emergency Fund' },
     { id: 'fnb', label: 'FNB Emergency Fund' },
   ];
-  const emergencyFundAccountLabel = (accountId) =>
-    (EMERGENCY_FUND_ACCOUNTS.find((a) => a.id === accountId) || EMERGENCY_FUND_ACCOUNTS[0]).label;
-  const emergencyFundAccountOptions = (selected) => EMERGENCY_FUND_ACCOUNTS.map((a) =>
-    `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${a.label}</option>`).join('');
+  const escapeEf = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
   async function renderEmergencyFund(container) {
     const [profile, contributions] = await Promise.all([
       WR.ui.getOrCreateProfile(),
       WR.repos.emergencyFundContributions.getAll(),
     ]);
+    const EMERGENCY_FUND_ACCOUNTS = Array.isArray(profile.emergencyFundAccounts) && profile.emergencyFundAccounts.length
+      ? profile.emergencyFundAccounts
+      : DEFAULT_EMERGENCY_FUND_ACCOUNTS;
+    const emergencyFundAccountLabel = (accountId) =>
+      (EMERGENCY_FUND_ACCOUNTS.find((a) => a.id === accountId) || EMERGENCY_FUND_ACCOUNTS[0]).label;
+    const emergencyFundAccountOptions = (selected) => EMERGENCY_FUND_ACCOUNTS.map((a) =>
+      `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${escapeEf(a.label)}</option>`).join('');
     const month = WR.ui._emergencyFundMonth || WR.ui.currentMonthKey();
     WR.ui._emergencyFundMonth = month;
     const sorted = contributions.sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -4317,7 +4650,7 @@ WR.ui = WR.ui || {};
 
     container.innerHTML = `
       ${container.id === 'emergency-savings' ? '<h2>Emergency Fund</h2>' : '<h1>Emergency Fund</h1>'}
-      <p class="month-label">Track contributions and borrowing across both of your emergency fund accounts.</p>
+      <p class="month-label">Track contributions and borrowing across your emergency fund accounts.</p>
 
       <div class="ef-summary">
         <div class="ef-summary-main">
@@ -4340,7 +4673,7 @@ WR.ui = WR.ui || {};
       <div class="ef-account-grid">
         ${totalsByAccount.map((a) => `
         <div class="ef-account-card">
-          <h3>${a.label}</h3>
+          <h3>${escapeEf(a.label)}</h3>
           <span class="amount ${a.total < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(a.total)}</span>
           <span class="share">${shareOf(a.total).toFixed(0)}% of combined balance</span>
           <div class="ef-meter"><span style="--share:${shareOf(a.total)}%"></span></div>
@@ -4392,8 +4725,51 @@ WR.ui = WR.ui || {};
             <button type="submit" class="secondary">Move funds</button>
           </form>
         </div>
+
+        <div class="ef-form-card">
+          <h3>Manage accounts</h3>
+          <p class="fine-print">Rename an account by editing its name. Accounts with activity can't be removed.</p>
+          <ul class="ef-account-manage">
+            ${EMERGENCY_FUND_ACCOUNTS.map((a) => {
+              const inUse = sorted.some((item) => accountOf(item) === a.id);
+              return `<li>
+                <input class="ef-account-rename" data-id="${a.id}" value="${escapeEf(a.label)}" aria-label="Account name" maxlength="60">
+                <button type="button" class="link-btn ef-account-remove" data-id="${a.id}" ${inUse || EMERGENCY_FUND_ACCOUNTS.length <= 1 ? 'disabled title="Has activity or is the only account"' : ''}>Remove</button>
+              </li>`;
+            }).join('')}
+          </ul>
+          <form id="ef-account-add-form" class="inline-form">
+            <input name="label" placeholder="New account name" maxlength="60" required>
+            <button type="submit">Add account</button>
+          </form>
+        </div>
       </div>
     `;
+
+    const saveAccounts = async (accounts) => {
+      profile.emergencyFundAccounts = accounts;
+      await WR.repos.userProfile.update(profile);
+      renderEmergencyFund(container);
+    };
+    container.querySelectorAll('.ef-account-rename').forEach((input) => {
+      input.addEventListener('change', async () => {
+        const label = input.value.trim();
+        if (!label) { input.value = emergencyFundAccountLabel(input.dataset.id); return; }
+        await saveAccounts(EMERGENCY_FUND_ACCOUNTS.map((a) => (a.id === input.dataset.id ? { ...a, label } : a)));
+      });
+    });
+    container.querySelectorAll('.ef-account-remove').forEach((button) => {
+      button.addEventListener('click', async () => {
+        if (!confirm(`Remove "${emergencyFundAccountLabel(button.dataset.id)}"?`)) return;
+        await saveAccounts(EMERGENCY_FUND_ACCOUNTS.filter((a) => a.id !== button.dataset.id));
+      });
+    });
+    container.querySelector('#ef-account-add-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const label = event.currentTarget.elements.label.value.trim();
+      if (!label) return;
+      await saveAccounts([...EMERGENCY_FUND_ACCOUNTS, { id: WR.models.newId(), label }]);
+    });
 
     container.querySelector('#emergency-target-form').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -5056,6 +5432,7 @@ WR.ui = WR.ui || {};
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="minPayment" value="${d.minPayment}"></td>
         <td><select class="cell" data-field="paymentFrequency">${paymentFrequencyOptions(d.paymentFrequency || 'monthly')}</select></td>
         <td><input class="cell" type="date" data-field="startDate" value="${d.startDate || ''}"></td>
+        <td><input class="cell num" type="number" min="1" max="31" step="1" placeholder="—" data-field="dueDay" value="${d.dueDay || ''}"></td>
         ${includePaidOffDate ? `<td>${d.paidOffDate || 'Date not recorded'}</td>` : ''}
         <td>${projectedDate ? projectedDate.slice(0, 7) : 'Not within 50 years'}</td>
         <td>${paymentsRemaining == null ? '—' : paymentsRemaining}</td>
@@ -5079,8 +5456,8 @@ WR.ui = WR.ui || {};
         <p class="fine-print">Debts with a remaining balance.</p>
         <div class="table-wrap">
           <table class="data-table debts-table">
-            <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate <select id="debt-interest-period" class="table-header-select" aria-label="Interest rate period"><option value="yearly" ${interestPeriod === 'yearly' ? 'selected' : ''}>%/yr</option><option value="monthly" ${interestPeriod === 'monthly' ? 'selected' : ''}>%/mo</option></select></th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Projected payoff</th><th>Months left</th><th>Total paid</th><th></th></tr></thead>
-            <tbody>${ongoingRows || '<tr><td colspan="12" class="empty">No ongoing debts.</td></tr>'}</tbody>
+            <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate <select id="debt-interest-period" class="table-header-select" aria-label="Interest rate period"><option value="yearly" ${interestPeriod === 'yearly' ? 'selected' : ''}>%/yr</option><option value="monthly" ${interestPeriod === 'monthly' ? 'selected' : ''}>%/mo</option></select></th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Due day</th><th>Projected payoff</th><th>Months left</th><th>Total paid</th><th></th></tr></thead>
+            <tbody>${ongoingRows || '<tr><td colspan="13" class="empty">No ongoing debts.</td></tr>'}</tbody>
           </table>
         </div>
       </section>
@@ -5089,8 +5466,8 @@ WR.ui = WR.ui || {};
         <p class="fine-print">Debts with a zero balance, including the date they were paid off.</p>
         <div class="table-wrap">
           <table class="data-table debts-table">
-            <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate (${interestPeriod === 'monthly' ? '%/mo' : '%/yr'})</th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Paid off date</th><th>Projected payoff</th><th>Months left</th><th>Total paid</th><th></th></tr></thead>
-            <tbody>${paidOffRows || '<tr><td colspan="13" class="empty">No paid-off debts.</td></tr>'}</tbody>
+            <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate (${interestPeriod === 'monthly' ? '%/mo' : '%/yr'})</th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Due day</th><th>Paid off date</th><th>Projected payoff</th><th>Months left</th><th>Total paid</th><th></th></tr></thead>
+            <tbody>${paidOffRows || '<tr><td colspan="14" class="empty">No paid-off debts.</td></tr>'}</tbody>
           </table>
         </div>
       </section>
@@ -5107,6 +5484,7 @@ WR.ui = WR.ui || {};
         <input name="minPayment" type="number" step="0.01" min="0" placeholder="Minimum payment" required>
         <select name="paymentFrequency">${paymentFrequencyOptions('monthly')}</select>
         <input name="startDate" type="date" value="${new Date().toISOString().slice(0, 10)}">
+        <input name="dueDay" type="number" min="1" max="31" step="1" placeholder="Due day (1-31)">
         <button type="submit">Add</button>
       </form>
 
@@ -5141,6 +5519,9 @@ WR.ui = WR.ui || {};
             debt.interestRate = interestPeriod === 'monthly' ? enteredRate * 12 : enteredRate;
           } else if (field === 'name' || field === 'currency' || field === 'paymentFrequency' || field === 'startDate') {
             debt[field] = input.value;
+          } else if (field === 'dueDay') {
+            debt.dueDay = WR.ui.parseDueDay(input.value);
+            input.value = debt.dueDay || '';
           } else {
             debt[field] = Math.max(0, parseFloat(input.value) || 0);
             input.value = debt[field];
@@ -5184,6 +5565,7 @@ WR.ui = WR.ui || {};
         minPayment: Math.max(0, parseFloat(form.minPayment.value) || 0),
         paymentFrequency: form.paymentFrequency.value,
         startDate: form.startDate.value || undefined,
+        dueDay: WR.ui.parseDueDay(form.dueDay.value),
       });
       await WR.repos.debts.add(debt);
       renderDebts(container);
@@ -5716,7 +6098,10 @@ WR.ui = WR.ui || {};
       </section>
     `;
 
+    WR.excel.loadXlsx().catch(() => {});
+
     document.getElementById('export-btn').addEventListener('click', async () => {
+      await WR.excel.loadXlsx().catch(() => {});
       if (typeof XLSX === 'undefined') {
         alert('Excel library failed to load \u2014 check your internet connection and reload the page.');
         return;
@@ -5727,6 +6112,7 @@ WR.ui = WR.ui || {};
     document.getElementById('excel-file-input').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
+      await WR.excel.loadXlsx().catch(() => {});
       if (typeof XLSX === 'undefined') {
         alert('Excel library failed to load \u2014 check your internet connection and reload the page.');
         return;
@@ -6619,6 +7005,14 @@ WR.account = {};
   async function signOutUser() {
     await ensureInit();
     await authApi.signOut(auth);
+    // Wipe Firestore's offline cache so the next person on this browser can't see this account's data.
+    try {
+      await firestoreApi.terminate(db);
+      await firestoreApi.clearIndexedDbPersistence(db);
+    } catch (err) {
+      console.warn('Could not clear offline cache', err);
+    }
+    window.location.reload();
   }
 
   WR.account.isConfigured = isConfigured;
@@ -6935,33 +7329,53 @@ WR.ui = WR.ui || {};
     const savingsTotal = savingsPots.filter((pot) => !pot.archived)
       .reduce((sum, pot) => sum + amount(pot.currentAmount), 0);
     const currency = profile.baseCurrency;
+    const potsById = Object.fromEntries(savingsPots.map((pot) => [pot.id, pot]));
+    const linkedPot = (goal) => (goal.potId ? potsById[goal.potId] : null);
+    const potOptions = (selectedId) => `<option value="">Not linked (enter amount manually)</option>${savingsPots
+      .filter((pot) => !pot.archived || pot.id === selectedId)
+      .map((pot) => `<option value="${pot.id}" ${pot.id === selectedId ? 'selected' : ''}>${escape(pot.name)}</option>`).join('')}`;
     container.innerHTML = `<h1>Goals</h1><section class="feature-section"><h2>Personal financial goals</h2>
       <div class="goal-grid">${goals.map((goal) => {
-        const current = amount(goal.currentAmount);
+        const pot = linkedPot(goal);
+        const current = pot ? amount(pot.currentAmount) : amount(goal.currentAmount);
         const target = amount(goal.targetAmount);
         return `<article class="goal-card"><h3>${escape(goal.name)}</h3><strong>${progress(current, target)}% Complete</strong>
-          ${meter(current, target)}<dl><div><dt>Initial</dt><dd>${currency} ${WR.ui.fmt(amount(goal.initialAmount))}</dd></div>
+          ${meter(current, target)}${pot ? `<p class="fine-print">Tracks the "${escape(pot.name)}" savings pot automatically.</p>` : ''}<dl><div><dt>Initial</dt><dd>${currency} ${WR.ui.fmt(amount(goal.initialAmount))}</dd></div>
           <div><dt>Current</dt><dd>${currency} ${WR.ui.fmt(current)}</dd></div><div><dt>Target</dt><dd>${currency} ${WR.ui.fmt(target)}</dd></div>
           <div><dt>Remaining</dt><dd>${currency} ${WR.ui.fmt(Math.max(0, target - current))}</dd></div></dl>
           <form class="goal-edit stacked-form" data-id="${goal.id}"><label>Goal name<input name="name" value="${escape(goal.name)}" required></label>
-          <label>Current amount<input name="current" type="number" min="0" step="0.01" value="${current}" required></label>
+          <label>Linked savings pot<select name="potId">${potOptions(goal.potId)}</select></label>
+          <label>Current amount<input name="current" type="number" min="0" step="0.01" value="${current}" ${pot ? 'disabled' : 'required'}></label>
           <label>Target amount<input name="target" type="number" min="0.01" step="0.01" value="${target}" required></label><button>Update goal</button></form></article>`;
       }).join('') || '<p class="empty">No goals yet.</p>'}</div>
       <h3>Create a goal</h3><form id="create-goal" class="inline-form">
-        <input name="name" placeholder="Goal name" required><input name="current" type="number" min="0" step="0.01" placeholder="Current amount" value="${savingsTotal}" required>
+        <input name="name" placeholder="Goal name" required><select name="potId" aria-label="Linked savings pot">${potOptions('')}</select>
+        <input name="current" type="number" min="0" step="0.01" placeholder="Current amount" value="${savingsTotal}" required>
         <input name="target" type="number" min="0.01" step="0.01" placeholder="Target amount" required><button>Add goal</button></form></section>`;
+    const syncCurrentInput = (form) => {
+      const pot = potsById[form.elements.potId.value];
+      form.elements.current.disabled = Boolean(pot);
+      form.elements.current.required = !pot;
+      if (pot) form.elements.current.value = amount(pot.currentAmount);
+    };
+    container.querySelectorAll('#create-goal, .goal-edit').forEach((form) => {
+      form.elements.potId.addEventListener('change', () => syncCurrentInput(form));
+    });
     container.querySelector('#create-goal').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
-      const currentAmount = amount(form.elements.current.value);
-      await WR.repos.financialGoals.add({ id: WR.models.newId(), name: form.elements.name.value.trim(), initialAmount: currentAmount, currentAmount, targetAmount: amount(form.elements.target.value) });
+      const potId = form.elements.potId.value || undefined;
+      const currentAmount = potId && potsById[potId] ? amount(potsById[potId].currentAmount) : amount(form.elements.current.value);
+      await WR.repos.financialGoals.add({ id: WR.models.newId(), name: form.elements.name.value.trim(), potId, initialAmount: currentAmount, currentAmount, targetAmount: amount(form.elements.target.value) });
       renderGoals(container);
     });
     container.querySelectorAll('.goal-edit').forEach((form) => form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const goal = await WR.repos.financialGoals.getById(form.dataset.id);
       if (!goal) return;
-      Object.assign(goal, { name: form.elements.name.value.trim(), currentAmount: amount(form.elements.current.value), targetAmount: amount(form.elements.target.value) });
+      const potId = form.elements.potId.value || undefined;
+      const pot = potId ? potsById[potId] : null;
+      Object.assign(goal, { name: form.elements.name.value.trim(), potId, currentAmount: pot ? amount(pot.currentAmount) : amount(form.elements.current.value), targetAmount: amount(form.elements.target.value) });
       await WR.repos.financialGoals.update(goal);
       renderGoals(container);
     }));
@@ -7096,6 +7510,15 @@ WR.ui = WR.ui || {};
     '#/settings': 'renderSettings',
   };
 
+  const SKELETON_HTML = `
+    <div class="skeleton" aria-busy="true" aria-label="Loading">
+      <div class="skeleton-line skeleton-title"></div>
+      <div class="skeleton-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+      <div class="skeleton-card skeleton-wide"></div>
+      <div class="skeleton-line"></div><div class="skeleton-line skeleton-short"></div>
+    </div>`;
+  let lastRoutedHash = null;
+
   async function handleRoute() {
     if (!window.location.hash || window.location.hash === '#') {
       window.location.hash = '#/dashboard';
@@ -7107,6 +7530,9 @@ WR.ui = WR.ui || {};
 
     const content = document.getElementById('content');
     content.classList.toggle('settings-page', hash === '#/settings');
+    // Only on navigation; background re-renders of the same page keep the current content.
+    if (hash !== lastRoutedHash || !content.children.length) content.innerHTML = SKELETON_HTML;
+    lastRoutedHash = hash;
     try {
       await WR.ui[renderFnName](content);
       if (WR.ui.enhanceResponsiveContent) WR.ui.enhanceResponsiveContent(content);
@@ -7170,6 +7596,22 @@ function renderSplashScreen() {
   `;
 }
 
+function showUpdateBanner() {
+  if (document.getElementById('update-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'update-banner';
+  banner.className = 'update-banner';
+  banner.setAttribute('role', 'status');
+  banner.innerHTML = `
+    <span>A new version of WealthRoute is available.</span>
+    <button type="button" id="update-banner-refresh">Refresh</button>
+    <button type="button" id="update-banner-dismiss" class="update-banner-close" aria-label="Dismiss">×</button>
+  `;
+  document.body.appendChild(banner);
+  document.getElementById('update-banner-refresh').addEventListener('click', () => window.location.reload());
+  document.getElementById('update-banner-dismiss').addEventListener('click', () => banner.remove());
+}
+
 function hideSplashScreen() {
   const splash = document.querySelector('.app-splash');
   if (!splash) return;
@@ -7183,8 +7625,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderSplashScreen();
   const splashStartedAt = performance.now();
   if ('serviceWorker' in navigator) {
+    // First-ever install also fires controllerchange, which isn't an "update".
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) showUpdateBanner();
+    });
     navigator.serviceWorker.register('./service-worker.js')
-      .then((reg) => reg.update().catch(() => {}))
+      .then((reg) => {
+        reg.update().catch(() => {});
+        setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+        });
+      })
       .catch((err) => {
         console.warn('Service worker registration failed', err);
       });
