@@ -915,7 +915,26 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .feature-section > h1 { font-size: 1.25rem; }
 .feature-section > h2 { margin-top: 0; }
 .feature-section > h1:first-child { margin-top: 0; }
-.savings-summary .stat:first-child { border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--panel) 90%, var(--accent)); }
+.savings-total-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(150px, 0.65fr);
+  gap: 1.25rem;
+  align-items: center;
+  margin: 1rem 0 0.75rem;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 9%, var(--panel)), var(--panel));
+  box-shadow: var(--shadow);
+}
+.savings-total-card .stat-label { font-size: 0.84rem; }
+.savings-total-value { display: block; font-family: var(--font-serif); font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.1; margin-top: 0.2rem; overflow-wrap: anywhere; }
+.savings-total-caption { display: block; color: var(--muted); font-size: 0.8rem; margin-top: 0.45rem; }
+.savings-total-side { border-left: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); padding-left: 1.25rem; }
+.savings-total-side strong { display: block; font-family: var(--font-serif); font-size: 1.45rem; margin-top: 0.2rem; overflow-wrap: anywhere; }
+.savings-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 0.75rem; }
+.savings-summary .stat { background: color-mix(in srgb, var(--panel) 94%, var(--accent)); }
 .savings-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; border-block: 1px solid var(--border); padding: 0.9rem 0; margin: 0.75rem 0 1.25rem; }
 .savings-overview span { display: block; color: var(--muted); font-size: 0.8rem; }
 .savings-overview strong { display: block; font-family: var(--font-serif); font-size: 1.3rem; margin-top: 0.2rem; overflow-wrap: anywhere; }
@@ -1119,6 +1138,8 @@ button.danger { background: var(--danger); color: #fff; }
 @media (max-width: 680px) {
   .savings-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .savings-overview > div:last-child { grid-column: 1 / -1; }
+  .savings-total-card { grid-template-columns: 1fr; gap: 0.9rem; }
+  .savings-total-side { border-left: 0; border-top: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); padding: 0.9rem 0 0; }
   .payoff-controls { grid-template-columns: 1fr; }
   .payoff-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
   .payoff-results { padding: 0.85rem; }
@@ -3166,7 +3187,7 @@ WR.ui = WR.ui || {};
 
 (function () {
   function fmt(n) {
-    return (Number(n) || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   function pct(n) {
     return `${((Number(n) || 0) * 100).toFixed(1)}%`;
@@ -3912,11 +3933,20 @@ WR.ui = WR.ui || {};
       </div>
       <p class="fine-print">Enter new contributions for this month. Unused savings carry forward; do not re-enter last month's balance.</p>
 
+      <div class="savings-total-card">
+        <div>
+          <span class="stat-label">Available savings</span>
+          <strong class="savings-total-value">${profile.baseCurrency} ${WR.ui.fmt(carriedBalance + totalSaved)}</strong>
+          <span class="savings-total-caption">Carried balance plus this month's contributions</span>
+        </div>
+        <div class="savings-total-side">
+          <span class="stat-label">Saved this month</span>
+          <strong>${profile.baseCurrency} ${WR.ui.fmt(totalSaved)}</strong>
+        </div>
+      </div>
       <div class="stat-grid savings-summary">
-        <div class="stat"><span class="stat-label">Available savings</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(carriedBalance + totalSaved)}</span></div>
         <div class="stat"><span class="stat-label">Carried from previous months</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(carriedBalance)}</span></div>
         <div class="stat"><span class="stat-label">Total Planned</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalPlanned)}</span></div>
-        <div class="stat"><span class="stat-label">Saved this month</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalSaved)}</span></div>
       </div>
 
       <table class="data-table">
@@ -4302,7 +4332,7 @@ WR.ui = WR.ui || {};
 
       <div class="goal-card emergency-target"><h3>Emergency fund target</h3>
         <strong>${targetProgress}% Complete</strong><div class="goal-meter" role="progressbar" aria-valuenow="${targetProgress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${targetProgress}%"></span></div>
-        <p>${target > 0 ? `${profile.baseCurrency} ${WR.ui.fmt(total)} of ${profile.baseCurrency} ${WR.ui.fmt(target)} · ${profile.baseCurrency} ${WR.ui.fmt(Math.max(0, target - total))} remaining` : 'Set a target amount to track your progress.'}</p>
+        <p>${target > 0 ? `${profile.baseCurrency} ${WR.ui.fmt(total)} of ${profile.baseCurrency} ${WR.ui.fmt(target)}` : 'Set a target amount to track your progress.'}</p>
         <form id="emergency-target-form" class="inline-form"><label>Target amount (${profile.baseCurrency}):
           <input name="target" type="number" min="0.01" step="0.01" value="${Number(profile.emergencyFundTargetAmount) || ''}" required></label>
           <button type="submit">Save target</button></form></div>
