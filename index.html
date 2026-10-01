@@ -3510,7 +3510,7 @@ WR.ui = WR.ui || {};
         { label: 'Income', value: s.cashflow.income },
         { label: 'Fixed', value: s.cashflow.fixedExpenses },
         { label: 'Variable', value: s.cashflow.variableExpenses },
-        { label: 'Savings', value: s.cashflow.savings },
+        { label: 'Budget savings', value: s.cashflow.savings },
         { label: 'Debt minimums', value: s.cashflow.debtPayments },
       ],
       { width: 460, height: 220 },
@@ -3524,14 +3524,14 @@ WR.ui = WR.ui || {};
     const monthlyBreakdown = [
       { label: 'Fixed', value: s.cashflow.fixedExpenses },
       { label: 'Variable', value: s.cashflow.variableExpenses },
-      { label: 'Savings', value: s.cashflow.savings },
+      { label: 'Budget savings', value: s.cashflow.savings },
       { label: 'Debt', value: s.cashflow.debtPayments },
     ].filter((x) => Number(x.value) > 0);
 
     const annualBreakdown = [
       { label: 'Fixed', value: s.annualSummary.totalFixedExpenses },
       { label: 'Variable', value: s.annualSummary.totalVariableExpenses },
-      { label: 'Saved', value: s.annualSummary.totalSaved },
+      { label: 'Budget savings', value: s.annualSummary.totalSaved },
       { label: 'Debt', value: s.annualSummary.totalDebtPaid },
     ].filter((x) => Number(x.value) > 0);
 
@@ -3577,6 +3577,7 @@ WR.ui = WR.ui || {};
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Monthly Surplus</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
             <div class="stat"><span class="stat-label">Day-to-Day Balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
+            <div class="stat"><span class="stat-label">Savings Pots</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
           </div>
         </div>
 
@@ -6924,7 +6925,8 @@ WR.ui = WR.ui || {};
         <label>Saved in this pot<input name="current" type="number" min="0" step="0.01" value="${amount(pot.currentAmount)}" required></label>
         <button>Save changes</button><button type="button" class="secondary archive-pot" data-id="${pot.id}">Archive pot</button></form></article>`).join('') || '<p class="empty">No active savings pots. Create one below to start tracking money you will not touch.</p>'}</div>
       <h3>Create a pot</h3><form id="create-pot" class="inline-form"><input name="name" placeholder="Pot name" required>
-        <input name="target" type="number" min="0.01" step="0.01" placeholder="Target amount" required><button>Add pot</button></form>
+        <input name="target" type="number" min="0.01" step="0.01" placeholder="Target amount" required>
+        <input name="current" type="number" min="0" step="0.01" placeholder="Already saved" value="0" required><button>Add pot</button></form>
       <h3>Transfer between pots</h3><form id="transfer-pot" class="inline-form"><select name="source" aria-label="Transfer from" required>
         <option value="">From...</option>${active.filter((pot) => amount(pot.currentAmount) > 0).map((pot) => `<option value="${pot.id}">${escape(pot.name)} · ${currency} ${WR.ui.fmt(pot.currentAmount)}</option>`).join('')}</select>
         <select name="destination" aria-label="Transfer to" required><option value="">To pot...</option>${active.map((pot) => `<option value="${pot.id}">${escape(pot.name)}</option>`).join('')}</select>
@@ -6935,7 +6937,7 @@ WR.ui = WR.ui || {};
     container.querySelector('#create-pot').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
-      await WR.repos.savingsPots.add({ id: WR.models.newId(), name: form.elements.name.value.trim(), targetAmount: amount(form.elements.target.value), currentAmount: 0, archived: false });
+      await WR.repos.savingsPots.add({ id: WR.models.newId(), name: form.elements.name.value.trim(), targetAmount: amount(form.elements.target.value), currentAmount: amount(form.elements.current.value), archived: false });
       renderSavingsPots(container);
     });
     container.querySelectorAll('.pot-edit').forEach((form) => form.addEventListener('submit', async (event) => {
