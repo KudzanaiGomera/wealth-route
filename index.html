@@ -783,6 +783,10 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .month-btn:disabled { opacity: 0.42; cursor: not-allowed; background: var(--bg); }
 .debt-calendar-stats { display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: 0.85rem; margin-top: 0.4rem; }
 .debt-calendar-stats strong { font-family: var(--font-serif); }
+.debt-list-card { min-width: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin: 0 0 1rem; box-shadow: var(--shadow); }
+.debt-list-card h2 { margin: 0; }
+.debt-list-card > .fine-print { margin: 0.25rem 0 0.85rem; }
+.debt-list-card .table-wrap { margin: 0; }
 
 .payoff-section { border-top: 2px solid var(--border); padding-top: 1.4rem; margin: 2rem 0; min-width: 0; }
 .payoff-section h2 { margin: 0 0 0.25rem; }
@@ -1385,6 +1389,7 @@ window.WR = window.WR || {};
    * @property {number} interestRate - fraction, e.g. 0.2 = 20%
    * @property {number} minPayment
    * @property {string} [dueDate]
+  * @property {string} [paidOffDate] - ISO date when the balance reached zero
    * @property {number} [priority] - lower = higher priority; set by the debt engine later
    */
   /** @param {Omit<Debt,'id'>} fields */
@@ -4913,6 +4918,15 @@ WR.ui = WR.ui || {};
 
   const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+  function updateDebtPaidOffDate(debt, previousBalance) {
+    const currentBalance = Number(debt.currentBalance) || 0;
+    if (currentBalance <= 0.01 && previousBalance > 0.01 && !debt.paidOffDate) {
+      debt.paidOffDate = new Date().toISOString().slice(0, 10);
+    } else if (currentBalance > 0.01) {
+      delete debt.paidOffDate;
+    }
+  }
+
   function computeDebtCalendarHtml(debts, payments, profile, year) {
     if (debts.length === 0) return '';
     const cards = debts
@@ -4955,6 +4969,7 @@ WR.ui = WR.ui || {};
   async function toggleDebtPayment(debtId, month, container) {
     const debt = await WR.repos.debts.getById(debtId);
     if (!debt) return;
+    const previousBalance = Number(debt.currentBalance) || 0;
     const allPayments = await WR.repos.debtPayments.getAll();
     const existing = allPayments.find((p) => p.debtId === debtId && p.month === month);
     if (existing) {
@@ -4969,6 +4984,7 @@ WR.ui = WR.ui || {};
       await WR.repos.debtPayments.add(WR.models.createDebtPayment({ debtId, month, amount }));
       debt.currentBalance = Math.max(0, (Number(debt.currentBalance) || 0) - amount);
     }
+    updateDebtPaidOffDate(debt, previousBalance);
     await WR.repos.debts.update(debt);
     renderDebts(container);
   }
@@ -4988,7 +5004,7 @@ WR.ui = WR.ui || {};
     const overviewHtml = computeDebtOverviewHtml(debts, exchangeRates, profile);
     const calendarHtml = computeDebtCalendarHtml(debts, payments, profile, calendarYear);
 
-    const rows = debts
+    const renderDebtRows = (debtList, includePaidOffDate) => debtList
       .map(
         (d) => {
           const paymentsRemaining = computePaymentsRemaining(d);
@@ -5007,6 +5023,7 @@ WR.ui = WR.ui || {};
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="minPayment" value="${d.minPayment}"></td>
         <td><select class="cell" data-field="paymentFrequency">${paymentFrequencyOptions(d.paymentFrequency || 'monthly')}</select></td>
         <td><input class="cell" type="date" data-field="startDate" value="${d.startDate || ''}"></td>
+        ${includePaidOffDate ? `<td>${d.paidOffDate || 'Date not recorded'}</td>` : ''}
         <td>${projectedDate ? projectedDate.slice(0, 7) : 'Not within 50 years'}</td>
         <td>${paymentsRemaining == null ? '—' : paymentsRemaining}</td>
         <td>${WR.ui.fmt(paidTotal)}</td>
@@ -5015,17 +5032,35 @@ WR.ui = WR.ui || {};
         },
       )
       .join('');
+    const ongoingDebts = debts.filter((debt) => (Number(debt.currentBalance) || 0) > 0.01);
+    const paidOffDebts = debts.filter((debt) => (Number(debt.currentBalance) || 0) <= 0.01);
+    const ongoingRows = renderDebtRows(ongoingDebts, false);
+    const paidOffRows = renderDebtRows(paidOffDebts, true);
 
     container.innerHTML = `
       <h1>Debts</h1>
       <p class="fine-print">Edit any cell \u2014 changes save immediately and update the payoff projection below.</p>
       <div class="debt-overview-wrap">${overviewHtml}</div>
-      <div class="table-wrap">
-        <table class="data-table debts-table">
-          <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate <select id="debt-interest-period" class="table-header-select" aria-label="Interest rate period"><option value="yearly" ${interestPeriod === 'yearly' ? 'selected' : ''}>%/yr</option><option value="monthly" ${interestPeriod === 'monthly' ? 'selected' : ''}>%/mo</option></select></th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Projected payoff</th><th>Months left</th><th>Total paid</th><th></th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="12" class="empty">No debts recorded.</td></tr>'}</tbody>
-        </table>
-      </div>
+      <section class="debt-list-card">
+        <h2>Ongoing Debts</h2>
+        <p class="fine-print">Debts with a remaining balance.</p>
+        <div class="table-wrap">
+          <table class="data-table debts-table">
+            <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate <select id="debt-interest-period" class="table-header-select" aria-label="Interest rate period"><option value="yearly" ${interestPeriod === 'yearly' ? 'selected' : ''}>%/yr</option><option value="monthly" ${interestPeriod === 'monthly' ? 'selected' : ''}>%/mo</option></select></th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Projected payoff</th><th>Months left</th><th>Total paid</th><th></th></tr></thead>
+            <tbody>${ongoingRows || '<tr><td colspan="12" class="empty">No ongoing debts.</td></tr>'}</tbody>
+          </table>
+        </div>
+      </section>
+      <section class="debt-list-card">
+        <h2>Paid-Off Debts</h2>
+        <p class="fine-print">Debts with a zero balance, including the date they were paid off.</p>
+        <div class="table-wrap">
+          <table class="data-table debts-table">
+            <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate (${interestPeriod === 'monthly' ? '%/mo' : '%/yr'})</th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Paid off date</th><th>Projected payoff</th><th>Months left</th><th>Total paid</th><th></th></tr></thead>
+            <tbody>${paidOffRows || '<tr><td colspan="13" class="empty">No paid-off debts.</td></tr>'}</tbody>
+          </table>
+        </div>
+      </section>
 
       ${calendarHtml}
 
@@ -5067,6 +5102,7 @@ WR.ui = WR.ui || {};
           const debt = await WR.repos.debts.getById(id);
           if (!debt) return;
           const field = input.dataset.field;
+          const previousBalance = Number(debt.currentBalance) || 0;
           if (field === 'interestRatePct') {
             const enteredRate = Math.max(0, parseFloat(input.value) || 0) / 100;
             debt.interestRate = interestPeriod === 'monthly' ? enteredRate * 12 : enteredRate;
@@ -5076,6 +5112,7 @@ WR.ui = WR.ui || {};
             debt[field] = Math.max(0, parseFloat(input.value) || 0);
             input.value = debt[field];
           }
+          if (field === 'currentBalance') updateDebtPaidOffDate(debt, previousBalance);
           await WR.repos.debts.update(debt);
           WR.ui.flashSaved(input);
           // Only the payoff projection needs to update \u2014 not the whole
