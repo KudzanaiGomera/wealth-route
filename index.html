@@ -630,9 +630,12 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   background: color-mix(in srgb, var(--gold) 8%, var(--panel));
 }
 .hero-headline {
-  padding: 1.2rem 0;
+  padding: 1.2rem;
   margin: 1rem 0 1.25rem;
-  border-block: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 4%, var(--panel));
 }
 .hero-headline .stat-label { font-size: 0.85rem; }
 .hero-headline .hero-value {
@@ -653,17 +656,17 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: transparent;
-  border: 0;
-  border-top: 1px solid var(--border);
-  border-radius: 0;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   min-height: 5.7rem;
   box-shadow: none;
 }
+.position-card .stat { border-color: color-mix(in srgb, var(--accent) 24%, var(--border)); background: color-mix(in srgb, var(--accent) 4%, var(--panel)); }
+.annual-card .stat { border-color: color-mix(in srgb, var(--gold) 30%, var(--border)); background: color-mix(in srgb, var(--gold) 5%, var(--panel)); }
 .dashboard-card .stat::after {
   content: none;
 }
-.annual-card .stat:nth-child(2n)::after { background: linear-gradient(90deg, var(--gold), var(--accent)); }
 .stat-label { display: block; font-size: 0.78rem; color: var(--muted); }
 .stat-value { display: block; font-family: var(--font-serif); font-size: 1.3rem; margin-top: 0.2rem; }
 .dashboard-card .stat-value { font-size: clamp(1.25rem, 2.2vw, 1.65rem); line-height: 1.2; }
@@ -3027,7 +3030,14 @@ WR.ui = WR.ui || {};
     }
 
     const annualMonths = Array.from({ length: 12 }, (_, index) => `${selectedYear}-${String(index + 1).padStart(2, '0')}`);
-    const recordedAnnualMonths = annualMonths.filter((monthId) => monthId <= currentMonthKey() && (
+    const recordedMonths = [
+      ...allBudgetLines.map((line) => line.month),
+      ...debtPayments.map((payment) => payment.month),
+      ...emergencyFundContributions.map((item) => String(item.date || '').slice(0, 7)),
+      ...dayToDayTransactions.map((transaction) => String(transaction.date || '').slice(0, 7)),
+    ].filter((monthId) => String(monthId).startsWith(`${selectedYear}-`)).sort();
+    const firstRecordedMonth = recordedMonths[0];
+    const recordedAnnualMonths = annualMonths.filter((monthId) => monthId <= month && (!firstRecordedMonth || monthId >= firstRecordedMonth) && (
       allBudgetLines.some((line) => line.month === monthId) ||
       incomeSources.some((source) => Number(source.year || selectedYear) === selectedYear && isActiveForMonth(source, monthId)) ||
       fixedExpenses.some((expense) => isActiveForMonth(expense, monthId))
@@ -3106,6 +3116,7 @@ WR.ui = WR.ui || {};
       investmentReadiness,
       healthScore,
       annualSummary,
+      annualStartMonth: annualRows[0]?.month || null,
       annualMonths: annualRows,
       emergencyFundBalance,
       savingsBalance,
@@ -3575,7 +3586,7 @@ WR.ui = WR.ui || {};
 
         <div class="dashboard-card annual-card">
           <h2>Annual Financial Summary (${s.selectedYear})</h2>
-          <p class="fine-print">Income and debt payments are recorded for ${s.selectedYear}; saved and invested is your current balance.</p>
+          <p class="fine-print">${s.annualStartMonth ? `Income counted from ${WR.ui.monthName(Number(s.annualStartMonth.slice(5)))} through ${WR.ui.monthName(Number(s.month.slice(5)))} ${s.selectedYear}.` : 'No income months recorded yet.'} Saved and invested is your current balance.</p>
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
             <div class="stat"><span class="stat-label">Total Saved &amp; Invested</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSavedAndInvested)}</span></div>
@@ -4000,6 +4011,7 @@ WR.ui = WR.ui || {};
     ]);
     const year = WR.ui._incomeYear || new Date().getFullYear();
     WR.ui._incomeYear = year;
+    const defaultStartMonth = year === new Date().getFullYear() ? WR.ui.currentMonthKey() : `${year}-01`;
 
     const rows = incomes
       .filter((item) => Number(item.year || year) === year)
@@ -4020,7 +4032,7 @@ WR.ui = WR.ui || {};
 
     container.innerHTML = `
       <h1>Income</h1>
-      <p class="fine-print">Set recurring income for a year once. It is applied automatically in monthly and annual calculations.</p>
+      <p class="fine-print">Choose the months this income applies to. Annual income starts with the first dated financial record for that year.</p>
       <div class="toolbar"><label>Year: <select id="income-year">${WR.ui.yearsAroundCurrent(3, 4).map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></label></div>
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
@@ -4035,7 +4047,7 @@ WR.ui = WR.ui || {};
         <input name="name" placeholder="Salary, side business, rental" required>
         <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
         <select name="frequency">${recurringFrequencyOptions('monthly')}</select>
-        <input name="startMonth" type="month" value="${year}-01">
+        <input name="startMonth" type="month" value="${defaultStartMonth}">
         <input name="endMonth" type="month" value="${year}-12">
         <button type="submit">Add</button>
       </form>

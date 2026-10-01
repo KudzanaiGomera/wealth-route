@@ -193,6 +193,10 @@ independent personal targets. Reports, Forecast, Excel and Wealth Assistant
 remain available through their existing direct routes, but are not in the
 main navigation.
 
+Annual dashboard income counts recurring sources from the first month with a
+dated financial record in that year through the selected month. Set an income
+source's start and end months on the Income page if its range differs.
+
 Savings entries are new monthly contributions, not repeated account balances.
 Unused general savings carry into later months; moving them into a pot changes
 their location without increasing the combined balance. Payoff Strategy uses
