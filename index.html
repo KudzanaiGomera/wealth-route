@@ -600,22 +600,14 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .dashboard-card {
   position: relative;
   overflow: hidden;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--panel-alt) 92%, var(--accent)) 0%, var(--panel) 54%, color-mix(in srgb, var(--panel-alt) 92%, var(--gold)) 100%);
+  background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 1.4rem 1.45rem;
-  box-shadow: 0 16px 36px rgba(23, 26, 25, 0.08);
+  box-shadow: var(--shadow);
 }
 .dashboard-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--accent) 38%, transparent), transparent 36%),
-    radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--gold) 18%, transparent), transparent 28%);
-  opacity: 0.55;
+  content: none;
 }
 .dashboard-card > * { position: relative; }
 .dashboard-card h2 {
@@ -638,14 +630,9 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   background: color-mix(in srgb, var(--gold) 8%, var(--panel));
 }
 .hero-headline {
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--panel) 90%, var(--accent)), var(--panel) 60%),
-    var(--panel);
-  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
-  border-radius: 14px;
-  padding: 2rem 2.1rem;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 28%, transparent), 0 12px 28px rgba(23, 26, 25, 0.08);
+  padding: 1.2rem 0;
   margin: 1rem 0 1.25rem;
+  border-block: 1px solid var(--border);
 }
 .hero-headline .stat-label { font-size: 0.85rem; }
 .hero-headline .hero-value {
@@ -666,24 +653,17 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: color-mix(in srgb, var(--panel) 86%, transparent);
-  border-color: color-mix(in srgb, var(--border) 82%, var(--accent));
-  border-radius: 12px;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
   min-height: 5.7rem;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 22%, transparent);
+  box-shadow: none;
 }
 .dashboard-card .stat::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--gold) 72%, var(--accent)));
-  opacity: 0.75;
+  content: none;
 }
 .annual-card .stat:nth-child(2n)::after { background: linear-gradient(90deg, var(--gold), var(--accent)); }
-.dashboard-card .stat:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 .stat-label { display: block; font-size: 0.78rem; color: var(--muted); }
 .stat-value { display: block; font-family: var(--font-serif); font-size: 1.3rem; margin-top: 0.2rem; }
 .dashboard-card .stat-value { font-size: clamp(1.25rem, 2.2vw, 1.65rem); line-height: 1.2; }
@@ -797,8 +777,26 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 }
 .month-btn:hover { filter: brightness(1.08); }
 .month-btn.paid { background: var(--success); color: #fff; border-color: var(--success); }
+.month-btn:disabled { opacity: 0.42; cursor: not-allowed; background: var(--bg); }
 .debt-calendar-stats { display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: 0.85rem; margin-top: 0.4rem; }
 .debt-calendar-stats strong { font-family: var(--font-serif); }
+
+.payoff-section { border-top: 2px solid var(--border); padding-top: 1.4rem; margin: 2rem 0; min-width: 0; }
+.payoff-section h2 { margin: 0 0 0.25rem; }
+.payoff-controls { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 0.8rem; margin: 1rem 0; max-width: 740px; }
+.payoff-controls label { display: grid; gap: 0.35rem; color: var(--muted); font-size: 0.82rem; font-weight: 600; }
+.payoff-controls select, .payoff-controls input { width: 100%; min-width: 0; min-height: 2.8rem; padding: 0.5rem 0.65rem; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); font: inherit; }
+.payoff-results { min-width: 0; background: var(--panel-alt); border-top: 3px solid var(--accent); padding: 1.1rem; }
+.payoff-results h3 { margin: 1.3rem 0 0.5rem; }
+.payoff-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.payoff-metrics > div { min-width: 0; border-bottom: 1px solid var(--border); padding: 0.3rem 0 0.75rem; }
+.payoff-metrics span { display: block; color: var(--muted); font-size: 0.78rem; }
+.payoff-metrics strong { display: block; font-family: var(--font-serif); font-size: 1.2rem; font-weight: 600; margin-top: 0.3rem; overflow-wrap: anywhere; }
+.payoff-order { padding-left: 1.5rem; margin: 0; }
+.payoff-order li { padding: 0.55rem 0; border-bottom: 1px solid var(--border); }
+.payoff-order li::marker { color: var(--accent); font-weight: 700; }
+.payoff-order li span { overflow-wrap: anywhere; }
+.payoff-order li strong { float: right; margin-left: 1rem; font-variant-numeric: tabular-nums; }
 
 /* ---------- Recommendations ---------- */
 
@@ -848,7 +846,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .pie-card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 1rem;
   box-shadow: var(--shadow);
 }
@@ -908,7 +906,13 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 }
 .feature-section { margin: 1.5rem 0 2rem; padding: 1.25rem 0; border-top: 2px solid var(--border); min-width: 0; }
 .feature-section > h1 { font-size: 1.25rem; }
+.feature-section > h2 { margin-top: 0; }
 .feature-section > h1:first-child { margin-top: 0; }
+.savings-summary .stat:first-child { border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--panel) 90%, var(--accent)); }
+.savings-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; border-block: 1px solid var(--border); padding: 0.9rem 0; margin: 0.75rem 0 1.25rem; }
+.savings-overview span { display: block; color: var(--muted); font-size: 0.8rem; }
+.savings-overview strong { display: block; font-family: var(--font-serif); font-size: 1.3rem; margin-top: 0.2rem; overflow-wrap: anywhere; }
+.savings-overview > div:last-child strong { color: var(--accent); }
 .goal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 0.85rem; margin: 1rem 0; }
 .goal-card { min-width: 0; padding: 1rem; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
 .goal-card h3 { margin: 0 0 0.7rem; overflow-wrap: anywhere; }
@@ -970,7 +974,7 @@ button {
   min-height: 44px;
   padding: 0.48rem 0.95rem;
   border: none;
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--accent);
   color: var(--accent-contrast);
   font-size: 0.88rem;
@@ -1088,7 +1092,7 @@ button.danger { background: var(--danger); color: #fff; }
   .mobile-nav small { font-size: 0.7rem; }
   .toast-stack { bottom: calc(5rem + env(safe-area-inset-bottom)); }
   .position-summary-grid { grid-template-columns: 1fr; }
-  .dashboard-card { padding: 1.15rem; border-radius: 14px; }
+  .dashboard-card { padding: 1.15rem; }
   .dashboard-card .stat { min-height: 5rem; }
   .hero-headline { padding: 1.25rem 1.4rem; }
   .hero-headline .hero-value { font-size: 2.25rem; }
@@ -1098,6 +1102,12 @@ button.danger { background: var(--danger); color: #fff; }
 }
 
 @media (max-width: 680px) {
+  .savings-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .savings-overview > div:last-child { grid-column: 1 / -1; }
+  .payoff-controls { grid-template-columns: 1fr; }
+  .payoff-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+  .payoff-results { padding: 0.85rem; }
+  .payoff-order li strong { float: none; display: block; margin: 0.2rem 0 0; }
   h1 { font-size: 1.35rem; }
   h2 { font-size: 1.08rem; }
   .toolbar { flex-direction: column; align-items: stretch; gap: 0.5rem; }
@@ -1614,9 +1624,14 @@ WR.financial = WR.financial || {};
     return debts.reduce((total, debt) => total + debt.currentBalance, 0);
   }
 
+  function monthlyMinPayment(debt) {
+    const factors = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, quarterly: 1 / 3, yearly: 1 / 12 };
+    return Math.max(0, Number(debt.minPayment) || 0) * (factors[debt.paymentFrequency] || 1);
+  }
+
   /** @param {Array} debts */
   function calculateTotalMinPayments(debts) {
-    return debts.reduce((total, debt) => total + debt.minPayment, 0);
+    return debts.reduce((total, debt) => total + monthlyMinPayment(debt), 0);
   }
 
   /**
@@ -1656,6 +1671,7 @@ WR.financial = WR.financial || {};
   }
 
   Object.assign(WR.financial, {
+    monthlyMinPayment,
     calculateTotalDebt,
     calculateTotalMinPayments,
     calculateDebtToIncomeRatio,
@@ -1965,15 +1981,15 @@ WR.financial = WR.financial || {};
   function simulatePayoff(orderedDebts, extraMonthlyPayment) {
     const balances = orderedDebts.map((d) => ({
       name: d.name,
-      balance: d.currentBalance,
-      monthlyRate: d.interestRate / 12,
-      minPayment: d.minPayment,
-      paidOffMonth: null,
+      balance: Math.max(0, Number(d.currentBalance) || 0),
+      monthlyRate: Math.max(0, Number(d.interestRate) || 0) / 12,
+      minPayment: WR.financial.monthlyMinPayment(d),
+      paidOffMonth: (Number(d.currentBalance) || 0) <= 0.01 ? 0 : null,
     }));
 
     let month = 0;
     let totalInterestPaid = 0;
-    let extraPool = extraMonthlyPayment;
+    let extraPool = Math.max(0, Number(extraMonthlyPayment) || 0);
 
     while (balances.some((b) => b.balance > 0.01) && month < MAX_MONTHS) {
       month += 1;
@@ -2013,7 +2029,7 @@ WR.financial = WR.financial || {};
       months: month,
       totalInterestPaid,
       payoffOrder: balances.map((b) => ({ name: b.name, monthsToPayoff: b.paidOffMonth })),
-      reachedSafetyCap: month >= MAX_MONTHS,
+      reachedSafetyCap: month >= MAX_MONTHS && balances.some((balance) => balance.balance > 0.01),
     };
   }
 
@@ -3056,7 +3072,7 @@ WR.ui = WR.ui || {};
       const amount = Number(item.amount) || 0;
       return sum + (item.returned && amount < 0 ? 0 : amount);
     }, 0);
-    const savingsBalance = allBudgetLines.filter((line) => line.type === 'savings')
+    const savingsBalance = allBudgetLines.filter((line) => line.type === 'savings' && line.month <= month)
       .reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
     const activePotBalance = savingsPots.filter((pot) => !pot.archived)
       .reduce((sum, pot) => sum + (Number(pot.currentAmount) || 0), 0);
@@ -3843,15 +3859,18 @@ WR.ui = WR.ui || {};
     const month = WR.ui._savingsMonth || WR.ui.currentMonthKey();
     WR.ui._savingsMonth = month;
 
-    const [lines, profile] = await Promise.all([
+    const [lines, profile, allLines] = await Promise.all([
       WR.queries.getBudgetLinesByMonth(month),
       WR.ui.getOrCreateProfile(),
+      WR.repos.budgetLines.getAll(),
     ]);
     const savings = lines
       .filter((line) => line.type === 'savings')
       .sort((a, b) => a.name.localeCompare(b.name));
     const totalPlanned = savings.reduce((sum, l) => sum + l.budgetAmount, 0);
     const totalSaved = savings.reduce((sum, l) => sum + l.actualAmount, 0);
+    const carriedBalance = allLines.filter((line) => line.type === 'savings' && line.month < month)
+      .reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
 
     const rows = savings.map((line) => `
       <tr data-id="${line.id}">
@@ -3864,21 +3883,23 @@ WR.ui = WR.ui || {};
     `).join('');
 
     container.innerHTML = `
-      <h1>Savings</h1>
+      ${container.id === 'general-savings' ? '<h2>Savings</h2>' : '<h1>Savings</h1>'}
       <div class="toolbar">
         <label>Month:
           <input type="month" id="savings-month-picker" value="${month}">
         </label>
       </div>
-      <p class="fine-print">Record planned and actual savings for each account or goal.</p>
+      <p class="fine-print">Enter new contributions for this month. Unused savings carry forward; do not re-enter last month's balance.</p>
 
-      <div class="stat-grid">
+      <div class="stat-grid savings-summary">
+        <div class="stat"><span class="stat-label">Available savings</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(carriedBalance + totalSaved)}</span></div>
+        <div class="stat"><span class="stat-label">Carried from previous months</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(carriedBalance)}</span></div>
         <div class="stat"><span class="stat-label">Total Planned</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalPlanned)}</span></div>
-        <div class="stat"><span class="stat-label">Total Saved</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalSaved)}</span></div>
+        <div class="stat"><span class="stat-label">Saved this month</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalSaved)}</span></div>
       </div>
 
       <table class="data-table">
-        <thead><tr><th>Name</th><th>Planned</th><th>Saved</th><th>Difference</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Planned</th><th>Added</th><th>Difference</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="5" class="empty">No savings recorded for this month.</td></tr>'}</tbody>
       </table>
 
@@ -3886,14 +3907,15 @@ WR.ui = WR.ui || {};
       <form id="add-saving-form" class="inline-form">
         <input name="name" placeholder="Name (e.g. Emergency fund)" required>
         <input name="budgetAmount" type="number" step="0.01" min="0" placeholder="Planned" required>
-        <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Saved" required>
+        <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Added this month" required>
         <button type="submit">Add</button>
       </form>
     `;
 
     container.querySelector('#savings-month-picker').addEventListener('change', (event) => {
       WR.ui._savingsMonth = event.target.value;
-      renderSavings(container);
+      if (container.id === 'general-savings') WR.ui.renderSavingsPage(container.closest('#content'));
+      else renderSavings(container);
     });
 
     container.querySelectorAll('tbody tr[data-id]').forEach((row) => {
@@ -4242,7 +4264,7 @@ WR.ui = WR.ui || {};
     }).join('');
 
     container.innerHTML = `
-      <h1>Emergency Fund</h1>
+      ${container.id === 'emergency-savings' ? '<h2>Emergency Fund</h2>' : '<h1>Emergency Fund</h1>'}
       <p class="month-label">Track contributions and borrowing across both of your emergency fund accounts.</p>
 
       <div class="ef-summary">
@@ -4729,57 +4751,81 @@ WR.ui = WR.ui || {};
     return CURRENCIES.map((c) => `<option value="${c}" ${c === selected ? 'selected' : ''}>${c}</option>`).join('');
   }
 
-  const PAYMENT_FREQUENCY_TO_MONTHS = {
-    weekly: 12 / 52,
-    biweekly: 12 / 26,
-    monthly: 1,
-    quarterly: 3,
-    yearly: 12,
-  };
-
   function paymentFrequencyOptions(selected) {
-    return Object.keys(PAYMENT_FREQUENCY_TO_MONTHS)
+    return ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly']
       .map((frequency) => `<option value="${frequency}" ${frequency === selected ? 'selected' : ''}>${frequency}</option>`)
       .join('');
   }
 
   function computePaymentsRemaining(debt) {
-    const perCycle = Math.max(0, Number(debt.minPayment) || 0);
-    if (perCycle <= 0) return null;
-    const monthsPerPayment = PAYMENT_FREQUENCY_TO_MONTHS[debt.paymentFrequency || 'monthly'] || 1;
-    const monthlyEquivalent = perCycle / monthsPerPayment;
-    if (monthlyEquivalent <= 0) return null;
-    return Math.ceil((Number(debt.currentBalance) || 0) / monthlyEquivalent);
+    const projection = WR.financial.simulateDebtPayoff([debt], 0);
+    return projection.reachedSafetyCap ? null : projection.months;
   }
 
-  function estimateCompletionDate(debt, paymentsRemaining) {
-    if (!paymentsRemaining || paymentsRemaining < 0) return '';
-    const monthsPerPayment = PAYMENT_FREQUENCY_TO_MONTHS[debt.paymentFrequency || 'monthly'] || 1;
-    const start = debt.startDate ? new Date(`${debt.startDate}T00:00:00`) : new Date();
-    const monthsToAdd = Math.ceil(paymentsRemaining * monthsPerPayment);
-    start.setMonth(start.getMonth() + monthsToAdd);
+  function estimateCompletionDate(paymentsRemaining) {
+    if (paymentsRemaining === null || paymentsRemaining < 0) return '';
+    const start = new Date();
+    start.setDate(1);
+    start.setMonth(start.getMonth() + paymentsRemaining);
     return start.toISOString().slice(0, 10);
   }
+  function trackedPaymentForMonth(debt, month) {
+    const frequency = debt.paymentFrequency || 'monthly';
+    if (frequency === 'quarterly' || frequency === 'yearly') {
+      const startMonth = String(debt.startDate || `${month.slice(0, 4)}-01`).slice(0, 7);
+      const elapsed = (Number(month.slice(0, 4)) - Number(startMonth.slice(0, 4))) * 12
+        + Number(month.slice(5, 7)) - Number(startMonth.slice(5, 7));
+      if (elapsed < 0 || elapsed % (frequency === 'quarterly' ? 3 : 12) !== 0) return 0;
+      return Math.max(0, Number(debt.minPayment) || 0);
+    }
+    return WR.financial.monthlyMinPayment(debt);
+  }
 
-  function computePayoffHtml(debts, strategy, extra, profile) {
+  function debtInBaseCurrency(debt, exchangeRates, baseCurrency) {
+    const currency = debt.currency || baseCurrency;
+    const current = WR.financial.convertCurrency(debt.currentBalance, currency, baseCurrency, exchangeRates);
+    const original = WR.financial.convertCurrency(debt.originalBalance || debt.currentBalance, currency, baseCurrency, exchangeRates);
+    const minimum = WR.financial.convertCurrency(debt.minPayment, currency, baseCurrency, exchangeRates);
+    if (!current.converted || !original.converted || !minimum.converted) return null;
+    return { ...debt, currentBalance: current.value, originalBalance: original.value, minPayment: minimum.value };
+  }
+
+  function computePayoffHtml(debts, strategy, extra, profile, exchangeRates) {
     if (debts.length === 0) return '<p class="empty">Add a debt to see a payoff projection.</p>';
 
+    const unconverted = [];
+    const convertedDebts = debts.flatMap((debt) => {
+      const converted = debtInBaseCurrency(debt, exchangeRates, profile.baseCurrency);
+      if (!converted) {
+        unconverted.push(debt.name);
+        return [];
+      }
+      return [converted];
+    });
+    const warning = unconverted.length ? `<p class="warning">${unconverted.length} debt(s) excluded: add their exchange rates in Settings before including them in this projection.</p>` : '';
+    if (!convertedDebts.length) return `${warning}<p class="empty">No debts with a usable balance and currency rate to project.</p>`;
     let orderedDebts = [];
-    if (strategy === 'avalanche') orderedDebts = WR.financial.orderDebtsAvalanche(debts);
-    else if (strategy === 'snowball') orderedDebts = WR.financial.orderDebtsSnowball(debts);
-    else orderedDebts = WR.financial.orderDebtsHybrid(debts);
+    if (strategy === 'avalanche') orderedDebts = WR.financial.orderDebtsAvalanche(convertedDebts);
+    else if (strategy === 'snowball') orderedDebts = WR.financial.orderDebtsSnowball(convertedDebts);
+    else orderedDebts = WR.financial.orderDebtsHybrid(convertedDebts);
 
     const saved = WR.financial.calculateInterestSaved(orderedDebts, extra);
     const orderList = saved.withExtra.payoffOrder
-      .map((p, i) => `<li>${i + 1}. ${p.name} \u2014 paid off in ${p.monthsToPayoff ?? '50+ years (capped)'} months</li>`)
+      .map((p) => `<li><span>${String(p.name).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char])}</span><strong>${p.monthsToPayoff === null ? 'Over 50 years' : `${p.monthsToPayoff} months`}</strong></li>`)
       .join('');
 
     return `
-      <p><strong>Payoff order (${strategy}):</strong></p>
-      <ol>${orderList}</ol>
-      <p>Total time to debt-free: <strong>${saved.withExtra.months} months</strong> ${saved.monthsSaved > 0 ? `(${saved.monthsSaved} months sooner than paying only minimums)` : ''}</p>
-      <p>Total interest paid: <strong>${profile.baseCurrency} ${WR.ui.fmt(saved.withExtra.totalInterestPaid)}</strong> ${saved.interestSaved > 0 ? `(${profile.baseCurrency} ${WR.ui.fmt(saved.interestSaved)} saved vs. minimums only)` : ''}</p>
-      ${saved.withExtra.reachedSafetyCap ? '<p class="warning">This extra payment amount is not enough to ever clear the balance at the current interest rate \u2014 try a larger amount.</p>' : ''}
+      ${warning}
+      <div class="payoff-metrics">
+        <div><span>Debt-free in</span><strong>${saved.withExtra.reachedSafetyCap ? 'Over 50 years' : `${saved.withExtra.months} months`}</strong></div>
+        <div><span>Projected interest</span><strong>${saved.withExtra.reachedSafetyCap ? 'Not available' : `${profile.baseCurrency} ${WR.ui.fmt(saved.withExtra.totalInterestPaid)}`}</strong></div>
+        <div><span>Time saved vs minimums</span><strong>${saved.withExtra.reachedSafetyCap || saved.withoutExtra.reachedSafetyCap ? 'Not comparable' : `${Math.max(0, saved.monthsSaved)} months`}</strong></div>
+        <div><span>Interest saved vs minimums</span><strong>${saved.withExtra.reachedSafetyCap || saved.withoutExtra.reachedSafetyCap ? 'Not comparable' : `${profile.baseCurrency} ${WR.ui.fmt(Math.max(0, saved.interestSaved))}`}</strong></div>
+      </div>
+      <h3>Payment priority: ${strategy}</h3><ol class="payoff-order">${orderList}</ol>
+      <p class="fine-print">Monthly estimate from current balances, annual interest rates and monthly-equivalent minimums. No new borrowing or rate changes are included.</p>
+      ${saved.withExtra.reachedSafetyCap ? '<p class="warning">This plan does not clear the debt within 50 years. Raise the extra monthly payment or review the minimums.</p>' : ''}
+      ${!saved.withExtra.reachedSafetyCap && saved.withoutExtra.reachedSafetyCap ? '<p class="fine-print">Minimum payments alone do not clear the debt within 50 years, so savings against that baseline cannot be calculated.</p>' : ''}
     `;
   }
 
@@ -4790,13 +4836,13 @@ WR.ui = WR.ui || {};
     let totalCurrent = 0;
     let totalOriginal = 0;
     const unconvertedNames = [];
+    const convertedDebts = [];
     debts.forEach((d) => {
-      const currency = d.currency || base;
-      const current = WR.financial.convertCurrency(d.currentBalance, currency, base, exchangeRates);
-      const original = WR.financial.convertCurrency(d.originalBalance || d.currentBalance, currency, base, exchangeRates);
-      totalCurrent += current.value;
-      totalOriginal += original.value;
-      if (!current.converted) unconvertedNames.push(d.name);
+      const converted = debtInBaseCurrency(d, exchangeRates, base);
+      if (!converted) { unconvertedNames.push(d.name); return; }
+      totalCurrent += converted.currentBalance;
+      totalOriginal += converted.originalBalance;
+      convertedDebts.push(converted);
     });
 
     const remainingPct = totalOriginal > 0 ? (totalCurrent / totalOriginal) * 100 : 0;
@@ -4805,20 +4851,20 @@ WR.ui = WR.ui || {};
     const strategy = WR.ui._debtStrategy || 'avalanche';
     const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
     let orderedDebts = [];
-    if (strategy === 'avalanche') orderedDebts = WR.financial.orderDebtsAvalanche(debts);
-    else if (strategy === 'snowball') orderedDebts = WR.financial.orderDebtsSnowball(debts);
-    else orderedDebts = WR.financial.orderDebtsHybrid(debts);
+    if (strategy === 'avalanche') orderedDebts = WR.financial.orderDebtsAvalanche(convertedDebts);
+    else if (strategy === 'snowball') orderedDebts = WR.financial.orderDebtsSnowball(convertedDebts);
+    else orderedDebts = WR.financial.orderDebtsHybrid(convertedDebts);
 
     const minimumsOnly = WR.financial.simulateDebtPayoff(orderedDebts, 0);
     const currentPlan = WR.financial.simulateDebtPayoff(orderedDebts, extra);
 
     const timeLeftLabel = currentPlan.reachedSafetyCap
-      ? '50+ years (never at this rate)'
+      ? 'Not within 50 years'
       : `${Math.floor(currentPlan.months / 12)}y ${currentPlan.months % 12}m`;
 
     let statement = '';
     if (minimumsOnly.reachedSafetyCap) {
-      statement = 'At minimum payments alone, this debt will never be fully paid off \u2014 increase your monthly payment or consider a better repayment plan.';
+      statement = 'At minimum payments alone, this debt will not be cleared within 50 years. Consider a larger monthly payment.';
     } else if (extra <= 0 && minimumsOnly.months > 60) {
       statement = `Paying only the minimums will take about ${Math.round(minimumsOnly.months / 12)} years. Adding an extra monthly payment could clear this debt much sooner.`;
     } else if (isHighRemaining) {
@@ -4827,12 +4873,12 @@ WR.ui = WR.ui || {};
 
     return `
       <div class="stat-grid debt-overview">
-        <div class="stat"><span class="stat-label">Total Debt</span><span class="stat-value">${base} ${WR.ui.fmt(totalCurrent)}</span></div>
-        <div class="stat"><span class="stat-label">Debt Remaining</span><span class="stat-value ${isHighRemaining ? 'negative' : ''}">${remainingPct.toFixed(0)}%</span></div>
-        <div class="stat"><span class="stat-label">Time Left (current plan)</span><span class="stat-value">${timeLeftLabel}</span></div>
+        <div class="stat"><span class="stat-label">${unconvertedNames.length ? 'Debt with rates' : 'Total Debt'}</span><span class="stat-value">${convertedDebts.length ? `${base} ${WR.ui.fmt(totalCurrent)}` : 'No rate available'}</span></div>
+        <div class="stat"><span class="stat-label">Debt Remaining</span><span class="stat-value ${isHighRemaining ? 'negative' : ''}">${convertedDebts.length ? `${remainingPct.toFixed(0)}%` : '—'}</span></div>
+        <div class="stat"><span class="stat-label">Time Left (current plan)</span><span class="stat-value">${convertedDebts.length ? timeLeftLabel : '—'}</span></div>
       </div>
       ${statement ? `<p class="warning">${statement}</p>` : ''}
-      ${unconvertedNames.length > 0 ? `<p class="fine-print">No exchange rate on file for: ${unconvertedNames.join(', ')} \u2014 shown at face value.</p>` : ''}
+      ${unconvertedNames.length > 0 ? `<p class="warning">${unconvertedNames.length} debt(s) excluded from this subtotal and projection. Add exchange rates in Settings.</p>` : ''}
     `;
   }
 
@@ -4845,7 +4891,7 @@ WR.ui = WR.ui || {};
     const strategy = WR.ui._debtStrategy || 'avalanche';
     const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
     const section = container.querySelector('.payoff-results');
-    if (section) section.innerHTML = computePayoffHtml(debts, strategy, extra, profile);
+    if (section) section.innerHTML = computePayoffHtml(debts, strategy, extra, profile, exchangeRates);
     const overview = container.querySelector('.debt-overview-wrap');
     if (overview) overview.innerHTML = computeDebtOverviewHtml(debts, exchangeRates, profile);
   }
@@ -4863,7 +4909,8 @@ WR.ui = WR.ui || {};
           .map((label, i) => {
             const monthKey = `${year}-${String(i + 1).padStart(2, '0')}`;
             const isPaid = payments.some((p) => p.debtId === d.id && p.month === monthKey);
-            return `<button type="button" class="month-btn ${isPaid ? 'paid' : ''}" data-debt-id="${d.id}" data-month="${monthKey}">${label}</button>`;
+            const due = trackedPaymentForMonth(d, monthKey) > 0;
+            return `<button type="button" class="month-btn ${isPaid ? 'paid' : ''}" data-debt-id="${d.id}" data-month="${monthKey}" ${!due && !isPaid ? 'disabled title="No payment due this month"' : ''}>${label}</button>`;
           })
           .join('');
         return `
@@ -4880,7 +4927,7 @@ WR.ui = WR.ui || {};
 
     return `
       <h2>Monthly Payment Tracker</h2>
-      <p class="fine-print">Tick a month once you've paid it \u2014 this deducts the minimum payment from the balance and undoes it if you untick.</p>
+      <p class="fine-print">Mark a payment when it clears. Weekly and biweekly amounts use a monthly equivalent; quarterly and yearly installments are due from the start month.</p>
       <div class="toolbar">
         <label>Year:
           <select id="debt-calendar-year">${WR.ui.yearsAroundCurrent(3, 3).map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select>
@@ -4899,9 +4946,9 @@ WR.ui = WR.ui || {};
       await WR.repos.debtPayments.remove(existing.id);
       debt.currentBalance = Math.max(0, (Number(debt.currentBalance) || 0) + existing.amount);
     } else {
-      const amount = Math.max(0, Number(debt.minPayment) || 0);
+      const amount = trackedPaymentForMonth(debt, month);
       if (amount <= 0) {
-        alert('Set a minimum payment for this debt before marking months as paid.');
+        WR.ui.notify('No payment is due for this debt in that month.', 'error');
         return;
       }
       await WR.repos.debtPayments.add(WR.models.createDebtPayment({ debtId, month, amount }));
@@ -4930,7 +4977,7 @@ WR.ui = WR.ui || {};
       .map(
         (d) => {
           const paymentsRemaining = computePaymentsRemaining(d);
-          const expectedCompletionDate = d.expectedCompletionDate || estimateCompletionDate(d, paymentsRemaining);
+          const projectedDate = estimateCompletionDate(paymentsRemaining);
           const paidTotal = payments
             .filter((payment) => payment.debtId === d.id)
             .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
@@ -4945,7 +4992,7 @@ WR.ui = WR.ui || {};
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="minPayment" value="${d.minPayment}"></td>
         <td><select class="cell" data-field="paymentFrequency">${paymentFrequencyOptions(d.paymentFrequency || 'monthly')}</select></td>
         <td><input class="cell" type="date" data-field="startDate" value="${d.startDate || ''}"></td>
-        <td><input class="cell" type="date" data-field="expectedCompletionDate" value="${expectedCompletionDate}"></td>
+        <td>${projectedDate ? projectedDate.slice(0, 7) : 'Not within 50 years'}</td>
         <td>${paymentsRemaining == null ? '—' : paymentsRemaining}</td>
         <td>${WR.ui.fmt(paidTotal)}</td>
         <td><button class="link-btn delete-debt" data-id="${d.id}">Delete</button></td>
@@ -4960,7 +5007,7 @@ WR.ui = WR.ui || {};
       <div class="debt-overview-wrap">${overviewHtml}</div>
       <div class="table-wrap">
         <table class="data-table debts-table">
-          <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate <select id="debt-interest-period" class="table-header-select" aria-label="Interest rate period"><option value="yearly" ${interestPeriod === 'yearly' ? 'selected' : ''}>%/yr</option><option value="monthly" ${interestPeriod === 'monthly' ? 'selected' : ''}>%/mo</option></select></th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Expected completion</th><th>Payments remaining</th><th>Total paid</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate <select id="debt-interest-period" class="table-header-select" aria-label="Interest rate period"><option value="yearly" ${interestPeriod === 'yearly' ? 'selected' : ''}>%/yr</option><option value="monthly" ${interestPeriod === 'monthly' ? 'selected' : ''}>%/mo</option></select></th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Projected payoff</th><th>Months left</th><th>Total paid</th><th></th></tr></thead>
           <tbody>${rows || '<tr><td colspan="12" class="empty">No debts recorded.</td></tr>'}</tbody>
         </table>
       </div>
@@ -4977,12 +5024,12 @@ WR.ui = WR.ui || {};
         <input name="minPayment" type="number" step="0.01" min="0" placeholder="Minimum payment" required>
         <select name="paymentFrequency">${paymentFrequencyOptions('monthly')}</select>
         <input name="startDate" type="date" value="${new Date().toISOString().slice(0, 10)}">
-        <input name="expectedCompletionDate" type="date">
         <button type="submit">Add</button>
       </form>
 
+      <section class="payoff-section">
       <h2>Payoff Strategy</h2>
-      <div class="toolbar">
+      <div class="payoff-controls">
         <label>Strategy:
           <select id="strategy-picker">
             <option value="avalanche" ${strategy === 'avalanche' ? 'selected' : ''}>Avalanche (highest interest first)</option>
@@ -4994,7 +5041,8 @@ WR.ui = WR.ui || {};
           <input type="number" id="extra-payment" step="10" min="0" value="${extra}">
         </label>
       </div>
-      <div class="payoff-results">${computePayoffHtml(debts, strategy, extra, profile)}</div>
+      <div class="payoff-results">${computePayoffHtml(debts, strategy, extra, profile, exchangeRates)}</div>
+      </section>
     `;
 
     container.querySelectorAll('tbody tr').forEach((tr) => {
@@ -5007,15 +5055,11 @@ WR.ui = WR.ui || {};
           if (field === 'interestRatePct') {
             const enteredRate = Math.max(0, parseFloat(input.value) || 0) / 100;
             debt.interestRate = interestPeriod === 'monthly' ? enteredRate * 12 : enteredRate;
-          } else if (field === 'name' || field === 'currency' || field === 'paymentFrequency' || field === 'startDate' || field === 'expectedCompletionDate') {
+          } else if (field === 'name' || field === 'currency' || field === 'paymentFrequency' || field === 'startDate') {
             debt[field] = input.value;
           } else {
             debt[field] = Math.max(0, parseFloat(input.value) || 0);
             input.value = debt[field];
-          }
-          if (!debt.expectedCompletionDate) {
-            const remaining = computePaymentsRemaining(debt);
-            debt.expectedCompletionDate = estimateCompletionDate(debt, remaining);
           }
           await WR.repos.debts.update(debt);
           WR.ui.flashSaved(input);
@@ -5055,11 +5099,7 @@ WR.ui = WR.ui || {};
         minPayment: Math.max(0, parseFloat(form.minPayment.value) || 0),
         paymentFrequency: form.paymentFrequency.value,
         startDate: form.startDate.value || undefined,
-        expectedCompletionDate: form.expectedCompletionDate.value || undefined,
       });
-      if (!debt.expectedCompletionDate) {
-        debt.expectedCompletionDate = estimateCompletionDate(debt, computePaymentsRemaining(debt));
-      }
       await WR.repos.debts.add(debt);
       renderDebts(container);
     });
@@ -5145,7 +5185,7 @@ WR.ui = WR.ui || {};
       .join('');
 
     container.innerHTML = `
-      <h1>Assets</h1>
+      ${container.id === 'wealth-assets' ? '<h2>Assets</h2>' : '<h1>Assets</h1>'}
       <p class="fine-print">Edit any cell \u2014 changes save immediately. "High" liquidity counts toward your emergency fund calculation.</p>
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Total Asset Value</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalValue)}</span></div>
@@ -5284,7 +5324,7 @@ WR.ui = WR.ui || {};
       .join('');
 
     container.innerHTML = `
-      <h1>Investments</h1>
+      ${container.id === 'wealth-investments' ? '<h2>Investments</h2>' : '<h1>Investments</h1>'}
       <p class="fine-print">Manual tracking only \u2014 update values yourself as they change. No live market data. Edit any cell to update.</p>
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Total Value</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalValue)}</span></div>
@@ -6297,6 +6337,8 @@ WR.account = {};
   let resolveFirstUser;
   const firstUserPromise = new Promise((resolve) => { resolveFirstUser = resolve; });
   let cachedUsername = null;
+  let signupInProgress = false;
+  let preserveSignupScreen = false;
 
   function isConfigured() {
     return !Object.values(FIREBASE_CONFIG).some((v) => !v || v.startsWith('REPLACE_ME'));
@@ -6327,15 +6369,17 @@ WR.account = {};
         authModule.onAuthStateChanged(auth, (user) => {
           currentUser = user;
           if (!user) cachedUsername = null;
+          const keepScreen = preserveSignupScreen && !user;
+          if (!user) preserveSignupScreen = false;
           if (!firstUserResolved) {
             firstUserResolved = true;
             resolveFirstUser(user);
           }
-          if (onChangeCallback) onChangeCallback(user);
+          if (onChangeCallback && !signupInProgress && !keepScreen) onChangeCallback(user);
           // Username isn't in the Firebase Auth user object itself, so a
           // restored session (page reload) needs a follow-up fetch + re-notify
           // once it arrives, e.g. so the Dashboard greeting can show it.
-          if (user) loadProfile().then(() => { if (onChangeCallback) onChangeCallback(user); });
+          if (user && !signupInProgress) loadProfile().then(() => { if (onChangeCallback) onChangeCallback(user); });
         });
       })();
     }
@@ -6438,15 +6482,39 @@ WR.account = {};
 
   async function signUp(email, password, username) {
     await ensureInit();
+    preserveSignupScreen = false;
     const { lower } = normalizeUsername(username);
     if (!(await isUsernameAvailable(lower))) throw new Error('That username is already taken.');
-    const cred = await authApi.createUserWithEmailAndPassword(auth, email, password);
-    await claimUsername(cred.user.uid, username, email);
-    return cred.user;
+    signupInProgress = true;
+    let createdUser = null;
+    try {
+      const cred = await authApi.createUserWithEmailAndPassword(auth, email, password);
+      createdUser = cred.user;
+      await claimUsername(createdUser.uid, username, email);
+    } catch (error) {
+      if (createdUser) {
+        preserveSignupScreen = true;
+        try {
+          await authApi.deleteUser(createdUser);
+          currentUser = null;
+          cachedUsername = null;
+        } catch (cleanupError) {
+          await authApi.signOut(auth);
+          throw Object.assign(new Error('Account setup failed and the email may be registered. Try logging in or contact support.'), { code: 'account/setup-failed' });
+        }
+      }
+      throw error;
+    } finally {
+      signupInProgress = false;
+    }
+    currentUser = createdUser;
+    if (onChangeCallback) onChangeCallback(createdUser);
+    return createdUser;
   }
 
   async function signIn(email, password) {
     await ensureInit();
+    preserveSignupScreen = false;
     const cred = await authApi.signInWithEmailAndPassword(auth, email, password);
     await loadProfile();
     return cred.user;
@@ -6494,6 +6562,27 @@ window.WR = window.WR || {};
 WR.ui = WR.ui || {};
 
 (function () {
+  function authErrorMessage(error, isSignup) {
+    const messages = {
+      'auth/user-not-found': 'No account found with this email. Check the address or sign up.',
+      'auth/invalid-credential': 'Email or password is incorrect. Check your details, or sign up if you are new.',
+      'auth/wrong-password': 'Email or password is incorrect. Check your details, or sign up if you are new.',
+      'auth/email-already-in-use': 'An account with this email already exists. Log in instead.',
+      'auth/weak-password': 'Choose a stronger password of at least 6 characters.',
+      'auth/invalid-email': 'Enter a valid email address.',
+      'auth/network-request-failed': 'Connection failed. Check your internet and try again.',
+      'auth/too-many-requests': 'Too many attempts. Wait a little before trying again.',
+      'auth/popup-blocked': 'Allow the sign-in popup in your browser and try again.',
+      'auth/popup-closed-by-user': 'Sign-in was cancelled. Try again when ready.',
+      'auth/operation-not-allowed': 'Sign-up is temporarily unavailable. Please try again later.',
+      'permission-denied': 'Account setup could not finish. Please try again later.',
+      'account/setup-failed': 'Account setup could not finish. Your email may be registered; try logging in or report the issue.',
+    };
+    if (messages[error?.code]) return messages[error.code];
+    if (!error?.code && /^Username must be|^That username is already taken\.$/.test(error?.message || '')) return error.message;
+    return isSignup ? 'Account creation failed. Please try again.' : 'Could not log in. Please try again.';
+  }
+
   function renderAuthScreen() {
     let mode = 'login'; // 'login' | 'signup'
 
@@ -6548,11 +6637,12 @@ WR.ui = WR.ui || {};
       const submitBtn = document.getElementById('auth-submit-btn');
 
       function showError(err) {
-        errorEl.textContent = err && err.message ? err.message.replace(/^Firebase:\s*/, '').replace(/\s*\(auth\/[a-z-]+\)\.?$/i, '') : 'Something went wrong. Try again.';
+        errorEl.textContent = authErrorMessage(err, isSignup);
       }
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!form.reportValidity()) return;
         errorEl.textContent = '';
         const email = document.getElementById('auth-email-input').value.trim();
         const password = document.getElementById('auth-password-input').value;
@@ -6785,7 +6875,8 @@ WR.ui = WR.ui || {};
     }));
   }
 
-  async function transferSavings(sourceId, destinationId, value) {
+  async function transferSavings(sourceId, destinationId, value, month) {
+    if (value <= 0) throw new Error('Enter a transfer amount greater than zero.');
     const api = WR.account.getFirestoreApi();
     const db = WR.account.getDb();
     const uid = WR.account.getCurrentUser().uid;
@@ -6801,6 +6892,7 @@ WR.ui = WR.ui || {};
       const destination = destinationSnap.data();
       const field = sourceStore === 'budgetLines' ? 'actualAmount' : 'currentAmount';
       if (sourceStore === 'budgetLines' && source.type !== 'savings') throw new Error('Only general savings can be transferred.');
+      if (sourceStore === 'budgetLines' && source.month > month) throw new Error('Future savings cannot fund an earlier month.');
       if (source.archived || destination.archived) throw new Error('Archived pots cannot be used for transfers.');
       if (amount(source[field]) < value) throw new Error('Insufficient funds in the selected source.');
       transaction.update(sourceRef, { [field]: amount(source[field]) - value });
@@ -6810,12 +6902,16 @@ WR.ui = WR.ui || {};
 
   async function renderSavingsPots(container) {
     const [pots, lines, profile] = await Promise.all([WR.repos.savingsPots.getAll(), WR.repos.budgetLines.getAll(), WR.ui.getOrCreateProfile()]);
-    const general = lines.filter((line) => line.type === 'savings' && amount(line.actualAmount) > 0).sort((a, b) => String(b.month).localeCompare(String(a.month)));
+    const month = WR.ui._savingsMonth || WR.ui.currentMonthKey();
+    const general = lines.filter((line) => line.type === 'savings' && line.month <= month && amount(line.actualAmount) > 0).sort((a, b) => String(b.month).localeCompare(String(a.month)));
     const active = pots.filter((pot) => !pot.archived);
-    const mainBalance = lines.filter((line) => line.type === 'savings').reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
+    const mainBalance = lines.filter((line) => line.type === 'savings' && line.month <= month).reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
     const activeBalance = active.reduce((sum, pot) => sum + amount(pot.currentAmount), 0);
     const currency = profile.baseCurrency;
-    container.innerHTML = `<h2>Savings Pots</h2><p class="fine-print">General savings: ${currency} ${WR.ui.fmt(mainBalance)}. Active total including pots: ${currency} ${WR.ui.fmt(mainBalance + activeBalance)}.</p>
+    container.innerHTML = `<h2>Savings Pots</h2><div class="savings-overview">
+      <div><span>General savings through ${escape(month)}</span><strong>${currency} ${WR.ui.fmt(mainBalance)}</strong></div>
+      <div><span>Active pots now</span><strong>${currency} ${WR.ui.fmt(activeBalance)}</strong></div>
+      <div><span>Combined active savings</span><strong>${currency} ${WR.ui.fmt(mainBalance + activeBalance)}</strong></div></div>
       <div class="goal-grid">${active.map((pot) => `<article class="goal-card"><h3>${escape(pot.name)}</h3>
         <strong>${progress(amount(pot.currentAmount), amount(pot.targetAmount))}% Complete</strong>${meter(amount(pot.currentAmount), amount(pot.targetAmount))}
         <p>${currency} ${WR.ui.fmt(amount(pot.currentAmount))} saved of ${currency} ${WR.ui.fmt(amount(pot.targetAmount))} · ${currency} ${WR.ui.fmt(Math.max(0, amount(pot.targetAmount) - amount(pot.currentAmount)))} remaining</p>
@@ -6859,7 +6955,7 @@ WR.ui = WR.ui || {};
       const form = event.currentTarget;
       if (form.elements.source.value === form.elements.destination.value) return WR.ui.notify('Choose different pots.', 'error');
       try {
-        await transferSavings(form.elements.source.value, form.elements.destination.value, amount(form.elements.amount.value));
+        await transferSavings(form.elements.source.value, form.elements.destination.value, amount(form.elements.amount.value), month);
         WR.ui.notify('Savings transferred.', 'success');
         await renderSavingsPage(container.closest('#content'));
       } catch (error) { WR.ui.notify(error.message, 'error'); }

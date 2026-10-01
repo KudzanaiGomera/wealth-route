@@ -187,10 +187,19 @@ database.
 The main navigation now opens Transactions for day-to-day activity and keeps
 monthly variable-expense budgeting in its own page. Savings combines general
 savings, editable pots (including transfers and archived goals), and the
-emergency fund with its own editable target. Wealth combines investment tracking and assets; Goals tracks
+emergency fund with its own editable target. Wealth combines investment
+tracking and assets; Goals tracks
 independent personal targets. Reports, Forecast, Excel and Wealth Assistant
 remain available through their existing direct routes, but are not in the
 main navigation.
+
+Savings entries are new monthly contributions, not repeated account balances.
+Unused general savings carry into later months; moving them into a pot changes
+their location without increasing the combined balance. Payoff Strategy uses
+the current debt balance, annual interest rate, and monthly-equivalent minimum
+payments (weekly 52/12, biweekly 26/12, quarterly 1/3, yearly 1/12). Dates
+and interest are estimates; actual interest, rate changes, and new borrowing
+must be reconciled against lender statements.
 
 **Dashboard** \u2014 net worth, income, expenses, surplus, debt, emergency fund
 months, financial health score with a transparent per-component breakdown,
