@@ -3082,12 +3082,9 @@ WR.ui = WR.ui || {};
       const amount = Number(item.amount) || 0;
       return sum + (item.returned && amount < 0 ? 0 : amount);
     }, 0);
-    const savingsBalance = allBudgetLines.filter((line) => line.type === 'savings' && line.month <= month)
-      .reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
     const activePotBalance = savingsPots.filter((pot) => !pot.archived)
       .reduce((sum, pot) => sum + (Number(pot.currentAmount) || 0), 0);
-    const assetAndInvestmentValue = netWorth.totalAssets;
-    annualSummary.totalSavedAndInvested = savingsBalance + activePotBalance + emergencyFundBalance + assetAndInvestmentValue;
+    annualSummary.totalSavedAndInvested = activePotBalance;
     annualSummary.totalDebtPaid = debtPayments.filter((payment) => String(payment.month).startsWith(String(selectedYear)))
       .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
     const dayToDayAccount = getDayToDayOpeningAccount(dayToDayAccounts, selectedYear);
@@ -3119,7 +3116,6 @@ WR.ui = WR.ui || {};
       annualStartMonth: annualRows[0]?.month || null,
       annualMonths: annualRows,
       emergencyFundBalance,
-      savingsBalance,
       activePotBalance,
       emergencyFundContributions,
       incomeSources,
@@ -3586,10 +3582,10 @@ WR.ui = WR.ui || {};
 
         <div class="dashboard-card annual-card">
           <h2>Annual Financial Summary (${s.selectedYear})</h2>
-          <p class="fine-print">${s.annualStartMonth ? `Income counted from ${WR.ui.monthName(Number(s.annualStartMonth.slice(5)))} through ${WR.ui.monthName(Number(s.month.slice(5)))} ${s.selectedYear}.` : 'No income months recorded yet.'} Saved and invested is your current balance.</p>
+          <p class="fine-print">${s.annualStartMonth ? `Income counted from ${WR.ui.monthName(Number(s.annualStartMonth.slice(5)))} through ${WR.ui.monthName(Number(s.month.slice(5)))} ${s.selectedYear}.` : 'No income months recorded yet.'} Savings Pots Total is the current balance across active pots only.</p>
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
-            <div class="stat"><span class="stat-label">Total Saved &amp; Invested</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSavedAndInvested)}</span></div>
+            <div class="stat"><span class="stat-label">Savings Pots Total</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSavedAndInvested)}</span></div>
             <div class="stat"><span class="stat-label">Total Debt Payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
           </div>
         </div>
@@ -6913,29 +6909,24 @@ WR.ui = WR.ui || {};
   }
 
   async function renderSavingsPots(container) {
-    const [pots, lines, profile] = await Promise.all([WR.repos.savingsPots.getAll(), WR.repos.budgetLines.getAll(), WR.ui.getOrCreateProfile()]);
+    const [pots, profile] = await Promise.all([WR.repos.savingsPots.getAll(), WR.ui.getOrCreateProfile()]);
     const month = WR.ui._savingsMonth || WR.ui.currentMonthKey();
-    const general = lines.filter((line) => line.type === 'savings' && line.month <= month && amount(line.actualAmount) > 0).sort((a, b) => String(b.month).localeCompare(String(a.month)));
     const active = pots.filter((pot) => !pot.archived);
-    const mainBalance = lines.filter((line) => line.type === 'savings' && line.month <= month).reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
     const activeBalance = active.reduce((sum, pot) => sum + amount(pot.currentAmount), 0);
     const currency = profile.baseCurrency;
     container.innerHTML = `<h2>Savings Pots</h2><div class="savings-overview">
-      <div><span>General savings through ${escape(month)}</span><strong>${currency} ${WR.ui.fmt(mainBalance)}</strong></div>
-      <div><span>Active pots now</span><strong>${currency} ${WR.ui.fmt(activeBalance)}</strong></div>
-      <div><span>Combined active savings</span><strong>${currency} ${WR.ui.fmt(mainBalance + activeBalance)}</strong></div></div>
+      <div><span>Active savings pots</span><strong>${currency} ${WR.ui.fmt(activeBalance)}</strong></div></div>
       <div class="goal-grid">${active.map((pot) => `<article class="goal-card"><h3>${escape(pot.name)}</h3>
         <strong>${progress(amount(pot.currentAmount), amount(pot.targetAmount))}% Complete</strong>${meter(amount(pot.currentAmount), amount(pot.targetAmount))}
         <p>${currency} ${WR.ui.fmt(amount(pot.currentAmount))} saved of ${currency} ${WR.ui.fmt(amount(pot.targetAmount))} · ${currency} ${WR.ui.fmt(Math.max(0, amount(pot.targetAmount) - amount(pot.currentAmount)))} remaining</p>
         <form class="pot-edit stacked-form" data-id="${pot.id}"><label>Name<input name="name" value="${escape(pot.name)}" required></label>
         <label>Target<input name="target" type="number" min="0.01" step="0.01" value="${amount(pot.targetAmount)}" required></label>
-        <label>Saved<input name="current" type="number" min="0" step="0.01" value="${amount(pot.currentAmount)}" required></label>
-        <button>Save changes</button><button type="button" class="secondary archive-pot" data-id="${pot.id}">Archive goal</button></form></article>`).join('') || '<p class="empty">No active savings pots.</p>'}</div>
+        <label>Saved in this pot<input name="current" type="number" min="0" step="0.01" value="${amount(pot.currentAmount)}" required></label>
+        <button>Save changes</button><button type="button" class="secondary archive-pot" data-id="${pot.id}">Archive pot</button></form></article>`).join('') || '<p class="empty">No active savings pots. Create one below to start tracking money you will not touch.</p>'}</div>
       <h3>Create a pot</h3><form id="create-pot" class="inline-form"><input name="name" placeholder="Pot name" required>
         <input name="target" type="number" min="0.01" step="0.01" placeholder="Target amount" required><button>Add pot</button></form>
-      <h3>Transfer savings</h3><form id="transfer-pot" class="inline-form"><select name="source" aria-label="Transfer from" required>
-        <option value="">From...</option>${general.map((line) => `<option value="general:${line.id}">General: ${escape(line.name)} (${escape(line.month)}) · ${currency} ${WR.ui.fmt(line.actualAmount)}</option>`).join('')}
-        ${active.filter((pot) => amount(pot.currentAmount) > 0).map((pot) => `<option value="${pot.id}">${escape(pot.name)} · ${currency} ${WR.ui.fmt(pot.currentAmount)}</option>`).join('')}</select>
+      <h3>Transfer between pots</h3><form id="transfer-pot" class="inline-form"><select name="source" aria-label="Transfer from" required>
+        <option value="">From...</option>${active.filter((pot) => amount(pot.currentAmount) > 0).map((pot) => `<option value="${pot.id}">${escape(pot.name)} · ${currency} ${WR.ui.fmt(pot.currentAmount)}</option>`).join('')}</select>
         <select name="destination" aria-label="Transfer to" required><option value="">To pot...</option>${active.map((pot) => `<option value="${pot.id}">${escape(pot.name)}</option>`).join('')}</select>
         <input name="amount" type="number" min="0.01" step="0.01" placeholder="Amount" required><button>Transfer</button></form>
       <details><summary>Archived goals (${pots.length - active.length})</summary><div class="goal-grid">${pots.filter((pot) => pot.archived).map((pot) => `<article class="goal-card"><h3>${escape(pot.name)}</h3>
@@ -6975,10 +6966,8 @@ WR.ui = WR.ui || {};
   }
 
   async function renderSavingsPage(container) {
-    container.innerHTML = '<h1>Savings</h1><section class="feature-section" id="general-savings"></section><section class="feature-section" id="savings-pots"></section><section class="feature-section" id="emergency-savings"></section>';
-    await WR.ui.renderSavings(container.querySelector('#general-savings'));
+    container.innerHTML = '<h1>Savings Pots</h1><p class="fine-print">Only active savings pots are included in the total below. Edit each pot to update the amount you have set aside and do not plan to touch.</p><section class="feature-section" id="savings-pots"></section>';
     await renderSavingsPots(container.querySelector('#savings-pots'));
-    await WR.ui.renderEmergencyFund(container.querySelector('#emergency-savings'));
   }
 
   async function renderWealth(container) {
