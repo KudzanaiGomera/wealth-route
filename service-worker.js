@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wealthroute-shell-v46';
+const CACHE_NAME = 'wealthroute-shell-v47';
 const APP_SHELL = [
   './',
   './index.html',

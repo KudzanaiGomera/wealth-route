@@ -916,17 +916,23 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .savings-overview span { display: block; color: var(--muted); font-size: 0.8rem; }
 .savings-overview strong { display: block; font-family: var(--font-serif); font-size: 1.3rem; margin-top: 0.2rem; overflow-wrap: anywhere; }
 .savings-overview > div:last-child strong { color: var(--accent); }
-.goal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 0.85rem; margin: 1rem 0; }
-.goal-card { min-width: 0; padding: 1rem; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
-.goal-card h3 { margin: 0 0 0.7rem; overflow-wrap: anywhere; }
-.goal-card strong { color: var(--accent); }
-.goal-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
-.goal-card dt { color: var(--muted); font-size: 0.8rem; }
-.goal-card dd { margin: 0.2rem 0 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.goal-meter { height: 0.55rem; border-radius: 3px; background: var(--border); overflow: hidden; margin: 0.7rem 0; }
+.goal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1rem; margin: 1rem 0 1.5rem; }
+.goal-card { min-width: 0; padding: 1.15rem; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); }
+.goal-card h3 { margin: 0; overflow-wrap: anywhere; }
+.goal-card strong { color: var(--accent); font-size: 0.9rem; }
+.goal-card-header { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.8rem; }
+.goal-card-header strong { flex: 0 0 auto; white-space: nowrap; }
+.goal-card dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.55rem; margin: 0 0 1rem; }
+.goal-card dt { color: var(--muted); font-size: 0.72rem; }
+.goal-card dd { margin: 0.2rem 0 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; font-size: 0.86rem; }
+.goal-meter { height: 0.55rem; border-radius: 3px; background: var(--border); overflow: hidden; margin: 0 0 1rem; }
 .goal-meter span { display: block; height: 100%; background: var(--accent); }
-.goal-card .stacked-form { align-items: stretch; }
+.goal-card .stacked-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; align-items: end; }
 .goal-card .stacked-form label { display: grid; gap: 0.25rem; }
+.goal-card .stacked-form label:first-child { grid-column: 1 / -1; }
+.goal-card .stacked-form button { width: 100%; }
+.goal-card .stacked-form button:first-of-type { grid-column: 1; }
+.goal-card .stacked-form button:last-of-type { grid-column: 2; }
 #content.settings-page { max-width: 1050px; }
 .settings-page > section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: clamp(1rem, 2.5vw, 1.5rem); margin: 0 0 1rem; min-width: 0; }
 .settings-page > section > h2 { margin: 0 0 0.25rem; }
@@ -6917,9 +6923,9 @@ WR.ui = WR.ui || {};
     const currency = profile.baseCurrency;
     container.innerHTML = `<h2>Savings Pots</h2><div class="savings-overview">
       <div><span>Active savings pots</span><strong>${currency} ${WR.ui.fmt(activeBalance)}</strong></div></div>
-      <div class="goal-grid">${active.map((pot) => `<article class="goal-card"><h3>${escape(pot.name)}</h3>
-        <strong>${progress(amount(pot.currentAmount), amount(pot.targetAmount))}% Complete</strong>${meter(amount(pot.currentAmount), amount(pot.targetAmount))}
-        <p>${currency} ${WR.ui.fmt(amount(pot.currentAmount))} saved of ${currency} ${WR.ui.fmt(amount(pot.targetAmount))} · ${currency} ${WR.ui.fmt(Math.max(0, amount(pot.targetAmount) - amount(pot.currentAmount)))} remaining</p>
+      <div class="goal-grid">${active.map((pot) => `<article class="goal-card"><div class="goal-card-header"><h3>${escape(pot.name)}</h3>
+        <strong>${progress(amount(pot.currentAmount), amount(pot.targetAmount))}% complete</strong></div>${meter(amount(pot.currentAmount), amount(pot.targetAmount))}
+        <dl><div><dt>Saved</dt><dd>${currency} ${WR.ui.fmt(amount(pot.currentAmount))}</dd></div><div><dt>Target</dt><dd>${currency} ${WR.ui.fmt(amount(pot.targetAmount))}</dd></div><div><dt>Remaining</dt><dd>${currency} ${WR.ui.fmt(Math.max(0, amount(pot.targetAmount) - amount(pot.currentAmount)))}</dd></div></dl>
         <form class="pot-edit stacked-form" data-id="${pot.id}"><label>Name<input name="name" value="${escape(pot.name)}" required></label>
         <label>Target<input name="target" type="number" min="0.01" step="0.01" value="${amount(pot.targetAmount)}" required></label>
         <label>Saved in this pot<input name="current" type="number" min="0" step="0.01" value="${amount(pot.currentAmount)}" required></label>
@@ -6931,8 +6937,8 @@ WR.ui = WR.ui || {};
         <option value="">From...</option>${active.filter((pot) => amount(pot.currentAmount) > 0).map((pot) => `<option value="${pot.id}">${escape(pot.name)} · ${currency} ${WR.ui.fmt(pot.currentAmount)}</option>`).join('')}</select>
         <select name="destination" aria-label="Transfer to" required><option value="">To pot...</option>${active.map((pot) => `<option value="${pot.id}">${escape(pot.name)}</option>`).join('')}</select>
         <input name="amount" type="number" min="0.01" step="0.01" placeholder="Amount" required><button>Transfer</button></form>
-      <details><summary>Archived goals (${pots.length - active.length})</summary><div class="goal-grid">${pots.filter((pot) => pot.archived).map((pot) => `<article class="goal-card"><h3>${escape(pot.name)}</h3>
-        ${meter(amount(pot.currentAmount), amount(pot.targetAmount))}<p>${currency} ${WR.ui.fmt(amount(pot.currentAmount))} saved · ${currency} ${WR.ui.fmt(Math.max(0, amount(pot.targetAmount) - amount(pot.currentAmount)))} remaining</p>
+      <details><summary>Archived goals (${pots.length - active.length})</summary><div class="goal-grid">${pots.filter((pot) => pot.archived).map((pot) => `<article class="goal-card"><div class="goal-card-header"><h3>${escape(pot.name)}</h3>
+        <strong>${progress(amount(pot.currentAmount), amount(pot.targetAmount))}% complete</strong></div>${meter(amount(pot.currentAmount), amount(pot.targetAmount))}<dl><div><dt>Saved</dt><dd>${currency} ${WR.ui.fmt(amount(pot.currentAmount))}</dd></div><div><dt>Target</dt><dd>${currency} ${WR.ui.fmt(amount(pot.targetAmount))}</dd></div><div><dt>Remaining</dt><dd>${currency} ${WR.ui.fmt(Math.max(0, amount(pot.targetAmount) - amount(pot.currentAmount)))}</dd></div></dl>
         <button class="restore-pot secondary" data-id="${pot.id}">Restore goal</button></article>`).join('') || '<p class="empty">No archived goals.</p>'}</div></details>`;
     container.querySelector('#create-pot').addEventListener('submit', async (event) => {
       event.preventDefault();
