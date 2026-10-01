@@ -6966,8 +6966,9 @@ WR.ui = WR.ui || {};
   }
 
   async function renderSavingsPage(container) {
-    container.innerHTML = '<h1>Savings Pots</h1><p class="fine-print">Only active savings pots are included in the total below. Edit each pot to update the amount you have set aside and do not plan to touch.</p><section class="feature-section" id="savings-pots"></section>';
+    container.innerHTML = '<h1>Savings</h1><p class="fine-print">Only active savings pots are included in the savings total. Emergency funds are shown separately.</p><section class="feature-section" id="savings-pots"></section><section class="feature-section" id="emergency-savings"></section>';
     await renderSavingsPots(container.querySelector('#savings-pots'));
+    await WR.ui.renderEmergencyFund(container.querySelector('#emergency-savings'));
   }
 
   async function renderWealth(container) {
