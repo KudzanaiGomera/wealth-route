@@ -69,10 +69,12 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { min-width: 320px; }
+html { min-width: 320px; max-width: 100%; overflow-x: clip; }
 
 body {
   margin: 0;
+  max-width: 100%;
+  overflow-x: clip;
   font-family: var(--font-sans);
   background:
     radial-gradient(circle at 8% 10%, color-mix(in srgb, var(--accent) 12%, transparent) 0, transparent 35%),
@@ -317,7 +319,8 @@ button, a, input, select, textarea {
   display: none;
   align-items: center;
   gap: 0.15rem;
-  flex-wrap: wrap;
+  min-width: 0;
+  overflow-x: auto;
 }
 .nav-horizontal a {
   color: var(--muted);
@@ -903,6 +906,27 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   background: var(--panel);
   margin: 0.75rem 0;
 }
+.feature-section { margin: 1.5rem 0 2rem; padding: 1.25rem 0; border-top: 2px solid var(--border); min-width: 0; }
+.feature-section > h1 { font-size: 1.25rem; }
+.feature-section > h1:first-child { margin-top: 0; }
+.goal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 0.85rem; margin: 1rem 0; }
+.goal-card { min-width: 0; padding: 1rem; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+.goal-card h3 { margin: 0 0 0.7rem; overflow-wrap: anywhere; }
+.goal-card strong { color: var(--accent); }
+.goal-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+.goal-card dt { color: var(--muted); font-size: 0.8rem; }
+.goal-card dd { margin: 0.2rem 0 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.goal-meter { height: 0.55rem; border-radius: 3px; background: var(--border); overflow: hidden; margin: 0.7rem 0; }
+.goal-meter span { display: block; height: 100%; background: var(--accent); }
+.goal-card .stacked-form { align-items: stretch; }
+.goal-card .stacked-form label { display: grid; gap: 0.25rem; }
+#content.settings-page { max-width: 1050px; }
+.settings-page > section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: clamp(1rem, 2.5vw, 1.5rem); margin: 0 0 1rem; min-width: 0; }
+.settings-page > section > h2 { margin: 0 0 0.25rem; }
+.settings-page > section > .fine-print { line-height: 1.5; margin: 0.35rem 0 1rem; }
+.settings-page > section .stacked-form { align-items: stretch; max-width: 34rem; }
+.settings-page > section .stacked-form label { display: grid; gap: 0.3rem; }
+.mobile-nav { display: none; }
 .data-table { width: 100%; min-width: max-content; border-collapse: collapse; background: var(--panel); border: none; border-radius: 0; overflow: visible; margin: 0; }
 .data-table th, .data-table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.88rem; white-space: nowrap; }
 .data-table th { background: var(--panel-alt); font-weight: 600; color: var(--muted); font-size: 0.8rem; }
@@ -1042,17 +1066,27 @@ button.danger { background: var(--danger); color: #fff; }
 }
 
 @media (max-width: 900px) {
-  .topbar { padding: calc(0.7rem + env(safe-area-inset-top)) calc(1rem + env(safe-area-inset-right)) 0.7rem calc(1rem + env(safe-area-inset-left)); gap: 0.85rem; }
+  html, body, #app { max-width: 100%; overflow-x: clip; }
+  .topbar { padding: calc(0.7rem + env(safe-area-inset-top)) calc(1rem + env(safe-area-inset-right)) 0.7rem calc(1rem + env(safe-area-inset-left)); gap: 0.85rem; background: var(--panel); backdrop-filter: none; }
   .nav-jump { display: none; }
   #nav {
     right: 0.7rem;
     left: 0.7rem;
-    top: calc(100% + 0.35rem);
+    top: auto;
+    position: fixed;
+    bottom: calc(4.5rem + env(safe-area-inset-bottom));
     min-width: 0;
     max-height: calc(100vh - 90px);
     overflow-y: auto;
   }
-  #content { padding: 1.1rem 1rem 2.4rem; }
+  #content { padding: 1.1rem 1rem calc(6.5rem + env(safe-area-inset-bottom)); min-width: 0; }
+  .topbar .nav-toggle { display: none; }
+  .mobile-nav { display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; padding: 0.35rem env(safe-area-inset-right) calc(0.35rem + env(safe-area-inset-bottom)) env(safe-area-inset-left); background: var(--panel); border-top: 1px solid var(--border); box-shadow: 0 -3px 12px rgba(0,0,0,0.06); }
+  .mobile-nav a, .mobile-nav button { display: grid; justify-items: center; align-content: center; gap: 0.1rem; height: 3.35rem; color: var(--muted); background: none; border: 0; text-decoration: none; font: inherit; border-radius: 6px; }
+  .mobile-nav a.active { color: var(--accent); background: var(--panel-alt); }
+  .mobile-nav span { font-size: 1.4rem; line-height: 1; }
+  .mobile-nav small { font-size: 0.7rem; }
+  .toast-stack { bottom: calc(5rem + env(safe-area-inset-bottom)); }
   .position-summary-grid { grid-template-columns: 1fr; }
   .dashboard-card { padding: 1.15rem; border-radius: 14px; }
   .dashboard-card .stat { min-height: 5rem; }
@@ -1086,7 +1120,7 @@ button.danger { background: var(--danger); color: #fff; }
   .ef-summary-side { gap: 1rem; }
   .data-table th, .data-table td { padding: 0.48rem 0.55rem; font-size: 0.82rem; }
   .data-table td input.cell, .data-table td select.cell { font-size: 0.82rem; }
-  .toast-stack { right: calc(0.6rem + env(safe-area-inset-right)); bottom: calc(0.6rem + env(safe-area-inset-bottom)); left: calc(0.6rem + env(safe-area-inset-left)); }
+  .toast-stack { right: calc(0.6rem + env(safe-area-inset-right)); bottom: calc(5rem + env(safe-area-inset-bottom)); left: calc(0.6rem + env(safe-area-inset-left)); }
   .toast { min-width: 0; max-width: none; }
 }
 
@@ -1201,6 +1235,8 @@ window.WR = window.WR || {};
     debts: createRepository('debts'),
     debtPayments: createRepository('debtPayments'),
     emergencyFundContributions: createRepository('emergencyFundContributions'),
+    savingsPots: createRepository('savingsPots'),
+    financialGoals: createRepository('financialGoals'),
     dayToDayAccounts: createRepository('dayToDayAccounts'),
     dayToDayTransactions: createRepository('dayToDayTransactions'),
     assets: createRepository('assets'),
@@ -2852,7 +2888,7 @@ WR.ui = WR.ui || {};
     const selectedYear = Number(month.slice(0, 4));
     const selectedMonthNumber = Number(month.slice(5, 7));
 
-    const [allBudgetLines, debts, assets, investments, exchangeRates, expenseCategories, netWorthHistory, profile, incomeSources, fixedExpenses, emergencyFundContributions, dayToDayAccounts, dayToDayTransactions] =
+    const [allBudgetLines, debts, assets, investments, exchangeRates, expenseCategories, netWorthHistory, profile, incomeSources, fixedExpenses, emergencyFundContributions, dayToDayAccounts, dayToDayTransactions, savingsPots, debtPayments] =
       await Promise.all([
         WR.repos.budgetLines.getAll(),
         WR.repos.debts.getAll(),
@@ -2867,6 +2903,8 @@ WR.ui = WR.ui || {};
         WR.repos.emergencyFundContributions.getAll(),
         WR.repos.dayToDayAccounts.getAll(),
         WR.repos.dayToDayTransactions.getAll(),
+        WR.repos.savingsPots.getAll(),
+        WR.repos.debtPayments.getAll(),
       ]);
 
     const monthBudgetLines = allBudgetLines.filter((line) => line.month === month);
@@ -2973,7 +3011,11 @@ WR.ui = WR.ui || {};
     }
 
     const annualMonths = Array.from({ length: 12 }, (_, index) => `${selectedYear}-${String(index + 1).padStart(2, '0')}`);
-    const recordedAnnualMonths = annualMonths.filter((monthId) => allBudgetLines.some((line) => line.month === monthId));
+    const recordedAnnualMonths = annualMonths.filter((monthId) => monthId <= currentMonthKey() && (
+      allBudgetLines.some((line) => line.month === monthId) ||
+      incomeSources.some((source) => Number(source.year || selectedYear) === selectedYear && isActiveForMonth(source, monthId)) ||
+      fixedExpenses.some((expense) => isActiveForMonth(expense, monthId))
+    ));
     const annualRows = recordedAnnualMonths.map((monthId) => {
       const monthLines = allBudgetLines.filter((line) => line.month === monthId && line.type !== 'income' && line.type !== 'fixed');
       const monthIncome = incomeSources
@@ -3014,6 +3056,14 @@ WR.ui = WR.ui || {};
       const amount = Number(item.amount) || 0;
       return sum + (item.returned && amount < 0 ? 0 : amount);
     }, 0);
+    const savingsBalance = allBudgetLines.filter((line) => line.type === 'savings')
+      .reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
+    const activePotBalance = savingsPots.filter((pot) => !pot.archived)
+      .reduce((sum, pot) => sum + (Number(pot.currentAmount) || 0), 0);
+    const assetAndInvestmentValue = netWorth.totalAssets;
+    annualSummary.totalSavedAndInvested = savingsBalance + activePotBalance + emergencyFundBalance + assetAndInvestmentValue;
+    annualSummary.totalDebtPaid = debtPayments.filter((payment) => String(payment.month).startsWith(String(selectedYear)))
+      .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
     const dayToDayAccount = getDayToDayOpeningAccount(dayToDayAccounts, selectedYear);
     const dayToDaySummary = calculateDayToDaySummary(dayToDayAccounts, dayToDayTransactions, month);
 
@@ -3042,6 +3092,8 @@ WR.ui = WR.ui || {};
       annualSummary,
       annualMonths: annualRows,
       emergencyFundBalance,
+      savingsBalance,
+      activePotBalance,
       emergencyFundContributions,
       incomeSources,
       fixedExpenses,
@@ -3215,29 +3267,22 @@ WR.ui = WR.ui || {};
     { hash: '#/income', label: 'Income' },
     { hash: '#/fixed-expenses', label: 'Fixed Expenses' },
     { hash: '#/savings', label: 'Savings' },
-    { hash: '#/emergency-fund', label: 'Emergency Fund' },
-    { hash: '#/day-to-day', label: 'Day-to-Day' },
-    { hash: '#/transactions', label: 'Variable Expenses' },
+    { hash: '#/transactions', label: 'Transactions' },
+    { hash: '#/variable-expenses', label: 'Variable Expenses' },
     { hash: '#/debts', label: 'Debts' },
-    { hash: '#/assets', label: 'Assets' },
-    { hash: '#/investments', label: 'Investments' },
-    { hash: '#/insights', label: 'Financial Insights' },
-    { hash: '#/forecast', label: 'Forecast' },
-    { hash: '#/reports', label: 'Reports' },
+    { hash: '#/wealth', label: 'Wealth' },
+    { hash: '#/goals', label: 'Goals' },
     { hash: '#/settings', label: 'Settings' },
   ];
 
-  const SECONDARY_NAV_ITEMS = [
-    { hash: '#/excel', label: 'Excel' },
-    { hash: '#/assistant', label: 'Wealth Assistant' },
-  ];
+  const SECONDARY_NAV_ITEMS = [];
 
   const NAV_ITEMS = PRIMARY_NAV_ITEMS.concat(SECONDARY_NAV_ITEMS);
 
   // A handful of the most-used destinations, always visible in the topbar on
   // wider screens. Everything else (including these, for keyboard/mobile
   // users) still lives in the grouped hamburger dropdown below.
-  const HORIZONTAL_NAV_HASHES = ['#/dashboard', '#/transactions', '#/debts', '#/reports', '#/settings'];
+  const HORIZONTAL_NAV_HASHES = ['#/dashboard', '#/transactions', '#/debts', '#/savings', '#/settings'];
   const HORIZONTAL_NAV_ITEMS = HORIZONTAL_NAV_HASHES.map((hash) => NAV_ITEMS.find((i) => i.hash === hash)).filter(Boolean);
 
   function renderNavAccount() {
@@ -3321,8 +3366,6 @@ WR.ui = WR.ui || {};
     const nav = `
       <div class="nav-section-title">Core</div>
       ${primaryNavLinks}
-      <div class="nav-divider"></div>
-      <div class="nav-section-title">More</div>
       ${secondaryNavLinks}
       <div class="nav-divider"></div>
       <div id="nav-install"></div>
@@ -3341,6 +3384,12 @@ WR.ui = WR.ui || {};
         </a>
         <nav class="nav-horizontal" aria-label="Primary">${horizontalNavLinks}</nav>
         <nav id="nav" aria-label="All sections">${nav}</nav>
+        <nav class="mobile-nav" aria-label="Mobile navigation">
+          <a href="#/dashboard" data-hash="#/dashboard" aria-label="Home" title="Home"><span aria-hidden="true">⌂</span><small>Home</small></a>
+          <a href="#/debts" data-hash="#/debts" aria-label="Debts" title="Debts"><span aria-hidden="true">▤</span><small>Debts</small></a>
+          <a href="#/savings" data-hash="#/savings" aria-label="Savings" title="Savings"><span aria-hidden="true">◉</span><small>Savings</small></a>
+          <button id="mobile-more-btn" type="button" aria-label="More navigation" aria-expanded="false" title="More navigation"><span aria-hidden="true">☰</span><small>More</small></button>
+        </nav>
         <div id="nav-account" class="nav-account"></div>
         <div class="nav-controls">
           <button id="nav-toggle-btn" class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation">
@@ -3359,6 +3408,10 @@ WR.ui = WR.ui || {};
       const topbar = document.querySelector('.topbar');
       const isOpen = topbar.classList.toggle('nav-open');
       document.getElementById('nav-toggle-btn').setAttribute('aria-expanded', String(isOpen));
+    });
+    document.getElementById('mobile-more-btn').addEventListener('click', () => {
+      const isOpen = document.querySelector('.topbar').classList.toggle('nav-open');
+      document.getElementById('mobile-more-btn').setAttribute('aria-expanded', String(isOpen));
     });
     const logoutBtn = document.getElementById('nav-logout-btn');
     if (logoutBtn) {
@@ -3379,13 +3432,15 @@ WR.ui = WR.ui || {};
   }
 
   function setActiveNav(hash) {
-    document.querySelectorAll('#nav a, .nav-horizontal a').forEach((a) => {
+    document.querySelectorAll('#nav a, .nav-horizontal a, .mobile-nav a').forEach((a) => {
       a.classList.toggle('active', a.getAttribute('data-hash') === hash);
     });
     const topbar = document.querySelector('.topbar');
     const toggle = document.getElementById('nav-toggle-btn');
     if (topbar) topbar.classList.remove('nav-open');
     if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    const mobileMore = document.getElementById('mobile-more-btn');
+    if (mobileMore) mobileMore.setAttribute('aria-expanded', 'false');
   }
 
   function priorityBadge(priority) {
@@ -3497,26 +3552,18 @@ WR.ui = WR.ui || {};
           </div>
 
           <div class="stat-grid">
-            <div class="stat"><span class="stat-label">Monthly Income</span><span class="stat-value">${currency} ${fmt(s.income)}</span></div>
-            <div class="stat"><span class="stat-label">Monthly Expenses</span><span class="stat-value">${currency} ${fmt(s.cashflow.totalExpenses)}</span></div>
-            <div class="stat"><span class="stat-label">Available Surplus</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span>${deltaBadge(s.surplusDelta, currency, fmt, 'vs last month')}</div>
-            <div class="stat"><span class="stat-label">Total Debt</span><span class="stat-value">${currency} ${fmt(s.totalDebt)}</span></div>
-            <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
+            <div class="stat"><span class="stat-label">Monthly Surplus</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
             <div class="stat"><span class="stat-label">Day-to-Day Balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
           </div>
         </div>
 
         <div class="dashboard-card annual-card">
           <h2>Annual Financial Summary (${s.selectedYear})</h2>
-          <p class="fine-print">Totals below are added up across every month of ${s.selectedYear} recorded so far \u2014 balances like Net Worth and Emergency Fund are shown above instead, since they're a snapshot, not a yearly total.</p>
+          <p class="fine-print">Income and debt payments are recorded for ${s.selectedYear}; saved and invested is your current balance.</p>
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
-            <div class="stat"><span class="stat-label">Total Expenses</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalExpenses)}</span></div>
-            <div class="stat"><span class="stat-label">Available Surplus</span><span class="stat-value ${s.annualSummary.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.annualSummary.availableSurplus)}</span></div>
-            <div class="stat"><span class="stat-label" title="Sum of all monthly savings contributions recorded this year — a cumulative flow total, not your current savings balance.">Total Saved (year to date)</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSaved)}</span></div>
-            <div class="stat"><span class="stat-label">Total Fixed Expenses</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalFixedExpenses)}</span></div>
-            <div class="stat"><span class="stat-label">Total Variable Expenses</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalVariableExpenses)}</span></div>
-            <div class="stat"><span class="stat-label">Minimum Debt Payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
+            <div class="stat"><span class="stat-label">Total Saved &amp; Invested</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSavedAndInvested)}</span></div>
+            <div class="stat"><span class="stat-label">Total Debt Payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
           </div>
         </div>
       </section>
@@ -3592,7 +3639,7 @@ WR.ui = WR.ui || {};
     });
 
     if (!setupComplete) {
-      document.getElementById('setup-go-transactions')?.addEventListener('click', () => { window.location.hash = '#/transactions'; });
+      document.getElementById('setup-go-transactions')?.addEventListener('click', () => { window.location.hash = '#/variable-expenses'; });
       document.getElementById('setup-go-debts')?.addEventListener('click', () => { window.location.hash = '#/debts'; });
       document.getElementById('setup-go-assets')?.addEventListener('click', () => { window.location.hash = '#/assets'; });
       document.getElementById('setup-go-settings')?.addEventListener('click', () => { window.location.hash = '#/settings'; });
@@ -3844,7 +3891,7 @@ WR.ui = WR.ui || {};
       </form>
     `;
 
-    document.getElementById('savings-month-picker').addEventListener('change', (event) => {
+    container.querySelector('#savings-month-picker').addEventListener('change', (event) => {
       WR.ui._savingsMonth = event.target.value;
       renderSavings(container);
     });
@@ -3860,6 +3907,7 @@ WR.ui = WR.ui || {};
           await WR.repos.budgetLines.update(line);
           WR.ui.flashSaved(input);
           row.querySelector('.diff-cell').textContent = WR.ui.fmt(line.actualAmount - line.budgetAmount);
+          if (container.id === 'general-savings') WR.ui.renderSavingsPage(container.closest('#content'));
         });
       });
     });
@@ -3871,12 +3919,15 @@ WR.ui = WR.ui || {};
           repo: WR.repos.budgetLines,
           id: button.dataset.id,
           entityLabel: 'Savings record',
-          afterChange: async () => { await renderSavings(container); },
+          afterChange: async () => {
+            if (container.id === 'general-savings') await WR.ui.renderSavingsPage(container.closest('#content'));
+            else await renderSavings(container);
+          },
         });
       });
     });
 
-    document.getElementById('add-saving-form').addEventListener('submit', async (event) => {
+    container.querySelector('#add-saving-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.target;
       await WR.repos.budgetLines.add(WR.models.createBudgetLine({
@@ -3888,6 +3939,7 @@ WR.ui = WR.ui || {};
         currency: profile.baseCurrency,
       }));
       renderSavings(container);
+      if (container.id === 'general-savings') WR.ui.renderSavingsPage(container.closest('#content'));
     });
   }
 
@@ -4170,6 +4222,10 @@ WR.ui = WR.ui || {};
     const monthContributions = sorted.filter((item) => String(item.date || '').slice(0, 7) === month);
     const monthNet = monthContributions.reduce((sum, item) => sum + countedAmount(item), 0);
     const shareOf = (accountTotal) => (total > 0 ? Math.max(0, Math.min(100, (accountTotal / total) * 100)) : 0);
+    const snapshot = await WR.ui.buildSnapshot();
+    const estimatedTarget = (snapshot.essentialVsDiscretionary.essential || snapshot.cashflow.fixedExpenses) * snapshot.emergencyFundTargetMonths;
+    const target = Number(profile.emergencyFundTargetAmount) > 0 ? Number(profile.emergencyFundTargetAmount) : estimatedTarget;
+    const targetProgress = target > 0 ? Math.min(100, Math.round(total / target * 100)) : 0;
 
     const rows = monthContributions.map((item) => {
       const isBorrowed = (Number(item.amount) || 0) < 0 && !item.transferId;
@@ -4199,6 +4255,13 @@ WR.ui = WR.ui || {};
           <div><span class="stat-label">Entries this month</span><span class="stat-value">${monthContributions.length}</span></div>
         </div>
       </div>
+
+      <div class="goal-card emergency-target"><h3>Emergency fund target</h3>
+        <strong>${targetProgress}% Complete</strong><div class="goal-meter" role="progressbar" aria-valuenow="${targetProgress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${targetProgress}%"></span></div>
+        <p>${target > 0 ? `${profile.baseCurrency} ${WR.ui.fmt(total)} of ${profile.baseCurrency} ${WR.ui.fmt(target)} · ${profile.baseCurrency} ${WR.ui.fmt(Math.max(0, target - total))} remaining` : 'Set a target amount to track your progress.'}</p>
+        <form id="emergency-target-form" class="inline-form"><label>Target amount (${profile.baseCurrency}):
+          <input name="target" type="number" min="0.01" step="0.01" value="${Number(profile.emergencyFundTargetAmount) || ''}" required></label>
+          <button type="submit">Save target</button></form></div>
 
       <div class="ef-account-grid">
         ${totalsByAccount.map((a) => `
@@ -4258,7 +4321,14 @@ WR.ui = WR.ui || {};
       </div>
     `;
 
-    document.getElementById('emergency-fund-month').addEventListener('change', (event) => {
+    container.querySelector('#emergency-target-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      profile.emergencyFundTargetAmount = Number(event.currentTarget.elements.target.value);
+      await WR.repos.userProfile.update(profile);
+      renderEmergencyFund(container);
+    });
+
+    container.querySelector('#emergency-fund-month').addEventListener('change', (event) => {
       WR.ui._emergencyFundMonth = event.target.value;
       renderEmergencyFund(container);
     });
@@ -4275,6 +4345,7 @@ WR.ui = WR.ui || {};
           await WR.repos.emergencyFundContributions.update(row);
           WR.ui.flashSaved(input);
           WR.ui.refreshIntegrityNotice();
+          if (field === 'amount') renderEmergencyFund(container);
         });
       });
     });
@@ -4305,7 +4376,7 @@ WR.ui = WR.ui || {};
       });
     });
 
-    document.getElementById('emergency-add-form').addEventListener('submit', async (event) => {
+    container.querySelector('#emergency-add-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.target;
       await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
@@ -4318,7 +4389,7 @@ WR.ui = WR.ui || {};
       renderEmergencyFund(container);
     });
 
-    document.getElementById('emergency-borrow-form').addEventListener('submit', async (event) => {
+    container.querySelector('#emergency-borrow-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.target;
       const amount = Math.max(0, parseFloat(form.amount.value) || 0);
@@ -4351,7 +4422,7 @@ WR.ui = WR.ui || {};
       renderEmergencyFund(container);
     });
 
-    document.getElementById('emergency-transfer-form').addEventListener('submit', async (event) => {
+    container.querySelector('#emergency-transfer-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.target;
       const fromAccount = form.fromAccount.value;
@@ -4474,7 +4545,7 @@ WR.ui = WR.ui || {};
       </tr>`).join('');
 
     container.innerHTML = `
-      <h1>Day-to-Day</h1>
+      <h1>Transactions</h1>
       <p class="fine-print">Track daily account money separately from budget categories. Spend entries deduct from the current day-to-day balance.</p>
       <div class="toolbar"><label>Month: <input id="day-month" type="month" value="${month}"></label></div>
 
@@ -5729,6 +5800,7 @@ WR.ui = WR.ui || {};
 
       <section>
         <h2>Profile</h2>
+        <p class="fine-print">Manage your account and sign-in details.</p>
         ${!WR.account.isConfigured() ? `
           <p class="fine-print">Not available in this build.</p>
         ` : accountUser ? `
@@ -5756,6 +5828,7 @@ WR.ui = WR.ui || {};
 
       <section>
         <h2>Profile & Assumptions</h2>
+        <p class="fine-print">Personalize your currency, targets and financial planning assumptions.</p>
         <form id="profile-form" class="stacked-form">
           <label>Display name (optional, shown in your Dashboard greeting only):
             <input name="displayName" value="${profile.displayName || ''}" placeholder="e.g. Kudzanai" maxlength="60">
@@ -5834,6 +5907,7 @@ WR.ui = WR.ui || {};
 
       <section>
         <h2>Methodology</h2>
+        <p class="fine-print">Understand how the figures and recommendations are calculated.</p>
         <p class="fine-print">WealthRoute is deterministic: formulas calculate outcomes and the assistant explains existing numbers only.</p>
         <ul>
           <li>Monthly surplus = income - fixed expenses - variable expenses - minimum debt payments.</li>
@@ -5851,6 +5925,7 @@ WR.ui = WR.ui || {};
 
       <section>
         <h2>Release Notes</h2>
+        <p class="fine-print">Changes included in this version of WealthRoute.</p>
         <p class="fine-print">Version ${APP_VERSION}</p>
         <ul>
           <li>Real accounts: email/password and Google sign-in, with a required unique username.</li>
@@ -6669,6 +6744,145 @@ WR.ui = WR.ui || {};
   WR.ui._snapshotForPrompt = snapshotForPrompt;
   WR.ui._formatAssistantAnswer = formatAssistantAnswer;
 })();
+// Goal tracking and composed financial pages.
+(function () {
+  const escape = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+  const amount = (value) => Math.max(0, Number(value) || 0);
+  const progress = (current, target) => target > 0 ? Math.min(100, Math.round(current / target * 100)) : 0;
+  const meter = (current, target) => `<div class="goal-meter" role="progressbar" aria-valuenow="${progress(current, target)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${progress(current, target)}%"></span></div>`;
+
+  async function renderGoals(container) {
+    const [goals, profile] = await Promise.all([WR.repos.financialGoals.getAll(), WR.ui.getOrCreateProfile()]);
+    const currency = profile.baseCurrency;
+    container.innerHTML = `<h1>Goals</h1><section class="feature-section"><h2>Personal financial goals</h2>
+      <div class="goal-grid">${goals.map((goal) => {
+        const current = amount(goal.currentAmount);
+        const target = amount(goal.targetAmount);
+        return `<article class="goal-card"><h3>${escape(goal.name)}</h3><strong>${progress(current, target)}% Complete</strong>
+          ${meter(current, target)}<dl><div><dt>Initial</dt><dd>${currency} ${WR.ui.fmt(amount(goal.initialAmount))}</dd></div>
+          <div><dt>Current</dt><dd>${currency} ${WR.ui.fmt(current)}</dd></div><div><dt>Target</dt><dd>${currency} ${WR.ui.fmt(target)}</dd></div>
+          <div><dt>Remaining</dt><dd>${currency} ${WR.ui.fmt(Math.max(0, target - current))}</dd></div></dl>
+          <form class="goal-edit stacked-form" data-id="${goal.id}"><label>Goal name<input name="name" value="${escape(goal.name)}" required></label>
+          <label>Current amount<input name="current" type="number" min="0" step="0.01" value="${current}" required></label>
+          <label>Target amount<input name="target" type="number" min="0.01" step="0.01" value="${target}" required></label><button>Update goal</button></form></article>`;
+      }).join('') || '<p class="empty">No goals yet.</p>'}</div>
+      <h3>Create a goal</h3><form id="create-goal" class="inline-form">
+        <input name="name" placeholder="Goal name" required><input name="initial" type="number" min="0" step="0.01" placeholder="Initial amount" required>
+        <input name="target" type="number" min="0.01" step="0.01" placeholder="Target amount" required><button>Add goal</button></form></section>`;
+    container.querySelector('#create-goal').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      await WR.repos.financialGoals.add({ id: WR.models.newId(), name: form.elements.name.value.trim(), initialAmount: amount(form.elements.initial.value), currentAmount: amount(form.elements.initial.value), targetAmount: amount(form.elements.target.value) });
+      renderGoals(container);
+    });
+    container.querySelectorAll('.goal-edit').forEach((form) => form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const goal = await WR.repos.financialGoals.getById(form.dataset.id);
+      if (!goal) return;
+      Object.assign(goal, { name: form.elements.name.value.trim(), currentAmount: amount(form.elements.current.value), targetAmount: amount(form.elements.target.value) });
+      await WR.repos.financialGoals.update(goal);
+      renderGoals(container);
+    }));
+  }
+
+  async function transferSavings(sourceId, destinationId, value) {
+    const api = WR.account.getFirestoreApi();
+    const db = WR.account.getDb();
+    const uid = WR.account.getCurrentUser().uid;
+    const sourceStore = sourceId.startsWith('general:') ? 'budgetLines' : 'savingsPots';
+    const sourceKey = sourceId.startsWith('general:') ? sourceId.slice(8) : sourceId;
+    const sourceRef = api.doc(db, 'users', uid, sourceStore, sourceKey);
+    const destinationRef = api.doc(db, 'users', uid, 'savingsPots', destinationId);
+    await api.runTransaction(db, async (transaction) => {
+      const sourceSnap = await transaction.get(sourceRef);
+      const destinationSnap = await transaction.get(destinationRef);
+      if (!sourceSnap.exists() || !destinationSnap.exists()) throw new Error('The source or destination no longer exists.');
+      const source = sourceSnap.data();
+      const destination = destinationSnap.data();
+      const field = sourceStore === 'budgetLines' ? 'actualAmount' : 'currentAmount';
+      if (sourceStore === 'budgetLines' && source.type !== 'savings') throw new Error('Only general savings can be transferred.');
+      if (source.archived || destination.archived) throw new Error('Archived pots cannot be used for transfers.');
+      if (amount(source[field]) < value) throw new Error('Insufficient funds in the selected source.');
+      transaction.update(sourceRef, { [field]: amount(source[field]) - value });
+      transaction.update(destinationRef, { currentAmount: amount(destination.currentAmount) + value });
+    });
+  }
+
+  async function renderSavingsPots(container) {
+    const [pots, lines, profile] = await Promise.all([WR.repos.savingsPots.getAll(), WR.repos.budgetLines.getAll(), WR.ui.getOrCreateProfile()]);
+    const general = lines.filter((line) => line.type === 'savings' && amount(line.actualAmount) > 0).sort((a, b) => String(b.month).localeCompare(String(a.month)));
+    const active = pots.filter((pot) => !pot.archived);
+    const mainBalance = lines.filter((line) => line.type === 'savings').reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
+    const activeBalance = active.reduce((sum, pot) => sum + amount(pot.currentAmount), 0);
+    const currency = profile.baseCurrency;
+    container.innerHTML = `<h2>Savings Pots</h2><p class="fine-print">General savings: ${currency} ${WR.ui.fmt(mainBalance)}. Active total including pots: ${currency} ${WR.ui.fmt(mainBalance + activeBalance)}.</p>
+      <div class="goal-grid">${active.map((pot) => `<article class="goal-card"><h3>${escape(pot.name)}</h3>
+        <strong>${progress(amount(pot.currentAmount), amount(pot.targetAmount))}% Complete</strong>${meter(amount(pot.currentAmount), amount(pot.targetAmount))}
+        <p>${currency} ${WR.ui.fmt(amount(pot.currentAmount))} saved of ${currency} ${WR.ui.fmt(amount(pot.targetAmount))} · ${currency} ${WR.ui.fmt(Math.max(0, amount(pot.targetAmount) - amount(pot.currentAmount)))} remaining</p>
+        <form class="pot-edit stacked-form" data-id="${pot.id}"><label>Name<input name="name" value="${escape(pot.name)}" required></label>
+        <label>Target<input name="target" type="number" min="0.01" step="0.01" value="${amount(pot.targetAmount)}" required></label>
+        <label>Saved<input name="current" type="number" min="0" step="0.01" value="${amount(pot.currentAmount)}" required></label>
+        <button>Save changes</button><button type="button" class="secondary archive-pot" data-id="${pot.id}">Archive goal</button></form></article>`).join('') || '<p class="empty">No active savings pots.</p>'}</div>
+      <h3>Create a pot</h3><form id="create-pot" class="inline-form"><input name="name" placeholder="Pot name" required>
+        <input name="target" type="number" min="0.01" step="0.01" placeholder="Target amount" required><button>Add pot</button></form>
+      <h3>Transfer savings</h3><form id="transfer-pot" class="inline-form"><select name="source" aria-label="Transfer from" required>
+        <option value="">From...</option>${general.map((line) => `<option value="general:${line.id}">General: ${escape(line.name)} (${escape(line.month)}) · ${currency} ${WR.ui.fmt(line.actualAmount)}</option>`).join('')}
+        ${active.filter((pot) => amount(pot.currentAmount) > 0).map((pot) => `<option value="${pot.id}">${escape(pot.name)} · ${currency} ${WR.ui.fmt(pot.currentAmount)}</option>`).join('')}</select>
+        <select name="destination" aria-label="Transfer to" required><option value="">To pot...</option>${active.map((pot) => `<option value="${pot.id}">${escape(pot.name)}</option>`).join('')}</select>
+        <input name="amount" type="number" min="0.01" step="0.01" placeholder="Amount" required><button>Transfer</button></form>
+      <details><summary>Archived goals (${pots.length - active.length})</summary><div class="goal-grid">${pots.filter((pot) => pot.archived).map((pot) => `<article class="goal-card"><h3>${escape(pot.name)}</h3>
+        ${meter(amount(pot.currentAmount), amount(pot.targetAmount))}<p>${currency} ${WR.ui.fmt(amount(pot.currentAmount))} saved · ${currency} ${WR.ui.fmt(Math.max(0, amount(pot.targetAmount) - amount(pot.currentAmount)))} remaining</p>
+        <button class="restore-pot secondary" data-id="${pot.id}">Restore goal</button></article>`).join('') || '<p class="empty">No archived goals.</p>'}</div></details>`;
+    container.querySelector('#create-pot').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      await WR.repos.savingsPots.add({ id: WR.models.newId(), name: form.elements.name.value.trim(), targetAmount: amount(form.elements.target.value), currentAmount: 0, archived: false });
+      renderSavingsPots(container);
+    });
+    container.querySelectorAll('.pot-edit').forEach((form) => form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const pot = await WR.repos.savingsPots.getById(form.dataset.id);
+      if (!pot) return;
+      Object.assign(pot, { name: form.elements.name.value.trim(), targetAmount: amount(form.elements.target.value), currentAmount: amount(form.elements.current.value) });
+      await WR.repos.savingsPots.update(pot);
+      renderSavingsPots(container);
+    }));
+    container.querySelectorAll('.archive-pot, .restore-pot').forEach((button) => button.addEventListener('click', async () => {
+      const pot = await WR.repos.savingsPots.getById(button.dataset.id);
+      if (!pot) return;
+      pot.archived = button.classList.contains('archive-pot');
+      await WR.repos.savingsPots.update(pot);
+      renderSavingsPots(container);
+    }));
+    container.querySelector('#transfer-pot').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      if (form.elements.source.value === form.elements.destination.value) return WR.ui.notify('Choose different pots.', 'error');
+      try {
+        await transferSavings(form.elements.source.value, form.elements.destination.value, amount(form.elements.amount.value));
+        WR.ui.notify('Savings transferred.', 'success');
+        await renderSavingsPage(container.closest('#content'));
+      } catch (error) { WR.ui.notify(error.message, 'error'); }
+    });
+  }
+
+  async function renderSavingsPage(container) {
+    container.innerHTML = '<h1>Savings</h1><section class="feature-section" id="general-savings"></section><section class="feature-section" id="savings-pots"></section><section class="feature-section" id="emergency-savings"></section>';
+    await WR.ui.renderSavings(container.querySelector('#general-savings'));
+    await renderSavingsPots(container.querySelector('#savings-pots'));
+    await WR.ui.renderEmergencyFund(container.querySelector('#emergency-savings'));
+  }
+
+  async function renderWealth(container) {
+    container.innerHTML = '<h1>Wealth</h1><section class="feature-section" id="wealth-investments"></section><section class="feature-section" id="wealth-assets"></section>';
+    await WR.ui.renderInvestments(container.querySelector('#wealth-investments'));
+    await WR.ui.renderAssets(container.querySelector('#wealth-assets'));
+  }
+
+  WR.ui.renderGoals = renderGoals;
+  WR.ui.renderSavingsPage = renderSavingsPage;
+  WR.ui.renderWealth = renderWealth;
+})();
 // Hash-based router. No history API complexity needed for a single-page
 // local app \u2014 #/dashboard, #/transactions, etc. map directly to render
 // functions.
@@ -6681,13 +6895,16 @@ WR.ui = WR.ui || {};
     '#/dashboard': 'renderDashboard',
     '#/income': 'renderIncome',
     '#/fixed-expenses': 'renderFixedExpenses',
-    '#/savings': 'renderSavings',
-    '#/emergency-fund': 'renderEmergencyFund',
+    '#/savings': 'renderSavingsPage',
+    '#/emergency-fund': 'renderSavingsPage',
     '#/day-to-day': 'renderDayToDay',
-    '#/transactions': 'renderTransactions',
+    '#/transactions': 'renderDayToDay',
+    '#/variable-expenses': 'renderTransactions',
     '#/debts': 'renderDebts',
-    '#/assets': 'renderAssets',
-    '#/investments': 'renderInvestments',
+    '#/assets': 'renderWealth',
+    '#/investments': 'renderWealth',
+    '#/wealth': 'renderWealth',
+    '#/goals': 'renderGoals',
     '#/insights': 'renderInsights',
     '#/forecast': 'renderForecast',
     '#/reports': 'renderReports',
@@ -6706,6 +6923,7 @@ WR.ui = WR.ui || {};
     WR.ui.setActiveNav(ROUTES[hash] ? hash : '#/dashboard');
 
     const content = document.getElementById('content');
+    content.classList.toggle('settings-page', hash === '#/settings');
     try {
       await WR.ui[renderFnName](content);
       if (WR.ui.enhanceResponsiveContent) WR.ui.enhanceResponsiveContent(content);

@@ -27,7 +27,7 @@ this means for offline use.
 - **Every page is gated behind sign-in.** Nothing renders \u2014 not even the
   shell \u2014 until Firebase resolves an authenticated user.
 - **Redesigned navigation**: a horizontal quick-access bar (Dashboard,
-  Variable Expenses, Debts, Reports, Settings) on wider screens, plus a
+  Transactions, Debts, Savings, Settings) on wider screens, plus a
   grouped dropdown for everything else, with no duplicate entries between
   the two. Mobile keeps the full list in the dropdown since it has no
   horizontal bar.
@@ -183,6 +183,14 @@ clearing that account's data before each test rather than deleting a local
 database.
 
 ## What's built
+
+The main navigation now opens Transactions for day-to-day activity and keeps
+monthly variable-expense budgeting in its own page. Savings combines general
+savings, editable pots (including transfers and archived goals), and the
+emergency fund with its own editable target. Wealth combines investment tracking and assets; Goals tracks
+independent personal targets. Reports, Forecast, Excel and Wealth Assistant
+remain available through their existing direct routes, but are not in the
+main navigation.
 
 **Dashboard** \u2014 net worth, income, expenses, surplus, debt, emergency fund
 months, financial health score with a transparent per-component breakdown,
