@@ -1067,6 +1067,12 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .rate-item .delete-rate { position: absolute; top: 0.8rem; right: 0.9rem; font-size: 0.78rem; min-height: 0; }
 .settings-empty { padding: 1rem; border: 1px dashed var(--border); border-radius: 10px; text-align: center; color: var(--muted); }
 .category-form { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.category-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.category-item { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); background: var(--panel-alt); }
+.category-item:last-child { border-bottom: 0; }
+.category-name { flex: 1 1 10rem; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.category-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.category-item .delete-category { min-height: 0; margin-left: auto; }
 .pill { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.76rem; font-weight: 600; background: var(--panel-alt); border: 1px solid var(--border); color: var(--muted); }
 .pill.pill-accent { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
 .settings-form-grid label.toggle-field { display: flex; align-items: center; gap: 0.55rem; min-height: 2.6rem; cursor: pointer; color: var(--text); font-size: 0.88rem; }
@@ -6625,12 +6631,12 @@ WR.ui = WR.ui || {};
     async function renderCategories() {
       const categories = await WR.repos.expenseCategories.getAll();
       document.getElementById('categories-list').innerHTML = categories.length
-        ? `<table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Essential</th><th></th></tr></thead><tbody>${categories
+        ? `<ul class="category-list">${categories
             .map(
               (c) =>
-                `<tr><td>${esc(c.name)}</td><td><span class="pill">${c.type === 'fixed' ? 'Fixed' : 'Variable'}</span></td><td><span class="pill ${c.essential ? 'pill-accent' : ''}">${c.essential ? 'Essential' : 'Discretionary'}</span></td><td><button class="link-btn delete-category" data-id="${c.id}">Delete</button></td></tr>`,
+                `<li class="category-item"><span class="category-name">${esc(c.name)}</span><span class="category-tags"><span class="pill">${c.type === 'fixed' ? 'Fixed' : 'Variable'}</span><span class="pill ${c.essential ? 'pill-accent' : ''}">${c.essential ? 'Essential' : 'Discretionary'}</span></span><button class="link-btn delete-category" data-id="${c.id}">Delete</button></li>`,
             )
-            .join('')}</tbody></table>`
+            .join('')}</ul>`
         : '<p class="empty settings-empty">No categories yet \u2014 add one below.</p>';
       document.querySelectorAll('.delete-category').forEach((btn) =>
         btn.addEventListener('click', async () => {
