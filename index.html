@@ -308,7 +308,7 @@ button, a, input, select, textarea {
   font-size: 1.25rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
   letter-spacing: 0.01em;
   color: var(--text);
   text-decoration: none;
@@ -316,6 +316,8 @@ button, a, input, select, textarea {
 .brand:hover { color: var(--accent); }
 .brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .brand-mark { flex-shrink: 0; }
+.brand { min-width: 0; }
+.brand-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brand-mark path { stroke: var(--accent); }
 .brand-mark circle { fill: var(--accent); }
 
@@ -962,20 +964,141 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .goal-card dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.55rem; margin: 0 0 1rem; }
 .goal-card dt { color: var(--muted); font-size: 0.72rem; }
 .goal-card dd { margin: 0.2rem 0 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; font-size: 0.86rem; }
-.goal-meter { height: 0.55rem; border-radius: 3px; background: var(--border); overflow: hidden; margin: 0 0 1rem; }
-.goal-meter span { display: block; height: 100%; background: var(--accent); }
-.goal-card .stacked-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; align-items: end; }
-.goal-card .stacked-form label { display: grid; gap: 0.25rem; }
-.goal-card .stacked-form label:first-child { grid-column: 1 / -1; }
-.goal-card .stacked-form button { width: 100%; }
-.goal-card .stacked-form button:first-of-type { grid-column: 1; }
-.goal-card .stacked-form button:last-of-type { grid-column: 2; }
-#content.settings-page { max-width: 1050px; }
-.settings-page > section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: clamp(1rem, 2.5vw, 1.5rem); margin: 0 0 1rem; min-width: 0; }
-.settings-page > section > h2 { margin: 0 0 0.25rem; }
-.settings-page > section > .fine-print { line-height: 1.5; margin: 0.35rem 0 1rem; }
-.settings-page > section .stacked-form { align-items: stretch; max-width: 34rem; }
-.settings-page > section .stacked-form label { display: grid; gap: 0.3rem; }
+.goal-meter { height: 0.55rem; border-radius: 999px; background: var(--border); overflow: hidden; margin: 0 0 0.6rem; }
+.goal-meter span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 75%, var(--panel)), var(--accent)); }
+
+/* ---------- Base fields (zero specificity, so component styles still win) ---------- */
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]), select, textarea) {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-alt);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea):focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+:where(select) {
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2393a19a' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+}
+.fine-print a, .settings-card a { color: var(--accent); }
+
+/* ---------- Savings pots & goals cards ---------- */
+.pot-card { display: flex; flex-direction: column; border-radius: 12px; padding: 1.2rem 1.25rem; transition: border-color 0.15s ease, transform 0.15s ease; }
+.pot-card:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.pot-card.is-archived { opacity: 0.75; }
+.pct-badge { flex: 0 0 auto; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); }
+.pot-amounts { display: flex; align-items: baseline; gap: 0.45rem; flex-wrap: wrap; margin: 0.1rem 0 0.7rem; }
+.pot-saved { font-family: var(--font-serif); font-size: 1.55rem; line-height: 1.1; }
+.pot-target { color: var(--muted); font-size: 0.85rem; }
+.pot-remaining, .pot-link-note { margin: 0 0 0.8rem; color: var(--muted); font-size: 0.82rem; }
+.pot-link-note { color: var(--accent); }
+.pot-card dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.card-edit { margin-top: auto; border-top: 1px solid var(--border); padding-top: 0.75rem; }
+.card-edit summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 0.4rem; color: var(--accent); font-size: 0.86rem; font-weight: 600; user-select: none; }
+.card-edit summary::-webkit-details-marker { display: none; }
+.card-edit summary::before { content: ''; width: 0.45rem; height: 0.45rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s ease; }
+.card-edit[open] summary::before { transform: rotate(45deg); }
+.card-edit-form, .form-panel-grid, .settings-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 0.9rem; margin-top: 0.85rem; }
+.card-edit-form label, .form-panel-grid label, .settings-form-grid label { display: grid; gap: 0.35rem; min-width: 0; color: var(--muted); font-size: 0.78rem; font-weight: 600; }
+.card-edit-form input, .card-edit-form select, .form-panel-grid input, .form-panel-grid select, .settings-form-grid input, .settings-form-grid select { width: 100%; min-height: 2.6rem; }
+.span-2 { grid-column: 1 / -1; }
+.card-edit-actions, .form-panel-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.card-edit-actions button, .form-panel-actions button { flex: 1 1 8rem; }
+.form-panel-actions { grid-column: 1 / -1; justify-content: flex-end; }
+.form-panel-actions button { flex: 0 1 12rem; }
+.form-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1rem; margin: 1.25rem 0; }
+.form-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1.15rem 1.25rem; box-shadow: var(--shadow); margin: 1rem 0; }
+.form-panels .form-panel { margin: 0; }
+.form-panel h3 { margin: 0; font-size: 1rem; }
+.archived-pots { margin-top: 1rem; }
+.archived-pots summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+
+/* Emergency fund forms: labelled-grid look without changing their markup */
+.ef-form-card .inline-form { display: grid; grid-template-columns: 1fr; gap: 0.6rem; }
+.ef-form-card .inline-form input, .ef-form-card .inline-form select { width: 100%; min-height: 2.6rem; background: var(--panel-alt); border-radius: 8px; }
+.ef-form-card .inline-form button { width: 100%; }
+.ef-form-card { border-radius: 12px; display: flex; flex-direction: column; }
+
+/* ---------- Settings ---------- */
+#content.settings-page { max-width: 920px; }
+.settings-header { margin-bottom: 1.25rem; }
+.settings-header h1 { margin-bottom: 0.2rem; }
+.settings-jump { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.9rem; }
+.settings-chip { min-height: 0; padding: 0.4rem 0.85rem; border-radius: 999px; background: var(--panel); color: var(--text); border: 1px solid var(--border); font-weight: 500; font-size: 0.84rem; }
+.settings-chip:hover { border-color: var(--accent); color: var(--accent); filter: none; }
+.settings-page > section.settings-card { background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); min-width: 0; border-radius: 14px; padding: clamp(1.1rem, 2.8vw, 1.6rem); margin: 0 0 1.1rem; scroll-margin-top: 5rem; }
+.settings-card-head { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 1.1rem; }
+.settings-card-title { flex: 1; min-width: 0; }
+.settings-card-title h2 { margin: 0; font-size: 1.12rem; }
+.settings-card-title p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.86rem; line-height: 1.45; }
+.settings-icon { flex: 0 0 auto; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 10px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.settings-icon svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.settings-head-action { min-height: 0; padding: 0.45rem 0.8rem; font-size: 0.82rem; }
+.account-summary { display: flex; align-items: center; gap: 0.9rem; padding: 0.9rem 1rem; border-radius: 12px; background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 10%, var(--panel)), var(--panel-alt)); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border)); }
+.account-avatar { flex: 0 0 auto; display: grid; place-items: center; width: 2.9rem; height: 2.9rem; border-radius: 50%; background: var(--accent); color: var(--accent-contrast); font-weight: 700; font-size: 1.15rem; }
+.account-identity { flex: 1; min-width: 0; display: grid; gap: 0.1rem; }
+.account-identity span { color: var(--muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-rows { margin: 0.6rem 0 0.4rem; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 0.9rem 0; border-bottom: 1px solid var(--border); }
+.settings-row-text { display: grid; gap: 0.15rem; min-width: 12rem; flex: 1; }
+.settings-row-text span { color: var(--muted); font-size: 0.84rem; }
+.settings-row-control { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.settings-row-control input { min-width: 12rem; flex: 1; }
+.settings-result:empty { display: none; }
+.settings-result { margin: 0.4rem 0 0; }
+.settings-form-grid label small { font-weight: 400; color: var(--muted); font-size: 0.74rem; }
+.settings-actions { display: flex; justify-content: flex-end; gap: 0.6rem; flex-wrap: wrap; padding-top: 0.25rem; }
+.rate-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rate-actions { grid-column: 1 / -1; }
+.rate-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 0.7rem; }
+.rate-item { position: relative; display: grid; gap: 0.2rem; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); }
+.rate-pair { color: var(--muted); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; }
+.rate-value { font-family: var(--font-serif); font-size: 1.45rem; }
+.rate-meta { color: var(--muted); font-size: 0.76rem; }
+.rate-item .delete-rate { position: absolute; top: 0.8rem; right: 0.9rem; font-size: 0.78rem; min-height: 0; }
+.settings-empty { padding: 1rem; border: 1px dashed var(--border); border-radius: 10px; text-align: center; color: var(--muted); }
+.category-form { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.pill { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.76rem; font-weight: 600; background: var(--panel-alt); border: 1px solid var(--border); color: var(--muted); }
+.pill.pill-accent { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
+.settings-form-grid label.toggle-field { display: flex; align-items: center; gap: 0.55rem; min-height: 2.6rem; cursor: pointer; color: var(--text); font-size: 0.88rem; }
+.toggle-field input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.toggle-track { position: relative; width: 2.4rem; height: 1.35rem; border-radius: 999px; background: var(--border); transition: background 0.15s ease; flex: 0 0 auto; }
+.toggle-track::after { content: ''; position: absolute; top: 0.18rem; left: 0.18rem; width: 1rem; height: 1rem; border-radius: 50%; background: #fff; transition: transform 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+.toggle-field input:checked + .toggle-track { background: var(--accent); }
+.toggle-field input:checked + .toggle-track::after { transform: translateX(1.05rem); }
+.toggle-field input:focus-visible + .toggle-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.settings-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 0.8rem; }
+.settings-tile { display: flex; flex-direction: column; gap: 0.3rem; padding: 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); }
+.settings-tile span { color: var(--muted); font-size: 0.84rem; flex: 1; margin-bottom: 0.5rem; }
+.file-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0.48rem 0.95rem; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+.file-btn:hover { border-color: var(--accent); }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.danger-zone { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; padding: 1rem; border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--danger) 6%, var(--panel)); }
+.danger-zone > div { display: grid; gap: 0.15rem; flex: 1; min-width: 14rem; }
+.danger-zone strong { color: var(--danger); }
+.danger-zone span { color: var(--muted); font-size: 0.84rem; }
+.settings-details { border-top: 1px solid var(--border); padding: 0.8rem 0; }
+.settings-details:last-child { padding-bottom: 0; }
+.settings-details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+.settings-details ul { margin: 0.6rem 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.86rem; line-height: 1.6; }
+.worker-form { margin-top: 0.6rem; }
+.copy-budget-card { padding: 0.85rem 1rem; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
+@media (max-width: 520px) {
+  .card-edit-form, .form-panel-grid, .settings-form-grid, .rate-form, .category-form, .ef-form-card .inline-form { grid-template-columns: 1fr; }
+  .form-panel-actions button, .settings-actions button { flex: 1 1 100%; }
+  .account-summary { flex-wrap: wrap; }
+  .account-summary .danger { width: 100%; }
+  .settings-row-control { width: 100%; }
+}
 .mobile-nav { display: none; }
 .data-table { width: 100%; min-width: max-content; border-collapse: collapse; background: var(--panel); border: none; border-radius: 0; overflow: visible; margin: 0; }
 .data-table th, .data-table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.88rem; white-space: nowrap; }
@@ -1229,9 +1352,9 @@ button.danger { background: var(--danger); color: #fff; }
   .assistant-history { position: static; }
   .summary-charts { grid-template-columns: 1fr; }
   .pie-layout { grid-template-columns: 1fr; }
-  .topbar { align-items: flex-start; }
+  .topbar { align-items: center; }
   .nav-controls { gap: 0.35rem; }
-  .brand { font-size: 1.1rem; }
+  .brand { font-size: 1.2rem; gap: 0.6rem; }
   .dashboard-card, .hero-headline, .health-score, .chart-block, .pie-card { padding: 0.95rem; }
   .ef-summary { flex-direction: column; align-items: stretch; padding: 1.1rem; }
   .ef-summary-side { gap: 1rem; }
@@ -1244,8 +1367,8 @@ button.danger { background: var(--danger); color: #fff; }
 @media (max-width: 420px) {
   #content { padding-left: 0.7rem; padding-right: 0.7rem; }
   .topbar { padding-left: calc(0.7rem + env(safe-area-inset-left)); padding-right: calc(0.7rem + env(safe-area-inset-right)); gap: 0.4rem; }
-  .brand-mark { width: 1.25rem; height: 1.25rem; }
-  .brand-text { display: none; }
+  .brand { font-size: clamp(1.02rem, 4.6vw, 1.2rem); }
+  .brand-mark { width: 1.4rem; height: 1.4rem; }
   .nav-account { gap: 0.35rem; }
   .nav-account-link { padding: 0.35rem 0.45rem; font-size: 0.78rem; }
   .nav-account-email { max-width: 90px; }
@@ -6306,162 +6429,198 @@ WR.ui = WR.ui || {};
     await WR.account.ensureInit();
     const accountUser = WR.account.isConfigured() ? WR.account.getCurrentUser() : null;
 
-    container.innerHTML = `
-      <h1>Settings</h1>
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    const icon = (path) => `<span class="settings-icon" aria-hidden="true"><svg viewBox="0 0 24 24">${path}</svg></span>`;
+    const cardHead = (iconPath, title, subtitle, actions) => `
+      <header class="settings-card-head">
+        ${icon(iconPath)}
+        <div class="settings-card-title"><h2>${title}</h2><p>${subtitle}</p></div>
+        ${actions || ''}
+      </header>`;
+    const ICONS = {
+      user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+      sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+      currency: '<path d="M7 7h11l-3-3M17 17H6l3 3"/>',
+      tag: '<path d="M3 12V4h8l10 10-8 8L3 12Z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
+      database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+      info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/>',
+      code: '<path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/>',
+    };
+    const username = WR.account.getUsername();
+    const displayIdentity = username || (accountUser && accountUser.email) || '';
 
-      <section>
-        <h2>Profile</h2>
-        <p class="fine-print">Manage your account and sign-in details.</p>
+    container.innerHTML = `
+      <div class="settings-header">
+        <h1>Settings</h1>
+        <p class="fine-print">Manage your account, preferences and data.</p>
+        <div class="settings-jump" role="navigation" aria-label="Settings sections">
+          ${[['settings-account', 'Account'], ['settings-preferences', 'Preferences'], ['settings-rates', 'Exchange rates'], ['settings-categories', 'Categories'], ['settings-data', 'Data'], ['settings-about', 'About']]
+            .map(([id, label]) => `<button type="button" class="settings-chip" data-target="${id}">${label}</button>`).join('')}
+        </div>
+      </div>
+
+      <section id="settings-account" class="settings-card">
+        ${cardHead(ICONS.user, 'Account', 'Your sign-in details.')}
         ${!WR.account.isConfigured() ? `
           <p class="fine-print">Not available in this build.</p>
         ` : accountUser ? `
-          <p class="fine-print">Signed in as <strong>${accountUser.email}</strong>${WR.account.getUsername() ? ` (@${WR.account.getUsername()})` : ''}.</p>
-          <form id="username-form" class="inline-form">
-            <input type="text" id="username-input" placeholder="Username" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" value="${WR.account.getUsername() || ''}" required>
-            <button type="submit">${WR.account.getUsername() ? 'Update username' : 'Choose username'}</button>
-          </form>
-          <p id="username-result" class="fine-print"></p>
-          ${WR.account.usesPasswordProvider() ? `
-            <button type="button" id="reset-password-btn" class="secondary">Send password reset email</button>
-            <p id="reset-password-result" class="fine-print"></p>
-          ` : `
-            <p class="fine-print">Signed in with Google \u2014 manage your password through your Google account.</p>
-          `}
-          <p class="fine-print">Your data syncs automatically every few minutes while you're signed in, and right before you log out.</p>
-          <button id="account-sync-now-btn" class="secondary">Sync now</button>
-          <button id="account-load-cloud-btn" class="secondary">Load cloud data</button>
-          <button id="account-logout-btn" class="danger">Log out</button>
-          <p id="account-result" class="fine-print"></p>
+          <div class="account-summary">
+            <div class="account-avatar">${esc(displayIdentity.charAt(0).toUpperCase() || '?')}</div>
+            <div class="account-identity">
+              <strong>${username ? `@${esc(username)}` : 'No username yet'}</strong>
+              <span>${esc(accountUser.email)}</span>
+            </div>
+            <button id="account-logout-btn" class="danger">Log out</button>
+          </div>
+          <div class="settings-rows">
+            <div class="settings-row">
+              <div class="settings-row-text"><strong>Username</strong><span>3\u201320 characters: letters, numbers or underscores.</span></div>
+              <form id="username-form" class="settings-row-control">
+                <input type="text" id="username-input" placeholder="Username" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" value="${esc(username || '')}" required aria-label="Username">
+                <button type="submit">${username ? 'Update' : 'Choose'}</button>
+              </form>
+            </div>
+            <p id="username-result" class="fine-print settings-result"></p>
+            <div class="settings-row">
+              <div class="settings-row-text"><strong>Password</strong><span>${WR.account.usesPasswordProvider() ? 'We\u2019ll email you a secure link to set a new password.' : 'Signed in with Google \u2014 manage your password in your Google account.'}</span></div>
+              ${WR.account.usesPasswordProvider() ? '<div class="settings-row-control"><button type="button" id="reset-password-btn" class="secondary">Send reset email</button></div>' : ''}
+            </div>
+            <p id="reset-password-result" class="fine-print settings-result"></p>
+          </div>
+          <p class="fine-print">Your data is saved to your account automatically as you work \u2014 there\u2019s nothing to sync manually.</p>
         ` : `
           <p class="fine-print">You're not signed in.</p>
         `}
       </section>
 
-      <section>
-        <h2>Profile & Assumptions</h2>
-        <p class="fine-print">Personalize your currency, targets and financial planning assumptions.</p>
-        <form id="profile-form" class="stacked-form">
-          <label>Display name (optional, shown in your Dashboard greeting only):
-            <input name="displayName" value="${profile.displayName || ''}" placeholder="e.g. Kudzanai" maxlength="60">
+      <section id="settings-preferences" class="settings-card">
+        ${cardHead(ICONS.sliders, 'Preferences & assumptions', 'Currency, targets and the assumptions behind your projections.')}
+        <form id="profile-form" class="settings-form-grid">
+          <label class="span-2">Display name <small>Optional \u2014 shown in your dashboard greeting</small>
+            <input name="displayName" value="${esc(profile.displayName || '')}" placeholder="e.g. Kudzanai" maxlength="60">
           </label>
-          <label>Base currency:
+          <label>Base currency
             <select name="baseCurrency">
               ${['ZAR', 'USD', 'EUR', 'GBP'].map((c) => `<option value="${c}" ${c === profile.baseCurrency ? 'selected' : ''}>${c}</option>`).join('')}
             </select>
           </label>
-          <label>Country: <input name="country" value="${profile.country}"></label>
-          <label>Emergency fund target (months): <input name="emergencyFundTargetMonths" type="number" step="0.5" value="${profile.emergencyFundTargetMonths}"></label>
-          <label>Assumed investment return (%/year): <input name="assumedInvestmentReturn" type="number" step="0.1" value="${((profile.assumedInvestmentReturn || 0.08) * 100).toFixed(1)}"></label>
-          <label>Risk profile:
+          <label>Country <input name="country" value="${esc(profile.country)}"></label>
+          <label>Emergency fund target <small>Months of essential expenses</small><input name="emergencyFundTargetMonths" type="number" step="0.5" value="${profile.emergencyFundTargetMonths}"></label>
+          <label>Investment return <small>Assumed % per year</small><input name="assumedInvestmentReturn" type="number" step="0.1" value="${((profile.assumedInvestmentReturn || 0.08) * 100).toFixed(1)}"></label>
+          <label class="span-2">Risk profile
             <select name="riskProfile">
-              ${['conservative', 'moderate', 'aggressive'].map((r) => `<option value="${r}" ${r === profile.riskProfile ? 'selected' : ''}>${r}</option>`).join('')}
+              ${['conservative', 'moderate', 'aggressive'].map((r) => `<option value="${r}" ${r === profile.riskProfile ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`).join('')}
             </select>
           </label>
-          <button type="submit">Save</button>
+          <div class="settings-actions span-2"><button type="submit">Save preferences</button></div>
         </form>
       </section>
 
-      <section>
-        <h2>Exchange Rates</h2>
-        <p class="fine-print">
-          Enter rates manually, or fetch today's rate from a live source. When configured below, the request goes through your Cloudflare Worker;
-          otherwise it uses <a href="https://www.frankfurter.app/" target="_blank" rel="noopener">Frankfurter.app</a>'s free public endpoint.
-          Requires an internet connection; if the request fails, type the rate in yourself.
-        </p>
+      <section id="settings-rates" class="settings-card">
+        ${cardHead(ICONS.currency, 'Exchange rates', 'Used to convert foreign-currency debts, assets and investments.', '<button type="button" id="refresh-rates-btn" class="secondary settings-head-action">Refresh saved rates</button>')}
         <div id="rates-list"></div>
-        <form id="rate-form" class="inline-form">
-          <input name="fromCurrency" placeholder="From (e.g. USD)" maxlength="3" required>
-          <input name="toCurrency" placeholder="To (e.g. ZAR)" maxlength="3" required>
-          <input name="rate" type="number" step="0.0001" placeholder="Rate" required>
-          <button type="button" id="fetch-rate-btn" class="secondary">Fetch live rate</button>
-          <button type="submit">Add rate</button>
+        <form id="rate-form" class="settings-form-grid rate-form">
+          <label>From <input name="fromCurrency" placeholder="USD" maxlength="3" required></label>
+          <label>To <input name="toCurrency" placeholder="ZAR" maxlength="3" required></label>
+          <label>Rate <input name="rate" type="number" step="0.0001" placeholder="0.0000" required></label>
+          <div class="settings-actions rate-actions">
+            <button type="button" id="fetch-rate-btn" class="secondary">Fetch live rate</button>
+            <button type="submit">Add rate</button>
+          </div>
         </form>
-        <button type="button" id="refresh-rates-btn" class="secondary">Refresh saved rates</button>
+        <p class="fine-print">Live rates come from <a href="https://www.frankfurter.app/" target="_blank" rel="noopener">Frankfurter</a> (European Central Bank data). If you're offline, type the rate in yourself.</p>
       </section>
 
-      <section>
-        <h2>Expense Categories</h2>
-        <p class="fine-print">
-          Tag your fixed and variable expenses as essential or discretionary here, then assign them to
-          transactions on the Transactions tab. This drives the emergency fund calculation
-          (essential expenses only) and the "discretionary spending increased" recommendation \u2014 without any
-          categories tagged, those fall back to rough approximations.
-        </p>
+      <section id="settings-categories" class="settings-card">
+        ${cardHead(ICONS.tag, 'Expense categories', 'Mark which spending is essential \u2014 this drives your emergency fund target and spending insights.')}
         <div id="categories-list"></div>
-        <form id="category-form" class="inline-form">
-          <input name="name" placeholder="Category name (e.g. Groceries, Rent)" required>
-          <select name="type">
-            <option value="fixed">Fixed</option>
-            <option value="variable">Variable</option>
-          </select>
-          <label><input type="checkbox" name="essential" checked> Essential</label>
-          <button type="submit">Add category</button>
+        <form id="category-form" class="settings-form-grid category-form">
+          <label class="span-2">Category name <input name="name" placeholder="e.g. Groceries, Rent" required></label>
+          <label>Type
+            <select name="type">
+              <option value="fixed">Fixed</option>
+              <option value="variable">Variable</option>
+            </select>
+          </label>
+          <label class="toggle-field"><input type="checkbox" name="essential" checked><span class="toggle-track" aria-hidden="true"></span> Essential</label>
+          <div class="settings-actions span-2"><button type="submit">Add category</button></div>
         </form>
       </section>
 
-      <section>
-        <h2>Data Management</h2>
-        <p class="fine-print">Download every record in your account as a JSON file, or restore from one \u2014 useful for moving between accounts or keeping an offline copy. Your data already lives in your account and is available on any device you log into; this isn't required for that.</p>
-        <button id="export-backup-btn">Export backup (JSON)</button>
-        <label class="file-label">Import backup (JSON):
-          <input type="file" id="restore-input" accept=".json">
-        </label>
-        <button id="reset-btn" class="danger">Delete all data</button>
+      <section id="settings-data" class="settings-card">
+        ${cardHead(ICONS.database, 'Your data', 'Your data already lives in your account. Use these for personal copies or moving accounts.')}
+        <div class="settings-tiles">
+          <div class="settings-tile">
+            <strong>Export backup</strong>
+            <span>Download every record as a JSON file.</span>
+            <button id="export-backup-btn" class="secondary">Download JSON</button>
+          </div>
+          <div class="settings-tile">
+            <strong>Import backup</strong>
+            <span>Replace your data with a JSON backup.</span>
+            <label class="file-btn">Choose file<input type="file" id="restore-input" accept=".json"></label>
+          </div>
+          <div class="settings-tile">
+            <strong>Data check</strong>
+            <span>Look for invalid months, amounts or balances.</span>
+            <button id="run-integrity-btn" class="secondary">Run check</button>
+            <p id="integrity-result" class="fine-print settings-result"></p>
+          </div>
+        </div>
+        <div class="danger-zone">
+          <div><strong>Delete all data</strong><span>Permanently removes every record in your account. This can't be undone.</span></div>
+          <button id="reset-btn" class="danger">Delete all data</button>
+        </div>
       </section>
 
-      <section>
-        <h2>Integrity Check</h2>
-        <p class="fine-print">Runs lightweight local checks for invalid month formats, negative budget amounts, and invalid debt balances.</p>
-        <button id="run-integrity-btn" class="secondary">Run data check now</button>
-        <p id="integrity-result" class="fine-print"></p>
-      </section>
-
-      <section>
-        <h2>Methodology</h2>
-        <p class="fine-print">Understand how the figures and recommendations are calculated.</p>
-        <p class="fine-print">WealthRoute is deterministic: formulas calculate outcomes and the assistant explains existing numbers only.</p>
-        <ul>
-          <li>Monthly surplus = income - fixed expenses - variable expenses - minimum debt payments.</li>
-          <li>Emergency cover = liquid emergency-ready funds divided by essential monthly expenses.</li>
-          <li>Financial health score blends cash flow, emergency cover, debt burden, savings rate, and net-worth trend.</li>
-          <li>Forecasts are scenarios, not guarantees.</li>
-        </ul>
-      </section>
-
-      <section>
-        <h2>Privacy & Ownership</h2>
-        <p class="fine-print">Your financial records are stored in your account (Firestore), scoped to you alone \u2014 nobody else who signs into this app can see them, on this device or any other.</p>
-        <p class="fine-print">You own your data. Use Export above any time for a personal copy.</p>
-      </section>
-
-      <section>
-        <h2>Release Notes</h2>
-        <p class="fine-print">Changes included in this version of WealthRoute.</p>
-        <p class="fine-print">Version ${APP_VERSION}</p>
-        <ul>
-          <li>Real accounts: email/password and Google sign-in, with a required unique username.</li>
-          <li>Data now lives in your account (Firestore), not this browser — log in from any device to see the same data, fully isolated per account.</li>
-          <li>Every page is gated behind sign-in; nothing renders until you're authenticated.</li>
-          <li>Retired local-only backup mechanisms (folder auto-backup, passphrase cloud backup) now that your account is the durable store; manual JSON export/import kept for portability.</li>
-          <li>Redesigned navigation: a horizontal quick-access bar on desktop plus a grouped dropdown for everything else, with no duplicate entries.</li>
-          <li>Installable as a proper PWA on Android/iOS (real app icons, manifest fixed).</li>
-        </ul>
-      </section>
-
-      <section>
-        <h2>Live Updates & Wealth Assistant (optional)</h2>
-        <p class="fine-print">
-          Add your deployed Cloudflare Worker URL (for example, https://wealthroute-api.your-subdomain.workers.dev). The browser sends no API key:
-          the Worker holds your Gemini key as a Cloudflare secret and handles assistant questions and optional live-rate requests. Gemini has a
-          free developer tier; responses are general educational information, not personalised financial advice.
-        </p>
-        <form id="worker-url-form" class="inline-form">
-          <input type="url" id="worker-url-input" placeholder="https://your-worker.workers.dev" value="${workerUrl}">
-          <button type="submit">Save endpoint</button>
-          <button type="button" id="clear-worker-url-btn" class="secondary">Clear endpoint</button>
-        </form>
+      <section id="settings-about" class="settings-card">
+        ${cardHead(ICONS.info, 'About WealthRoute', `Version ${APP_VERSION}`)}
+        <details class="settings-details">
+          <summary>How the numbers are calculated</summary>
+          <p class="fine-print">WealthRoute is deterministic: formulas calculate outcomes and the assistant explains existing numbers only.</p>
+          <ul>
+            <li>Monthly surplus = income - fixed expenses - variable expenses - minimum debt payments.</li>
+            <li>Emergency cover = liquid emergency-ready funds divided by essential monthly expenses.</li>
+            <li>Financial health score blends cash flow, emergency cover, debt burden, savings rate, and net-worth trend.</li>
+            <li>Forecasts are scenarios, not guarantees.</li>
+          </ul>
+        </details>
+        <details class="settings-details">
+          <summary>Privacy & ownership</summary>
+          <p class="fine-print">Your financial records are stored in your account (Firestore), scoped to you alone \u2014 nobody else who signs into this app can see them, on this device or any other.</p>
+          <p class="fine-print">You own your data. Use Export any time for a personal copy.</p>
+        </details>
+        <details class="settings-details">
+          <summary>Release notes</summary>
+          <ul>
+            <li>Real accounts: email/password and Google sign-in, with a required unique username.</li>
+            <li>Data now lives in your account (Firestore), not this browser — log in from any device to see the same data, fully isolated per account.</li>
+            <li>Every page is gated behind sign-in; nothing renders until you're authenticated.</li>
+            <li>Retired local-only backup mechanisms (folder auto-backup, passphrase cloud backup) now that your account is the durable store; manual JSON export/import kept for portability.</li>
+            <li>Redesigned navigation: a horizontal quick-access bar on desktop plus a grouped dropdown for everything else, with no duplicate entries.</li>
+            <li>Installable as a proper PWA on Android/iOS (real app icons, manifest fixed).</li>
+          </ul>
+        </details>
+        <details class="settings-details">
+          <summary>Advanced: Wealth Assistant endpoint</summary>
+          <p class="fine-print">
+            Optional. Add a deployed Cloudflare Worker URL to enable the assistant and route live-rate requests through it. The browser sends no API key \u2014
+            the Worker holds the Gemini key as a Cloudflare secret. Responses are general educational information, not personalised financial advice.
+          </p>
+          <form id="worker-url-form" class="settings-row-control worker-form">
+            <input type="url" id="worker-url-input" placeholder="https://your-worker.workers.dev" value="${esc(workerUrl)}" aria-label="Worker URL">
+            <button type="submit">Save</button>
+            <button type="button" id="clear-worker-url-btn" class="secondary">Clear</button>
+          </form>
+        </details>
       </section>
     `;
+
+    container.querySelectorAll('.settings-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        document.getElementById(chip.dataset.target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
 
     async function renderCategories() {
       const categories = await WR.repos.expenseCategories.getAll();
@@ -6469,10 +6628,10 @@ WR.ui = WR.ui || {};
         ? `<table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Essential</th><th></th></tr></thead><tbody>${categories
             .map(
               (c) =>
-                `<tr><td>${c.name}</td><td>${c.type}</td><td>${c.essential ? 'Yes' : 'No'}</td><td><button class="link-btn delete-category" data-id="${c.id}">Delete</button></td></tr>`,
+                `<tr><td>${esc(c.name)}</td><td><span class="pill">${c.type === 'fixed' ? 'Fixed' : 'Variable'}</span></td><td><span class="pill ${c.essential ? 'pill-accent' : ''}">${c.essential ? 'Essential' : 'Discretionary'}</span></td><td><button class="link-btn delete-category" data-id="${c.id}">Delete</button></td></tr>`,
             )
             .join('')}</tbody></table>`
-        : '<p class="empty">No categories yet \u2014 add one below.</p>';
+        : '<p class="empty settings-empty">No categories yet \u2014 add one below.</p>';
       document.querySelectorAll('.delete-category').forEach((btn) =>
         btn.addEventListener('click', async () => {
           if (!confirm('Delete this category? Transactions already tagged with it keep their tag, but it will no longer appear in the picker.')) return;
@@ -6504,8 +6663,13 @@ WR.ui = WR.ui || {};
     async function renderRates() {
       const rates = await WR.repos.exchangeRates.getAll();
       document.getElementById('rates-list').innerHTML = rates.length
-        ? `<ul>${rates.map((r) => `<li>1 ${r.fromCurrency} = ${r.rate} ${r.toCurrency}${r.source ? ` <span class="fine-print">(${r.source}, ${r.date})</span>` : ''} <button class="link-btn delete-rate" data-id="${r.id}">Delete</button></li>`).join('')}</ul>`
-        : '<p class="empty">No exchange rates yet.</p>';
+        ? `<ul class="rate-list">${rates.map((r) => `<li class="rate-item">
+            <div class="rate-pair">${esc(r.fromCurrency)} <span aria-hidden="true">\u2192</span> ${esc(r.toCurrency)}</div>
+            <div class="rate-value">${esc(r.rate)}</div>
+            <div class="rate-meta">${esc(r.source || 'Manual')}${r.date ? ` \u00b7 ${esc(r.date)}` : ''}</div>
+            <button class="link-btn delete-rate" data-id="${r.id}">Delete</button>
+          </li>`).join('')}</ul>`
+        : '<p class="empty settings-empty">No exchange rates yet.</p>';
       document.querySelectorAll('.delete-rate').forEach((btn) =>
         btn.addEventListener('click', async () => {
           if (!confirm('Delete this exchange rate?')) return;
@@ -6628,7 +6792,6 @@ WR.ui = WR.ui || {};
     });
 
     if (WR.account.isConfigured()) {
-      const accountResult = document.getElementById('account-result');
       const usernameForm = document.getElementById('username-form');
       if (usernameForm) {
         usernameForm.addEventListener('submit', async (e) => {
@@ -6661,37 +6824,6 @@ WR.ui = WR.ui || {};
             resultEl.textContent = `Couldn't send reset email: ${err.message}`;
           } finally {
             resetPasswordBtn.disabled = false;
-          }
-        });
-      }
-      const syncNowBtn = document.getElementById('account-sync-now-btn');
-      if (syncNowBtn) {
-        syncNowBtn.addEventListener('click', async () => {
-          try {
-            await WR.account.pushBackup();
-            accountResult.textContent = 'Synced to your account.';
-            WR.ui.notify('Synced.', 'success');
-          } catch (err) {
-            accountResult.textContent = `Sync failed: ${err.message}`;
-          }
-        });
-      }
-      const loadCloudBtn = document.getElementById('account-load-cloud-btn');
-      if (loadCloudBtn) {
-        loadCloudBtn.addEventListener('click', async () => {
-          if (!(await hardConfirm('replace your current data with the copy in your account'))) {
-            WR.ui.notify('Canceled.', 'error');
-            return;
-          }
-          try {
-            const loaded = await WR.account.pullBackup();
-            accountResult.textContent = loaded ? 'Loaded your synced data.' : 'Nothing synced to your account yet.';
-            if (loaded) {
-              WR.ui.refreshIntegrityNotice();
-              renderSettings(container);
-            }
-          } catch (err) {
-            accountResult.textContent = `Load failed: ${err.message}`;
           }
         });
       }
@@ -7339,19 +7471,23 @@ WR.ui = WR.ui || {};
         const pot = linkedPot(goal);
         const current = pot ? amount(pot.currentAmount) : amount(goal.currentAmount);
         const target = amount(goal.targetAmount);
-        return `<article class="goal-card"><h3>${escape(goal.name)}</h3><strong>${progress(current, target)}% Complete</strong>
-          ${meter(current, target)}${pot ? `<p class="fine-print">Tracks the "${escape(pot.name)}" savings pot automatically.</p>` : ''}<dl><div><dt>Initial</dt><dd>${currency} ${WR.ui.fmt(amount(goal.initialAmount))}</dd></div>
-          <div><dt>Current</dt><dd>${currency} ${WR.ui.fmt(current)}</dd></div><div><dt>Target</dt><dd>${currency} ${WR.ui.fmt(target)}</dd></div>
+        return `<article class="goal-card pot-card"><div class="goal-card-header"><h3>${escape(goal.name)}</h3><span class="pct-badge">${progress(current, target)}%</span></div>
+          <div class="pot-amounts"><span class="pot-saved">${currency} ${WR.ui.fmt(current)}</span><span class="pot-target">of ${currency} ${WR.ui.fmt(target)}</span></div>
+          ${meter(current, target)}${pot ? `<p class="pot-link-note">Linked to "${escape(pot.name)}" savings pot</p>` : ''}<dl><div><dt>Initial</dt><dd>${currency} ${WR.ui.fmt(amount(goal.initialAmount))}</dd></div>
           <div><dt>Remaining</dt><dd>${currency} ${WR.ui.fmt(Math.max(0, target - current))}</dd></div></dl>
-          <form class="goal-edit stacked-form" data-id="${goal.id}"><label>Goal name<input name="name" value="${escape(goal.name)}" required></label>
-          <label>Linked savings pot<select name="potId">${potOptions(goal.potId)}</select></label>
+          <details class="card-edit"><summary>Edit goal</summary>
+          <form class="goal-edit card-edit-form" data-id="${goal.id}"><label class="span-2">Goal name<input name="name" value="${escape(goal.name)}" required></label>
+          <label class="span-2">Linked savings pot<select name="potId">${potOptions(goal.potId)}</select></label>
           <label>Current amount<input name="current" type="number" min="0" step="0.01" value="${current}" ${pot ? 'disabled' : 'required'}></label>
-          <label>Target amount<input name="target" type="number" min="0.01" step="0.01" value="${target}" required></label><button>Update goal</button></form></article>`;
+          <label>Target amount<input name="target" type="number" min="0.01" step="0.01" value="${target}" required></label>
+          <div class="card-edit-actions span-2"><button>Save changes</button></div></form></details></article>`;
       }).join('') || '<p class="empty">No goals yet.</p>'}</div>
-      <h3>Create a goal</h3><form id="create-goal" class="inline-form">
-        <input name="name" placeholder="Goal name" required><select name="potId" aria-label="Linked savings pot">${potOptions('')}</select>
-        <input name="current" type="number" min="0" step="0.01" placeholder="Current amount" value="${savingsTotal}" required>
-        <input name="target" type="number" min="0.01" step="0.01" placeholder="Target amount" required><button>Add goal</button></form></section>`;
+      <div class="form-panel"><h3>Create a goal</h3><form id="create-goal" class="form-panel-grid">
+        <label>Goal name<input name="name" placeholder="e.g. New car deposit" required></label>
+        <label>Linked savings pot<select name="potId">${potOptions('')}</select></label>
+        <label>Current amount<input name="current" type="number" min="0" step="0.01" placeholder="0.00" value="${savingsTotal}" required></label>
+        <label>Target amount<input name="target" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
+        <div class="form-panel-actions"><button>Add goal</button></div></form></div></section>`;
     const syncCurrentInput = (form) => {
       const pot = potsById[form.elements.potId.value];
       form.elements.current.disabled = Boolean(pot);
@@ -7412,25 +7548,38 @@ WR.ui = WR.ui || {};
     const active = pots.filter((pot) => !pot.archived);
     const activeBalance = active.reduce((sum, pot) => sum + amount(pot.currentAmount), 0);
     const currency = profile.baseCurrency;
+    const potCard = (pot, archived) => {
+      const saved = amount(pot.currentAmount);
+      const target = amount(pot.targetAmount);
+      return `<article class="goal-card pot-card${archived ? ' is-archived' : ''}"><div class="goal-card-header"><h3>${escape(pot.name)}</h3><span class="pct-badge">${progress(saved, target)}%</span></div>
+        <div class="pot-amounts"><span class="pot-saved">${currency} ${WR.ui.fmt(saved)}</span><span class="pot-target">of ${currency} ${WR.ui.fmt(target)}</span></div>
+        ${meter(saved, target)}
+        <p class="pot-remaining">${target - saved > 0 ? `${currency} ${WR.ui.fmt(target - saved)} to go` : 'Target reached'}</p>
+        ${archived ? `<div class="card-edit-actions"><button class="restore-pot secondary" data-id="${pot.id}">Restore pot</button></div>` : `
+        <details class="card-edit"><summary>Edit pot</summary>
+          <form class="pot-edit card-edit-form" data-id="${pot.id}"><label class="span-2">Name<input name="name" value="${escape(pot.name)}" required></label>
+          <label>Target<input name="target" type="number" min="0.01" step="0.01" value="${target}" required></label>
+          <label>Saved in this pot<input name="current" type="number" min="0" step="0.01" value="${saved}" required></label>
+          <div class="card-edit-actions span-2"><button>Save changes</button><button type="button" class="secondary archive-pot" data-id="${pot.id}">Archive pot</button></div></form>
+        </details>`}</article>`;
+    };
     container.innerHTML = `<h2>Savings Pots</h2><div class="savings-overview">
       <div><span>Active savings pots</span><strong>${currency} ${WR.ui.fmt(activeBalance)}</strong></div></div>
-      <div class="goal-grid">${active.map((pot) => `<article class="goal-card"><div class="goal-card-header"><h3>${escape(pot.name)}</h3>
-        <strong>${progress(amount(pot.currentAmount), amount(pot.targetAmount))}% complete</strong></div>${meter(amount(pot.currentAmount), amount(pot.targetAmount))}
-        <dl><div><dt>Saved</dt><dd>${currency} ${WR.ui.fmt(amount(pot.currentAmount))}</dd></div><div><dt>Target</dt><dd>${currency} ${WR.ui.fmt(amount(pot.targetAmount))}</dd></div><div><dt>Remaining</dt><dd>${currency} ${WR.ui.fmt(Math.max(0, amount(pot.targetAmount) - amount(pot.currentAmount)))}</dd></div></dl>
-        <form class="pot-edit stacked-form" data-id="${pot.id}"><label>Name<input name="name" value="${escape(pot.name)}" required></label>
-        <label>Target<input name="target" type="number" min="0.01" step="0.01" value="${amount(pot.targetAmount)}" required></label>
-        <label>Saved in this pot<input name="current" type="number" min="0" step="0.01" value="${amount(pot.currentAmount)}" required></label>
-        <button>Save changes</button><button type="button" class="secondary archive-pot" data-id="${pot.id}">Archive pot</button></form></article>`).join('') || '<p class="empty">No active savings pots. Create one below to start tracking money you will not touch.</p>'}</div>
-      <h3>Create a pot</h3><form id="create-pot" class="inline-form"><input name="name" placeholder="Pot name" required>
-        <input name="target" type="number" min="0.01" step="0.01" placeholder="Target amount" required>
-        <input name="current" type="number" min="0" step="0.01" placeholder="Already saved" value="0" required><button>Add pot</button></form>
-      <h3>Transfer between pots</h3><form id="transfer-pot" class="inline-form"><select name="source" aria-label="Transfer from" required>
-        <option value="">From...</option>${active.filter((pot) => amount(pot.currentAmount) > 0).map((pot) => `<option value="${pot.id}">${escape(pot.name)} · ${currency} ${WR.ui.fmt(pot.currentAmount)}</option>`).join('')}</select>
-        <select name="destination" aria-label="Transfer to" required><option value="">To pot...</option>${active.map((pot) => `<option value="${pot.id}">${escape(pot.name)}</option>`).join('')}</select>
-        <input name="amount" type="number" min="0.01" step="0.01" placeholder="Amount" required><button>Transfer</button></form>
-      <details><summary>Archived goals (${pots.length - active.length})</summary><div class="goal-grid">${pots.filter((pot) => pot.archived).map((pot) => `<article class="goal-card"><div class="goal-card-header"><h3>${escape(pot.name)}</h3>
-        <strong>${progress(amount(pot.currentAmount), amount(pot.targetAmount))}% complete</strong></div>${meter(amount(pot.currentAmount), amount(pot.targetAmount))}<dl><div><dt>Saved</dt><dd>${currency} ${WR.ui.fmt(amount(pot.currentAmount))}</dd></div><div><dt>Target</dt><dd>${currency} ${WR.ui.fmt(amount(pot.targetAmount))}</dd></div><div><dt>Remaining</dt><dd>${currency} ${WR.ui.fmt(Math.max(0, amount(pot.targetAmount) - amount(pot.currentAmount)))}</dd></div></dl>
-        <button class="restore-pot secondary" data-id="${pot.id}">Restore goal</button></article>`).join('') || '<p class="empty">No archived goals.</p>'}</div></details>`;
+      <div class="goal-grid">${active.map((pot) => potCard(pot, false)).join('') || '<p class="empty">No active savings pots. Create one below to start tracking money you will not touch.</p>'}</div>
+      <div class="form-panels">
+        <div class="form-panel"><h3>Create a pot</h3><form id="create-pot" class="form-panel-grid">
+          <label class="span-2">Pot name<input name="name" placeholder="e.g. Holiday, School fees" required></label>
+          <label>Target amount<input name="target" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
+          <label>Already saved<input name="current" type="number" min="0" step="0.01" placeholder="0.00" value="0" required></label>
+          <div class="form-panel-actions"><button>Add pot</button></div></form></div>
+        <div class="form-panel"><h3>Transfer between pots</h3><form id="transfer-pot" class="form-panel-grid">
+          <label>From<select name="source" required>
+            <option value="">Choose a pot\u2026</option>${active.filter((pot) => amount(pot.currentAmount) > 0).map((pot) => `<option value="${pot.id}">${escape(pot.name)} \u00b7 ${currency} ${WR.ui.fmt(pot.currentAmount)}</option>`).join('')}</select></label>
+          <label>To<select name="destination" required><option value="">Choose a pot\u2026</option>${active.map((pot) => `<option value="${pot.id}">${escape(pot.name)}</option>`).join('')}</select></label>
+          <label class="span-2">Amount<input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
+          <div class="form-panel-actions"><button>Transfer</button></div></form></div>
+      </div>
+      <details class="archived-pots"><summary>Archived pots (${pots.length - active.length})</summary><div class="goal-grid">${pots.filter((pot) => pot.archived).map((pot) => potCard(pot, true)).join('') || '<p class="empty">No archived pots.</p>'}</div></details>`;
     container.querySelector('#create-pot').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
