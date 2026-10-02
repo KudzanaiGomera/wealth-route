@@ -1299,6 +1299,11 @@ button.danger { background: var(--danger); color: #fff; }
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
+/* iOS auto-zooms on focus when a field's font-size is under 16px. */
+@media (hover: none) and (pointer: coarse) {
+  input, select, textarea { font-size: 16px !important; }
+}
+
 @media (max-width: 900px) {
   html, body, #app { max-width: 100%; overflow-x: clip; }
   .topbar { padding: calc(0.7rem + env(safe-area-inset-top)) calc(1rem + env(safe-area-inset-right)) 0.7rem calc(1rem + env(safe-area-inset-left)); gap: 0.85rem; background: var(--panel); backdrop-filter: none; }
@@ -7727,10 +7732,24 @@ WR.ui = WR.ui || {};
   WR.ui.initRouter = initRouter;
   WR.ui.reRenderCurrentRoute = handleRoute;
 })();
+function resetViewportZoom() {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta) return;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  const original = meta.getAttribute('content').replace(/,\s*maximum-scale=1/g, '');
+  // Briefly pinning maximum-scale forces mobile browsers to drop any leftover zoom.
+  meta.setAttribute('content', original + ', maximum-scale=1');
+  setTimeout(() => {
+    meta.setAttribute('content', original);
+    window.scrollTo(0, 0);
+  }, 300);
+}
+
 function bootApp() {
   if (!window.location.hash || window.location.hash === '#') {
     window.location.hash = '#/dashboard';
   }
+  resetViewportZoom();
   WR.ui.renderShell();
   WR.ui.initRouter();
 }
