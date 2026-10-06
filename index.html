@@ -1283,11 +1283,27 @@ button.danger { background: var(--danger); color: #fff; }
 .debt-free-head strong { font-size: 1.6rem; }
 .debt-free-head span { color: var(--muted); font-size: 0.88rem; }
 .bill-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
-.bill-list li { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); }
+.bill-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-alt); }
 .bill-list li > div { display: grid; gap: 0.15rem; min-width: 0; }
+.bill-list li > .bill-info { flex: 1 1 10rem; overflow-wrap: anywhere; }
+.bill-list li > .bill-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; flex: 1 1 100%; }
+.bill-actions button { min-height: 44px; flex: 1 1 5rem; }
+.bill-paid { margin-top: 1rem; }
+.bill-paid summary { cursor: pointer; margin-bottom: 0.5rem; }
 .bill-list li .fine-print { margin: 0; }
 .bill-list li.bill-soon { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
-.bill-amount { font-weight: 600; white-space: nowrap; }
+.bill-amount { font-weight: 600; overflow-wrap: anywhere; max-width: 100%; }
+
+.money-owed-section { margin: 1.5rem 0; min-width: 0; }
+.money-owed-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1rem; margin: 1rem 0; }
+.money-owed-card { padding: 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); min-width: 0; overflow-wrap: anywhere; }
+.money-owed-card h3 { margin-top: 0; }
+.money-owed-card .toolbar { flex-wrap: wrap; }
+.money-owed-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 0.75rem; margin: 0.75rem 0; }
+.money-owed-fields label { display: grid; gap: 0.3rem; min-width: 0; }
+.money-owed-fields input, .money-owed-fields select, .money-owed-fields textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+.money-owed-history { list-style: none; padding: 0; }
+.money-owed-history li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
 
 /* ---------- Copy budget / EF account management ---------- */
 .copy-budget-card { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin: 0.75rem 0; }
@@ -1542,6 +1558,7 @@ window.WR = window.WR || {};
     budgetLines: createRepository('budgetLines'),
     debts: createRepository('debts'),
     debtPayments: createRepository('debtPayments'),
+    moneyOwed: createRepository('moneyOwed'),
     emergencyFundContributions: createRepository('emergencyFundContributions'),
     savingsPots: createRepository('savingsPots'),
     financialGoals: createRepository('financialGoals'),
@@ -3889,6 +3906,7 @@ WR.ui = WR.ui || {};
     s.fixedExpenses.forEach((e) => {
       if (!(Number(e.dueDay) > 0)) return;
       items.push({
+        id: e.id, repo: 'fixedExpenses', billStatuses: e.billStatuses || {},
         name: e.name, kind: 'Bill', dueDay: Number(e.dueDay),
         amount: Number(e.amount) || 0, currency: e.currency || s.profile.baseCurrency,
         isDue: (mk) => WR.ui.isActiveForMonth(e, mk) && isDueInMonth(e.frequency, e.startMonth, mk),
@@ -3897,22 +3915,28 @@ WR.ui = WR.ui || {};
     s.debts.forEach((d) => {
       if (!(Number(d.dueDay) > 0) || (Number(d.currentBalance) || 0) <= 0.01) return;
       items.push({
+        id: d.id, repo: 'debts', billStatuses: d.billStatuses || {},
         name: d.name, kind: 'Debt payment', dueDay: Number(d.dueDay),
         amount: Number(d.minPayment) || 0, currency: d.currency || s.profile.baseCurrency,
-        isDue: (mk) => isDueInMonth(d.paymentFrequency, String(d.startDate || '').slice(0, 7), mk)
-          && !s.debtPayments.some((p) => p.debtId === d.id && p.month === mk),
+        isDue: (mk) => isDueInMonth(d.paymentFrequency, String(d.startDate || '').slice(0, 7), mk),
+        hasPayment: (mk) => s.debtPayments.some((p) => p.debtId === d.id && p.month === mk),
       });
     });
     const bills = [];
     items.forEach((item) => {
+      const months = new Set(Object.keys(item.billStatuses));
       for (const offset of [0, 1]) {
         const monthStart = new Date(today.getFullYear(), today.getMonth() + offset, 1);
-        const monthKey = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+        months.add(`${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`);
+      }
+      months.forEach((monthKey) => {
+        const monthStart = new Date(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)) - 1, 1);
         const lastDay = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
         const due = new Date(monthStart.getFullYear(), monthStart.getMonth(), Math.min(item.dueDay, lastDay));
-        if (due < today || due > horizon || !item.isDue(monthKey)) continue;
-        bills.push({ ...item, due, daysAway: Math.round((due - today) / 86400000) });
-      }
+        const status = item.billStatuses[monthKey];
+        if (due > horizon || (status !== 'unpaid' && !item.isDue(monthKey))) return;
+        bills.push({ ...item, monthKey, paid: status === 'paid' || !!item.hasPayment?.(monthKey), due, daysAway: Math.round((due - today) / 86400000) });
+      });
     });
     return bills.sort((a, b) => a.due - b.due);
   }
@@ -3928,7 +3952,31 @@ WR.ui = WR.ui || {};
     await ensureMonthlyNetWorthSnapshot(s);
     const debtProgress = calculateDebtFreeProgress(s);
     const hasDueDays = s.fixedExpenses.some((e) => Number(e.dueDay) > 0) || s.debts.some((d) => Number(d.dueDay) > 0);
-    const bills = upcomingBills(s, 7);
+    const billOccurrences = upcomingBills(s, 7);
+    for (const bill of billOccurrences.filter((item) => !item.billStatuses[item.monthKey])) {
+      const repo = WR.repos[bill.repo];
+      const record = await repo.getById(bill.id);
+      if (record && !record.billStatuses?.[bill.monthKey]) {
+        await repo.update({ ...record, billStatuses: { ...record.billStatuses, [bill.monthKey]: 'unpaid' } });
+      }
+    }
+    const bills = billOccurrences.filter((bill) => !bill.paid);
+    const paidBills = billOccurrences.filter((bill) => bill.paid);
+    const monthlySurplus = s.cashflow.income - (s.cashflow.fixedExpenses + s.cashflow.variableExpenses);
+
+    function billRow(bill) {
+      const index = billOccurrences.indexOf(bill);
+      const dueLabel = bill.daysAway < 0 ? `Overdue by ${Math.abs(bill.daysAway)} days`
+        : bill.daysAway === 0 ? 'Due today' : bill.daysAway === 1 ? 'Due tomorrow' : `Due in ${bill.daysAway} days`;
+      return `<li class="${!bill.paid && bill.daysAway <= 1 ? 'bill-soon' : ''}">
+        <div class="bill-info"><strong>${escapeText(bill.name)}</strong><span class="fine-print">${bill.kind} · ${bill.paid ? 'Paid' : dueLabel} (${bill.due.getDate()} ${WR.ui.monthName(bill.due.getMonth() + 1).slice(0, 3)} ${bill.due.getFullYear()})</span></div>
+        <span class="bill-amount">${escapeText(bill.currency)} ${fmt(bill.amount)}</span>
+        <div class="bill-actions">
+          ${bill.paid ? '' : `<button type="button" data-bill-index="${index}" data-bill-status="paid" aria-label="Mark ${escapeText(bill.name)} as paid">Paid</button>`}
+          ${bill.hasPayment?.(bill.monthKey) ? '<span class="fine-print">Payment recorded on Debts</span>' : `<button type="button" class="secondary" data-bill-index="${index}" data-bill-status="unpaid" aria-label="Mark ${escapeText(bill.name)} as unpaid">${bill.paid ? 'Mark unpaid' : 'Unpaid'}</button>`}
+        </div>
+      </li>`;
+    }
 
     const recsHtml = s.recommendations.length
       ? s.recommendations
@@ -4019,7 +4067,7 @@ WR.ui = WR.ui || {};
           </div>
 
           <div class="stat-grid">
-            <div class="stat"><span class="stat-label">Monthly Surplus</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
+            <div class="stat"><span class="stat-label">Monthly Surplus</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
             <div class="stat"><span class="stat-label">Day-to-Day Balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
             <div class="stat"><span class="stat-label">Savings Pots</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
           </div>
@@ -4050,12 +4098,9 @@ WR.ui = WR.ui || {};
         </article>` : ''}
         <article class="dashboard-card bills-card">
           <h2>Upcoming bills</h2>
-          ${bills.length ? `<ul class="bill-list">${bills.map((b) => `
-            <li class="${b.daysAway <= 1 ? 'bill-soon' : ''}">
-              <div><strong>${escapeText(b.name)}</strong><span class="fine-print">${b.kind} · ${b.daysAway === 0 ? 'Due today' : b.daysAway === 1 ? 'Due tomorrow' : `Due in ${b.daysAway} days`} (${b.due.getDate()} ${WR.ui.monthName(b.due.getMonth() + 1).slice(0, 3)})</span></div>
-              <span class="bill-amount">${b.currency} ${fmt(b.amount)}</span>
-            </li>`).join('')}</ul>`
-            : `<p class="fine-print">${hasDueDays ? 'Nothing due in the next 7 days.' : 'Add a due day to your fixed expenses or debts to get reminders here.'}</p>`}
+          ${bills.length ? `<ul class="bill-list">${bills.map(billRow).join('')}</ul>`
+            : `<p class="fine-print">${hasDueDays ? 'No unpaid bills overdue or due in the next 7 days.' : 'Add a due day to your fixed expenses or debts to get reminders here.'}</p>`}
+          ${paidBills.length ? `<details class="bill-paid"><summary>Paid bills (${paidBills.length})</summary><ul class="bill-list">${paidBills.map(billRow).join('')}</ul></details>` : ''}
         </article>
       </section>
 
@@ -4117,6 +4162,25 @@ WR.ui = WR.ui || {};
       </section>
     `;
 
+    container.querySelectorAll('[data-bill-status]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const bill = billOccurrences[Number(button.dataset.billIndex)];
+        const rowButtons = button.closest('li').querySelectorAll('button');
+        rowButtons.forEach((control) => { control.disabled = true; });
+        try {
+          const repo = WR.repos[bill.repo];
+          const record = await repo.getById(bill.id);
+          if (!record) throw new Error('This bill no longer exists.');
+          await repo.update({ ...record, billStatuses: { ...record.billStatuses, [bill.monthKey]: button.dataset.billStatus } });
+          await renderDashboard(container);
+          notify(button.dataset.billStatus === 'paid' ? 'Bill marked as paid.' : 'Bill remains unpaid.', 'success');
+        } catch (error) {
+          notify(error.message || 'Unable to update bill status.', 'error');
+          rowButtons.forEach((control) => { control.disabled = false; });
+        }
+      });
+    });
+
     document.getElementById('snapshot-networth-btn').addEventListener('click', async () => {
       const snap = WR.models.createNetWorthSnapshot({
         date: new Date().toISOString().slice(0, 10),
@@ -4151,6 +4215,7 @@ WR.ui = WR.ui || {};
   WR.ui.NAV_ITEMS = NAV_ITEMS;
   WR.ui.renderShell = renderShell;
   WR.ui.renderNavAccount = renderNavAccount;
+  WR.ui.upcomingBills = upcomingBills;
   WR.ui.setActiveNav = setActiveNav;
   WR.ui.priorityBadge = priorityBadge;
   WR.ui.renderDashboard = renderDashboard;
@@ -5532,6 +5597,133 @@ WR.ui = WR.ui || {};
     renderDebts(container);
   }
 
+  function calculateMoneyOwed(entry) {
+    const principal = Math.max(0, Number(entry.amount) || 0);
+    const interest = Math.round(principal * Math.max(0, Number(entry.interestRatePct) || 0)) / 100;
+    const total = Math.round((principal + interest) * 100) / 100;
+    const repaid = Math.round((entry.repayments || []).reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0) * 100) / 100;
+    return { principal, interest, total, repaid, remaining: Math.max(0, Math.round((total - repaid) * 100) / 100) };
+  }
+
+  async function renderMoneyOwed(container) {
+    const [entries, profile, accounts, pots] = await Promise.all([
+      WR.repos.moneyOwed.getAll(), WR.ui.getOrCreateProfile(),
+      WR.repos.dayToDayAccounts.getAll(), WR.repos.savingsPots.getAll(),
+    ]);
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+    const today = new Date().toISOString().slice(0, 10);
+    const accountNames = [...new Set([
+      'Day-to-day account', ...accounts.map((account) => account.name),
+      ...(profile.emergencyFundAccounts || []).map((account) => account.label || account.name),
+      ...pots.filter((pot) => !pot.archived).map((pot) => pot.name),
+      ...entries.map((entry) => entry.sourceAccount),
+    ].filter(Boolean))];
+    const money = (entry, amount) => `${esc(entry.currency || profile.baseCurrency)} ${WR.ui.fmt(amount)}`;
+    const fields = (entry = {}) => `
+      <div class="money-owed-fields">
+        <label>Person<input name="borrower" value="${esc(entry.borrower)}" maxlength="120" required></label>
+        <label>Type<select name="kind"><option value="loan" ${entry.kind !== 'shared-bill' ? 'selected' : ''}>Money lent</option><option value="shared-bill" ${entry.kind === 'shared-bill' ? 'selected' : ''}>Bill paid for someone</option></select></label>
+        <label>Amount owed before interest<input name="amount" type="number" min="0.01" step="0.01" value="${entry.amount ?? ''}" required></label>
+        <label>Currency<select name="currency">${currencyOptions(entry.currency || profile.baseCurrency)}</select></label>
+        <label>One-off interest (%)<input name="interestRatePct" type="number" min="0" step="0.01" value="${entry.interestRatePct || 0}"></label>
+        <label>Source account<input name="sourceAccount" list="money-owed-accounts" value="${esc(entry.sourceAccount)}" maxlength="120" required></label>
+        <label>Date lent / bill paid<input name="date" type="date" value="${esc(entry.date || today)}" required></label>
+        <label>Repayment due (optional)<input name="dueDate" type="date" value="${esc(entry.dueDate)}"></label>
+        <label>Reason / notes<textarea name="note" rows="2" maxlength="1000">${esc(entry.note)}</textarea></label>
+      </div>`;
+    const cards = (list) => list.map((entry) => {
+      const balance = calculateMoneyOwed(entry);
+      return `<article class="money-owed-card" data-owed-id="${esc(entry.id)}">
+        <h3>${esc(entry.borrower)}</h3>
+        <p class="fine-print">${entry.kind === 'shared-bill' ? 'Bill paid for someone' : 'Money lent'} · ${esc(entry.date)} · ${esc(entry.sourceAccount)}</p>
+        ${entry.note ? `<p>${esc(entry.note)}</p>` : ''}
+        <div class="stat-grid">
+          <div class="stat"><span class="stat-label">Outstanding</span><strong class="stat-value">${money(entry, balance.remaining)}</strong></div>
+          <div class="stat"><span class="stat-label">Repaid</span><strong>${money(entry, balance.repaid)}</strong></div>
+        </div>
+        <p class="fine-print">Principal: ${money(entry, balance.principal)} · Interest: ${money(entry, balance.interest)} (${Number(entry.interestRatePct) || 0}% one-off)</p>
+        ${entry.dueDate ? `<p class="fine-print">${balance.remaining > 0 && entry.dueDate < today ? 'Overdue' : 'Due'}: ${esc(entry.dueDate)}</p>` : ''}
+        ${balance.remaining > 0 ? `<form data-owed-action="repayment">
+          <div class="money-owed-fields">
+            <label>Repayment amount<input name="amount" type="number" min="0.01" max="${balance.remaining}" step="0.01" value="${balance.remaining}" required></label>
+            <label>Repayment date<input name="date" type="date" value="${today}" required></label>
+          </div><button type="submit">Record repayment</button>
+        </form>` : '<p class="fine-print">Fully repaid</p>'}
+        ${(entry.repayments || []).length ? `<details><summary>Repayment history (${entry.repayments.length})</summary><ul class="money-owed-history">${entry.repayments.map((payment) => `<li><span>${esc(payment.date)} · ${money(entry, payment.amount)}</span><button type="button" class="secondary" data-remove-repayment="${esc(payment.id)}">Remove repayment</button></li>`).join('')}</ul></details>` : ''}
+        <details class="card-edit"><summary>Edit entry</summary><form data-owed-action="edit">${fields(entry)}<button type="submit">Save changes</button></form></details>
+        <div class="toolbar"><button type="button" class="link-btn" data-delete-owed="${esc(entry.id)}">Delete entry</button></div>
+      </article>`;
+    }).join('');
+    const outstanding = entries.filter((entry) => calculateMoneyOwed(entry).remaining > 0);
+    const settled = entries.filter((entry) => calculateMoneyOwed(entry).remaining === 0);
+    const totals = new Map();
+    outstanding.forEach((entry) => {
+      const currency = entry.currency || profile.baseCurrency;
+      totals.set(currency, (totals.get(currency) || 0) + calculateMoneyOwed(entry).remaining);
+    });
+    container.innerHTML = `
+      <h2>Money owed to me</h2>
+      <div class="stat-grid">${[...totals].map(([currency, total]) => `<div class="stat"><span class="stat-label">Outstanding (${esc(currency)})</span><strong class="stat-value">${esc(currency)} ${WR.ui.fmt(total)}</strong></div>`).join('')}</div>
+      <div class="money-owed-grid">${cards(outstanding) || '<p class="empty">No money outstanding.</p>'}</div>
+      ${settled.length ? `<details><summary>Fully repaid (${settled.length})</summary><div class="money-owed-grid">${cards(settled)}</div></details>` : ''}
+      <datalist id="money-owed-accounts">${accountNames.map((name) => `<option value="${esc(name)}"></option>`).join('')}</datalist>
+      <details class="form-panel" ${entries.length ? '' : 'open'}><summary>Add money owed to me</summary><form data-owed-action="add">${fields()}<button type="submit">Add entry</button></form></details>`;
+
+    container.querySelectorAll('form[data-owed-action]').forEach((form) => {
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = form.querySelector('button[type="submit"]');
+        button.disabled = true;
+        try {
+          const value = (name) => form.elements.namedItem(name).value;
+          const id = form.closest('[data-owed-id]')?.dataset.owedId;
+          const existing = id ? await WR.repos.moneyOwed.getById(id) : null;
+          if (id && !existing) throw new Error('This entry no longer exists.');
+          if (form.dataset.owedAction === 'repayment') {
+            const amount = Number(value('amount'));
+            if (!Number.isFinite(amount) || amount <= 0 || amount > calculateMoneyOwed(existing).remaining) throw new Error('Repayment must be greater than zero and no more than the outstanding amount.');
+            if (!value('date') || value('date') < existing.date) throw new Error('Repayment date cannot be before the date lent.');
+            await WR.repos.moneyOwed.update({ ...existing, repayments: [...(existing.repayments || []), { id: crypto.randomUUID(), amount, date: value('date') }] });
+          } else {
+            const entry = { ...existing, id: existing?.id || crypto.randomUUID(), borrower: value('borrower').trim(), kind: value('kind'), amount: Number(value('amount')), currency: value('currency'), interestRatePct: Number(value('interestRatePct')), sourceAccount: value('sourceAccount').trim(), date: value('date'), dueDate: value('dueDate'), note: value('note').trim(), repayments: existing?.repayments || [] };
+            if (!entry.borrower || !entry.sourceAccount || !Number.isFinite(entry.amount) || entry.amount <= 0 || !Number.isFinite(entry.interestRatePct) || entry.interestRatePct < 0) throw new Error('Enter a person, source account, positive amount, and valid interest rate.');
+            if (existing?.repayments?.length && entry.currency !== existing.currency) throw new Error('Remove existing repayments before changing the currency.');
+            if (!entry.date || entry.repayments.some((payment) => payment.date < entry.date)) throw new Error('Date lent cannot be after a recorded repayment.');
+            if (entry.dueDate && entry.dueDate < entry.date) throw new Error('Repayment due date cannot be before the date lent.');
+            const balance = calculateMoneyOwed(entry);
+            if (!Number.isFinite(balance.total) || balance.total < balance.repaid) throw new Error('Total owed cannot be less than repayments already recorded.');
+            await WR.repos.moneyOwed[existing ? 'update' : 'add'](entry);
+          }
+          await renderMoneyOwed(container);
+          WR.ui.notify('Money owed updated.', 'success');
+        } catch (error) {
+          WR.ui.notify(error.message || 'Unable to save this entry.', 'error');
+          button.disabled = false;
+        }
+      });
+    });
+    container.querySelectorAll('[data-delete-owed], [data-remove-repayment]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const removingPayment = !!button.dataset.removeRepayment;
+        if (!confirm(removingPayment ? 'Remove this repayment and restore the outstanding amount?' : 'Delete this money owed entry and its repayment history?')) return;
+        button.disabled = true;
+        try {
+          if (removingPayment) {
+            const entry = await WR.repos.moneyOwed.getById(button.closest('[data-owed-id]').dataset.owedId);
+            if (!entry) throw new Error('This entry no longer exists.');
+            await WR.repos.moneyOwed.update({ ...entry, repayments: (entry.repayments || []).filter((payment) => payment.id !== button.dataset.removeRepayment) });
+            await renderMoneyOwed(container);
+          } else {
+            await WR.ui.removeWithUndo({ repo: WR.repos.moneyOwed, id: button.dataset.deleteOwed, entityLabel: 'Money owed entry', afterChange: () => renderMoneyOwed(container) });
+          }
+        } catch (error) {
+          WR.ui.notify(error.message || 'Unable to update this entry.', 'error');
+          button.disabled = false;
+        }
+      });
+    });
+  }
+
   async function renderDebts(container) {
     const [debts, payments, exchangeRates] = await Promise.all([
       WR.repos.debts.getAll(),
@@ -5585,6 +5777,7 @@ WR.ui = WR.ui || {};
       <h1>Debts</h1>
       <p class="fine-print">Edit any cell \u2014 changes save immediately and update the payoff projection below.</p>
       <div class="debt-overview-wrap">${overviewHtml}</div>
+      <section id="money-owed-section" class="money-owed-section"></section>
       <section class="debt-list-card">
         <h2>Ongoing Debts</h2>
         <p class="fine-print">Debts with a remaining balance.</p>
@@ -5727,8 +5920,10 @@ WR.ui = WR.ui || {};
         toggleDebtPayment(btn.dataset.debtId, btn.dataset.month, container);
       });
     });
+    await renderMoneyOwed(container.querySelector('#money-owed-section'));
   }
 
+  WR.ui.calculateMoneyOwed = calculateMoneyOwed;
   WR.ui.renderDebts = renderDebts;
 })();
 // Assets and Investments views. Both inline-editable, matching the pattern

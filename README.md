@@ -219,6 +219,14 @@ hybrid prioritisation with a month-by-month payoff simulator: total months
 to debt-free, total interest paid, and interest/time saved from an
 adjustable extra monthly payment.
 
+The separate **Money owed to me** section records personal loans and bills
+paid on someone else's behalf, including the person, principal, currency,
+source account, dates, notes, and optional one-off interest percentage.
+Partial repayments reduce the outstanding amount; fully repaid entries keep
+their repayment history. Source accounts are descriptive records only:
+entries and repayments do not automatically debit or credit account balances,
+change your own debts, or enter net worth calculations.
+
 **Assets / Investments** \u2014 inline-editable tracking, liquidity tagging
 (drives the emergency fund calculation), risk category.
 
