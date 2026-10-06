@@ -86,7 +86,7 @@ body {
     var(--bg);
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 
 button, a, input, select, textarea {
@@ -795,7 +795,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   text-align: center;
 }
 .month-btn:hover { filter: brightness(1.08); }
-.month-btn.paid { background: var(--success); color: #fff; border-color: var(--success); }
+.month-btn.paid { background: var(--success); color: var(--accent-contrast); border-color: var(--success); }
 .month-btn:disabled { opacity: 0.42; cursor: not-allowed; background: var(--bg); }
 .debt-calendar-stats { display: flex; gap: 1.4rem; flex-wrap: wrap; font-size: 0.85rem; margin-top: 0.4rem; }
 .debt-calendar-stats strong { font-family: var(--font-serif); }
@@ -1145,6 +1145,7 @@ button, input, select, textarea {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
+input[type="checkbox"], input[type="radio"] { appearance: auto; -webkit-appearance: auto; accent-color: var(--accent); width: 1rem; height: 1rem; }
 button {
   min-height: 44px;
   padding: 0.48rem 0.95rem;
@@ -1158,7 +1159,7 @@ button {
 }
 button:hover { filter: brightness(1.08); }
 button.secondary { background: var(--panel-alt); color: var(--text); border: 1px solid var(--border); }
-button.danger { background: var(--danger); color: #fff; }
+button.danger { background: var(--danger); color: var(--accent-contrast); }
 .link-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.85rem; padding: 0; font-weight: 500; }
 .link-btn:hover { text-decoration: underline; }
 
@@ -1304,6 +1305,14 @@ button.danger { background: var(--danger); color: #fff; }
 .money-owed-fields input, .money-owed-fields select, .money-owed-fields textarea { width: 100%; min-width: 0; box-sizing: border-box; }
 .money-owed-history { list-style: none; padding: 0; }
 .money-owed-history li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+.debt-tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border); margin: 1rem 0; padding-bottom: 0.5rem; }
+.debt-tabs button { flex: 1; min-width: 0; min-height: 44px; background: transparent; color: var(--muted); border-color: transparent; }
+.debt-tabs button[aria-selected="true"] { background: var(--panel-alt); border-color: var(--accent); color: var(--text); }
+.debt-owe-panel:not(.show-details) .debt-detail { display: none; }
+.debt-disclosure, .dashboard-disclosure { border-top: 1px solid var(--border); margin: 1rem 0; padding: 0.5rem 0; }
+.debt-disclosure > summary, .dashboard-disclosure > summary { cursor: pointer; font-weight: 600; min-height: 44px; padding: 0.7rem 0; box-sizing: border-box; }
+[role="tabpanel"][hidden] { display: none !important; }
+#auth-reset-status:empty { display: none; }
 
 /* ---------- Copy budget / EF account management ---------- */
 .copy-budget-card { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin: 0.75rem 0; }
@@ -1338,7 +1347,7 @@ button.danger { background: var(--danger); color: #fff; }
   .topbar .nav-toggle { display: none; }
   #nav a.in-mobile-nav { display: none; }
   .mobile-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; padding: 0.3rem max(0.3rem, env(safe-area-inset-right)) calc(0.3rem + env(safe-area-inset-bottom)) max(0.3rem, env(safe-area-inset-left)); gap: 0.2rem; background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.14); }
-  .mobile-nav a, .mobile-nav button { display: grid; justify-items: center; align-content: center; gap: 0.2rem; height: 3.55rem; min-width: 0; color: var(--muted); background: transparent; border: 0; text-decoration: none; font: inherit; border-radius: 12px; cursor: pointer; transition: color 160ms ease, background-color 160ms ease; }
+  .mobile-nav a, .mobile-nav button { display: grid; justify-items: center; align-content: center; gap: 0.2rem; height: 3.55rem; min-width: 0; color: var(--muted); background: transparent; border: 0; text-decoration: none; font: inherit; border-radius: 12px; cursor: pointer; }
   .mobile-nav a.active, .mobile-nav button[aria-expanded="true"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, var(--panel)); font-weight: 600; }
   .mobile-nav a:hover, .mobile-nav button:hover { background: var(--panel-alt); }
   .mobile-nav .nav-icon { width: 1.35rem; height: 1.35rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -1415,7 +1424,22 @@ button.danger { background: var(--danger); color: #fff; }
   </head>
   <body>
     <div id="app"></div>
+    <script src="vendor/purify.min.js"></script>
     <script>
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+function assertActiveView(element) {
+  const view = element?.closest?.('[data-route-view]');
+  if (view && !view.isConnected) throw Object.assign(new Error('Superseded route'), { name: 'AbortError' });
+}
+function setHTML(element, html) {
+  assertActiveView(element);
+  element.innerHTML = DOMPurify.sanitize(String(html ?? ''), { ADD_ATTR: ['target'], FORBID_TAGS: ['style'] });
+  if (WR.ui.enhanceResponsiveContent) WR.ui.enhanceResponsiveContent(element);
+}
+WR.ui.setHTML = setHTML;
+WR.ui.assertActiveView = assertActiveView;
+
 // Firestore-backed data layer. Every entity lives under
 // users/{uid}/{storeName}/{id} in the signed-in user's own document tree, so
 // data is naturally isolated per account and available from any device \u2014
@@ -1874,7 +1898,8 @@ WR.financial = WR.financial || {};
       : Math.max(0, Number(minimumDebtPayments) || 0);
 
     const totalExpenses = fixedExpenses + variableExpenses;
-    const availableSurplus = income - totalExpenses - debtPayments;
+    const monthlySurplus = income - totalExpenses;
+    const availableSurplus = monthlySurplus - debtPayments;
     const savingsRate = income > 0 ? savings / income : 0;
 
     return {
@@ -1884,6 +1909,7 @@ WR.financial = WR.financial || {};
       savings,
       debtPayments,
       totalExpenses,
+      monthlySurplus,
       availableSurplus,
       savingsRate,
     };
@@ -1936,8 +1962,14 @@ WR.financial = WR.financial || {};
 
 (function () {
   /** @param {Array} debts */
-  function calculateTotalDebt(debts) {
-    return debts.reduce((total, debt) => total + debt.currentBalance, 0);
+  function debtValueInCurrency(debt, amount, exchangeRates, baseCurrency) {
+    if (!baseCurrency) return amount;
+    const result = WR.financial.convertCurrency(amount, debt.currency || baseCurrency, baseCurrency, exchangeRates || []);
+    return result.converted ? result.value : 0;
+  }
+
+  function calculateTotalDebt(debts, exchangeRates, baseCurrency) {
+    return debts.reduce((total, debt) => total + debtValueInCurrency(debt, Number(debt.currentBalance) || 0, exchangeRates, baseCurrency), 0);
   }
 
   function monthlyMinPayment(debt) {
@@ -1946,8 +1978,8 @@ WR.financial = WR.financial || {};
   }
 
   /** @param {Array} debts */
-  function calculateTotalMinPayments(debts) {
-    return debts.reduce((total, debt) => total + monthlyMinPayment(debt), 0);
+  function calculateTotalMinPayments(debts, exchangeRates, baseCurrency) {
+    return debts.reduce((total, debt) => total + (debt.currentBalance !== undefined && Number(debt.currentBalance) <= 0.01 ? 0 : debtValueInCurrency(debt, monthlyMinPayment(debt), exchangeRates, baseCurrency)), 0);
   }
 
   /**
@@ -1957,9 +1989,9 @@ WR.financial = WR.financial || {};
    * @param {Array} debts
    * @param {number} monthlyIncome
    */
-  function calculateDebtToIncomeRatio(debts, monthlyIncome) {
+  function calculateDebtToIncomeRatio(debts, monthlyIncome, exchangeRates, baseCurrency) {
     if (monthlyIncome <= 0) return 0;
-    return calculateTotalMinPayments(debts) / monthlyIncome;
+    return calculateTotalMinPayments(debts, exchangeRates, baseCurrency) / monthlyIncome;
   }
 
   /**
@@ -2438,7 +2470,7 @@ WR.financial = WR.financial || {};
       return {
         readiness: 'review_cash_flow',
         reasons: [
-          'There is no monthly surplus currently available to invest.',
+          'There is no money remaining after required debt payments to invest.',
           'Review spending before committing to new investment contributions — investing money you don\u2019t actually have available each month isn\u2019t sustainable.',
         ],
       };
@@ -2448,7 +2480,7 @@ WR.financial = WR.financial || {};
       readiness: 'ready_to_invest',
       reasons: [
         `Your emergency fund meets your ${target}-month target and your debt is not more expensive than your assumed investment return.`,
-        `You have a monthly surplus of ${availableSurplus.toFixed(2)} available to allocate toward long-term investing.`,
+        `You have ${availableSurplus.toFixed(2)} remaining after required debt payments to allocate toward long-term investing.`,
       ],
     };
   }
@@ -2636,12 +2668,12 @@ WR.recommendations = WR.recommendations || {};
       priority: 'high',
       condition: (s) => s.highestInterestDebt !== null && s.highestInterestDebt.interestRate > s.assumedInvestmentReturn,
       build: (s) => ({
-        title: `Pay down ${s.highestInterestDebt.name}`,
+        title: `Pay down ${WR.ui.escapeText(s.highestInterestDebt.name)}`,
         reason: `This debt costs ${(s.highestInterestDebt.interestRate * 100).toFixed(1)}% a year, more than your assumed ${(s.assumedInvestmentReturn * 100).toFixed(1)}% investment return.`,
         financialImpact: 'Extra payments here earn a guaranteed return equal to the interest rate \u2014 higher and more certain than investing while this debt remains.',
         suggestedAction: s.availableSurplus > 0
-          ? `Consider directing some of your ${s.availableSurplus.toFixed(2)} monthly surplus toward this debt.`
-          : 'Free up monthly surplus (see the cash flow recommendation) before adding extra debt payments.',
+          ? `Consider directing some of the ${s.availableSurplus.toFixed(2)} remaining after required debt payments toward this debt.`
+          : 'Free up money after required debt payments before adding extra payments.',
         numbers: { balance: s.highestInterestDebt.currentBalance, interestRate: s.highestInterestDebt.interestRate },
         assumptions: [`Assumed investment return: ${(s.assumedInvestmentReturn * 100).toFixed(1)}%/year \u2014 adjust this in Settings.`],
       }),
@@ -2693,7 +2725,7 @@ WR.recommendations = WR.recommendations || {};
       build: (s) => ({
         title: 'Consider increasing your investment contribution',
         reason: s.investmentReadiness.reasons.join(' '),
-        financialImpact: `You have an unallocated monthly surplus of ${s.availableSurplus.toFixed(2)}.`,
+        financialImpact: `You have ${s.availableSurplus.toFixed(2)} remaining after required debt payments.`,
         suggestedAction: 'Once debt and emergency fund priorities above are addressed, direct some of this surplus toward long-term investing.',
         numbers: { availableSurplus: s.availableSurplus },
         assumptions: ['Investment returns are never guaranteed \u2014 see the Investments section for your own return assumptions.'],
@@ -3085,7 +3117,7 @@ WR.ui = WR.ui || {};
     if (!btn) return;
     // Sun icon when in dark mode (click to go light), moon icon when in
     // light mode (click to go dark) \u2014 the icon shown is the destination.
-    btn.innerHTML = theme === 'dark' ? SUN_ICON : MOON_ICON;
+    WR.ui.setHTML(btn, theme === 'dark' ? SUN_ICON : MOON_ICON);
     btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
   }
 
@@ -3308,15 +3340,15 @@ WR.ui = WR.ui || {};
       .concat(prevRecurringFixedLines);
 
     const F = WR.financial;
-    const minimumDebtPayments = F.calculateTotalMinPayments(debts);
+    const minimumDebtPayments = F.calculateTotalMinPayments(debts, exchangeRates, profile.baseCurrency);
     const cashflow = F.calculateCashFlowSummary(budgetLines, minimumDebtPayments);
     const prevCashflow = F.calculateCashFlowSummary(prevBudgetLines, minimumDebtPayments);
-    const surplusDelta = prevBudgetLines.length > 0 ? cashflow.availableSurplus - prevCashflow.availableSurplus : null;
+    const surplusDelta = prevBudgetLines.length > 0 ? cashflow.monthlySurplus - prevCashflow.monthlySurplus : null;
     const split = F.calculateEssentialVsDiscretionary(budgetLines, expenseCategories);
     const prevSplit = F.calculateEssentialVsDiscretionary(prevBudgetLines, expenseCategories);
 
-    const totalDebt = F.calculateTotalDebt(debts);
-    const debtToIncomeRatio = F.calculateDebtToIncomeRatio(debts, cashflow.income);
+    const totalDebt = F.calculateTotalDebt(debts, exchangeRates, profile.baseCurrency);
+    const debtToIncomeRatio = F.calculateDebtToIncomeRatio(debts, cashflow.income, exchangeRates, profile.baseCurrency);
     const highestInterestDebt = F.getHighestInterestDebt(debts);
 
     const liquidAssets = F.calculateLiquidAssets(assets);
@@ -3326,6 +3358,12 @@ WR.ui = WR.ui || {};
     const emergencyFundMonths = F.calculateEmergencyFundMonths(liquidAssets, essentialMonthlyExpenses);
 
     const netWorth = F.calculateNetWorth(assets, investments, debts, exchangeRates, profile.baseCurrency);
+    const missingCurrencies = new Set(netWorth.unconvertedItems.map((item) => item.currency));
+    debtPayments.forEach((payment) => {
+      const paymentCurrency = payment.currency || debts.find((debt) => debt.id === payment.debtId)?.currency || profile.baseCurrency;
+      if (!F.convertCurrency(Number(payment.amount) || 0, paymentCurrency, profile.baseCurrency, exchangeRates).converted) missingCurrencies.add(paymentCurrency);
+    });
+    const currencyWarnings = [...missingCurrencies].filter(Boolean);
     // Compare the live net worth figure against the most recent PAST snapshot (not one recorded today),
     // so "record today's snapshot" doesn't just diff against itself and show a flat 0 delta.
     const todayIso = new Date().toISOString().slice(0, 10);
@@ -3416,7 +3454,11 @@ WR.ui = WR.ui || {};
       .reduce((sum, pot) => sum + (Number(pot.currentAmount) || 0), 0);
     annualSummary.totalSavedAndInvested = activePotBalance;
     annualSummary.totalDebtPaid = debtPayments.filter((payment) => String(payment.month).startsWith(String(selectedYear)))
-      .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+      .reduce((sum, payment) => {
+        const paymentCurrency = payment.currency || debts.find((debt) => debt.id === payment.debtId)?.currency || profile.baseCurrency;
+        const converted = F.convertCurrency(Number(payment.amount) || 0, paymentCurrency, profile.baseCurrency, exchangeRates);
+        return sum + (converted.converted ? converted.value : 0);
+      }, 0);
     const dayToDayAccount = getDayToDayOpeningAccount(dayToDayAccounts, selectedYear);
     const dayToDaySummary = calculateDayToDaySummary(dayToDayAccounts, dayToDayTransactions, month);
 
@@ -3426,6 +3468,7 @@ WR.ui = WR.ui || {};
       selectedYear,
       profile,
       cashflow,
+      currencyWarnings,
       income: cashflow.income,
       availableSurplus: cashflow.availableSurplus,
       surplusDelta,
@@ -3498,7 +3541,7 @@ WR.ui = WR.ui || {};
   }
   function el(html) {
     const template = document.createElement('template');
-    template.innerHTML = html.trim();
+    WR.ui.setHTML(template, html.trim());
     return template.content.firstElementChild;
   }
 
@@ -3609,7 +3652,7 @@ WR.ui = WR.ui || {};
     const host = document.getElementById('global-notice');
     if (!host) return;
     const warnings = await getIntegrityWarnings();
-    host.innerHTML = warnings.length ? `<div class="notice-card"><strong>Data check:</strong> ${warnings.join(' ')}</div>` : '';
+    WR.ui.setHTML(host, warnings.length ? `<div class="notice-card"><strong>Data check:</strong> ${warnings.join(' ')}</div>` : '');
   }
 
   function enhanceResponsiveContent(container) {
@@ -3620,6 +3663,26 @@ WR.ui = WR.ui || {};
       wrapper.className = 'table-wrap';
       table.parentNode.insertBefore(wrapper, table);
       wrapper.appendChild(table);
+    });
+    container.querySelectorAll('.table-wrap').forEach((wrapper) => {
+      wrapper.tabIndex = 0;
+      wrapper.setAttribute('role', 'region');
+      const heading = wrapper.closest('section, article')?.querySelector('h1, h2, h3')?.textContent.trim();
+      wrapper.setAttribute('aria-label', `${heading || 'Financial records'} table`);
+    });
+    container.querySelectorAll('input, select, textarea').forEach((control) => {
+      if (['hidden', 'submit', 'button'].includes(control.type) || control.labels?.length || control.hasAttribute('aria-label') || control.hasAttribute('aria-labelledby')) return;
+      const cell = control.closest('td');
+      const heading = cell?.closest('table')?.tHead?.rows[0]?.cells[cell.cellIndex]?.cloneNode(true);
+      heading?.querySelectorAll('select, button').forEach((child) => child.remove());
+      const field = control.dataset.field || control.name || control.id;
+      const label = heading?.textContent.trim() || field.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[-_]/g, ' ') || control.placeholder || 'Value';
+      control.setAttribute('aria-label', label.charAt(0).toUpperCase() + label.slice(1));
+    });
+    container.querySelectorAll('[role="progressbar"]').forEach((meter) => {
+      if (meter.hasAttribute('aria-label') || meter.hasAttribute('aria-labelledby')) return;
+      const heading = meter.closest('article, section')?.querySelector('h2, h3, h4')?.textContent.trim();
+      meter.setAttribute('aria-label', `${heading || 'Savings'} progress`);
     });
   }
 
@@ -3653,16 +3716,16 @@ WR.ui = WR.ui || {};
     const host = document.getElementById('nav-account');
     if (!host) return;
     if (!WR.account.isConfigured()) {
-      host.innerHTML = '';
+      WR.ui.setHTML(host, '');
       return;
     }
     const user = WR.account.getCurrentUser();
-    host.innerHTML = user
+    WR.ui.setHTML(host, user
       ? ''
       : `
         <a href="#/settings" class="nav-account-link">Log in</a>
         <a href="#/settings" class="nav-account-link nav-account-link-accent">Sign up</a>
-      `;
+      `);
   }
 
   // Chrome/Edge/Android fire this when the site meets install criteria; we
@@ -3682,11 +3745,11 @@ WR.ui = WR.ui || {};
     const host = document.getElementById('nav-install');
     if (!host) return;
     if (isStandalone()) {
-      host.innerHTML = '';
+      WR.ui.setHTML(host, '');
       return;
     }
     if (deferredInstallPrompt) {
-      host.innerHTML = '<button type="button" id="nav-install-btn" class="nav-install-btn">Install WealthRoute</button>';
+      WR.ui.setHTML(host, '<button type="button" id="nav-install-btn" class="nav-install-btn">Install WealthRoute</button>');
       document.getElementById('nav-install-btn').addEventListener('click', async () => {
         const promptEvent = deferredInstallPrompt;
         if (!promptEvent) return;
@@ -3700,13 +3763,13 @@ WR.ui = WR.ui || {};
     if (isIOS()) {
       // iOS Safari has no install-prompt API at all — "Add to Home Screen" only
       // exists in the browser's own Share sheet, so this is instructions, not a button.
-      host.innerHTML = '<button type="button" id="nav-install-btn" class="nav-install-btn">Add to Home Screen</button>';
+      WR.ui.setHTML(host, '<button type="button" id="nav-install-btn" class="nav-install-btn">Add to Home Screen</button>');
       document.getElementById('nav-install-btn').addEventListener('click', () => {
         WR.ui.notify('Tap the Share icon, then “Add to Home Screen”.', 'success');
       });
       return;
     }
-    host.innerHTML = '';
+    WR.ui.setHTML(host, '');
   }
 
   window.addEventListener('beforeinstallprompt', (event) => {
@@ -3720,7 +3783,7 @@ WR.ui = WR.ui || {};
   });
 
   function renderShell() {
-    const horizontalNavLinks = HORIZONTAL_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${i.label}</a>`).join('');
+    const horizontalNavLinks = HORIZONTAL_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${WR.ui.escapeText(i.label)}</a>`).join('');
     // Marked (not removed) so CSS can hide these specific dropdown entries only
     // once the horizontal bar showing the same links is actually visible
     // (>=901px) — mobile still needs the full list since it has no horizontal bar.
@@ -3728,7 +3791,7 @@ WR.ui = WR.ui || {};
       const classes = [];
       if (HORIZONTAL_NAV_HASHES.includes(i.hash)) classes.push('in-horizontal-nav');
       if (MOBILE_NAV_HASHES.includes(i.hash)) classes.push('in-mobile-nav');
-      return `<a href="${i.hash}" data-hash="${i.hash}"${classes.length ? ` class="${classes.join(' ')}"` : ''}>${i.label}</a>`;
+      return `<a href="${i.hash}" data-hash="${i.hash}"${classes.length ? ` class="${classes.join(' ')}"` : ''}>${WR.ui.escapeText(i.label)}</a>`;
     };
     const primaryNavLinks = PRIMARY_NAV_ITEMS.map(navLink).join('');
     const secondaryNavLinks = SECONDARY_NAV_ITEMS.map(navLink).join('');
@@ -3746,7 +3809,7 @@ WR.ui = WR.ui || {};
         <button type="button" id="nav-logout-btn" class="nav-action-item nav-action-danger">Log out</button>
       ` : ''}
     `;
-    document.getElementById('app').innerHTML = `
+    WR.ui.setHTML(document.getElementById('app'), `
       <header class="topbar">
         <a class="brand" href="#/dashboard" aria-label="WealthRoute dashboard">
           <svg class="brand-mark" width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -3774,7 +3837,7 @@ WR.ui = WR.ui || {};
       <div id="global-notice" class="global-notice"></div>
       <main id="content"></main>
       <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
-    `;
+    `);
     WR.ui.updateToggleIcon(document.documentElement.getAttribute('data-theme') || 'light');
     document.getElementById('theme-toggle-btn').addEventListener('click', WR.ui.toggleTheme);
     document.getElementById('nav-toggle-btn').addEventListener('click', () => {
@@ -3913,12 +3976,12 @@ WR.ui = WR.ui || {};
       });
     });
     s.debts.forEach((d) => {
-      if (!(Number(d.dueDay) > 0) || (Number(d.currentBalance) || 0) <= 0.01) return;
+      if (!(Number(d.dueDay) > 0)) return;
       items.push({
         id: d.id, repo: 'debts', billStatuses: d.billStatuses || {},
         name: d.name, kind: 'Debt payment', dueDay: Number(d.dueDay),
-        amount: Number(d.minPayment) || 0, currency: d.currency || s.profile.baseCurrency,
-        isDue: (mk) => isDueInMonth(d.paymentFrequency, String(d.startDate || '').slice(0, 7), mk),
+        amount: Math.min(Number(d.currentBalance) || 0, ['quarterly', 'yearly'].includes(d.paymentFrequency) ? Number(d.minPayment) || 0 : WR.financial.monthlyMinPayment(d)), currency: d.currency || s.profile.baseCurrency,
+        isDue: (mk) => (Number(d.currentBalance) > 0.01 || s.debtPayments.some((payment) => payment.debtId === d.id && payment.month === mk)) && isDueInMonth(d.paymentFrequency, String(d.startDate || '').slice(0, 7), mk),
         hasPayment: (mk) => s.debtPayments.some((p) => p.debtId === d.id && p.month === mk),
       });
     });
@@ -3935,7 +3998,10 @@ WR.ui = WR.ui || {};
         const due = new Date(monthStart.getFullYear(), monthStart.getMonth(), Math.min(item.dueDay, lastDay));
         const status = item.billStatuses[monthKey];
         if (due > horizon || (status !== 'unpaid' && !item.isDue(monthKey))) return;
-        bills.push({ ...item, monthKey, paid: status === 'paid' || !!item.hasPayment?.(monthKey), due, daysAway: Math.round((due - today) / 86400000) });
+        const paid = item.repo === 'debts' ? !!item.hasPayment(monthKey) : status === 'paid';
+        if (item.repo === 'debts' && item.amount <= 0 && !paid) return;
+        const amount = paid && item.repo === 'debts' ? s.debtPayments.filter((payment) => payment.debtId === item.id && payment.month === monthKey).reduce((sum, payment) => sum + Number(payment.amount), 0) : item.amount;
+        bills.push({ ...item, amount, monthKey, paid, due, daysAway: Math.round((due - today) / 86400000) });
       });
     });
     return bills.sort((a, b) => a.due - b.due);
@@ -3947,8 +4013,9 @@ WR.ui = WR.ui || {};
 
   async function renderDashboard(container) {
     const s = await WR.ui.buildSnapshot();
+    WR.ui.assertActiveView(container);
     const currency = s.profile.baseCurrency;
-    const setupComplete = s.budgetLines.length > 0 && (s.debts.length > 0 || s.assets.length > 0 || s.investments.length > 0);
+    const setupComplete = s.cashflow.income > 0 && s.budgetLines.some((line) => line.type === 'fixed' || line.type === 'variable');
     await ensureMonthlyNetWorthSnapshot(s);
     const debtProgress = calculateDebtFreeProgress(s);
     const hasDueDays = s.fixedExpenses.some((e) => Number(e.dueDay) > 0) || s.debts.some((d) => Number(d.dueDay) > 0);
@@ -3962,7 +4029,7 @@ WR.ui = WR.ui || {};
     }
     const bills = billOccurrences.filter((bill) => !bill.paid);
     const paidBills = billOccurrences.filter((bill) => bill.paid);
-    const monthlySurplus = s.cashflow.income - (s.cashflow.fixedExpenses + s.cashflow.variableExpenses);
+    const monthlySurplus = s.cashflow.monthlySurplus;
 
     function billRow(bill) {
       const index = billOccurrences.indexOf(bill);
@@ -3973,25 +4040,27 @@ WR.ui = WR.ui || {};
         <span class="bill-amount">${escapeText(bill.currency)} ${fmt(bill.amount)}</span>
         <div class="bill-actions">
           ${bill.paid ? '' : `<button type="button" data-bill-index="${index}" data-bill-status="paid" aria-label="Mark ${escapeText(bill.name)} as paid">Paid</button>`}
-          ${bill.hasPayment?.(bill.monthKey) ? '<span class="fine-print">Payment recorded on Debts</span>' : `<button type="button" class="secondary" data-bill-index="${index}" data-bill-status="unpaid" aria-label="Mark ${escapeText(bill.name)} as unpaid">${bill.paid ? 'Mark unpaid' : 'Unpaid'}</button>`}
+          <button type="button" class="secondary" data-bill-index="${index}" data-bill-status="unpaid" aria-label="Mark ${escapeText(bill.name)} as unpaid">${bill.paid ? 'Mark unpaid' : 'Unpaid'}</button>
         </div>
       </li>`;
     }
 
-    const recsHtml = s.recommendations.length
+    const recsHtml = !setupComplete || s.currencyWarnings.length
+      ? '<p class="empty">Recommendations will appear once your income, expenses, and exchange rates are complete.</p>'
+      : s.recommendations.length
       ? s.recommendations
           .map(
             (r, i) => `
         <div class="rec-card p-${r.priority}">
           <div class="rec-head">
             <span class="rec-index">${i + 1}.</span>
-            <span class="rec-title">${r.title}</span>
+            <span class="rec-title">${escapeText(r.title)}</span>
             ${priorityBadge(r.priority)}
           </div>
-          <p class="rec-reason"><strong>Reason:</strong> ${r.reason}</p>
-          <p class="rec-impact"><strong>Financial impact:</strong> ${r.financialImpact}</p>
-          <p class="rec-action"><strong>Suggested action:</strong> ${r.suggestedAction}</p>
-          ${r.assumptions && r.assumptions.length ? `<p class="rec-assumptions"><strong>Assumptions:</strong> ${r.assumptions.join(' ')}</p>` : ''}
+          <p class="rec-reason"><strong>Reason:</strong> ${escapeText(r.reason)}</p>
+          <p class="rec-impact"><strong>Financial impact:</strong> ${escapeText(r.financialImpact)}</p>
+          <p class="rec-action"><strong>Suggested action:</strong> ${escapeText(r.suggestedAction)}</p>
+          ${r.assumptions && r.assumptions.length ? `<p class="rec-assumptions"><strong>Assumptions:</strong> ${escapeText(r.assumptions.join(' '))}</p>` : ''}
         </div>`,
           )
           .join('')
@@ -4034,17 +4103,18 @@ WR.ui = WR.ui || {};
       if (!items.length) return '<p class="fine-print">No spending/saving data for this period yet.</p>';
       return `<ul class="pie-legend">${items.map((item, index) => `
         <li>
-          <span class="legend-label"><span class="legend-dot" style="background: var(--chart-${(index % 5) + 1})"></span>${item.label}</span>
+          <span class="legend-label"><span class="legend-dot" style="background: var(--chart-${(index % 5) + 1})"></span>${WR.ui.escapeText(item.label)}</span>
           <span class="legend-value">${currency} ${fmt(item.value)}</span>
         </li>
       `).join('')}</ul>`;
     }
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
+      ${s.currencyWarnings.length ? `<p class="warning">Totals are incomplete. Add exchange rates from ${escapeText(s.currencyWarnings.join(', '))} to ${escapeText(currency)} in <a href="#/settings">Settings</a>.</p>` : ''}
       ${setupComplete ? '' : `
       <section class="health-score">
         <h2>Quick Setup</h2>
-        <p class="fine-print">Add your first transactions and at least one debt or asset to unlock better recommendations.</p>
+        <p class="fine-print">Your financial summary starts with income and expenses.</p>
         <div class="toolbar">
           <button id="setup-go-transactions">Set Monthly Budget</button>
           <button id="setup-go-debts" class="secondary">Add Debt</button>
@@ -4056,7 +4126,7 @@ WR.ui = WR.ui || {};
 
       <section class="position-summary-grid">
         <div class="hero dashboard-card position-card">
-          <p class="greeting">${greeting(WR.account.getUsername() || s.profile.displayName)}</p>
+          <p class="greeting">${escapeText(greeting(WR.account.getUsername() || s.profile.displayName))}</p>
           <h1>Your Financial Position</h1>
           <p class="month-label">${s.monthLabel}</p>
 
@@ -4068,6 +4138,7 @@ WR.ui = WR.ui || {};
 
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Monthly Surplus</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
+            <div class="stat"><span class="stat-label">After debt minimums</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
             <div class="stat"><span class="stat-label">Day-to-Day Balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
             <div class="stat"><span class="stat-label">Savings Pots</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
           </div>
@@ -4105,6 +4176,7 @@ WR.ui = WR.ui || {};
       </section>
 
       <section class="health-score">
+        ${setupComplete && !s.currencyWarnings.length ? `
         <h2>Financial Health: ${s.healthScore.score}/100 ${WR.ui.moodEmoji(s.healthScore.score, { good: 70, bad: 40 })}</h2>
         <div class="score-breakdown">
           ${[
@@ -4124,8 +4196,10 @@ WR.ui = WR.ui || {};
           }).join('')}
         </div>
         <p class="fine-print">Every component above is a plain formula - see Settings for assumptions.</p>
+        ` : '<h2>Financial Health</h2><p class="fine-print">Not enough complete data to calculate a score yet.</p>'}
       </section>
 
+      <details class="dashboard-disclosure"><summary>Monthly and annual spending breakdowns</summary>
       <section class="summary-charts">
         <article class="pie-card">
           <h3>Monthly Breakdown (${s.monthLabel})</h3>
@@ -4142,6 +4216,7 @@ WR.ui = WR.ui || {};
           </div>
         </article>
       </section>
+      </details>
 
       <section class="recommendations">
         <h2>What Should I Do Now?</h2>
@@ -4160,7 +4235,7 @@ WR.ui = WR.ui || {};
           ${s.netWorthHistory.length < 3 ? '<p class="fine-print">A snapshot is recorded automatically each month, so this trend line fills in over time.</p>' : ''}
         </div>
       </section>
-    `;
+    `);
 
     container.querySelectorAll('[data-bill-status]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -4168,10 +4243,14 @@ WR.ui = WR.ui || {};
         const rowButtons = button.closest('li').querySelectorAll('button');
         rowButtons.forEach((control) => { control.disabled = true; });
         try {
-          const repo = WR.repos[bill.repo];
-          const record = await repo.getById(bill.id);
-          if (!record) throw new Error('This bill no longer exists.');
-          await repo.update({ ...record, billStatuses: { ...record.billStatuses, [bill.monthKey]: button.dataset.billStatus } });
+          if (bill.repo === 'debts') {
+            await WR.ui.setDebtPaymentStatus(bill.id, bill.monthKey, button.dataset.billStatus === 'paid');
+          } else {
+            const repo = WR.repos[bill.repo];
+            const record = await repo.getById(bill.id);
+            if (!record) throw new Error('This bill no longer exists.');
+            await repo.update({ ...record, billStatuses: { ...record.billStatuses, [bill.monthKey]: button.dataset.billStatus } });
+          }
           await renderDashboard(container);
           notify(button.dataset.billStatus === 'paid' ? 'Bill marked as paid.' : 'Bill remains unpaid.', 'success');
         } catch (error) {
@@ -4202,6 +4281,7 @@ WR.ui = WR.ui || {};
   }
 
   WR.ui.fmt = fmt;
+  WR.ui.escapeText = escapeText;
   WR.ui.pct = pct;
   WR.ui.el = el;
   WR.ui.greeting = greeting;
@@ -4239,7 +4319,7 @@ WR.ui = WR.ui || {};
   function categoryOptions(categories, selectedId) {
     return (
       `<option value="">\u2014 none \u2014</option>` +
-      categories.map((c) => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.name}</option>`).join('')
+      categories.map((c) => `<option value="${WR.ui.escapeText(c.id)}" ${c.id === selectedId ? 'selected' : ''}>${WR.ui.escapeText(c.name)}</option>`).join('')
     );
   }
 
@@ -4281,28 +4361,28 @@ WR.ui = WR.ui || {};
 
     const headerCells = SORTABLE_COLUMNS.map(
       (col) =>
-        `<th class="sortable" data-sort-field="${col.field}">${col.label}${sort.field === col.field ? (sort.dir === 'asc' ? ' \u2191' : ' \u2193') : ''}</th>`,
+        `<th class="sortable" data-sort-field="${col.field}">${WR.ui.escapeText(col.label)}${sort.field === col.field ? (sort.dir === 'asc' ? ' \u2191' : ' \u2193') : ''}</th>`,
     ).join('');
 
     const rows = sortedLines
       .map(
         (l) => `
-      <tr data-id="${l.id}">
-        <td><input class="cell" data-field="name" value="${l.name}"></td>
+      <tr data-id="${WR.ui.escapeText(l.id)}">
+        <td><input class="cell" data-field="name" value="${WR.ui.escapeText(l.name)}"></td>
         <td><select class="cell" data-field="categoryId">${categoryOptions(variableCategories, l.categoryId)}</select></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="budgetAmount" value="${l.budgetAmount}"></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="actualAmount" value="${l.actualAmount}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="budgetAmount" value="${WR.ui.escapeText(l.budgetAmount)}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="actualAmount" value="${WR.ui.escapeText(l.actualAmount)}"></td>
         <td class="num diff-cell">${WR.ui.fmt(l.diff)}</td>
-        <td><button class="link-btn delete-line" data-id="${l.id}">Delete</button></td>
+        <td><button class="link-btn delete-line" data-id="${WR.ui.escapeText(l.id)}">Delete</button></td>
       </tr>`,
       )
       .join('');
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <h1>Variable Expenses</h1>
       <div class="toolbar">
         <label>Month:
-          <input type="month" id="month-picker" value="${month}">
+          <input type="month" id="month-picker" value="${WR.ui.escapeText(month)}">
         </label>
       </div>
       <p class="fine-print">Plan and record variable expenses for the selected month. Changes save immediately.</p>
@@ -4331,7 +4411,7 @@ WR.ui = WR.ui || {};
         <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Actual" required>
         <button type="submit">Add</button>
       </form>
-    `;
+    `);
 
     document.getElementById('copy-last-month-btn')?.addEventListener('click', async (event) => {
       event.currentTarget.disabled = true;
@@ -4436,20 +4516,20 @@ WR.ui = WR.ui || {};
       .reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
 
     const rows = savings.map((line) => `
-      <tr data-id="${line.id}">
-        <td><input class="cell" data-field="name" value="${line.name}"></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="budgetAmount" value="${line.budgetAmount}"></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="actualAmount" value="${line.actualAmount}"></td>
+      <tr data-id="${WR.ui.escapeText(line.id)}">
+        <td><input class="cell" data-field="name" value="${WR.ui.escapeText(line.name)}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="budgetAmount" value="${WR.ui.escapeText(line.budgetAmount)}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="actualAmount" value="${WR.ui.escapeText(line.actualAmount)}"></td>
         <td class="num diff-cell">${WR.ui.fmt(line.actualAmount - line.budgetAmount)}</td>
-        <td><button class="link-btn delete-saving" data-id="${line.id}">Delete</button></td>
+        <td><button class="link-btn delete-saving" data-id="${WR.ui.escapeText(line.id)}">Delete</button></td>
       </tr>
     `).join('');
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       ${container.id === 'general-savings' ? '<h2>Savings</h2>' : '<h1>Savings</h1>'}
       <div class="toolbar">
         <label>Month:
-          <input type="month" id="savings-month-picker" value="${month}">
+          <input type="month" id="savings-month-picker" value="${WR.ui.escapeText(month)}">
         </label>
       </div>
       <p class="fine-print">Enter new contributions for this month. Unused savings carry forward; do not re-enter last month's balance.</p>
@@ -4482,7 +4562,7 @@ WR.ui = WR.ui || {};
         <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Added this month" required>
         <button type="submit">Add</button>
       </form>
-    `;
+    `);
 
     container.querySelector('#savings-month-picker').addEventListener('change', (event) => {
       WR.ui._savingsMonth = event.target.value;
@@ -4551,13 +4631,13 @@ WR.ui = WR.ui || {};
 
   function recurringFrequencyOptions(selected) {
     return RECURRING_FREQUENCIES
-      .map((frequency) => `<option value="${frequency}" ${frequency === selected ? 'selected' : ''}>${frequency}</option>`)
+      .map((frequency) => `<option value="${WR.ui.escapeText(frequency)}" ${frequency === selected ? 'selected' : ''}>${frequency}</option>`)
       .join('');
   }
 
   function categoryOptions(categories, selectedId, type) {
     const filtered = (categories || []).filter((category) => !type || category.type === type);
-    return `<option value="">— none —</option>${filtered.map((category) => `<option value="${category.id}" ${category.id === selectedId ? 'selected' : ''}>${category.name}</option>`).join('')}`;
+    return `<option value="">— none —</option>${filtered.map((category) => `<option value="${WR.ui.escapeText(category.id)}" ${category.id === selectedId ? 'selected' : ''}>${WR.ui.escapeText(category.name)}</option>`).join('')}`;
   }
 
   function isMonthRangeValid(startMonth, endMonth) {
@@ -4578,23 +4658,23 @@ WR.ui = WR.ui || {};
       .filter((item) => Number(item.year || year) === year)
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((item) => `
-        <tr data-id="${item.id}">
-          <td><input class="cell" data-field="name" value="${item.name || ''}"></td>
-          <td><input class="cell num" data-field="amount" type="number" step="0.01" min="0" value="${item.amount || 0}"></td>
+        <tr data-id="${WR.ui.escapeText(item.id)}">
+          <td><input class="cell" data-field="name" value="${WR.ui.escapeText(item.name || '')}"></td>
+          <td><input class="cell num" data-field="amount" type="number" step="0.01" min="0" value="${WR.ui.escapeText(item.amount || 0)}"></td>
           <td><select class="cell" data-field="frequency">${recurringFrequencyOptions(item.frequency || 'monthly')}</select></td>
-          <td><input class="cell" data-field="startMonth" type="month" value="${item.startMonth || `${year}-01`}"></td>
-          <td><input class="cell" data-field="endMonth" type="month" value="${item.endMonth || `${year}-12`}"></td>
-          <td><button class="link-btn delete-income" data-id="${item.id}">Delete</button></td>
+          <td><input class="cell" data-field="startMonth" type="month" value="${WR.ui.escapeText(item.startMonth || `${year}-01`)}"></td>
+          <td><input class="cell" data-field="endMonth" type="month" value="${WR.ui.escapeText(item.endMonth || `${year}-12`)}"></td>
+          <td><button class="link-btn delete-income" data-id="${WR.ui.escapeText(item.id)}">Delete</button></td>
         </tr>`)
       .join('');
     const totalIncome = incomes
       .filter((item) => Number(item.year || year) === year)
       .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <h1>Income</h1>
       <p class="fine-print">Choose the months this income applies to. Annual income starts with the first dated financial record for that year.</p>
-      <div class="toolbar"><label>Year: <select id="income-year">${WR.ui.yearsAroundCurrent(3, 4).map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></label></div>
+      <div class="toolbar"><label>Year: <select id="income-year">${WR.ui.yearsAroundCurrent(3, 4).map((y) => `<option value="${WR.ui.escapeText(y)}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></label></div>
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
       </div>
@@ -4608,12 +4688,12 @@ WR.ui = WR.ui || {};
         <input name="name" placeholder="Salary, side business, rental" required>
         <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
         <select name="frequency">${recurringFrequencyOptions('monthly')}</select>
-        <input name="startMonth" type="month" value="${defaultStartMonth}">
-        <input name="endMonth" type="month" value="${year}-12">
+        <input name="startMonth" type="month" value="${WR.ui.escapeText(defaultStartMonth)}">
+        <input name="endMonth" type="month" value="${WR.ui.escapeText(year)}-12">
         <button type="submit">Add</button>
       </form>
       <p id="income-form-message" class="warning"></p>
-    `;
+    `);
 
     document.getElementById('income-year').addEventListener('change', (event) => {
       WR.ui._incomeYear = Number(event.target.value);
@@ -4693,20 +4773,20 @@ WR.ui = WR.ui || {};
     const rows = expenses
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((expense) => `
-        <tr data-id="${expense.id}">
-          <td><input class="cell" data-field="name" value="${expense.name || ''}"></td>
-          <td><input class="cell num" data-field="amount" type="number" step="0.01" min="0" value="${expense.amount || 0}"></td>
+        <tr data-id="${WR.ui.escapeText(expense.id)}">
+          <td><input class="cell" data-field="name" value="${WR.ui.escapeText(expense.name || '')}"></td>
+          <td><input class="cell num" data-field="amount" type="number" step="0.01" min="0" value="${WR.ui.escapeText(expense.amount || 0)}"></td>
           <td><select class="cell" data-field="frequency">${recurringFrequencyOptions(expense.frequency || 'monthly')}</select></td>
           <td><select class="cell" data-field="categoryId">${categoryOptions(categories, expense.categoryId, 'fixed')}</select></td>
-          <td><input class="cell" data-field="startMonth" type="month" value="${expense.startMonth || WR.ui.currentMonthKey()}"></td>
-          <td><input class="cell" data-field="endMonth" type="month" value="${expense.endMonth || ''}"></td>
-          <td><input class="cell num" data-field="dueDay" type="number" min="1" max="31" step="1" placeholder="—" value="${expense.dueDay || ''}"></td>
-          <td><button class="link-btn delete-fixed-expense" data-id="${expense.id}">Delete</button></td>
+          <td><input class="cell" data-field="startMonth" type="month" value="${WR.ui.escapeText(expense.startMonth || WR.ui.currentMonthKey())}"></td>
+          <td><input class="cell" data-field="endMonth" type="month" value="${WR.ui.escapeText(expense.endMonth || '')}"></td>
+          <td><input class="cell num" data-field="dueDay" type="number" min="1" max="31" step="1" placeholder="—" value="${WR.ui.escapeText(expense.dueDay || '')}"></td>
+          <td><button class="link-btn delete-fixed-expense" data-id="${WR.ui.escapeText(expense.id)}">Delete</button></td>
         </tr>`)
       .join('');
     const totalFixedExpenses = expenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <h1>Fixed Expenses</h1>
       <p class="fine-print">Recurring fixed expenses are entered once and automatically applied to every applicable month.</p>
       <div class="stat-grid">
@@ -4723,13 +4803,13 @@ WR.ui = WR.ui || {};
         <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
         <select name="frequency">${recurringFrequencyOptions('monthly')}</select>
         <select name="categoryId">${categoryOptions(categories, undefined, 'fixed')}</select>
-        <input name="startMonth" type="month" value="${WR.ui.currentMonthKey()}">
+        <input name="startMonth" type="month" value="${WR.ui.escapeText(WR.ui.currentMonthKey())}">
         <input name="endMonth" type="month">
         <input name="dueDay" type="number" min="1" max="31" step="1" placeholder="Due day (1-31)">
         <button type="submit">Add</button>
       </form>
       <p id="fixed-form-message" class="warning"></p>
-    `;
+    `);
 
     container.querySelectorAll('tbody tr').forEach((tr) => {
       const id = tr.dataset.id;
@@ -4811,7 +4891,7 @@ WR.ui = WR.ui || {};
     const emergencyFundAccountLabel = (accountId) =>
       (EMERGENCY_FUND_ACCOUNTS.find((a) => a.id === accountId) || EMERGENCY_FUND_ACCOUNTS[0]).label;
     const emergencyFundAccountOptions = (selected) => EMERGENCY_FUND_ACCOUNTS.map((a) =>
-      `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${escapeEf(a.label)}</option>`).join('');
+      `<option value="${WR.ui.escapeText(a.id)}" ${a.id === selected ? 'selected' : ''}>${escapeEf(a.label)}</option>`).join('');
     const month = WR.ui._emergencyFundMonth || WR.ui.currentMonthKey();
     WR.ui._emergencyFundMonth = month;
     const sorted = contributions.sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -4837,17 +4917,17 @@ WR.ui = WR.ui || {};
       const isBorrowed = (Number(item.amount) || 0) < 0 && !item.transferId;
       const returned = Boolean(item.returned);
       return `
-      <tr data-id="${item.id}">
-        <td><input class="cell" data-field="date" type="date" value="${item.date}"></td>
+      <tr data-id="${WR.ui.escapeText(item.id)}">
+        <td><input class="cell" data-field="date" type="date" value="${WR.ui.escapeText(item.date)}"></td>
         <td><select class="cell" data-field="account">${emergencyFundAccountOptions(accountOf(item))}</select></td>
-        <td><input class="cell" data-field="amount" type="number" step="0.01" value="${item.amount}"></td>
-        <td><input class="cell" data-field="note" value="${item.note || ''}"></td>
-        <td>${isBorrowed ? `<button class="link-btn toggle-emergency-return" data-id="${item.id}">${returned ? 'Unmark returned' : 'Mark returned'}</button>` : ''}</td>
-        <td><button class="link-btn delete-emergency" data-id="${item.id}">Delete</button></td>
+        <td><input class="cell" data-field="amount" type="number" step="0.01" value="${WR.ui.escapeText(item.amount)}"></td>
+        <td><input class="cell" data-field="note" value="${WR.ui.escapeText(item.note || '')}"></td>
+        <td>${isBorrowed ? `<button class="link-btn toggle-emergency-return" data-id="${WR.ui.escapeText(item.id)}">${returned ? 'Unmark returned' : 'Mark returned'}</button>` : ''}</td>
+        <td><button class="link-btn delete-emergency" data-id="${WR.ui.escapeText(item.id)}">Delete</button></td>
       </tr>`;
     }).join('');
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       ${container.id === 'emergency-savings' ? '<h2>Emergency Fund</h2>' : '<h1>Emergency Fund</h1>'}
       <p class="month-label">Track contributions and borrowing across your emergency fund accounts.</p>
 
@@ -4866,7 +4946,7 @@ WR.ui = WR.ui || {};
         <strong>${targetProgress}% Complete</strong><div class="goal-meter" role="progressbar" aria-valuenow="${targetProgress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${targetProgress}%"></span></div>
         <p>${target > 0 ? `${profile.baseCurrency} ${WR.ui.fmt(total)} of ${profile.baseCurrency} ${WR.ui.fmt(target)}` : 'Set a target amount to track your progress.'}</p>
         <form id="emergency-target-form" class="inline-form"><label>Target amount (${profile.baseCurrency}):
-          <input name="target" type="number" min="0.01" step="0.01" value="${Number(profile.emergencyFundTargetAmount) || ''}" required></label>
+          <input name="target" type="number" min="0.01" step="0.01" value="${WR.ui.escapeText(Number(profile.emergencyFundTargetAmount) || '')}" required></label>
           <button type="submit">Save target</button></form></div>
 
       <div class="ef-account-grid">
@@ -4881,7 +4961,7 @@ WR.ui = WR.ui || {};
 
       <div class="ef-activity-card">
         <h3>Activity</h3>
-        <div class="toolbar"><label>Month: <input id="emergency-fund-month" type="month" value="${month}"></label></div>
+        <div class="toolbar"><label>Month: <input id="emergency-fund-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
         <table class="data-table">
           <thead><tr><th>Date</th><th>Account</th><th>Contribution (${profile.baseCurrency})</th><th>Note</th><th>Returned</th><th></th></tr></thead>
           <tbody>${rows || '<tr><td colspan="6" class="empty">No emergency fund activity for this month.</td></tr>'}</tbody>
@@ -4892,7 +4972,7 @@ WR.ui = WR.ui || {};
         <div class="ef-form-card">
           <h3>Add contribution</h3>
           <form id="emergency-add-form" class="inline-form">
-            <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
+            <input name="date" type="date" value="${WR.ui.escapeText(new Date().toISOString().slice(0, 10))}" required>
             <select name="account" required>${emergencyFundAccountOptions()}</select>
             <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
             <input name="note" placeholder="Optional note">
@@ -4904,7 +4984,7 @@ WR.ui = WR.ui || {};
           <h3>Borrow from emergency fund</h3>
           <p class="fine-print">This reduces the selected account's balance and records the same amount as a variable expense named “Emergency Fund Borrowed” for the selected month.</p>
           <form id="emergency-borrow-form" class="inline-form">
-            <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
+            <input name="date" type="date" value="${WR.ui.escapeText(new Date().toISOString().slice(0, 10))}" required>
             <select name="account" required>${emergencyFundAccountOptions()}</select>
             <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount borrowed" required>
             <input name="note" placeholder="Reason (optional)">
@@ -4916,7 +4996,7 @@ WR.ui = WR.ui || {};
           <h3>Move funds</h3>
           <p class="fine-print">Move money between your emergency fund accounts without changing the combined balance.</p>
           <form id="emergency-transfer-form" class="inline-form">
-            <input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" required>
+            <input name="date" type="date" value="${WR.ui.escapeText(new Date().toISOString().slice(0, 10))}" required>
             <select name="fromAccount" required>${emergencyFundAccountOptions()}</select>
             <select name="toAccount" required>${emergencyFundAccountOptions()}</select>
             <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount moved" required>
@@ -4932,8 +5012,8 @@ WR.ui = WR.ui || {};
             ${EMERGENCY_FUND_ACCOUNTS.map((a) => {
               const inUse = sorted.some((item) => accountOf(item) === a.id);
               return `<li>
-                <input class="ef-account-rename" data-id="${a.id}" value="${escapeEf(a.label)}" aria-label="Account name" maxlength="60">
-                <button type="button" class="link-btn ef-account-remove" data-id="${a.id}" ${inUse || EMERGENCY_FUND_ACCOUNTS.length <= 1 ? 'disabled title="Has activity or is the only account"' : ''}>Remove</button>
+                <input class="ef-account-rename" data-id="${WR.ui.escapeText(a.id)}" value="${escapeEf(a.label)}" aria-label="Account name" maxlength="60">
+                <button type="button" class="link-btn ef-account-remove" data-id="${WR.ui.escapeText(a.id)}" ${inUse || EMERGENCY_FUND_ACCOUNTS.length <= 1 ? 'disabled title="Has activity or is the only account"' : ''}>Remove</button>
               </li>`;
             }).join('')}
           </ul>
@@ -4943,7 +5023,7 @@ WR.ui = WR.ui || {};
           </form>
         </div>
       </div>
-    `;
+    `);
 
     const saveAccounts = async (accounts) => {
       profile.emergencyFundAccounts = accounts;
@@ -5183,20 +5263,20 @@ WR.ui = WR.ui || {};
     }).join('');
 
     const rows = monthTx.map((item) => `
-      <tr data-id="${item.id}">
+      <tr data-id="${WR.ui.escapeText(item.id)}">
         <td><input class="cell" data-field="date" type="date" value="${escapeHtml(item.date)}"></td>
         <td><select class="cell" data-field="kind"><option value="spend" ${item.kind !== 'add' ? 'selected' : ''}>Spend</option><option value="add" ${item.kind === 'add' ? 'selected' : ''}>Add money</option></select></td>
         <td><input class="cell" data-field="description" value="${escapeHtml(item.description || '')}"></td>
         <td><select class="cell" data-field="category">${categoryOptions(item.category)}</select></td>
         <td><input class="cell" data-field="note" value="${escapeHtml(item.note || '')}"></td>
-        <td><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${item.amount}"></td>
-        <td><button class="link-btn delete-day" data-id="${item.id}">Delete</button></td>
+        <td><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${WR.ui.escapeText(item.amount)}"></td>
+        <td><button class="link-btn delete-day" data-id="${WR.ui.escapeText(item.id)}">Delete</button></td>
       </tr>`).join('');
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <h1>Transactions</h1>
       <p class="fine-print">Track daily account money separately from budget categories. Spend entries deduct from the current day-to-day balance.</p>
-      <div class="toolbar"><label>Month: <input id="day-month" type="month" value="${month}"></label></div>
+      <div class="toolbar"><label>Month: <input id="day-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
 
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Balance at start of month</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(balanceBeforeMonth)}</span></div>
@@ -5216,7 +5296,7 @@ WR.ui = WR.ui || {};
 
       <h3>Initial amount</h3>
       <form id="day-balance-form" class="inline-form">
-        <input name="startingBalance" type="number" step="0.01" min="0" value="${initialBalance}" required>
+        <input name="startingBalance" type="number" step="0.01" min="0" value="${WR.ui.escapeText(initialBalance)}" required>
         <button type="submit">Save initial amount</button>
       </form>
       <p class="fine-print">This is the amount you started with when you registered${initialAccount ? ` in ${initialBalanceYear}` : ''}. Change it only to correct that original amount: it recalculates all later balances. Use “Add day-to-day transaction” to add new money.</p>
@@ -5234,7 +5314,7 @@ WR.ui = WR.ui || {};
 
       <h3>Add day-to-day transaction</h3>
       <form id="day-add-form" class="inline-form">
-        <input name="date" type="date" value="${transactionDate}" required>
+        <input name="date" type="date" value="${WR.ui.escapeText(transactionDate)}" required>
         <select name="kind"><option value="spend">Spend</option><option value="add">Add money</option></select>
         <input name="description" placeholder="Description" required>
         <select name="category">${categoryOptions()}</select>
@@ -5242,7 +5322,7 @@ WR.ui = WR.ui || {};
         <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
         <button type="submit">Add</button>
       </form>
-    `;
+    `);
 
     document.getElementById('day-month').addEventListener('change', (event) => {
       WR.ui._dayMonth = event.target.value;
@@ -5340,16 +5420,16 @@ WR.ui = WR.ui || {};
     trends.push(`Financial health score is ${snapshot.healthScore.score}/100 this month.`);
 
     const suggestions = snapshot.recommendations.length
-      ? snapshot.recommendations.map((item) => `${item.title}: ${item.reason}`)
+      ? snapshot.recommendations.map((item) => `${WR.ui.escapeText(item.title)}: ${item.reason}`)
       : ['No high-priority actions. Continue tracking monthly activity for richer insights.'];
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <h1>Financial Insights</h1>
-      <div class="toolbar"><label>Month: <input type="month" id="insights-month" value="${month}"></label></div>
+      <div class="toolbar"><label>Month: <input type="month" id="insights-month" value="${WR.ui.escapeText(month)}"></label></div>
       <section><h2>Information</h2><div class="assistant-answer">${info.map((line) => `<p>${line}</p>`).join('')}</div></section>
       <section><h2>Trends</h2><div class="assistant-answer">${trends.map((line) => `<p>${line}</p>`).join('')}</div></section>
       <section><h2>Suggestions</h2><div class="assistant-answer">${suggestions.map((line) => `<p>${line}</p>`).join('')}</div></section>
-    `;
+    `);
 
     document.getElementById('insights-month').addEventListener('change', (event) => {
       WR.ui._insightsMonth = event.target.value;
@@ -5375,12 +5455,12 @@ WR.ui = WR.ui || {};
   const CURRENCIES = ['ZAR', 'USD', 'EUR', 'GBP'];
 
   function currencyOptions(selected) {
-    return CURRENCIES.map((c) => `<option value="${c}" ${c === selected ? 'selected' : ''}>${c}</option>`).join('');
+    return CURRENCIES.map((c) => `<option value="${WR.ui.escapeText(c)}" ${c === selected ? 'selected' : ''}>${c}</option>`).join('');
   }
 
   function paymentFrequencyOptions(selected) {
     return ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly']
-      .map((frequency) => `<option value="${frequency}" ${frequency === selected ? 'selected' : ''}>${frequency}</option>`)
+      .map((frequency) => `<option value="${WR.ui.escapeText(frequency)}" ${frequency === selected ? 'selected' : ''}>${frequency}</option>`)
       .join('');
   }
 
@@ -5518,9 +5598,9 @@ WR.ui = WR.ui || {};
     const strategy = WR.ui._debtStrategy || 'avalanche';
     const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
     const section = container.querySelector('.payoff-results');
-    if (section) section.innerHTML = computePayoffHtml(debts, strategy, extra, profile, exchangeRates);
+    if (section) WR.ui.setHTML(section, computePayoffHtml(debts, strategy, extra, profile, exchangeRates));
     const overview = container.querySelector('.debt-overview-wrap');
-    if (overview) overview.innerHTML = computeDebtOverviewHtml(debts, exchangeRates, profile);
+    if (overview) WR.ui.setHTML(overview, computeDebtOverviewHtml(debts, exchangeRates, profile));
   }
 
   const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -5535,7 +5615,7 @@ WR.ui = WR.ui || {};
   }
 
   function computeDebtCalendarHtml(debts, payments, profile, year) {
-    const ongoingDebts = debts.filter((debt) => (Number(debt.currentBalance) || 0) > 0.01);
+    const ongoingDebts = debts.filter((debt) => (Number(debt.currentBalance) || 0) > 0.01 || payments.some((payment) => payment.debtId === debt.id && String(payment.month).startsWith(String(year))));
     if (ongoingDebts.length === 0) return '';
     const cards = ongoingDebts
       .map((d) => {
@@ -5546,13 +5626,13 @@ WR.ui = WR.ui || {};
           .map((label, i) => {
             const monthKey = `${year}-${String(i + 1).padStart(2, '0')}`;
             const isPaid = payments.some((p) => p.debtId === d.id && p.month === monthKey);
-            const due = trackedPaymentForMonth(d, monthKey) > 0;
-            return `<button type="button" class="month-btn ${isPaid ? 'paid' : ''}" data-debt-id="${d.id}" data-month="${monthKey}" ${!due && !isPaid ? 'disabled title="No payment due this month"' : ''}>${label}</button>`;
+            const due = Number(d.currentBalance) > 0.01 && trackedPaymentForMonth(d, monthKey) > 0;
+            return `<button type="button" class="month-btn ${isPaid ? 'paid' : ''}" aria-pressed="${isPaid}" aria-label="${WR.ui.escapeText(d.name)}: ${label} ${year}, ${isPaid ? 'paid' : 'unpaid'}" data-debt-id="${d.id}" data-month="${monthKey}" ${!due && !isPaid ? 'disabled title="No payment due this month"' : ''}>${label}</button>`;
           })
           .join('');
         return `
       <div class="debt-calendar-card">
-        <h4>${d.name}</h4>
+        <h4>${WR.ui.escapeText(d.name)}</h4>
         <div class="debt-calendar-grid">${months}</div>
         <div class="debt-calendar-stats">
           <span>Debt paid: <strong>${d.currency || profile.baseCurrency} ${WR.ui.fmt(paidTotal)}</strong></span>
@@ -5567,34 +5647,60 @@ WR.ui = WR.ui || {};
       <p class="fine-print">Mark a payment when it clears. Weekly and biweekly amounts use a monthly equivalent; quarterly and yearly installments are due from the start month.</p>
       <div class="toolbar">
         <label>Year:
-          <select id="debt-calendar-year">${WR.ui.yearsAroundCurrent(3, 3).map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select>
+          <select id="debt-calendar-year">${WR.ui.yearsAroundCurrent(3, 3).map((y) => `<option value="${WR.ui.escapeText(y)}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select>
         </label>
       </div>
       <div class="debt-calendar-list">${cards}</div>
     `;
   }
 
-  async function toggleDebtPayment(debtId, month, container) {
-    const debt = await WR.repos.debts.getById(debtId);
-    if (!debt) return;
-    const previousBalance = Number(debt.currentBalance) || 0;
-    const allPayments = await WR.repos.debtPayments.getAll();
-    const existing = allPayments.find((p) => p.debtId === debtId && p.month === month);
-    if (existing) {
-      await WR.repos.debtPayments.remove(existing.id);
-      debt.currentBalance = Math.max(0, (Number(debt.currentBalance) || 0) + existing.amount);
-    } else {
-      const amount = trackedPaymentForMonth(debt, month);
-      if (amount <= 0) {
-        WR.ui.notify('No payment is due for this debt in that month.', 'error');
-        return;
+  async function setDebtPaymentStatus(debtId, month, paid) {
+    const user = WR.account.getCurrentUser();
+    if (!user) throw new Error('Sign in to record a payment.');
+    const api = WR.account.getFirestoreApi();
+    const db = WR.account.getDb();
+    const profile = await WR.ui.getOrCreateProfile();
+    const paymentId = `monthly-${debtId}-${month}`;
+    const ledger = await api.getDocsFromServer(api.query(api.collection(db, 'users', user.uid, 'debtPayments'), api.where('debtId', '==', debtId)));
+    const ids = [...new Set([paymentId, ...ledger.docs.filter((document) => document.data().month === month).map((document) => document.id)])];
+    const debtRef = api.doc(db, 'users', user.uid, 'debts', debtId);
+    const paymentRefs = ids.map((id) => api.doc(db, 'users', user.uid, 'debtPayments', id));
+    await api.runTransaction(db, async (transaction) => {
+      const debtSnapshot = await transaction.get(debtRef);
+      const paymentSnapshots = await Promise.all(paymentRefs.map((ref) => transaction.get(ref)));
+      if (!debtSnapshot.exists()) throw new Error('This debt no longer exists.');
+      const debt = debtSnapshot.data();
+      const previousBalance = Number(debt.currentBalance) || 0;
+      const existing = paymentSnapshots.filter((snapshot) => snapshot.exists());
+      if (paid && !existing.length) {
+        const amount = Math.min(previousBalance, trackedPaymentForMonth(debt, month));
+        if (amount <= 0) throw new Error('No payment is due for this debt in that month.');
+        transaction.set(paymentRefs[0], { id: paymentId, debtId, month, amount, currency: debt.currency || profile.baseCurrency });
+        debt.currentBalance = Math.round((previousBalance - amount) * 100) / 100;
+      } else if (!paid && existing.length) {
+        debt.currentBalance = Math.round((previousBalance + existing.reduce((sum, snapshot) => sum + Number(snapshot.data().amount), 0)) * 100) / 100;
+        paymentSnapshots.forEach((snapshot, index) => { if (snapshot.exists()) transaction.delete(paymentRefs[index]); });
       }
-      await WR.repos.debtPayments.add(WR.models.createDebtPayment({ debtId, month, amount }));
-      debt.currentBalance = Math.max(0, (Number(debt.currentBalance) || 0) - amount);
+      debt.billStatuses = { ...debt.billStatuses, [month]: paid ? 'paid' : 'unpaid' };
+      updateDebtPaidOffDate(debt, previousBalance);
+      transaction.set(debtRef, Object.fromEntries(Object.entries(debt).filter(([, value]) => value !== undefined)));
+    });
+    await Promise.all([
+      api.getDocsFromServer(api.collection(db, 'users', user.uid, 'debts')),
+      api.getDocsFromServer(api.collection(db, 'users', user.uid, 'debtPayments')),
+    ]);
+  }
+
+  async function toggleDebtPayment(debtId, month, container, button) {
+    if (button) button.disabled = true;
+    try {
+      const payments = await WR.repos.debtPayments.getAll();
+      await setDebtPaymentStatus(debtId, month, !payments.some((payment) => payment.debtId === debtId && payment.month === month));
+      await renderDebts(container);
+    } catch (error) {
+      WR.ui.notify(error.message || 'Unable to record this payment.', 'error');
+      if (button) button.disabled = false;
     }
-    updateDebtPaidOffDate(debt, previousBalance);
-    await WR.repos.debts.update(debt);
-    renderDebts(container);
   }
 
   function calculateMoneyOwed(entry) {
@@ -5623,9 +5729,9 @@ WR.ui = WR.ui || {};
       <div class="money-owed-fields">
         <label>Person<input name="borrower" value="${esc(entry.borrower)}" maxlength="120" required></label>
         <label>Type<select name="kind"><option value="loan" ${entry.kind !== 'shared-bill' ? 'selected' : ''}>Money lent</option><option value="shared-bill" ${entry.kind === 'shared-bill' ? 'selected' : ''}>Bill paid for someone</option></select></label>
-        <label>Amount owed before interest<input name="amount" type="number" min="0.01" step="0.01" value="${entry.amount ?? ''}" required></label>
+        <label>Amount owed before interest<input name="amount" type="number" min="0.01" step="0.01" value="${WR.ui.escapeText(entry.amount ?? '')}" required></label>
         <label>Currency<select name="currency">${currencyOptions(entry.currency || profile.baseCurrency)}</select></label>
-        <label>One-off interest (%)<input name="interestRatePct" type="number" min="0" step="0.01" value="${entry.interestRatePct || 0}"></label>
+        <label>One-off interest (%)<input name="interestRatePct" type="number" min="0" step="0.01" value="${WR.ui.escapeText(entry.interestRatePct || 0)}"></label>
         <label>Source account<input name="sourceAccount" list="money-owed-accounts" value="${esc(entry.sourceAccount)}" maxlength="120" required></label>
         <label>Date lent / bill paid<input name="date" type="date" value="${esc(entry.date || today)}" required></label>
         <label>Repayment due (optional)<input name="dueDate" type="date" value="${esc(entry.dueDate)}"></label>
@@ -5645,8 +5751,8 @@ WR.ui = WR.ui || {};
         ${entry.dueDate ? `<p class="fine-print">${balance.remaining > 0 && entry.dueDate < today ? 'Overdue' : 'Due'}: ${esc(entry.dueDate)}</p>` : ''}
         ${balance.remaining > 0 ? `<form data-owed-action="repayment">
           <div class="money-owed-fields">
-            <label>Repayment amount<input name="amount" type="number" min="0.01" max="${balance.remaining}" step="0.01" value="${balance.remaining}" required></label>
-            <label>Repayment date<input name="date" type="date" value="${today}" required></label>
+            <label>Repayment amount<input name="amount" type="number" min="0.01" max="${balance.remaining}" step="0.01" value="${WR.ui.escapeText(balance.remaining)}" required></label>
+            <label>Repayment date<input name="date" type="date" value="${WR.ui.escapeText(today)}" required></label>
           </div><button type="submit">Record repayment</button>
         </form>` : '<p class="fine-print">Fully repaid</p>'}
         ${(entry.repayments || []).length ? `<details><summary>Repayment history (${entry.repayments.length})</summary><ul class="money-owed-history">${entry.repayments.map((payment) => `<li><span>${esc(payment.date)} · ${money(entry, payment.amount)}</span><button type="button" class="secondary" data-remove-repayment="${esc(payment.id)}">Remove repayment</button></li>`).join('')}</ul></details>` : ''}
@@ -5661,13 +5767,13 @@ WR.ui = WR.ui || {};
       const currency = entry.currency || profile.baseCurrency;
       totals.set(currency, (totals.get(currency) || 0) + calculateMoneyOwed(entry).remaining);
     });
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <h2>Money owed to me</h2>
       <div class="stat-grid">${[...totals].map(([currency, total]) => `<div class="stat"><span class="stat-label">Outstanding (${esc(currency)})</span><strong class="stat-value">${esc(currency)} ${WR.ui.fmt(total)}</strong></div>`).join('')}</div>
       <div class="money-owed-grid">${cards(outstanding) || '<p class="empty">No money outstanding.</p>'}</div>
       ${settled.length ? `<details><summary>Fully repaid (${settled.length})</summary><div class="money-owed-grid">${cards(settled)}</div></details>` : ''}
       <datalist id="money-owed-accounts">${accountNames.map((name) => `<option value="${esc(name)}"></option>`).join('')}</datalist>
-      <details class="form-panel" ${entries.length ? '' : 'open'}><summary>Add money owed to me</summary><form data-owed-action="add">${fields()}<button type="submit">Add entry</button></form></details>`;
+      <details class="form-panel" ${entries.length ? '' : 'open'}><summary>Add money owed to me</summary><form data-owed-action="add">${fields()}<button type="submit">Add entry</button></form></details>`);
 
     container.querySelectorAll('form[data-owed-action]').forEach((form) => {
       form.addEventListener('submit', async (event) => {
@@ -5735,6 +5841,7 @@ WR.ui = WR.ui || {};
     const extra = WR.ui._debtExtra != null ? WR.ui._debtExtra : 0;
     const calendarYear = WR.ui._debtCalendarYear || new Date().getFullYear();
     const interestPeriod = WR.ui._debtInterestPeriod || 'yearly';
+    const debtTab = WR.ui._debtTab || 'owe';
 
     const overviewHtml = computeDebtOverviewHtml(debts, exchangeRates, profile);
     const calendarHtml = computeDebtCalendarHtml(debts, payments, profile, calendarYear);
@@ -5749,21 +5856,21 @@ WR.ui = WR.ui || {};
             .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
 
           return `
-      <tr data-id="${d.id}">
-        <td><input class="cell" data-field="name" value="${d.name}"></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="originalBalance" value="${d.originalBalance || d.currentBalance}"></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentBalance" value="${d.currentBalance}"></td>
+      <tr data-id="${WR.ui.escapeText(d.id)}">
+        <td><input class="cell" data-field="name" value="${WR.ui.escapeText(d.name)}"></td>
+        <td class="debt-detail"><input class="cell num" type="number" step="0.01" min="0" data-field="originalBalance" value="${WR.ui.escapeText(d.originalBalance || d.currentBalance)}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentBalance" value="${WR.ui.escapeText(d.currentBalance)}"></td>
         <td><select class="cell" data-field="currency">${currencyOptions(d.currency || profile.baseCurrency)}</select></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="interestRatePct" value="${(d.interestRate * (interestPeriod === 'monthly' ? 100 / 12 : 100)).toFixed(2)}"></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="minPayment" value="${d.minPayment}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="interestRatePct" value="${WR.ui.escapeText((d.interestRate * (interestPeriod === 'monthly' ? 100 / 12 : 100)).toFixed(2))}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="minPayment" value="${WR.ui.escapeText(d.minPayment)}"></td>
         <td><select class="cell" data-field="paymentFrequency">${paymentFrequencyOptions(d.paymentFrequency || 'monthly')}</select></td>
-        <td><input class="cell" type="date" data-field="startDate" value="${d.startDate || ''}"></td>
-        <td><input class="cell num" type="number" min="1" max="31" step="1" placeholder="—" data-field="dueDay" value="${d.dueDay || ''}"></td>
+        <td class="debt-detail"><input class="cell" type="date" data-field="startDate" value="${WR.ui.escapeText(d.startDate || '')}"></td>
+        <td class="debt-detail"><input class="cell num" type="number" min="1" max="31" step="1" placeholder="—" data-field="dueDay" value="${WR.ui.escapeText(d.dueDay || '')}"></td>
         ${includePaidOffDate ? `<td>${d.paidOffDate || 'Date not recorded'}</td>` : ''}
-        <td>${projectedDate ? projectedDate.slice(0, 7) : 'Not within 50 years'}</td>
-        <td>${paymentsRemaining == null ? '—' : paymentsRemaining}</td>
+        <td class="debt-detail">${projectedDate ? projectedDate.slice(0, 7) : 'Not within 50 years'}</td>
+        <td class="debt-detail">${paymentsRemaining == null ? '—' : paymentsRemaining}</td>
         <td>${WR.ui.fmt(paidTotal)}</td>
-        <td><button class="link-btn delete-debt" data-id="${d.id}">Delete</button></td>
+        <td><button class="link-btn delete-debt" data-id="${WR.ui.escapeText(d.id)}">Delete</button></td>
       </tr>`;
         },
       )
@@ -5773,48 +5880,56 @@ WR.ui = WR.ui || {};
     const ongoingRows = renderDebtRows(ongoingDebts, false);
     const paidOffRows = renderDebtRows(paidOffDebts, true);
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <h1>Debts</h1>
-      <p class="fine-print">Edit any cell \u2014 changes save immediately and update the payoff projection below.</p>
+      <div class="debt-tabs" role="tablist" aria-label="Debt direction">
+        <button type="button" role="tab" id="debt-owe-tab" data-debt-tab="owe" aria-controls="debt-owe-panel" aria-selected="${debtTab === 'owe'}" tabindex="${debtTab === 'owe' ? 0 : -1}">Debts I owe</button>
+        <button type="button" role="tab" id="debt-owed-tab" data-debt-tab="owed" aria-controls="money-owed-section" aria-selected="${debtTab === 'owed'}" tabindex="${debtTab === 'owed' ? 0 : -1}">Owed to me</button>
+      </div>
+      <section id="debt-owe-panel" class="debt-owe-panel ${WR.ui._debtDetails ? 'show-details' : ''}" role="tabpanel" aria-labelledby="debt-owe-tab" ${debtTab === 'owe' ? '' : 'hidden'}>
       <div class="debt-overview-wrap">${overviewHtml}</div>
-      <section id="money-owed-section" class="money-owed-section"></section>
+      <div class="toolbar"><button type="button" id="open-add-debt">Add a debt</button><label><input type="checkbox" id="debt-show-details" ${WR.ui._debtDetails ? 'checked' : ''}> Show loan details</label></div>
       <section class="debt-list-card">
         <h2>Ongoing Debts</h2>
         <p class="fine-print">Debts with a remaining balance.</p>
         <div class="table-wrap">
           <table class="data-table debts-table">
-            <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate <select id="debt-interest-period" class="table-header-select" aria-label="Interest rate period"><option value="yearly" ${interestPeriod === 'yearly' ? 'selected' : ''}>%/yr</option><option value="monthly" ${interestPeriod === 'monthly' ? 'selected' : ''}>%/mo</option></select></th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Due day</th><th>Projected payoff</th><th>Months left</th><th>Total paid</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th class="debt-detail">Original</th><th>Current</th><th>Currency</th><th>Interest rate <select id="debt-interest-period" class="table-header-select" aria-label="Interest rate period"><option value="yearly" ${interestPeriod === 'yearly' ? 'selected' : ''}>%/yr</option><option value="monthly" ${interestPeriod === 'monthly' ? 'selected' : ''}>%/mo</option></select></th><th>Min. payment</th><th>Frequency</th><th class="debt-detail">Start date</th><th class="debt-detail">Due day</th><th class="debt-detail">Projected payoff</th><th class="debt-detail">Months left</th><th>Total paid</th><th></th></tr></thead>
             <tbody>${ongoingRows || '<tr><td colspan="13" class="empty">No ongoing debts.</td></tr>'}</tbody>
           </table>
         </div>
       </section>
+      <details class="debt-disclosure" data-state="_debtPaidOffOpen" ${WR.ui._debtPaidOffOpen ? 'open' : ''}><summary>Paid-off debts (${paidOffDebts.length})</summary>
       <section class="debt-list-card">
         <h2>Paid-Off Debts</h2>
         <p class="fine-print">Debts with a zero balance, including the date they were paid off.</p>
         <div class="table-wrap">
           <table class="data-table debts-table">
-            <thead><tr><th>Name</th><th>Original</th><th>Current</th><th>Currency</th><th>Interest rate (${interestPeriod === 'monthly' ? '%/mo' : '%/yr'})</th><th>Min. payment</th><th>Frequency</th><th>Start date</th><th>Due day</th><th>Paid off date</th><th>Projected payoff</th><th>Months left</th><th>Total paid</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th class="debt-detail">Original</th><th>Current</th><th>Currency</th><th>Interest rate (${interestPeriod === 'monthly' ? '%/mo' : '%/yr'})</th><th>Min. payment</th><th>Frequency</th><th class="debt-detail">Start date</th><th class="debt-detail">Due day</th><th>Paid off date</th><th class="debt-detail">Projected payoff</th><th class="debt-detail">Months left</th><th>Total paid</th><th></th></tr></thead>
             <tbody>${paidOffRows || '<tr><td colspan="14" class="empty">No paid-off debts.</td></tr>'}</tbody>
           </table>
         </div>
       </section>
+      </details>
 
-      ${calendarHtml}
+      <details class="debt-disclosure" data-state="_debtTrackerOpen" ${WR.ui._debtTrackerOpen ? 'open' : ''}><summary>Monthly payment tracker</summary>${calendarHtml || '<p class="empty">No payments to track yet.</p>'}</details>
 
-      <h3>Add a debt</h3>
-      <form id="add-debt-form" class="inline-form">
-        <input name="name" placeholder="Name (e.g. Credit Card)" required>
-        <input name="originalBalance" type="number" step="0.01" min="0" placeholder="Original balance" required>
-        <input name="currentBalance" type="number" step="0.01" min="0" placeholder="Current balance" required>
-        <select name="currency">${currencyOptions(profile.baseCurrency)}</select>
-        <input name="interestRate" type="number" step="0.1" min="0" placeholder="Interest rate % / year" required>
-        <input name="minPayment" type="number" step="0.01" min="0" placeholder="Minimum payment" required>
-        <select name="paymentFrequency">${paymentFrequencyOptions('monthly')}</select>
-        <input name="startDate" type="date" value="${new Date().toISOString().slice(0, 10)}">
-        <input name="dueDay" type="number" min="1" max="31" step="1" placeholder="Due day (1-31)">
-        <button type="submit">Add</button>
+      <details id="debt-add-panel" class="debt-disclosure" ${debts.length ? '' : 'open'}><summary>Add a debt</summary>
+      <form id="add-debt-form" class="form-panel-grid">
+        <label>Name<input name="name" placeholder="e.g. Credit Card" required></label>
+        <label>Original balance<input name="originalBalance" type="number" step="0.01" min="0" required></label>
+        <label>Current balance<input name="currentBalance" type="number" step="0.01" min="0" required></label>
+        <label>Currency<select name="currency">${currencyOptions(profile.baseCurrency)}</select></label>
+        <label>Interest (% per year)<input name="interestRate" type="number" step="0.1" min="0" value="0" required></label>
+        <label>Minimum payment<input name="minPayment" type="number" step="0.01" min="0" required></label>
+        <label>Payment frequency<select name="paymentFrequency">${paymentFrequencyOptions('monthly')}</select></label>
+        <label>Start date<input name="startDate" type="date" value="${WR.ui.escapeText(new Date().toISOString().slice(0, 10))}"></label>
+        <label>Due day (optional)<input name="dueDay" type="number" min="1" max="31" step="1"></label>
+        <div class="form-panel-actions"><button type="submit">Add debt</button></div>
       </form>
+      </details>
 
+      <details class="debt-disclosure" data-state="_debtPayoffOpen" ${WR.ui._debtPayoffOpen ? 'open' : ''}><summary>Payoff strategy</summary>
       <section class="payoff-section">
       <h2>Payoff Strategy</h2>
       <div class="payoff-controls">
@@ -5826,12 +5941,46 @@ WR.ui = WR.ui || {};
           </select>
         </label>
         <label>Extra monthly payment:
-          <input type="number" id="extra-payment" step="10" min="0" value="${extra}">
+          <input type="number" id="extra-payment" step="10" min="0" value="${WR.ui.escapeText(extra)}">
         </label>
       </div>
       <div class="payoff-results">${computePayoffHtml(debts, strategy, extra, profile, exchangeRates)}</div>
       </section>
-    `;
+      </details>
+      </section>
+      <section id="money-owed-section" class="money-owed-section" role="tabpanel" aria-labelledby="debt-owed-tab" ${debtTab === 'owed' ? '' : 'hidden'}></section>
+    `);
+
+    const tabs = [...container.querySelectorAll('[data-debt-tab]')];
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        WR.ui._debtTab = tab.dataset.debtTab;
+        tabs.forEach((item) => {
+          const selected = item === tab;
+          item.setAttribute('aria-selected', String(selected));
+          item.tabIndex = selected ? 0 : -1;
+          container.querySelector(`#${item.getAttribute('aria-controls')}`).hidden = !selected;
+        });
+      });
+      tab.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const next = event.key === 'Home' ? tabs[0] : event.key === 'End' ? tabs[tabs.length - 1] : tabs[(tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+        next.click();
+        next.focus();
+      });
+    });
+    container.querySelectorAll('.debt-disclosure[data-state]').forEach((details) => details.addEventListener('toggle', () => {
+      if (details.isConnected) WR.ui[details.dataset.state] = details.open;
+    }));
+    container.querySelector('#debt-show-details').addEventListener('change', (event) => {
+      WR.ui._debtDetails = event.target.checked;
+      container.querySelector('#debt-owe-panel').classList.toggle('show-details', event.target.checked);
+    });
+    container.querySelector('#open-add-debt').addEventListener('click', () => {
+      container.querySelector('#debt-add-panel').open = true;
+      container.querySelector('#add-debt-form [name="name"]').focus();
+    });
 
     container.querySelectorAll('tbody tr').forEach((tr) => {
       const id = tr.dataset.id;
@@ -5917,13 +6066,14 @@ WR.ui = WR.ui || {};
     }
     container.querySelectorAll('.month-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        toggleDebtPayment(btn.dataset.debtId, btn.dataset.month, container);
+        toggleDebtPayment(btn.dataset.debtId, btn.dataset.month, container, btn);
       });
     });
     await renderMoneyOwed(container.querySelector('#money-owed-section'));
   }
 
   WR.ui.calculateMoneyOwed = calculateMoneyOwed;
+  WR.ui.setDebtPaymentStatus = setDebtPaymentStatus;
   WR.ui.renderDebts = renderDebts;
 })();
 // Assets and Investments views. Both inline-editable, matching the pattern
@@ -5939,7 +6089,7 @@ WR.ui = WR.ui || {};
   const RISK_LEVELS = ['low', 'medium', 'high'];
 
   function optionsFor(list, selected, labelFn) {
-    return list.map((v) => `<option value="${v}" ${v === selected ? 'selected' : ''}>${labelFn ? labelFn(v) : v}</option>`).join('');
+    return list.map((v) => `<option value="${WR.ui.escapeText(v)}" ${v === selected ? 'selected' : ''}>${labelFn ? labelFn(v) : v}</option>`).join('');
   }
 
   /** Sums a list's currency-tagged value field into the base currency, tracking any that couldn't be converted. */
@@ -5969,18 +6119,18 @@ WR.ui = WR.ui || {};
     const rows = assets
       .map(
         (a) => `
-      <tr data-id="${a.id}">
-        <td><input class="cell" data-field="name" value="${a.name}"></td>
-        <td><input class="cell" data-field="type" value="${a.type}"></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentValue" value="${a.currentValue}"></td>
+      <tr data-id="${WR.ui.escapeText(a.id)}">
+        <td><input class="cell" data-field="name" value="${WR.ui.escapeText(a.name)}"></td>
+        <td><input class="cell" data-field="type" value="${WR.ui.escapeText(a.type)}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentValue" value="${WR.ui.escapeText(a.currentValue)}"></td>
         <td><select class="cell" data-field="currency">${optionsFor(CURRENCIES, a.currency)}</select></td>
         <td><select class="cell" data-field="liquidity">${optionsFor(LIQUIDITY_LEVELS, a.liquidity || 'medium')}</select></td>
-        <td><button class="link-btn delete-asset" data-id="${a.id}">Delete</button></td>
+        <td><button class="link-btn delete-asset" data-id="${WR.ui.escapeText(a.id)}">Delete</button></td>
       </tr>`,
       )
       .join('');
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       ${container.id === 'wealth-assets' ? '<h2>Assets</h2>' : '<h1>Assets</h1>'}
       <p class="fine-print">Edit any cell \u2014 changes save immediately. "High" liquidity counts toward your emergency fund calculation.</p>
       <div class="stat-grid">
@@ -6005,7 +6155,7 @@ WR.ui = WR.ui || {};
         </select>
         <button type="submit">Add</button>
       </form>
-    `;
+    `);
 
     container.querySelectorAll('tbody tr').forEach((tr) => {
       const id = tr.dataset.id;
@@ -6075,7 +6225,7 @@ WR.ui = WR.ui || {};
 
     const largest = investments.reduce((max, inv) => (inv.currentValue > (max?.currentValue || 0) ? inv : max), null);
     if (largest && totalValue > 0 && largest.currentValue / totalValue > 0.7) {
-      suggestions.push(`${largest.name} makes up over 70% of your portfolio \u2014 consider spreading contributions to reduce concentration risk.`);
+      suggestions.push(`${WR.ui.escapeText(largest.name)} makes up over 70% of your portfolio \u2014 consider spreading contributions to reduce concentration risk.`);
     }
 
     if (totalContributions > 0 && gainPct < 0) {
@@ -6107,19 +6257,19 @@ WR.ui = WR.ui || {};
     const rows = investments
       .map(
         (inv) => `
-      <tr data-id="${inv.id}">
-        <td><input class="cell" data-field="name" value="${inv.name}"></td>
-        <td><input class="cell" data-field="type" value="${inv.type}"></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentValue" value="${inv.currentValue}"></td>
-        <td><input class="cell num" type="number" step="0.01" min="0" data-field="totalContributions" value="${inv.totalContributions}"></td>
+      <tr data-id="${WR.ui.escapeText(inv.id)}">
+        <td><input class="cell" data-field="name" value="${WR.ui.escapeText(inv.name)}"></td>
+        <td><input class="cell" data-field="type" value="${WR.ui.escapeText(inv.type)}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentValue" value="${WR.ui.escapeText(inv.currentValue)}"></td>
+        <td><input class="cell num" type="number" step="0.01" min="0" data-field="totalContributions" value="${WR.ui.escapeText(inv.totalContributions)}"></td>
         <td><select class="cell" data-field="currency">${optionsFor(CURRENCIES, inv.currency)}</select></td>
         <td><select class="cell" data-field="riskCategory">${optionsFor(RISK_LEVELS, inv.riskCategory || 'medium')}</select></td>
-        <td><button class="link-btn delete-investment" data-id="${inv.id}">Delete</button></td>
+        <td><button class="link-btn delete-investment" data-id="${WR.ui.escapeText(inv.id)}">Delete</button></td>
       </tr>`,
       )
       .join('');
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       ${container.id === 'wealth-investments' ? '<h2>Investments</h2>' : '<h1>Investments</h1>'}
       <p class="fine-print">Manual tracking only \u2014 update values yourself as they change. No live market data. Edit any cell to update.</p>
       <div class="stat-grid">
@@ -6152,7 +6302,7 @@ WR.ui = WR.ui || {};
         </select>
         <button type="submit">Add</button>
       </form>
-    `;
+    `);
 
     container.querySelectorAll('tbody tr').forEach((tr) => {
       const id = tr.dataset.id;
@@ -6248,16 +6398,16 @@ WR.ui = WR.ui || {};
       )
       .join('');
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <h1>Forecast</h1>
       <p class="fine-print">Projections based on the assumptions below \u2014 not guarantees. Actual results will differ. Anything except tagged investments (property, vehicles, etc.) is held constant, since projecting their future value would be pure speculation.</p>
 
       <form id="forecast-form" class="inline-form">
-        <label>Years: <input type="number" name="years" value="${params.years}" min="1" max="20"></label>
-        <label>Monthly debt payment: <input type="number" name="monthlyDebtPayment" value="${params.monthlyDebtPayment}" step="10"></label>
-        <label>Debt interest rate %/yr: <input type="number" name="debtInterestAnnual" value="${(params.debtInterestAnnual * 100).toFixed(1)}" step="0.1"></label>
-        <label>Monthly investment contribution: <input type="number" name="monthlyInvestmentContribution" value="${params.monthlyInvestmentContribution}" step="10"></label>
-        <label>Assumed investment return %/yr: <input type="number" name="investmentReturnAnnual" value="${(params.investmentReturnAnnual * 100).toFixed(1)}" step="0.1"></label>
+        <label>Years: <input type="number" name="years" value="${WR.ui.escapeText(params.years)}" min="1" max="20"></label>
+        <label>Monthly debt payment: <input type="number" name="monthlyDebtPayment" value="${WR.ui.escapeText(params.monthlyDebtPayment)}" step="10"></label>
+        <label>Debt interest rate %/yr: <input type="number" name="debtInterestAnnual" value="${WR.ui.escapeText((params.debtInterestAnnual * 100).toFixed(1))}" step="0.1"></label>
+        <label>Monthly investment contribution: <input type="number" name="monthlyInvestmentContribution" value="${WR.ui.escapeText(params.monthlyInvestmentContribution)}" step="10"></label>
+        <label>Assumed investment return %/yr: <input type="number" name="investmentReturnAnnual" value="${WR.ui.escapeText((params.investmentReturnAnnual * 100).toFixed(1))}" step="0.1"></label>
         <button type="submit">Recalculate</button>
       </form>
 
@@ -6267,7 +6417,7 @@ WR.ui = WR.ui || {};
         <thead><tr><th>Year</th><th>Net Worth</th><th>Debt Balance</th><th>Investment Balance</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-    `;
+    `);
 
     document.getElementById('forecast-form').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -6294,7 +6444,7 @@ WR.ui = WR.ui || {};
 
 (function () {
   async function renderReports(container) {
-    container.innerHTML = '<p class="loading">Building your reports\u2026</p>';
+    WR.ui.setHTML(container, '<p class="loading">Building your reports\u2026</p>');
 
     const [allBudgetLines, categories, netWorthHistory, profile] = await Promise.all([
       WR.repos.budgetLines.getAll(),
@@ -6307,10 +6457,10 @@ WR.ui = WR.ui || {};
     const currency = profile.baseCurrency;
 
     if (monthly.length === 0 && netWorthHistory.length === 0) {
-      container.innerHTML = `
+      WR.ui.setHTML(container, `
         <h1>Reports</h1>
         <p class="empty">No data yet \u2014 add some transactions on the Transactions tab, or record a net worth snapshot from the Dashboard, and reports will appear here.</p>
-      `;
+      `);
       return;
     }
 
@@ -6352,7 +6502,7 @@ WR.ui = WR.ui || {};
       { width: 620, height: 240 },
     );
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <h1>Reports</h1>
       <p class="fine-print">Built from every month you've entered data for \u2014 the more months you track, the more these trends tell you.</p>
 
@@ -6372,7 +6522,7 @@ WR.ui = WR.ui || {};
         <div class="chart-block"><h3>Total Liabilities (${currency})</h3>${liabilitiesChart}</div>
       </div>
       <p class="fine-print">Record a net worth snapshot from the Dashboard each time your numbers change to build this history.</p>
-    `;
+    `);
   }
 
   WR.ui.renderReports = renderReports;
@@ -6389,7 +6539,7 @@ WR.ui = WR.ui || {};
   function fieldMappingForm(headers) {
     const options = (selected) =>
       `<option value="">\u2014 not mapped \u2014</option>` +
-      headers.map((h) => `<option value="${h}" ${h === selected ? 'selected' : ''}>${h}</option>`).join('');
+      headers.map((h) => `<option value="${WR.ui.escapeText(h)}" ${h === selected ? 'selected' : ''}>${h}</option>`).join('');
 
     return `
       <div class="mapping-grid">
@@ -6404,13 +6554,13 @@ WR.ui = WR.ui || {};
             <option value="debtPayment">Debt payment</option>
           </select>
         </label>
-        <label>Month for all rows: <input type="month" id="map-month-constant" value="${WR.ui.currentMonthKey()}"></label>
+        <label>Month for all rows: <input type="month" id="map-month-constant" value="${WR.ui.escapeText(WR.ui.currentMonthKey())}"></label>
       </div>
     `;
   }
 
   async function renderExcel(container) {
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <h1>Excel</h1>
 
       <section>
@@ -6425,7 +6575,7 @@ WR.ui = WR.ui || {};
         <p class="fine-print">Downloads all current WealthRoute data as a new workbook (one sheet per data type). This does not reproduce the original 16-sheet template layout \u2014 it exports WealthRoute's own data model.</p>
         <button id="export-btn">Export to Excel</button>
       </section>
-    `;
+    `);
 
     WR.excel.loadXlsx().catch(() => {});
 
@@ -6454,14 +6604,14 @@ WR.ui = WR.ui || {};
 
     function renderSheetPicker(sheetNames) {
       const workflow = document.getElementById('import-workflow');
-      workflow.innerHTML = `
+      WR.ui.setHTML(workflow, `
         <div class="toolbar">
-          <label>Sheet: <select id="sheet-picker">${sheetNames.map((n) => `<option value="${n}">${n}</option>`).join('')}</select></label>
+          <label>Sheet: <select id="sheet-picker">${sheetNames.map((n) => `<option value="${WR.ui.escapeText(n)}">${n}</option>`).join('')}</select></label>
           <label>Header row: <input type="number" id="header-row-input" min="1" value="1" style="width:4.5em"></label>
         </div>
         <p class="fine-print">If a sheet has its column headers somewhere other than the first row \u2014 common in sheets with a title or multiple tables \u2014 set the header row number above and the columns will refresh.</p>
         <div id="mapping-area"></div>
-      `;
+      `);
       document.getElementById('sheet-picker').addEventListener('change', (e) => {
         document.getElementById('header-row-input').value = 1;
         loadSheet(e.target.value, 0);
@@ -6483,15 +6633,15 @@ WR.ui = WR.ui || {};
 
       const mappingArea = document.getElementById('mapping-area');
       if (rows.length === 0) {
-        mappingArea.innerHTML = `<p class="warning">No data rows found below this header row \u2014 try a different header row number.</p>`;
+        WR.ui.setHTML(mappingArea, `<p class="warning">No data rows found below this header row \u2014 try a different header row number.</p>`);
         return;
       }
 
-      mappingArea.innerHTML = `
+      WR.ui.setHTML(mappingArea, `
         ${fieldMappingForm(headers)}
         <button id="preview-btn">Preview</button>
         <div id="preview-area"></div>
-      `;
+      `);
       document.getElementById('preview-btn').addEventListener('click', renderPreview);
     }
 
@@ -6509,8 +6659,7 @@ WR.ui = WR.ui || {};
       const { mapping, constants } = currentMapping();
 
       if (!mapping.name || !mapping.amount) {
-        document.getElementById('preview-area').innerHTML =
-          '<p class="warning">Map both a Name/Description column and an Amount column before previewing.</p>';
+        WR.ui.setHTML(document.getElementById('preview-area'), '<p class="warning">Map both a Name/Description column and an Amount column before previewing.</p>');
         return;
       }
 
@@ -6532,7 +6681,7 @@ WR.ui = WR.ui || {};
         )
         .join('');
 
-      document.getElementById('preview-area').innerHTML = `
+      WR.ui.setHTML(document.getElementById('preview-area'), `
         <p><strong>${validCount}</strong> of <strong>${mapped.length}</strong> rows are valid and will be imported. Showing first 25 rows below.</p>
         <table class="data-table">
           <thead><tr><th>Name</th><th>Amount</th><th>Type</th><th>Month</th><th>Problems</th></tr></thead>
@@ -6540,7 +6689,7 @@ WR.ui = WR.ui || {};
         </table>
         <button id="confirm-import-btn" ${validCount === 0 ? 'disabled' : ''}>Confirm Import (${validCount} rows)</button>
         <p id="import-result"></p>
-      `;
+      `);
 
       document.getElementById('confirm-import-btn').addEventListener('click', async () => {
         const result = await WR.excel.importBudgetLines(mapped);
@@ -6655,7 +6804,7 @@ WR.ui = WR.ui || {};
     const username = WR.account.getUsername();
     const displayIdentity = username || (accountUser && accountUser.email) || '';
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <div class="settings-header">
         <h1>Settings</h1>
         <p class="fine-print">Manage your account, preferences and data.</p>
@@ -6707,15 +6856,15 @@ WR.ui = WR.ui || {};
           </label>
           <label>Base currency
             <select name="baseCurrency">
-              ${['ZAR', 'USD', 'EUR', 'GBP'].map((c) => `<option value="${c}" ${c === profile.baseCurrency ? 'selected' : ''}>${c}</option>`).join('')}
+              ${['ZAR', 'USD', 'EUR', 'GBP'].map((c) => `<option value="${WR.ui.escapeText(c)}" ${c === profile.baseCurrency ? 'selected' : ''}>${c}</option>`).join('')}
             </select>
           </label>
           <label>Country <input name="country" value="${esc(profile.country)}"></label>
-          <label>Emergency fund target <small>Months of essential expenses</small><input name="emergencyFundTargetMonths" type="number" step="0.5" value="${profile.emergencyFundTargetMonths}"></label>
-          <label>Investment return <small>Assumed % per year</small><input name="assumedInvestmentReturn" type="number" step="0.1" value="${((profile.assumedInvestmentReturn || 0.08) * 100).toFixed(1)}"></label>
+          <label>Emergency fund target <small>Months of essential expenses</small><input name="emergencyFundTargetMonths" type="number" step="0.5" value="${WR.ui.escapeText(profile.emergencyFundTargetMonths)}"></label>
+          <label>Investment return <small>Assumed % per year</small><input name="assumedInvestmentReturn" type="number" step="0.1" value="${WR.ui.escapeText(((profile.assumedInvestmentReturn || 0.08) * 100).toFixed(1))}"></label>
           <label class="span-2">Risk profile
             <select name="riskProfile">
-              ${['conservative', 'moderate', 'aggressive'].map((r) => `<option value="${r}" ${r === profile.riskProfile ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`).join('')}
+              ${['conservative', 'moderate', 'aggressive'].map((r) => `<option value="${WR.ui.escapeText(r)}" ${r === profile.riskProfile ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`).join('')}
             </select>
           </label>
           <div class="settings-actions span-2"><button type="submit">Save preferences</button></div>
@@ -6785,7 +6934,8 @@ WR.ui = WR.ui || {};
           <summary>How the numbers are calculated</summary>
           <p class="fine-print">WealthRoute is deterministic: formulas calculate outcomes and the assistant explains existing numbers only.</p>
           <ul>
-            <li>Monthly surplus = income - fixed expenses - variable expenses - minimum debt payments.</li>
+            <li>Monthly surplus = income - fixed expenses - variable expenses.</li>
+            <li>After debt minimums = monthly surplus - required minimum debt payments. Recommendations use this remaining amount.</li>
             <li>Emergency cover = liquid emergency-ready funds divided by essential monthly expenses.</li>
             <li>Financial health score blends cash flow, emergency cover, debt burden, savings rate, and net-worth trend.</li>
             <li>Forecasts are scenarios, not guarantees.</li>
@@ -6820,7 +6970,7 @@ WR.ui = WR.ui || {};
           </form>
         </details>
       </section>
-    `;
+    `);
 
     container.querySelectorAll('.settings-chip').forEach((chip) => {
       chip.addEventListener('click', () => {
@@ -6830,15 +6980,16 @@ WR.ui = WR.ui || {};
 
     async function renderCategories() {
       const categories = await WR.repos.expenseCategories.getAll();
-      document.getElementById('categories-list').innerHTML = categories.length
+      if (!container.isConnected) return;
+      WR.ui.setHTML(container.querySelector('#categories-list'), categories.length
         ? `<ul class="category-list">${categories
             .map(
               (c) =>
-                `<li class="category-item"><span class="category-name">${esc(c.name)}</span><span class="category-tags"><span class="pill">${c.type === 'fixed' ? 'Fixed' : 'Variable'}</span><span class="pill ${c.essential ? 'pill-accent' : ''}">${c.essential ? 'Essential' : 'Discretionary'}</span></span><button class="link-btn delete-category" data-id="${c.id}">Delete</button></li>`,
+                `<li class="category-item"><span class="category-name">${esc(c.name)}</span><span class="category-tags"><span class="pill">${c.type === 'fixed' ? 'Fixed' : 'Variable'}</span><span class="pill ${c.essential ? 'pill-accent' : ''}">${c.essential ? 'Essential' : 'Discretionary'}</span></span><button class="link-btn delete-category" data-id="${WR.ui.escapeText(c.id)}">Delete</button></li>`,
             )
             .join('')}</ul>`
-        : '<p class="empty settings-empty">No categories yet \u2014 add one below.</p>';
-      document.querySelectorAll('.delete-category').forEach((btn) =>
+        : '<p class="empty settings-empty">No categories yet \u2014 add one below.</p>');
+      container.querySelectorAll('.delete-category').forEach((btn) =>
         btn.addEventListener('click', async () => {
           if (!confirm('Delete this category? Transactions already tagged with it keep their tag, but it will no longer appear in the picker.')) return;
           await WR.ui.removeWithUndo({
@@ -6850,7 +7001,7 @@ WR.ui = WR.ui || {};
         }),
       );
     }
-    renderCategories();
+    const categoryLoad = renderCategories();
 
     document.getElementById('category-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -6868,15 +7019,16 @@ WR.ui = WR.ui || {};
 
     async function renderRates() {
       const rates = await WR.repos.exchangeRates.getAll();
-      document.getElementById('rates-list').innerHTML = rates.length
+      if (!container.isConnected) return;
+      WR.ui.setHTML(container.querySelector('#rates-list'), rates.length
         ? `<ul class="rate-list">${rates.map((r) => `<li class="rate-item">
             <div class="rate-pair">${esc(r.fromCurrency)} <span aria-hidden="true">\u2192</span> ${esc(r.toCurrency)}</div>
             <div class="rate-value">${esc(r.rate)}</div>
             <div class="rate-meta">${esc(r.source || 'Manual')}${r.date ? ` \u00b7 ${esc(r.date)}` : ''}</div>
-            <button class="link-btn delete-rate" data-id="${r.id}">Delete</button>
+            <button class="link-btn delete-rate" data-id="${WR.ui.escapeText(r.id)}">Delete</button>
           </li>`).join('')}</ul>`
-        : '<p class="empty settings-empty">No exchange rates yet.</p>';
-      document.querySelectorAll('.delete-rate').forEach((btn) =>
+        : '<p class="empty settings-empty">No exchange rates yet.</p>');
+      container.querySelectorAll('.delete-rate').forEach((btn) =>
         btn.addEventListener('click', async () => {
           if (!confirm('Delete this exchange rate?')) return;
           await WR.ui.removeWithUndo({
@@ -6888,7 +7040,7 @@ WR.ui = WR.ui || {};
         }),
       );
     }
-    renderRates();
+    const rateLoad = renderRates();
 
     async function fetchLiveRate(from, to) {
       const endpoint = localStorage.getItem('wr_worker_url') || '';
@@ -7098,10 +7250,12 @@ WR.ui = WR.ui || {};
 
     document.getElementById('run-integrity-btn').addEventListener('click', async () => {
       const warnings = await WR.ui.getIntegrityWarnings();
-      const target = document.getElementById('integrity-result');
+      if (!container.isConnected) return;
+      const target = container.querySelector('#integrity-result');
       target.textContent = warnings.length ? warnings.join(' ') : 'No issues detected.';
       WR.ui.refreshIntegrityNotice();
     });
+    await Promise.all([categoryLoad, rateLoad]);
   }
 
   WR.ui.renderSettings = renderSettings;
@@ -7279,10 +7433,15 @@ WR.account = {};
     return claimUsername(currentUser.uid, username, currentUser.email);
   }
 
-  async function sendPasswordReset() {
-    if (!currentUser || !currentUser.email) throw new Error('Not signed in.');
+  async function sendPasswordReset(email) {
+    const destination = String(email || currentUser?.email || '').trim();
+    if (!destination) throw new Error('Enter your email address.');
     await ensureInit();
-    await authApi.sendPasswordResetEmail(auth, currentUser.email);
+    try {
+      await authApi.sendPasswordResetEmail(auth, destination);
+    } catch (error) {
+      if (error.code !== 'auth/user-not-found') throw error;
+    }
   }
 
   function usesPasswordProvider() {
@@ -7401,7 +7560,7 @@ WR.ui = WR.ui || {};
   }
 
   function renderAuthScreen() {
-    let mode = 'login'; // 'login' | 'signup'
+    let mode = 'login';
 
     function googleIcon() {
       return `<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.6 15.6 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4c-7.6 0-14.2 4.3-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.4C29.6 35.3 27 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.7 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.4C41.5 36 44 30.6 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>`;
@@ -7409,7 +7568,8 @@ WR.ui = WR.ui || {};
 
     function render() {
       const isSignup = mode === 'signup';
-      document.getElementById('app').innerHTML = `
+      const isReset = mode === 'reset';
+      WR.ui.setHTML(document.getElementById('app'), `
         <div class="auth-screen">
           <div class="auth-card">
             <div class="auth-brand">
@@ -7419,11 +7579,11 @@ WR.ui = WR.ui || {};
               </svg>
               WealthRoute
             </div>
-            <h1>${isSignup ? 'Create your account' : 'Log in'}</h1>
-            <p class="auth-subtitle">${isSignup ? 'Track your money, debts, and net worth \u2014 synced to every device you use.' : 'Welcome back \u2014 log in to see your dashboard.'}</p>
+            <h1>${isReset ? 'Reset password' : isSignup ? 'Create your account' : 'Log in'}</h1>
+            <p class="auth-subtitle">${isReset ? 'Request a secure reset link for your account.' : isSignup ? 'Track your money, debts, and net worth \u2014 synced to every device you use.' : 'Welcome back \u2014 log in to see your dashboard.'}</p>
 
-            <button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button>
-            <div class="auth-divider"><span>or</span></div>
+            ${isReset ? '' : `<button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button>
+            <div class="auth-divider"><span>or</span></div>`}
 
             <form id="auth-form" class="auth-form" novalidate>
               ${isSignup ? `
@@ -7434,27 +7594,29 @@ WR.ui = WR.ui || {};
               <label>Email
                 <input type="email" id="auth-email-input" autocomplete="email" required>
               </label>
-              <label>Password
+              ${isReset ? '' : `<label>Password
                 <input type="password" id="auth-password-input" autocomplete="${isSignup ? 'new-password' : 'current-password'}" minlength="6" required>
-              </label>
+              </label>`}
               <p id="auth-error" class="auth-error" role="alert"></p>
-              <button type="submit" id="auth-submit-btn">${isSignup ? 'Sign up' : 'Log in'}</button>
+              <p id="auth-reset-status" class="fine-print" role="status"></p>
+              <button type="submit" id="auth-submit-btn">${isReset ? 'Send reset link' : isSignup ? 'Sign up' : 'Log in'}</button>
             </form>
+            ${!isSignup && !isReset ? '<button type="button" id="auth-forgot-btn" class="link-btn">Forgot password?</button>' : ''}
 
             <p class="auth-switch">
-              ${isSignup ? 'Already have an account?' : "Don't have an account?"}
-              <button type="button" id="auth-switch-btn" class="link-btn">${isSignup ? 'Log in' : 'Sign up'}</button>
+              ${isReset ? '' : isSignup ? 'Already have an account?' : "Don't have an account?"}
+              <button type="button" id="auth-switch-btn" class="link-btn">${isReset ? 'Back to log in' : isSignup ? 'Log in' : 'Sign up'}</button>
             </p>
           </div>
         </div>
-      `;
+      `);
 
       const form = document.getElementById('auth-form');
       const errorEl = document.getElementById('auth-error');
       const submitBtn = document.getElementById('auth-submit-btn');
 
       function showError(err) {
-        errorEl.textContent = authErrorMessage(err, isSignup);
+        errorEl.textContent = isReset ? 'Unable to send the reset link. Please try again shortly.' : authErrorMessage(err, isSignup);
       }
 
       form.addEventListener('submit', async (e) => {
@@ -7462,22 +7624,29 @@ WR.ui = WR.ui || {};
         if (!form.reportValidity()) return;
         errorEl.textContent = '';
         const email = document.getElementById('auth-email-input').value.trim();
-        const password = document.getElementById('auth-password-input').value;
+        const password = document.getElementById('auth-password-input')?.value || '';
         const usernameInput = document.getElementById('auth-username-input');
         submitBtn.disabled = true;
-        submitBtn.textContent = isSignup ? 'Creating account\u2026' : 'Logging in\u2026';
+        submitBtn.textContent = isReset ? 'Sending\u2026' : isSignup ? 'Creating account\u2026' : 'Logging in\u2026';
         try {
+          if (isReset) {
+            await WR.account.sendPasswordReset(email);
+            document.getElementById('auth-reset-status').textContent = 'If an account exists for this email, a reset link has been sent.';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Send reset link';
+            return;
+          }
           if (isSignup) await WR.account.signUp(email, password, usernameInput.value);
           else await WR.account.signIn(email, password);
           // Success flips the app over via the global auth-state listener; nothing else to do here.
         } catch (err) {
           showError(err);
           submitBtn.disabled = false;
-          submitBtn.textContent = isSignup ? 'Sign up' : 'Log in';
+          submitBtn.textContent = isReset ? 'Send reset link' : isSignup ? 'Sign up' : 'Log in';
         }
       });
 
-      document.getElementById('auth-google-btn').addEventListener('click', async () => {
+      document.getElementById('auth-google-btn')?.addEventListener('click', async () => {
         errorEl.textContent = '';
         const googleBtn = document.getElementById('auth-google-btn');
         googleBtn.disabled = true;
@@ -7489,8 +7658,14 @@ WR.ui = WR.ui || {};
         }
       });
 
+      document.getElementById('auth-forgot-btn')?.addEventListener('click', () => {
+        mode = 'reset';
+        render();
+        document.getElementById('auth-email-input').focus();
+      });
+
       document.getElementById('auth-switch-btn').addEventListener('click', () => {
-        mode = isSignup ? 'login' : 'signup';
+        mode = isReset || isSignup ? 'login' : 'signup';
         render();
       });
     }
@@ -7581,13 +7756,13 @@ WR.ui = WR.ui || {};
     const workerUrl = localStorage.getItem('wr_worker_url') || '';
     const chats = (await WR.repos.assistantChats.getAll()).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
     const historyRows = chats.slice(0, 20).map((chat) => `
-      <tr data-id="${chat.id}">
+      <tr data-id="${WR.ui.escapeText(chat.id)}">
         <td>${new Date(chat.createdAt).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' })}</td>
         <td class="history-question" title="${escapeHtml(chat.question)}">${escapeHtml(chat.question)}</td>
-        <td><button type="button" class="link-btn open-chat" data-id="${chat.id}">Open</button></td>
+        <td><button type="button" class="link-btn open-chat" data-id="${WR.ui.escapeText(chat.id)}">Open</button></td>
       </tr>`).join('');
 
-    container.innerHTML = `
+    WR.ui.setHTML(container, `
       <h1>Wealth Assistant</h1>
       ${
         workerUrl
@@ -7609,7 +7784,7 @@ WR.ui = WR.ui || {};
              </div>`
           : `<p class="empty">No Worker endpoint configured. Add your Cloudflare Worker URL in Settings to enable the assistant.</p>`
       }
-    `;
+    `);
 
     if (!workerUrl) return;
 
@@ -7618,7 +7793,7 @@ WR.ui = WR.ui || {};
         const chat = chats.find((item) => item.id === button.dataset.id);
         if (!chat) return;
         document.getElementById('question-input').value = chat.question;
-        document.getElementById('answer-area').innerHTML = `<div class="assistant-answer">${formatAssistantAnswer(chat.answer)}</div>`;
+        WR.ui.setHTML(document.getElementById('answer-area'), `<div class="assistant-answer">${formatAssistantAnswer(chat.answer)}</div>`);
       });
     });
 
@@ -7627,7 +7802,7 @@ WR.ui = WR.ui || {};
       const question = document.getElementById('question-input').value.trim();
       if (!question) return;
       const answerArea = document.getElementById('answer-area');
-      answerArea.innerHTML = '<p class="loading">Thinking\u2026</p>';
+      WR.ui.setHTML(answerArea, '<p class="loading">Thinking\u2026</p>');
       try {
         const snapshot = await WR.ui.buildSnapshot();
         const answer = await askAssistant(workerUrl, question, snapshot);
@@ -7639,9 +7814,9 @@ WR.ui = WR.ui || {};
         }));
         await renderAssistant(container);
         document.getElementById('question-input').value = question;
-        document.getElementById('answer-area').innerHTML = `<div class="assistant-answer">${formatAssistantAnswer(answer)}</div>`;
+        WR.ui.setHTML(document.getElementById('answer-area'), `<div class="assistant-answer">${formatAssistantAnswer(answer)}</div>`);
       } catch (err) {
-        answerArea.innerHTML = `<p class="warning">Something went wrong: ${err.message}</p>`;
+        WR.ui.setHTML(answerArea, `<p class="warning">Something went wrong: ${err.message}</p>`);
       }
     });
   }
@@ -7671,8 +7846,8 @@ WR.ui = WR.ui || {};
     const linkedPot = (goal) => (goal.potId ? potsById[goal.potId] : null);
     const potOptions = (selectedId) => `<option value="">Not linked (enter amount manually)</option>${savingsPots
       .filter((pot) => !pot.archived || pot.id === selectedId)
-      .map((pot) => `<option value="${pot.id}" ${pot.id === selectedId ? 'selected' : ''}>${escape(pot.name)}</option>`).join('')}`;
-    container.innerHTML = `<h1>Goals</h1><section class="feature-section"><h2>Personal financial goals</h2>
+      .map((pot) => `<option value="${WR.ui.escapeText(pot.id)}" ${pot.id === selectedId ? 'selected' : ''}>${escape(pot.name)}</option>`).join('')}`;
+    WR.ui.setHTML(container, `<h1>Goals</h1><section class="feature-section"><h2>Personal financial goals</h2>
       <div class="goal-grid">${goals.map((goal) => {
         const pot = linkedPot(goal);
         const current = pot ? amount(pot.currentAmount) : amount(goal.currentAmount);
@@ -7682,18 +7857,18 @@ WR.ui = WR.ui || {};
           ${meter(current, target)}${pot ? `<p class="pot-link-note">Linked to "${escape(pot.name)}" savings pot</p>` : ''}<dl><div><dt>Initial</dt><dd>${currency} ${WR.ui.fmt(amount(goal.initialAmount))}</dd></div>
           <div><dt>Remaining</dt><dd>${currency} ${WR.ui.fmt(Math.max(0, target - current))}</dd></div></dl>
           <details class="card-edit"><summary>Edit goal</summary>
-          <form class="goal-edit card-edit-form" data-id="${goal.id}"><label class="span-2">Goal name<input name="name" value="${escape(goal.name)}" required></label>
+          <form class="goal-edit card-edit-form" data-id="${WR.ui.escapeText(goal.id)}"><label class="span-2">Goal name<input name="name" value="${escape(goal.name)}" required></label>
           <label class="span-2">Linked savings pot<select name="potId">${potOptions(goal.potId)}</select></label>
-          <label>Current amount<input name="current" type="number" min="0" step="0.01" value="${current}" ${pot ? 'disabled' : 'required'}></label>
-          <label>Target amount<input name="target" type="number" min="0.01" step="0.01" value="${target}" required></label>
+          <label>Current amount<input name="current" type="number" min="0" step="0.01" value="${WR.ui.escapeText(current)}" ${pot ? 'disabled' : 'required'}></label>
+          <label>Target amount<input name="target" type="number" min="0.01" step="0.01" value="${WR.ui.escapeText(target)}" required></label>
           <div class="card-edit-actions span-2"><button>Save changes</button></div></form></details></article>`;
       }).join('') || '<p class="empty">No goals yet.</p>'}</div>
       <div class="form-panel"><h3>Create a goal</h3><form id="create-goal" class="form-panel-grid">
         <label>Goal name<input name="name" placeholder="e.g. New car deposit" required></label>
         <label>Linked savings pot<select name="potId">${potOptions('')}</select></label>
-        <label>Current amount<input name="current" type="number" min="0" step="0.01" placeholder="0.00" value="${savingsTotal}" required></label>
+        <label>Current amount<input name="current" type="number" min="0" step="0.01" placeholder="0.00" value="${WR.ui.escapeText(savingsTotal)}" required></label>
         <label>Target amount<input name="target" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
-        <div class="form-panel-actions"><button>Add goal</button></div></form></div></section>`;
+        <div class="form-panel-actions"><button>Add goal</button></div></form></div></section>`);
     const syncCurrentInput = (form) => {
       const pot = potsById[form.elements.potId.value];
       form.elements.current.disabled = Boolean(pot);
@@ -7761,15 +7936,15 @@ WR.ui = WR.ui || {};
         <div class="pot-amounts"><span class="pot-saved">${currency} ${WR.ui.fmt(saved)}</span><span class="pot-target">of ${currency} ${WR.ui.fmt(target)}</span></div>
         ${meter(saved, target)}
         <p class="pot-remaining">${target - saved > 0 ? `${currency} ${WR.ui.fmt(target - saved)} to go` : 'Target reached'}</p>
-        ${archived ? `<div class="card-edit-actions"><button class="restore-pot secondary" data-id="${pot.id}">Restore pot</button></div>` : `
+        ${archived ? `<div class="card-edit-actions"><button class="restore-pot secondary" data-id="${WR.ui.escapeText(pot.id)}">Restore pot</button></div>` : `
         <details class="card-edit"><summary>Edit pot</summary>
-          <form class="pot-edit card-edit-form" data-id="${pot.id}"><label class="span-2">Name<input name="name" value="${escape(pot.name)}" required></label>
-          <label>Target<input name="target" type="number" min="0.01" step="0.01" value="${target}" required></label>
-          <label>Saved in this pot<input name="current" type="number" min="0" step="0.01" value="${saved}" required></label>
-          <div class="card-edit-actions span-2"><button>Save changes</button><button type="button" class="secondary archive-pot" data-id="${pot.id}">Archive pot</button></div></form>
+          <form class="pot-edit card-edit-form" data-id="${WR.ui.escapeText(pot.id)}"><label class="span-2">Name<input name="name" value="${escape(pot.name)}" required></label>
+          <label>Target<input name="target" type="number" min="0.01" step="0.01" value="${WR.ui.escapeText(target)}" required></label>
+          <label>Saved in this pot<input name="current" type="number" min="0" step="0.01" value="${WR.ui.escapeText(saved)}" required></label>
+          <div class="card-edit-actions span-2"><button>Save changes</button><button type="button" class="secondary archive-pot" data-id="${WR.ui.escapeText(pot.id)}">Archive pot</button></div></form>
         </details>`}</article>`;
     };
-    container.innerHTML = `<h2>Savings Pots</h2><div class="savings-overview">
+    WR.ui.setHTML(container, `<h2>Savings Pots</h2><div class="savings-overview">
       <div><span>Active savings pots</span><strong>${currency} ${WR.ui.fmt(activeBalance)}</strong></div></div>
       <div class="goal-grid">${active.map((pot) => potCard(pot, false)).join('') || '<p class="empty">No active savings pots. Create one below to start tracking money you will not touch.</p>'}</div>
       <div class="form-panels">
@@ -7780,12 +7955,12 @@ WR.ui = WR.ui || {};
           <div class="form-panel-actions"><button>Add pot</button></div></form></div>
         <div class="form-panel"><h3>Transfer between pots</h3><form id="transfer-pot" class="form-panel-grid">
           <label>From<select name="source" required>
-            <option value="">Choose a pot\u2026</option>${active.filter((pot) => amount(pot.currentAmount) > 0).map((pot) => `<option value="${pot.id}">${escape(pot.name)} \u00b7 ${currency} ${WR.ui.fmt(pot.currentAmount)}</option>`).join('')}</select></label>
-          <label>To<select name="destination" required><option value="">Choose a pot\u2026</option>${active.map((pot) => `<option value="${pot.id}">${escape(pot.name)}</option>`).join('')}</select></label>
+            <option value="">Choose a pot\u2026</option>${active.filter((pot) => amount(pot.currentAmount) > 0).map((pot) => `<option value="${WR.ui.escapeText(pot.id)}">${escape(pot.name)} \u00b7 ${currency} ${WR.ui.fmt(pot.currentAmount)}</option>`).join('')}</select></label>
+          <label>To<select name="destination" required><option value="">Choose a pot\u2026</option>${active.map((pot) => `<option value="${WR.ui.escapeText(pot.id)}">${escape(pot.name)}</option>`).join('')}</select></label>
           <label class="span-2">Amount<input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
           <div class="form-panel-actions"><button>Transfer</button></div></form></div>
       </div>
-      <details class="archived-pots"><summary>Archived pots (${pots.length - active.length})</summary><div class="goal-grid">${pots.filter((pot) => pot.archived).map((pot) => potCard(pot, true)).join('') || '<p class="empty">No archived pots.</p>'}</div></details>`;
+      <details class="archived-pots"><summary>Archived pots (${pots.length - active.length})</summary><div class="goal-grid">${pots.filter((pot) => pot.archived).map((pot) => potCard(pot, true)).join('') || '<p class="empty">No archived pots.</p>'}</div></details>`);
     container.querySelector('#create-pot').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.currentTarget;
@@ -7820,13 +7995,13 @@ WR.ui = WR.ui || {};
   }
 
   async function renderSavingsPage(container) {
-    container.innerHTML = '<h1>Savings</h1><p class="fine-print">Only active savings pots are included in the savings total. Emergency funds are shown separately.</p><section class="feature-section" id="savings-pots"></section><section class="feature-section" id="emergency-savings"></section>';
+    WR.ui.setHTML(container, '<h1>Savings</h1><p class="fine-print">Only active savings pots are included in the savings total. Emergency funds are shown separately.</p><section class="feature-section" id="savings-pots"></section><section class="feature-section" id="emergency-savings"></section>');
     await renderSavingsPots(container.querySelector('#savings-pots'));
     await WR.ui.renderEmergencyFund(container.querySelector('#emergency-savings'));
   }
 
   async function renderWealth(container) {
-    container.innerHTML = '<h1>Wealth</h1><section class="feature-section" id="wealth-investments"></section><section class="feature-section" id="wealth-assets"></section>';
+    WR.ui.setHTML(container, '<h1>Wealth</h1><section class="feature-section" id="wealth-investments"></section><section class="feature-section" id="wealth-assets"></section>');
     await WR.ui.renderInvestments(container.querySelector('#wealth-investments'));
     await WR.ui.renderAssets(container.querySelector('#wealth-assets'));
   }
@@ -7873,6 +8048,8 @@ WR.ui = WR.ui || {};
       <div class="skeleton-line"></div><div class="skeleton-line skeleton-short"></div>
     </div>`;
   let lastRoutedHash = null;
+  let navigationId = 0;
+  let routerInitialized = false;
 
   async function handleRoute() {
     if (!window.location.hash || window.location.hash === '#') {
@@ -7883,20 +8060,28 @@ WR.ui = WR.ui || {};
     const renderFnName = ROUTES[hash] || 'renderDashboard';
     WR.ui.setActiveNav(ROUTES[hash] ? hash : '#/dashboard');
 
-    const content = document.getElementById('content');
+    const previousContent = document.getElementById('content');
+    if (!previousContent) return;
+    const requestId = ++navigationId;
+    const newView = hash !== lastRoutedHash || !previousContent.dataset.routeView;
+    const content = newView ? previousContent.cloneNode(false) : previousContent;
+    content.dataset.routeView = 'true';
+    if (newView) previousContent.replaceWith(content);
     content.classList.toggle('settings-page', hash === '#/settings');
     // Only on navigation; background re-renders of the same page keep the current content.
-    if (hash !== lastRoutedHash || !content.children.length) content.innerHTML = SKELETON_HTML;
+    if (hash !== lastRoutedHash || !content.children.length) WR.ui.setHTML(content, SKELETON_HTML);
     lastRoutedHash = hash;
     try {
       await WR.ui[renderFnName](content);
+      if (requestId !== navigationId || !content.isConnected) return;
       if (WR.ui.enhanceResponsiveContent) WR.ui.enhanceResponsiveContent(content);
     } catch (err) {
+      if (requestId !== navigationId || !content.isConnected || err.name === 'AbortError') return;
       if (err && err.name === 'VersionError') {
-        content.innerHTML = `
+        WR.ui.setHTML(content, `
           <p class="warning">${err.message}</p>
           <button id="version-error-reload-btn">Reload app</button>
-        `;
+        `);
         document.getElementById('version-error-reload-btn').addEventListener('click', async () => {
           if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
@@ -7909,14 +8094,17 @@ WR.ui = WR.ui || {};
           window.location.reload();
         });
       } else {
-        content.innerHTML = `<p class="warning">Something went wrong loading this page: ${err.message}</p>`;
+        WR.ui.setHTML(content, `<p class="warning">Something went wrong loading this page: ${err.message}</p>`);
         console.error(err);
       }
     }
   }
 
   function initRouter() {
-    window.addEventListener('hashchange', handleRoute);
+    if (!routerInitialized) {
+      window.addEventListener('hashchange', handleRoute);
+      routerInitialized = true;
+    }
     if (!window.location.hash || window.location.hash === '#') {
       window.location.hash = '#/dashboard';
       return;
@@ -7932,12 +8120,8 @@ function resetViewportZoom() {
   if (!meta) return;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   const original = meta.getAttribute('content').replace(/,\s*maximum-scale=1/g, '');
-  // Briefly pinning maximum-scale forces mobile browsers to drop any leftover zoom.
-  meta.setAttribute('content', original + ', maximum-scale=1');
-  setTimeout(() => {
-    meta.setAttribute('content', original);
-    window.scrollTo(0, 0);
-  }, 300);
+  meta.setAttribute('content', original);
+  window.scrollTo(0, 0);
 }
 
 function bootApp() {
@@ -7950,7 +8134,7 @@ function bootApp() {
 }
 
 function renderSplashScreen() {
-  document.getElementById('app').innerHTML = `
+  WR.ui.setHTML(document.getElementById('app'), `
     <div class="app-splash" aria-live="polite" aria-busy="true">
       <div class="app-splash-card">
         <svg class="splash-mark" width="64" height="64" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -7962,7 +8146,7 @@ function renderSplashScreen() {
         <div class="splash-bar"><span></span></div>
       </div>
     </div>
-  `;
+  `);
 }
 
 function showUpdateBanner() {
@@ -7971,11 +8155,11 @@ function showUpdateBanner() {
   banner.id = 'update-banner';
   banner.className = 'update-banner';
   banner.setAttribute('role', 'status');
-  banner.innerHTML = `
+  WR.ui.setHTML(banner, `
     <span>A new version of WealthRoute is available.</span>
     <button type="button" id="update-banner-refresh">Refresh</button>
     <button type="button" id="update-banner-dismiss" class="update-banner-close" aria-label="Dismiss">×</button>
-  `;
+  `);
   document.body.appendChild(banner);
   document.getElementById('update-banner-refresh').addEventListener('click', () => window.location.reload());
   document.getElementById('update-banner-dismiss').addEventListener('click', () => banner.remove());
@@ -8020,7 +8204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!WR.account.isConfigured()) {
     // Firestore is now the only data store the app knows how to use, so without
     // a Firebase project wired up there's genuinely nothing to show.
-    document.getElementById('app').innerHTML = `
+    WR.ui.setHTML(document.getElementById('app'), `
       <div class="auth-screen">
         <div class="auth-card">
           <div class="auth-brand">WealthRoute</div>
@@ -8028,7 +8212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <p class="auth-subtitle">This build has no Firebase project configured, so there's no account system to store data in. Contact whoever deployed this app.</p>
         </div>
       </div>
-    `;
+    `);
     return;
   }
 
@@ -8036,7 +8220,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await WR.account.ensureInit();
   } catch (err) {
     console.error('Account init failed', err);
-    document.getElementById('app').innerHTML = `
+    WR.ui.setHTML(document.getElementById('app'), `
       <div class="auth-screen">
         <div class="auth-card">
           <div class="auth-brand">WealthRoute</div>
@@ -8044,7 +8228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <p class="auth-subtitle">${err.message || 'Something went wrong starting the app. Check your connection and reload.'}</p>
         </div>
       </div>
-    `;
+    `);
     return;
   }
 

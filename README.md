@@ -146,8 +146,8 @@ Firestore's offline cache keeps the app usable without a connection.
 
 1. Create a project at [console.firebase.google.com](https://console.firebase.google.com).
 2. **Authentication** \u2192 Sign-in method \u2192 enable **Email/Password** (and
-  **Google** if you want that option too). Enable **Anonymous** as well if
-  you plan to run `tests.html` (see below).
+  **Google** if you want that option too). **Anonymous** is optional for
+  browser tests; the runner can use a disposable email/password account.
 3. **Firestore Database** \u2192 create a database, then set these security
   rules (Rules tab \u2192 replace everything \u2192 Publish):
   ```
@@ -176,11 +176,16 @@ Firestore's offline cache keeps the app usable without a connection.
 
 ## Running tests
 
-Serve the folder (see above), open `tests.html`. Results render directly on
-the page. Storage-layer tests run against the same Firestore backend the
-real app uses (via an anonymous test account on your Firebase project),
-clearing that account's data before each test rather than deleting a local
-database.
+Run `npm install`, `npm run build`, and `npm test` for the production-helper
+checks. On Windows with a restricted PowerShell execution policy, use
+`npm.cmd` instead of `npm`. The build copies DOMPurify into the local
+`vendor` folder; ship that folder alongside the HTML and service worker.
+
+Serve the folder (see above), then open `tests.html` for browser tests.
+Storage tests use an isolated Firebase app with in-memory authentication,
+falling back to a disposable email/password user if anonymous sign-in is
+disabled. Test records and the test user are removed afterward. The runner
+does not reuse a signed-in app user's authentication session.
 
 ## What's built
 
@@ -218,6 +223,13 @@ budget-vs-actual-vs-difference.
 hybrid prioritisation with a month-by-month payoff simulator: total months
 to debt-free, total interest paid, and interest/time saved from an
 adjustable extra monthly payment.
+
+The page separates "Debts I owe" and "Owed to me" into tabs. Loan details,
+paid-off history, the monthly tracker, and payoff settings can be expanded
+as needed. Dashboard Paid/Unpaid actions share the debt payment ledger and
+update balances atomically; payment changes require an online connection.
+Monthly Surplus means income minus fixed and variable expenses. The separate
+"After debt minimums" amount is used by recommendations.
 
 The separate **Money owed to me** section records personal loans and bills
 paid on someone else's behalf, including the person, principal, currency,

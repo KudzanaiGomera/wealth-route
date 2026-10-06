@@ -10,15 +10,9 @@
     <h1>WealthRoute &mdash; Full test suite</h1>
     <div id="results"></div>
     <script>
-// Test-harness auth: signs in anonymously against the same Firebase project
-// index.html uses, so these tests exercise the real Firestore-backed storage
-// layer (not a mock). Anonymous auth needs enabling once in Firebase Console
-// -> Authentication -> Sign-in method -> Anonymous; no password to manage,
-// and the existing Firestore rules (request.auth.uid == uid) already cover
-// anonymous users since they still get a real uid. Each browser profile
-// reuses the same anonymous user across test runs (Firebase Auth's default
-// persistence), and every test below clears its own data via resetDB()
-// first, so leftover state from a previous run never leaks into a test.
+// Uses an isolated Firebase app with in-memory authentication. A disposable
+// email/password account is used when anonymous sign-in is disabled, and
+// the test account and its records are deleted after the suites complete.
 
 window.WR = window.WR || {};
 WR.testAuth = {};
@@ -47,11 +41,18 @@ WR.testAuth = {};
           import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-auth.js`),
           import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-firestore.js`),
         ]);
-        const app = initializeApp(FIREBASE_CONFIG);
+        const app = initializeApp(FIREBASE_CONFIG, 'wealthroute-tests');
         firestoreApi = firestoreModule;
         const auth = authModule.getAuth(app);
+        await authModule.setPersistence(auth, authModule.inMemoryPersistence);
         db = firestoreModule.getFirestore(app);
-        const cred = await authModule.signInAnonymously(auth);
+        let cred;
+        try {
+          cred = await authModule.signInAnonymously(auth);
+        } catch (error) {
+          if (!['auth/admin-restricted-operation', 'auth/operation-not-allowed'].includes(error.code)) throw error;
+          cred = await authModule.createUserWithEmailAndPassword(auth, `wr-tests-${crypto.randomUUID()}@example.com`, crypto.randomUUID() + 'Aa7!');
+        }
         currentUser = cred.user;
       })();
     }
@@ -62,6 +63,13 @@ WR.testAuth = {};
   WR.testAuth.getCurrentUser = () => currentUser;
   WR.testAuth.getDb = () => db;
   WR.testAuth.getFirestoreApi = () => firestoreApi;
+  WR.testAuth.cleanup = async () => {
+    if (!currentUser) return;
+    for (const repo of Object.values(WR.repos)) await repo.clear();
+    const authModule = await import(`https://www.gstatic.com/firebasejs/${SDK_VERSION}/firebase-auth.js`);
+    await authModule.deleteUser(currentUser);
+    currentUser = null;
+  };
 })();
 // Firestore-backed data layer \u2014 mirrors index.html's real storage layer
 // exactly (same users/{uid}/{storeName}/{id} shape, same interface), so these
@@ -2407,10 +2415,10 @@ WR.testRuns.push(
       const summary = WR.uiCalc.calculateDayToDaySummary(
         { year: 2026, startingBalance: 1000 },
         [
-          { year: 2026, kind: 'add', amount: 500 },
-          { year: 2026, kind: 'spend', amount: 300 },
-          { year: 2026, kind: 'spend', amount: 200 },
-          { year: 2025, kind: 'add', amount: 9999 },
+          { year: 2026, date: '2026-01-01', kind: 'add', amount: 500 },
+          { year: 2026, date: '2026-02-01', kind: 'spend', amount: 300 },
+          { year: 2026, date: '2026-03-01', kind: 'spend', amount: 200 },
+          { year: 2025, date: '2025-01-01', kind: 'add', amount: 9999 },
         ],
         2026,
       );
@@ -2489,6 +2497,7 @@ WR.testRuns.push(
       await WR.test.test(`Test suite ${index + 1} could not complete`, () => { throw suite.reason; });
     }
   }
+  await WR.test.test('Test account and records are cleaned up', () => WR.testAuth.cleanup());
   WR.test.render();
 })();
 
