@@ -4148,15 +4148,10 @@ WR.ui = WR.ui || {};
 
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Monthly Surplus</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
-            <div class="stat"><span class="stat-label">Monthly Income</span><span class="stat-value">${currency} ${fmt(s.cashflow.income)}</span></div>
-            <div class="stat"><span class="stat-label">Fixed Expenses</span><span class="stat-value">${currency} ${fmt(s.cashflow.fixedExpenses)}</span></div>
-            <div class="stat"><span class="stat-label">Variable Actual</span><span class="stat-value">${currency} ${fmt(s.cashflow.variableExpenses)}</span></div>
-            <div class="stat"><span class="stat-label">Debt Minimum Payments</span><span class="stat-value">${currency} ${fmt(s.cashflow.debtPayments)}</span></div>
             <div class="stat"><span class="stat-label">After debt minimums</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
             <div class="stat"><span class="stat-label">Day-to-Day Balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
             <div class="stat"><span class="stat-label">Savings Pots</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
           </div>
-          <p class="fine-print">Monthly surplus = income - fixed expenses - variable actuals. After debt minimums = monthly surplus - debt minimum payments.</p>
         </div>
 
         <div class="dashboard-card annual-card">
