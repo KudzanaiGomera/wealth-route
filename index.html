@@ -3526,6 +3526,7 @@ WR.ui = WR.ui || {};
   WR.ui.yearsAroundCurrent = yearsAroundCurrent;
   WR.ui.getOrCreateProfile = getOrCreateProfile;
   WR.ui.isActiveForMonth = isActiveForMonth;
+  WR.ui.monthlyAmountFromFrequency = monthlyAmountFromFrequency;
   /** Day-of-month 1-31, or undefined when blank/invalid (no reminder). */
   WR.ui.parseDueDay = (value) => {
     const day = Math.round(Number(value));
@@ -4147,10 +4148,15 @@ WR.ui = WR.ui || {};
 
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Monthly Surplus</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
+            <div class="stat"><span class="stat-label">Monthly Income</span><span class="stat-value">${currency} ${fmt(s.cashflow.income)}</span></div>
+            <div class="stat"><span class="stat-label">Fixed Expenses</span><span class="stat-value">${currency} ${fmt(s.cashflow.fixedExpenses)}</span></div>
+            <div class="stat"><span class="stat-label">Variable Actual</span><span class="stat-value">${currency} ${fmt(s.cashflow.variableExpenses)}</span></div>
+            <div class="stat"><span class="stat-label">Debt Minimum Payments</span><span class="stat-value">${currency} ${fmt(s.cashflow.debtPayments)}</span></div>
             <div class="stat"><span class="stat-label">After debt minimums</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
             <div class="stat"><span class="stat-label">Day-to-Day Balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
             <div class="stat"><span class="stat-label">Savings Pots</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
           </div>
+          <p class="fine-print">Monthly surplus = income - fixed expenses - variable actuals. After debt minimums = monthly surplus - debt minimum payments.</p>
         </div>
 
         <div class="dashboard-card annual-card">
@@ -4661,6 +4667,7 @@ WR.ui = WR.ui || {};
     ]);
     const year = WR.ui._incomeYear || new Date().getFullYear();
     WR.ui._incomeYear = year;
+    const summaryMonth = `${year}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
     const defaultStartMonth = year === new Date().getFullYear() ? WR.ui.currentMonthKey() : `${year}-01`;
 
     const rows = incomes
@@ -4677,15 +4684,15 @@ WR.ui = WR.ui || {};
         </tr>`)
       .join('');
     const totalIncome = incomes
-      .filter((item) => Number(item.year || year) === year)
-      .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+      .filter((item) => Number(item.year || year) === year && WR.ui.isActiveForMonth(item, summaryMonth))
+      .reduce((sum, item) => sum + WR.ui.monthlyAmountFromFrequency(item.amount, item.frequency || 'monthly'), 0);
 
     WR.ui.setHTML(container, `
       <h1>Income</h1>
       <p class="fine-print">Choose the months this income applies to. Annual income starts with the first dated financial record for that year.</p>
       <div class="toolbar"><label>Year: <select id="income-year">${WR.ui.yearsAroundCurrent(3, 4).map((y) => `<option value="${WR.ui.escapeText(y)}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></label></div>
       <div class="stat-grid">
-        <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
+        <div class="stat"><span class="stat-label">Monthly Income (${WR.ui.monthName(Number(summaryMonth.slice(5)))} ${year})</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
       </div>
       <table class="data-table">
         <thead><tr><th>Source</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Start month</th><th>End month</th><th></th></tr></thead>
@@ -4793,13 +4800,16 @@ WR.ui = WR.ui || {};
           <td><button class="link-btn delete-fixed-expense" data-id="${WR.ui.escapeText(expense.id)}">Delete</button></td>
         </tr>`)
       .join('');
-    const totalFixedExpenses = expenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
+    const summaryMonth = WR.ui.currentMonthKey();
+    const totalFixedExpenses = expenses
+      .filter((expense) => WR.ui.isActiveForMonth(expense, summaryMonth))
+      .reduce((sum, expense) => sum + WR.ui.monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'), 0);
 
     WR.ui.setHTML(container, `
       <h1>Fixed Expenses</h1>
       <p class="fine-print">Recurring fixed expenses are entered once and automatically applied to every applicable month.</p>
       <div class="stat-grid">
-        <div class="stat"><span class="stat-label">Total Fixed Expenses</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalFixedExpenses)}</span></div>
+        <div class="stat"><span class="stat-label">Monthly Fixed Expenses (${WR.ui.monthName(Number(summaryMonth.slice(5)))} ${summaryMonth.slice(0, 4)})</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalFixedExpenses)}</span></div>
       </div>
       <table class="data-table">
         <thead><tr><th>Name</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Category</th><th>Start month</th><th>End month</th><th>Due day</th><th></th></tr></thead>
