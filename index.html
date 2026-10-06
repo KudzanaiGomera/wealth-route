@@ -728,6 +728,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .ef-summary-side .stat-value { font-size: 1.15rem; margin-top: 0.15rem; }
 
 .ef-account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.9rem; margin: 0 0 1.35rem; }
+.emergency-target + .ef-account-grid { margin-top: 1rem; }
 .ef-account-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; box-shadow: var(--shadow); }
 .ef-account-card h3 { margin: 0; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 .ef-account-card .amount { display: block; font-family: var(--font-serif); font-size: 1.55rem; margin-top: 0.3rem; }
@@ -1309,6 +1310,14 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
 .debt-tabs button { flex: 1; min-width: 0; min-height: 44px; background: transparent; color: var(--muted); border-color: transparent; }
 .debt-tabs button[aria-selected="true"] { background: var(--panel-alt); border-color: var(--accent); color: var(--text); }
 .debt-owe-panel:not(.show-details) .debt-detail { display: none; }
+.toolbar.debt-toolbar { background: none; border: 0; box-shadow: none; padding: 0; gap: 1rem; }
+.toolbar label.loan-details-switch { position: relative; display: flex; align-items: center; gap: 0.6rem; min-height: 44px; padding: 0.5rem 0.65rem; font-size: 0.85rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text); cursor: pointer; }
+.loan-details-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.loan-details-track { position: relative; flex: 0 0 2.25rem; height: 1.3rem; border: 1px solid var(--muted); border-radius: 999px; background: var(--panel-alt); }
+.loan-details-track::after { content: ''; position: absolute; top: 0.15rem; left: 0.15rem; width: 0.875rem; height: 0.875rem; border-radius: 50%; background: var(--muted); transition: transform 0.15s ease; }
+.loan-details-switch input:checked + .loan-details-track { background: var(--accent); border-color: var(--accent); }
+.loan-details-switch input:checked + .loan-details-track::after { transform: translateX(0.95rem); background: var(--accent-contrast); }
+.loan-details-switch input:focus-visible + .loan-details-track { outline: 2px solid var(--accent); outline-offset: 3px; }
 .debt-disclosure, .dashboard-disclosure { border-top: 1px solid var(--border); margin: 1rem 0; padding: 0.5rem 0; }
 .debt-disclosure > summary, .dashboard-disclosure > summary { cursor: pointer; font-weight: 600; min-height: 44px; padding: 0.7rem 0; box-sizing: border-box; }
 [role="tabpanel"][hidden] { display: none !important; }
@@ -5888,7 +5897,7 @@ WR.ui = WR.ui || {};
       </div>
       <section id="debt-owe-panel" class="debt-owe-panel ${WR.ui._debtDetails ? 'show-details' : ''}" role="tabpanel" aria-labelledby="debt-owe-tab" ${debtTab === 'owe' ? '' : 'hidden'}>
       <div class="debt-overview-wrap">${overviewHtml}</div>
-      <div class="toolbar"><button type="button" id="open-add-debt">Add a debt</button><label><input type="checkbox" id="debt-show-details" ${WR.ui._debtDetails ? 'checked' : ''}> Show loan details</label></div>
+      <div class="toolbar debt-toolbar"><button type="button" id="open-add-debt">Add a debt</button><label class="loan-details-switch"><input type="checkbox" role="switch" id="debt-show-details" ${WR.ui._debtDetails ? 'checked' : ''}><span class="loan-details-track" aria-hidden="true"></span><span>Show loan details</span></label></div>
       <section class="debt-list-card">
         <h2>Ongoing Debts</h2>
         <p class="fine-print">Debts with a remaining balance.</p>
