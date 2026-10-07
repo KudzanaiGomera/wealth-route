@@ -149,6 +149,52 @@ function checkVisibility() {
 }
 checkVisibility();
 
+async function checkTransactionLayout() {
+  const transactions = [
+    { id: 'first', date: '2026-10-07', kind: 'spend', amount: 84.23, category: 'Bank charges', description: '<unsafe>' },
+    { id: 'second', date: '2026-10-07', kind: 'spend', amount: 13.77, category: 'Bank charges' },
+    { id: 'third', date: '2026-10-06', kind: 'add', amount: 800 },
+  ];
+  let markup = '';
+  const selectors = [];
+  const repo = records => ({ getAll: async () => records });
+  const layoutContext = {
+    WR: {
+      repos: {
+        dayToDayAccounts: repo([]), dayToDayTransactions: repo(transactions),
+        expenseCategories: repo([]), emergencyFundContributions: repo([]),
+      },
+      ui: {
+        _dayMonth: '2026-10', getOrCreateProfile: async () => ({ baseCurrency: 'ZAR' }),
+        previousMonthKey: () => '2026-09', escapeText: context.escapeText,
+        fmt: amount => Number(amount).toFixed(2),
+        calculateDayToDayMonthBalance: () => ({ balanceBeforeMonth: 0, currentBalance: 702 }),
+        setHTML: (_container, value) => { markup = value; },
+      },
+    },
+    document: { getElementById: () => ({ addEventListener() {} }) },
+  };
+  vm.createContext(layoutContext);
+  vm.runInContext(functions.get('renderDayToDay'), layoutContext);
+  const container = { querySelectorAll: selector => { selectors.push(selector); return []; } };
+  await layoutContext.renderDayToDay(container);
+  assert.equal((markup.match(/class="day-date-group"/g) || []).length, 2);
+  assert.equal((markup.match(/<tr data-id=/g) || []).length, 3);
+  assert.ok(markup.includes('2 transactions'));
+  assert.ok(markup.includes('1 transaction</span>'));
+  assert.ok(markup.includes('day-credit'));
+  assert.ok(markup.includes('data-label="Amount (ZAR)"'));
+  assert.ok(markup.includes('&lt;unsafe&gt;'));
+  assert.ok(!markup.includes("of this month's day-to-day spending"));
+  assert.ok(selectors.includes('.day-ledger tbody tr[data-id]'));
+  transactions.length = 0;
+  await layoutContext.renderDayToDay(container);
+  assert.ok(markup.includes('No day-to-day transactions yet.'));
+  assert.equal((markup.match(/class="day-date-group"/g) || []).length, 0);
+  console.log('Transaction date grouping, counts, mobile labels, escaping, edit binding, and empty-state checks passed.');
+}
+checkTransactionLayout().catch(error => { console.error(error); process.exitCode = 1; });
+
 async function checkPayments() {
   const documents = new Map();
   const debtPath = 'users/test/debts/loan';

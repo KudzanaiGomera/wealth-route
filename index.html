@@ -633,14 +633,14 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .dashboard-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin: 0.4rem 0 1.25rem; }
 .dashboard-heading h1 { margin: 0.25rem 0 0; font-size: 1.6rem; }
 .dashboard-heading .month-label { margin: 0; font-size: 0.85rem; }
-.position-card { background: linear-gradient(115deg, #08795f, #064a46); border-color: #08795f; color: #fff; }
-.position-card .stat-label { color: #c9eee4; }
+.position-card { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 6%, var(--panel)), var(--panel)); border-color: var(--border); color: var(--text); }
+.position-card .stat-label { color: var(--muted); }
 .balance-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 .visibility-toggle { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-alt); color: var(--text); }
 .visibility-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.position-card .visibility-toggle { background: #ffffff14; border-color: #ffffff45; color: #fff; }
-.position-card .visibility-toggle:hover { background: #ffffff28; }
-.position-card .visibility-toggle:focus-visible { outline-color: #fff; }
+.position-card .visibility-toggle { background: var(--panel-alt); border-color: var(--border); color: var(--muted); }
+.position-card .visibility-toggle:hover { color: var(--accent); border-color: var(--accent); }
+.position-card .visibility-toggle:focus-visible { outline-color: var(--accent); }
 .password-field { position: relative; min-width: 0; }
 .auth-form .password-field input { width: 100%; padding-right: 3.6rem; }
 .password-field .visibility-toggle { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; }
@@ -668,7 +668,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   padding: 0 0 1.25rem;
   margin: 0 0 0.3rem;
   border: 0;
-  border-bottom: 1px solid #ffffff38;
+  border-bottom: 1px solid var(--border);
   border-radius: 0;
   background: transparent;
 }
@@ -681,9 +681,10 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   margin-top: 0.15rem;
 }
 .hero-headline .hero-value { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-.hero-headline .hero-value.negative, .position-card .stat-value.negative { color: #ffd0c9; }
-.position-card .delta.positive, .position-card .delta.neutral { color: #c9eee4; }
-.position-card .delta.negative { color: #ffd0c9; }
+.hero-headline .hero-value.negative, .position-card .stat-value.negative { color: var(--danger); }
+.position-card .delta.positive { color: var(--success); }
+.position-card .delta.neutral { color: var(--muted); }
+.position-card .delta.negative { color: var(--danger); }
 
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.65rem; margin: 1rem 0; }
 .dashboard-card .stat-grid { gap: 0.8rem; }
@@ -717,14 +718,46 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .delta.neutral { color: var(--muted); font-weight: 500; }
 .hero-headline .delta { font-size: 0.85rem; margin-top: 0.35rem; }
 
-.day-category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
-.day-category-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem; box-shadow: var(--shadow); }
-.day-category-card.top-spend { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); background: color-mix(in srgb, var(--gold) 7%, var(--panel)); }
-.day-category-card h3 { margin: 0; font-size: 0.88rem; color: var(--muted); }
-.day-category-card .amount { display: block; font-family: var(--font-serif); font-size: 1.45rem; margin-top: 0.3rem; }
-.day-category-card .share { display: block; color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
-.day-category-meter { height: 0.45rem; border-radius: 999px; background: var(--panel-alt); overflow: hidden; margin-top: 0.65rem; border: 1px solid var(--border); }
-.day-category-meter span { display: block; height: 100%; width: var(--share); background: linear-gradient(90deg, var(--accent), var(--gold)); }
+.day-category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 1rem; margin: 1rem 0 1.75rem; }
+.day-category-card { min-width: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1.15rem; box-shadow: var(--shadow); }
+.day-category-card.top-spend { border-top: 3px solid var(--gold); padding-top: calc(1.15rem - 2px); }
+.day-category-card h3 { margin: 0; font-size: 0.88rem; font-weight: 500; color: var(--text); overflow-wrap: anywhere; }
+.day-category-card .amount { display: block; font-family: var(--font-serif); font-size: 1.55rem; margin: 0.8rem 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.day-category-card .share { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; color: var(--muted); font-size: 0.78rem; }
+.day-category-card .share strong { color: var(--gold); font-size: 0.72rem; font-weight: 600; }
+.day-category-meter { height: 4px; border-radius: 999px; background: var(--border); overflow: hidden; margin-top: 0.65rem; }
+.day-category-meter span { display: block; height: 100%; width: var(--share); background: var(--accent); }
+.day-activity { margin-top: 2rem; }
+.day-activity-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+.day-activity-heading h2 { margin: 0; }
+.day-activity-heading span { color: var(--muted); font-size: 0.8rem; }
+.day-ledger .day-date-group th { padding: 0.8rem 1rem; color: var(--text); background: var(--panel-alt); font-size: 0.82rem; }
+.day-date-group th span { margin-left: 0.75rem; font-weight: 400; color: var(--muted); }
+.data-table.day-ledger { table-layout: fixed; min-width: 900px; }
+.day-ledger th:nth-child(1) { width: 145px; }
+.day-ledger th:nth-child(2) { width: 130px; }
+.day-ledger th:nth-child(6) { width: 150px; }
+.day-ledger th:nth-child(7) { width: 75px; }
+.data-table.day-ledger td { padding: 0.65rem; }
+.day-ledger tr[data-id]:hover { background: color-mix(in srgb, var(--accent) 4%, var(--panel)); }
+.data-table.day-ledger td input.cell, .data-table.day-ledger td select.cell { min-width: 0; min-height: 36px; border-radius: 4px; }
+.day-ledger input[data-field="date"] { color-scheme: light; }
+:root[data-theme="dark"] .day-ledger input[data-field="date"] { color-scheme: dark; }
+.day-ledger .day-amount { display: flex; align-items: center; gap: 0.2rem; color: var(--muted); }
+.day-ledger .day-amount input { text-align: right; font-variant-numeric: tabular-nums; }
+.day-ledger .day-credit, .day-ledger .day-credit input { color: var(--success); }
+.day-ledger .delete-day { color: var(--muted); font-size: 0.8rem; }
+.day-ledger .delete-day:hover { color: var(--danger); }
+@media (max-width: 680px) {
+  .data-table.day-ledger { min-width: 0; }
+  .day-ledger thead { display: none; }
+  .day-ledger tbody, .day-ledger tr, .day-ledger td, .day-ledger .day-date-group th { display: block; }
+  .day-ledger tr[data-id] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0.6rem; border-bottom: 1px solid var(--border); }
+  .data-table.day-ledger td { min-width: 0; border: 0; padding: 0.4rem; white-space: normal; }
+  .day-ledger td::before { content: attr(data-label); display: block; color: var(--muted); font-size: 0.72rem; margin-bottom: 0.15rem; }
+  .day-ledger td:last-child { grid-column: 1 / -1; text-align: right; }
+  .data-table.day-ledger td input.cell, .data-table.day-ledger td select.cell { font-size: 1rem; width: 100%; }
+}
 .day-suggestion-card { background: color-mix(in srgb, var(--accent) 7%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); border-radius: 8px; padding: 1rem; margin: 1rem 0; box-shadow: var(--shadow); }
 .day-suggestion-card h2 { margin: 0 0 0.35rem; }
 .day-suggestion-card p { margin: 0.25rem 0; color: var(--text); font-size: 0.92rem; }
@@ -5360,21 +5393,24 @@ WR.ui = WR.ui || {};
       const share = spent > 0 ? (item.amount / spent) * 100 : 0;
       return `
         <article class="day-category-card ${index === 0 ? 'top-spend' : ''}">
-          <h3>${escapeHtml(item.category)}${index === 0 ? ' · Most spent' : ''}</h3>
+          <h3>${escapeHtml(item.category)}</h3>
           <span class="amount">${profile.baseCurrency} ${WR.ui.fmt(item.amount)}</span>
-          <span class="share">${share.toFixed(0)}% of this month's day-to-day spending</span>
+          <span class="share"><span>${share.toFixed(0)}% of spending</span>${index === 0 ? '<strong>Most spent</strong>' : ''}</span>
           <div class="day-category-meter" aria-hidden="true"><span style="--share: ${Math.max(3, share).toFixed(0)}%"></span></div>
         </article>`;
     }).join('');
 
-    const rows = monthTx.map((item) => `
+    const dateCounts = new Map();
+    monthTx.forEach((item) => dateCounts.set(item.date, (dateCounts.get(item.date) || 0) + 1));
+    const rows = monthTx.map((item, index) => `
+      ${index === 0 || item.date !== monthTx[index - 1].date ? `<tr class="day-date-group"><th colspan="7" scope="rowgroup">${escapeHtml(item.date)}<span>${dateCounts.get(item.date)} transaction${dateCounts.get(item.date) === 1 ? '' : 's'}</span></th></tr>` : ''}
       <tr data-id="${WR.ui.escapeText(item.id)}">
-        <td><input class="cell" data-field="date" type="date" value="${escapeHtml(item.date)}"></td>
-        <td><select class="cell" data-field="kind"><option value="spend" ${item.kind !== 'add' ? 'selected' : ''}>Spend</option><option value="add" ${item.kind === 'add' ? 'selected' : ''}>Add money</option></select></td>
-        <td><input class="cell" data-field="description" value="${escapeHtml(item.description || '')}"></td>
-        <td><select class="cell" data-field="category">${categoryOptions(item.category)}</select></td>
-        <td><input class="cell" data-field="note" value="${escapeHtml(item.note || '')}"></td>
-        <td><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${WR.ui.escapeText(item.amount)}"></td>
+        <td data-label="Date"><input class="cell" data-field="date" type="date" value="${escapeHtml(item.date)}"></td>
+        <td data-label="Type"><select class="cell" data-field="kind"><option value="spend" ${item.kind !== 'add' ? 'selected' : ''}>Spend</option><option value="add" ${item.kind === 'add' ? 'selected' : ''}>Add money</option></select></td>
+        <td data-label="Description"><input class="cell" data-field="description" value="${escapeHtml(item.description || '')}"></td>
+        <td data-label="Category"><select class="cell" data-field="category">${categoryOptions(item.category)}</select></td>
+        <td data-label="Note"><input class="cell" data-field="note" value="${escapeHtml(item.note || '')}"></td>
+        <td data-label="Amount (${profile.baseCurrency})"><div class="day-amount ${item.kind === 'add' ? 'day-credit' : ''}"><span aria-hidden="true">${item.kind === 'add' ? '+' : '-'}</span><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${WR.ui.escapeText(item.amount)}"></div></td>
         <td><button class="link-btn delete-day" data-id="${WR.ui.escapeText(item.id)}">Delete</button></td>
       </tr>`).join('');
 
@@ -5412,10 +5448,13 @@ WR.ui = WR.ui || {};
         <button type="submit" class="secondary">Add category</button>
       </form>
 
-      <table class="data-table">
+      <section class="day-activity" aria-labelledby="day-activity-title">
+      <div class="day-activity-heading"><h2 id="day-activity-title">Activity</h2><span>${monthTx.length} transaction${monthTx.length === 1 ? '' : 's'}</span></div>
+      <table class="data-table day-ledger">
         <thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Category</th><th>Note</th><th>Amount (${profile.baseCurrency})</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="7" class="empty">No day-to-day transactions yet.</td></tr>'}</tbody>
       </table>
+      </section>
 
       <h3>Add day-to-day transaction</h3>
       <form id="day-add-form" class="inline-form">
@@ -5457,7 +5496,7 @@ WR.ui = WR.ui || {};
       renderDayToDay(container);
     });
 
-    container.querySelectorAll('tbody tr').forEach((tr) => {
+    container.querySelectorAll('.day-ledger tbody tr[data-id]').forEach((tr) => {
       const id = tr.dataset.id;
       tr.querySelectorAll('.cell').forEach((input) => {
         input.addEventListener('change', async () => {

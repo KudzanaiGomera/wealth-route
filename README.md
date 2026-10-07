@@ -18,7 +18,7 @@ this means for offline use.
 
 ## What's new in 3.0
 
-- **Balance-first dashboard:** an emerald net-worth card with two-column
+- **Balance-first dashboard:** a subtly accent-tinted net-worth card with two-column
   balance rows, emergency fund and total assets, a compact annual overview,
   and direct links to Transactions, Budget, Savings, and Goals.
 - **Dashboard privacy:** the eye button hides or shows all dashboard amounts,
@@ -31,6 +31,8 @@ this means for offline use.
 - **Responsive controls:** two-column balance rows on phones, larger touch
   targets, compact mobile shortcuts, and existing light/dark and PWA
   safe-area support.
+- **Cleaner transaction view:** compact spending cards and a date-grouped
+  activity ledger with signed amounts, inline editing, and labeled fields on phones.
 - **Version 3.0.0** in package metadata, Settings, and exported backups;
   the service-worker shell cache is refreshed for the release.
 
@@ -69,10 +71,11 @@ external font/icon dependencies \u2014 system font stacks only, so this doesn't
 add to the "needs internet" list beyond the Excel tab and your account
 (see below).
 
-The 3.0 dashboard uses one emerald balance card with unframed balance rows,
+The 3.0 dashboard uses a theme-matched balance card with unframed balance rows,
 a separate annual overview, and compact icon shortcuts. Cards retain a
 maximum 8px corner radius; mobile rows and long amounts reflow without
-page-level horizontal scrolling.
+page-level horizontal scrolling. Spending cards use concise share labels;
+transaction activity groups rows by date and stacks editable fields on phones.
 
 ## Accounts, data, and privacy
 
