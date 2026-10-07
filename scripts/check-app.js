@@ -231,6 +231,11 @@ async function checkPaydayBudget() {
   assert.equal(budget.carryOver, 2500);
   assert.equal(budget.remaining, 5500);
   assert.equal(budget.spent, 1000);
+  const withBuffer = paydayContext.calculatePayCycleBudget(accounts, transactions, [{ ...cycles[0], bufferAmount: 2000 }], advances, '2026-10', 25, '2026-10-24');
+  assert.equal(withBuffer.remaining, budget.remaining);
+  assert.equal(withBuffer.funding, 6000);
+  assert.equal(withBuffer.available, budget.available);
+  assert.equal(paydayContext.calculatePayCycleFunding({ ...funding, bufferAmount: 2000 }).totalIncome, 9000);
   const linked = paydayContext.calculatePayCycleBudget(accounts, [...transactions, { id: 'receipt', date: '2026-09-20', kind: 'add', amount: 2000 }], cycles, [{ ...advances[0], transactionId: 'receipt' }], '2026-10', 25, '2026-10-24');
   assert.equal(linked.remaining, budget.remaining);
   const next = paydayContext.calculatePayCycleBudget(accounts, [...transactions, { date: '2026-10-25', kind: 'spend', amount: 500 }], [...cycles, { ...funding, expectedIncome: 8000, month: '2026-11', payDate: '2026-10-25', confirmed: true }], advances, '2026-11', 25, '2026-11-01');
@@ -281,20 +286,46 @@ async function checkPaydayBudget() {
   assert.equal(documents.get(base + 'dayToDayTransactions/receipt').amount, 100);
   assert.equal(documents.get(base + 'dayToDayTransactions/receipt').paydayAdvanceId, '');
   await assert.rejects(() => paydayContext.savePayAdvance('invalid', { amount: 100, receivedDate: '2026-02-30', payDate }), /positive advance/);
+  Object.assign(paydayContext.WR.ui, { isActiveForMonth: () => true, monthlyAmountFromFrequency: amount => Number(amount) });
+  documents.set(base + 'incomeSources/salary', { id: 'salary', year: Number(month.slice(0, 4)), name: 'Salary', amount: 10000, frequency: 'monthly' });
+  documents.set(base + 'incomeSources/claim', { id: 'claim', year: Number(month.slice(0, 4)), name: 'Claim', amount: 500, frequency: 'monthly' });
+  const tableFields = { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], sourceId: 'salary', availableBuffer: 2000, bufferAmount: 1000, adjustment: { advanceAmount: 2000, allocations: [{ potId: 'holiday', amount: 1000 }] } } };
+  await paydayContext.savePayCycle(month, tableFields);
+  await paydayContext.savePayCycle(month, tableFields);
+  assert.equal(documents.get(base + 'savingsPots/holiday').currentAmount, 1500);
+  const tableCycle = documents.get(base + 'payCycles/' + month);
+  assert.equal(tableCycle.mode, 'income-table');
+  assert.equal(tableCycle.expectedIncome, 10500);
+  assert.equal(paydayContext.calculatePayCycleFunding(tableCycle).totalIncome, 8500);
+  assert.equal(paydayContext.calculatePayCycleFunding(tableCycle).budget, 5800);
+  await paydayContext.savePayCycle(month, { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], sourceId: 'claim', availableBuffer: 2000, adjustment: { advanceAmount: 100, allocations: [] } } });
+  assert.equal(documents.get(base + 'payCycles/' + month).advanceAmount, 2100);
+  assert.equal(documents.get(base + 'payCycles/' + month).sourceAdjustments.salary.allocations[0].amount, 1000);
+  await assert.rejects(() => paydayContext.savePayCycle(month, { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], sourceId: 'salary', sourceFields: { amount: 100 }, availableBuffer: 2000 } }), /Advances exceed/);
+  assert.equal(documents.get(base + 'incomeSources/salary').amount, 10000);
+  await assert.rejects(() => paydayContext.savePayCycle(month, { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], availableBuffer: 2000, bufferAmount: 2001 } }), /Buffer exceeds/);
+  await paydayContext.savePayCycle(month, { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], sourceId: 'salary', adjustment: { allocations: [] }, availableBuffer: 2000 } });
+  assert.equal(documents.get(base + 'savingsPots/holiday').currentAmount, 500);
   let paydayMarkup = '';
   paydayContext.WR.repos = Object.fromEntries(['payCycles', 'payAdvances', 'savingsPots', 'dayToDayTransactions'].map(store => [store, { getAll: async () => store === 'payCycles' ? [{ month: '2026-10', advanceAmount: 2000 }] : [] }]));
+  paydayContext.WR.repos.incomeSources = { getAll: async () => [{ id: 'salary', name: 'Salary', year: 2026, amount: 10000, frequency: 'monthly', startMonth: '2026-01', endMonth: '2026-12' }] };
   paydayContext.WR.models = { newId: () => 'preview' };
   Object.assign(paydayContext.WR.ui, {
     _paydayMonth: '2026-10', getOrCreateProfile: async () => ({ baseCurrency: 'ZAR' }),
-    buildSnapshot: async () => ({ paydayFunding: { salary: 8000 }, cashflow: { income: 8000, fixedExpenses: 1000, debtPayments: 0 }, budgetLines: [] }),
+    buildSnapshot: async () => ({ payCycleBudget: { carryOver: 500 } }),
     currentMonthKey: paydayContext.currentMonthKey, escapeText: context.escapeText,
     fmt: number => Number(number).toFixed(2), setHTML: (_container, markup) => { paydayMarkup = markup; },
   });
-  vm.runInContext(functions.get('renderPaydayIncome'), paydayContext);
-  await paydayContext.renderPaydayIncome({ querySelector: () => ({ addEventListener() {} }), querySelectorAll: () => [] });
-  assert.ok(paydayMarkup.includes('name="expectedIncome" type="number" min="0" step="0.01" value="10000"'));
-  assert.ok(paydayMarkup.includes('Salary arriving on payday</span><span class="stat-value">ZAR 8000.00'));
-  console.log('Payday funding, carry-over, boundaries, advances, atomic savings lifecycle, linked receipts, and pre-advance form defaults passed.');
+  paydayContext.document = { getElementById: () => ({ addEventListener() {} }) };
+  paydayContext.RECURRING_FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
+  vm.runInContext(functions.get('recurringFrequencyOptions') + '\n' + functions.get('renderIncome'), paydayContext);
+  await paydayContext.renderIncome({ querySelector: () => ({ addEventListener() {} }), querySelectorAll: () => [] });
+  assert.ok(paydayMarkup.includes('Total income</span><span class="stat-value">ZAR 8000.00'));
+  assert.ok(paydayMarkup.includes('<th>Advance</th><th>Savings taken</th>'));
+  assert.ok(paydayMarkup.includes('<h2>Buffer</h2>'));
+  assert.ok(!paydayMarkup.includes('next payday excluded'));
+  assert.ok(!paydayMarkup.includes('id="payday-form"'));
+  console.log('Payday funding, inline income deductions, buffer single counting, atomic savings, linked receipts, and compact Income layout passed.');
 }
 checkPaydayBudget().catch(error => { console.error(error); process.exitCode = 1; });
 

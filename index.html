@@ -701,7 +701,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   min-height: 5.7rem;
   box-shadow: none;
 }
-.position-card .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0; }
+.position-card .stat-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); margin-bottom: 0; }
 .position-card .stat { border: 0; background: transparent; border-radius: 0; padding: 0.5rem 0; min-height: 4.4rem; }
 .annual-card .stat-grid { grid-template-columns: 1fr; margin-bottom: 0; }
 .annual-card .stat { border: 0; border-top: 1px solid var(--border); background: transparent; border-radius: 0; padding: 0.75rem 0; min-height: 0; gap: 0.25rem; }
@@ -1178,6 +1178,13 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .data-table td input.cell, .data-table td select.cell { width: 100%; min-width: 7rem; border: 1px solid transparent; background: transparent; color: var(--text); font-size: 0.85rem; padding: 0.2rem; font-family: var(--font-sans); transition: background-color 0.5s ease; }
 .data-table td input.cell[data-field="name"] { min-width: 12rem; }
 .data-table.debts-table { min-width: 1120px; }
+.data-table.income-table { min-width: 1080px; table-layout: fixed; }
+.income-table th:first-child { width: 18%; }
+.income-table th:nth-child(4), .income-table th:nth-child(5) { width: 14%; }
+.income-table th:nth-child(7) { width: 16%; }
+.income-table th:last-child { width: 7%; }
+.data-table.income-table td input.cell, .data-table.income-table td select.cell { display: block; min-width: 0; }
+.income-table input[type="number"] { text-align: right; font-variant-numeric: tabular-nums; }
 .table-header-select { max-width: 5.2rem; padding: 0.15rem 0.25rem; border: 1px solid var(--border); border-radius: 4px; background: var(--panel); color: var(--text); font: inherit; }
 .debts-table td:nth-child(8), .debts-table td:nth-child(9) { min-width: 11rem; }
 .debts-table td:nth-child(10), .debts-table td:nth-child(11) { min-width: 8rem; }
@@ -3411,14 +3418,15 @@ WR.ui = WR.ui || {};
     const savings = (cycle.allocations || []).reduce((sum, item) => sum + cents(item.amount), 0);
     const salary = cents(cycle.expectedIncome) - cents(cycle.advanceAmount);
     const expenses = cents(cycle.fixedAmount) + cents(cycle.variableAmount) + cents(cycle.debtAmount);
-    return { salary: salary / 100, savings: savings / 100, expenses: expenses / 100, budget: (salary - savings - expenses) / 100 };
+    const buffer = cents(cycle.bufferAmount);
+    return { salary: salary / 100, savings: savings / 100, expenses: expenses / 100, totalIncome: (salary - savings + buffer) / 100, budget: (salary - savings + buffer - expenses) / 100 };
   }
 
   function calculatePayCycleBudget(accounts, transactions, cycles, advances, month, payday = 25, today = new Date().toISOString().slice(0, 10)) {
     const dates = payCycleDates(month, payday);
     const confirmed = cycles.filter(cycle => cycle.confirmed && cycle.payDate <= today);
     const events = transactions.map(item => ({ date: item.date, amount: (item.kind === 'add' ? 1 : -1) * (Number(item.amount) || 0), covered: item.kind !== 'add' && !!item.coveredByBudget, kind: item.kind === 'add' ? 'add' : 'spend' }));
-    confirmed.forEach(cycle => events.push({ date: cycle.payDate, amount: calculatePayCycleFunding(cycle).budget, kind: 'funding' }));
+    confirmed.forEach(cycle => events.push({ date: cycle.payDate, amount: calculatePayCycleFunding(cycle).budget - (Number(cycle.bufferAmount) || 0), kind: 'funding' }));
     advances.filter(item => !item.transactionId).forEach(item => events.push({ date: item.receivedDate, amount: Number(item.amount) || 0, kind: 'add' }));
     const opening = Number(accounts.slice().sort((left, right) => Number(left.year) - Number(right.year))[0]?.startingBalance) || 0;
     const enabledFrom = confirmed.slice().sort((left, right) => left.payDate.localeCompare(right.payDate))[0]?.payDate;
@@ -3430,7 +3438,7 @@ WR.ui = WR.ui || {};
     const funding = cycle ? calculatePayCycleFunding(cycle).budget : 0;
     const added = sum(period.filter(item => item.kind === 'add'));
     const spent = -sum(period.filter(item => item.kind === 'spend'));
-    const available = Math.round((carryOver + funding + added) * 100) / 100;
+    const available = Math.round((carryOver + funding - (Number(cycle?.bufferAmount) || 0) + added) * 100) / 100;
     const remaining = Math.round((carryOver + sum(period)) * 100) / 100;
     return { ...dates, enabled: !!enabledFrom, confirmed: !!cycle, carryOver, funding, added, spent, available, remaining, remainingPct: available > 0 ? Math.max(0, Math.min(100, remaining / available * 100)) : 0 };
   }
@@ -3465,6 +3473,17 @@ WR.ui = WR.ui || {};
         WR.repos.payAdvances.getAll(),
       ]);
 
+    const effectivePayCycles = payCycles.map(cycle => {
+      if (cycle.mode !== 'income-table') return cycle;
+      const fixedAmount = fixedExpenses.filter(expense => isActiveForMonth(expense, cycle.month)).reduce((sum, expense) => sum + monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'), 0);
+      const variableAmount = allBudgetLines.filter(line => line.month === cycle.month && line.type === 'variable').reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
+      const debtAmount = debtPayments.filter(payment => payment.month === cycle.month).reduce((sum, payment) => {
+        const currency = payment.currency || debts.find(debt => debt.id === payment.debtId)?.currency || profile.baseCurrency;
+        const converted = WR.financial.convertCurrency(Number(payment.amount) || 0, currency, profile.baseCurrency, exchangeRates);
+        return sum + (converted.converted ? converted.value : 0);
+      }, 0);
+      return { ...cycle, fixedAmount, variableAmount, debtAmount };
+    });
     const monthBudgetLines = allBudgetLines.filter((line) => line.month === month);
     const prevMonthBudgetLines = allBudgetLines.filter((line) => line.month === prevMonth);
 
@@ -3488,13 +3507,14 @@ WR.ui = WR.ui || {};
         actualAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'),
       }));
 
-    const applyPaydayIncome = (lines, monthId) => {
+    const applyPaydayIncome = (lines, monthId, includeBuffer = true) => {
       const cycle = payCycles.find(item => item.month === monthId);
       if (!cycle) return lines;
       const result = Number.isFinite(Number(cycle.expectedIncome))
         ? lines.filter(item => item.type !== 'income').concat({ type: 'income', name: 'Expected payday income', actualAmount: Number(cycle.expectedIncome), budgetAmount: Number(cycle.expectedIncome) })
         : lines.slice();
       result.push({ type: 'income', name: 'Advance already received', actualAmount: -(Number(cycle.advanceAmount) || 0), budgetAmount: -(Number(cycle.advanceAmount) || 0) });
+      if (cycle.mode === 'income-table' && includeBuffer) result.push({ type: 'income', name: 'Income adjustments', actualAmount: (Number(cycle.bufferAmount) || 0) - calculatePayCycleFunding(cycle).savings, budgetAmount: (Number(cycle.bufferAmount) || 0) - calculatePayCycleFunding(cycle).savings });
       if (cycle.confirmed) result.push({ type: 'savings', name: 'Payday savings allocations', actualAmount: calculatePayCycleFunding(cycle).savings, budgetAmount: calculatePayCycleFunding(cycle).savings });
       return result;
     };
@@ -3529,8 +3549,13 @@ WR.ui = WR.ui || {};
     const F = WR.financial;
     const minimumDebtPayments = F.calculateTotalMinPayments(debts, exchangeRates, profile.baseCurrency);
     const cashflow = F.calculateCashFlowSummary(budgetLines, minimumDebtPayments);
-    const paydayRecord = payCycles.find(item => item.month === month);
-    const paydayFunding = calculatePayCycleFunding({ expectedIncome: recurringIncomeLines.reduce((sum, line) => sum + line.actualAmount, 0), fixedAmount: cashflow.fixedExpenses, variableAmount: budgetLines.filter(item => item.type === 'variable').reduce((sum, item) => sum + Math.max(Number(item.budgetAmount) || 0, Number(item.actualAmount) || 0), 0), debtAmount: minimumDebtPayments, allocations: [], ...paydayRecord });
+    const paydayRecord = effectivePayCycles.find(item => item.month === month);
+    const paidDebtAmount = debtPayments.filter(payment => payment.month === month).reduce((sum, payment) => {
+      const currency = payment.currency || debts.find(debt => debt.id === payment.debtId)?.currency || profile.baseCurrency;
+      const converted = F.convertCurrency(Number(payment.amount) || 0, currency, profile.baseCurrency, exchangeRates);
+      return sum + (converted.converted ? converted.value : 0);
+    }, 0);
+    const paydayFunding = calculatePayCycleFunding({ expectedIncome: recurringIncomeLines.reduce((sum, line) => sum + line.actualAmount, 0), fixedAmount: cashflow.fixedExpenses, variableAmount: cashflow.variableExpenses, debtAmount: paidDebtAmount, allocations: [], ...paydayRecord });
     if (paydayRecord) cashflow.availableSurplus = paydayFunding.budget;
     const prevCashflow = F.calculateCashFlowSummary(prevBudgetLines, minimumDebtPayments);
     const surplusDelta = prevBudgetLines.length > 0 ? cashflow.monthlySurplus - prevCashflow.monthlySurplus : null;
@@ -3609,7 +3634,7 @@ WR.ui = WR.ui || {};
       const monthFixed = fixedExpenses
         .filter((expense) => isActiveForMonth(expense, monthId))
         .map((expense) => ({ type: 'fixed', actualAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly') }));
-      const fullLines = applyPaydayIncome(monthLines.concat(monthIncome).concat(monthFixed), monthId);
+      const fullLines = applyPaydayIncome(monthLines.concat(monthIncome).concat(monthFixed), monthId, false);
       const monthCashflow = F.calculateCashFlowSummary(fullLines, minimumDebtPayments);
       return { month: monthId, cashflow: monthCashflow };
     });
@@ -3652,7 +3677,7 @@ WR.ui = WR.ui || {};
       }, 0);
     const dayToDayAccount = getDayToDayOpeningAccount(dayToDayAccounts, selectedYear);
     const dayToDaySummary = calculateDayToDaySummary(dayToDayAccounts, dayToDayTransactions, month);
-    const payCycleBudget = calculatePayCycleBudget(dayToDayAccounts, dayToDayTransactions, payCycles, payAdvances, month);
+    const payCycleBudget = calculatePayCycleBudget(dayToDayAccounts, dayToDayTransactions, effectivePayCycles, payAdvances, month);
     if (payCycles.length || payAdvances.length) dayToDaySummary.currentBalance = payCycleBudget.remaining;
 
     const snapshot = {
@@ -3690,7 +3715,7 @@ WR.ui = WR.ui || {};
       payCycleBudget,
       paydayFunding,
       paydayRecord,
-      payCycles,
+      payCycles: effectivePayCycles,
       payAdvances,
       dayToDayAccount,
       dayToDayTransactions,
@@ -4337,14 +4362,11 @@ WR.ui = WR.ui || {};
           </div>
 
           <div class="stat-grid">
-            <div class="stat"><span class="stat-label">Budgeted for the month${s.paydayRecord?.confirmed ? '' : ' (planned)'}</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
-            <div class="stat"><span class="stat-label">Carry-over buffer</span><span class="stat-value ${s.payCycleBudget.carryOver < 0 ? 'negative' : ''}">${currency} ${fmt(s.payCycleBudget.carryOver)}</span></div>
-            <div class="stat"><span class="stat-label">Remaining to spend</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
-            <div class="stat"><span class="stat-label">Savings Pots</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
+            <div class="stat"><span class="stat-label">Budgeted for the month</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
             <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
-            <div class="stat"><span class="stat-label">Total Assets</span><span class="stat-value">${currency} ${fmt(s.netWorth.totalAssets)}</span></div>
+            <div class="stat"><span class="stat-label">Savings</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
           </div>
-          <div data-private-detail><div class="day-category-meter" role="progressbar" aria-label="Pay-cycle budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(s.payCycleBudget.remainingPct)}"><span style="--share: ${s.payCycleBudget.remainingPct}%"></span></div><p class="fine-print">${Math.round(s.payCycleBudget.remainingPct)}% remaining ${s.paydayRecord?.confirmed ? '' : '- confirm payday funding on Income'} · ${s.payCycleBudget.start} to ${s.payCycleBudget.endExclusive} (next payday excluded)</p></div>
+          <div data-private-detail><p class="fine-print">${currency} ${fmt(s.dayToDaySummary.currentBalance)} remaining · ${Math.round(s.payCycleBudget.remainingPct)}%</p><div class="day-category-meter" role="progressbar" aria-label="Budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(s.payCycleBudget.remainingPct)}"><span style="--share: ${s.payCycleBudget.remainingPct}%"></span></div></div>
         </div>
 
         <div class="dashboard-card annual-card">
@@ -4865,7 +4887,7 @@ WR.ui = WR.ui || {};
     };
     const payDate = WR.ui.payCycleDates(month).start;
     if (fields.confirmed && payDate > new Date().toISOString().slice(0, 10)) throw new Error('A future payday can only be saved as a plan.');
-    const allocations = (fields.allocations || []).map(item => ({ potId: String(item.potId || ''), amount: value(item.amount) }));
+    let allocations = (fields.allocations || []).map(item => ({ potId: String(item.potId || ''), amount: value(item.amount) }));
     if (allocations.some(item => !item.potId || item.amount <= 0)) throw new Error('Choose a pot and a positive amount for each savings allocation.');
     const api = WR.account.getFirestoreApi();
     const db = WR.account.getDb();
@@ -4875,7 +4897,37 @@ WR.ui = WR.ui || {};
     await api.runTransaction(db, async transaction => {
       const previous = await transaction.get(cycleRef);
       const old = previous.exists() ? previous.data() : {};
-      const next = { id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(old.advanceAmount || 0), fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
+      let incomeChange;
+      if (fields.incomeTable) {
+        const settings = fields.incomeTable;
+        const sourceIds = [...new Set([...settings.sources.map(source => source.id), ...(settings.sourceId ? [settings.sourceId] : [])])];
+        const sources = await Promise.all(sourceIds.map(async id => {
+          const ref = api.doc(db, 'users', uid, 'incomeSources', id);
+          const snapshot = await transaction.get(ref);
+          let source = snapshot.exists() ? snapshot.data() : settings.newSource;
+          if (!source || source.id !== id) return null;
+          if (id === settings.sourceId && settings.sourceFields) {
+            source = { ...source, ...settings.sourceFields };
+            incomeChange = { ref, source };
+          }
+          if (id === settings.sourceId && settings.removeSource) { incomeChange = { ref, remove: true }; return null; }
+          if (id === settings.sourceId && settings.newSource && !snapshot.exists()) incomeChange = { ref, source };
+          return source;
+        }));
+        const active = sources.filter(source => source && Number(source.year || month.slice(0, 4)) === Number(month.slice(0, 4)) && WR.ui.isActiveForMonth(source, month));
+        const adjustments = { ...(old.sourceAdjustments || {}) };
+        if (!old.sourceAdjustments && active[0]) adjustments[active[0].id] = { advanceAmount: Number(old.advanceAmount) || 0, allocations: old.allocations || [] };
+        if (settings.sourceId && settings.adjustment) adjustments[settings.sourceId] = { ...(adjustments[settings.sourceId] || { advanceAmount: 0, allocations: [] }), ...settings.adjustment };
+        const advanceAmount = active.reduce((sum, source) => sum + value(adjustments[source.id]?.advanceAmount || 0), 0);
+        allocations = active.flatMap(source => adjustments[source.id]?.allocations || []).map(item => ({ potId: String(item.potId || ''), amount: value(item.amount) }));
+        if (allocations.some(item => !item.potId || item.amount <= 0)) throw new Error('Choose a savings pot.');
+        const bufferAmount = value(settings.bufferAmount ?? old.bufferAmount ?? 0);
+        if (bufferAmount > Math.max(0, settings.availableBuffer)) throw new Error('Buffer exceeds the available balance.');
+        Object.assign(fields, { expectedIncome: active.reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0), advanceAmount, bufferAmount, sourceAdjustments: adjustments, confirmed: payDate <= new Date().toISOString().slice(0, 10) });
+      }
+      const next = { ...old, id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(fields.advanceAmount ?? old.advanceAmount ?? 0), bufferAmount: value(fields.bufferAmount ?? old.bufferAmount ?? 0), fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
+      if (fields.incomeTable) next.mode = 'income-table';
+      if (fields.sourceAdjustments) next.sourceAdjustments = fields.sourceAdjustments;
       if (WR.ui.calculatePayCycleFunding(next).salary < 0) throw new Error('Advances exceed the expected salary. Correct the salary or advances first.');
       if (WR.ui.calculatePayCycleFunding(next).savings > WR.ui.calculatePayCycleFunding(next).salary) throw new Error('Savings allocations exceed the salary arriving on payday.');
       const deltas = new Map();
@@ -4895,8 +4947,22 @@ WR.ui = WR.ui || {};
       }));
       pots.filter(pot => pot.delta !== 0).forEach(pot => transaction.update(pot.ref, { currentAmount: pot.balance }));
       transaction.set(cycleRef, next);
+      if (incomeChange?.remove) transaction.delete(incomeChange.ref);
+      else if (incomeChange) transaction.set(incomeChange.ref, incomeChange.source);
     });
   }
+
+  async function saveIncomeBudget(month, settings = {}) {
+    const [snapshot, sources] = await Promise.all([WR.ui.buildSnapshot(month), WR.repos.incomeSources.getAll()]);
+    const debtAmount = snapshot.debtPayments.filter(payment => payment.month === month).reduce((sum, payment) => {
+      const currency = payment.currency || snapshot.debts.find(debt => debt.id === payment.debtId)?.currency || snapshot.profile.baseCurrency;
+      const converted = WR.financial.convertCurrency(Number(payment.amount) || 0, currency, snapshot.profile.baseCurrency, snapshot.exchangeRates);
+      if (!converted.converted) throw new Error('Add the missing debt exchange rate.');
+      return sum + converted.value;
+    }, 0);
+    await savePayCycle(month, { fixedAmount: snapshot.cashflow.fixedExpenses, variableAmount: snapshot.cashflow.variableExpenses, debtAmount, incomeTable: { sources, availableBuffer: snapshot.payCycleBudget.carryOver, ...settings } });
+  }
+  WR.ui.saveIncomeBudget = saveIncomeBudget;
 
   async function savePayAdvance(id, fields, remove = false) {
     const validDate = input => {
@@ -5020,14 +5086,27 @@ WR.ui = WR.ui || {};
   Object.assign(WR.ui, { savePayCycle, savePayAdvance, renderPaydayIncome });
 
   async function renderIncome(container) {
-    const [profile, incomes] = await Promise.all([
+    const [profile, incomes, pots, cycles] = await Promise.all([
       WR.ui.getOrCreateProfile(),
       WR.repos.incomeSources.getAll(),
+      WR.repos.savingsPots.getAll(),
+      WR.repos.payCycles.getAll(),
     ]);
-    const year = WR.ui._incomeYear || new Date().getFullYear();
+    const month = WR.ui._paydayMonth || WR.ui.currentBudgetMonth();
+    WR.ui._paydayMonth = month;
+    const year = Number(month.slice(0, 4));
     WR.ui._incomeYear = year;
-    const summaryMonth = `${year}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-    const defaultStartMonth = year === new Date().getFullYear() ? WR.ui.currentMonthKey() : `${year}-01`;
+    const summaryMonth = month;
+    const defaultStartMonth = month;
+    const snapshot = await WR.ui.buildSnapshot(month);
+    const saved = cycles.find(cycle => cycle.month === month) || {};
+    const active = incomes.filter(source => Number(source.year || year) === year && WR.ui.isActiveForMonth(source, month));
+    const adjustments = { ...(saved.sourceAdjustments || {}) };
+    if (!saved.sourceAdjustments && active[0]) adjustments[active[0].id] = { advanceAmount: saved.advanceAmount || 0, allocations: saved.allocations || [] };
+    const potOptions = (allocations, selectedPot = '') => {
+      const selected = allocations.length === 1 ? allocations[0].potId : selectedPot;
+      return `${allocations.length > 1 ? '<option value="" selected disabled>Multiple pots</option>' : '<option value="">Savings pot</option>'}${pots.filter(pot => !pot.archived || pot.id === selected).map(pot => `<option value="${WR.ui.escapeText(pot.id)}" ${pot.id === selected ? 'selected' : ''}>${WR.ui.escapeText(pot.name)}</option>`).join('')}`;
+    };
 
     const rows = incomes
       .filter((item) => Number(item.year || year) === year)
@@ -5039,23 +5118,24 @@ WR.ui = WR.ui || {};
           <td><select class="cell" data-field="frequency">${recurringFrequencyOptions(item.frequency || 'monthly')}</select></td>
           <td><input class="cell" data-field="startMonth" type="month" value="${WR.ui.escapeText(item.startMonth || `${year}-01`)}"></td>
           <td><input class="cell" data-field="endMonth" type="month" value="${WR.ui.escapeText(item.endMonth || `${year}-12`)}"></td>
+          <td><input class="cell" data-field="advanceAmount" type="number" step="0.01" min="0" value="${WR.ui.escapeText(adjustments[item.id]?.advanceAmount || 0)}" ${active.some(source => source.id === item.id) ? '' : 'disabled'}></td>
+          <td><input class="cell" data-field="savingsAmount" type="number" step="0.01" min="0" value="${WR.ui.escapeText((adjustments[item.id]?.allocations || []).reduce((sum, allocation) => sum + Number(allocation.amount), 0))}" ${active.some(source => source.id === item.id) ? '' : 'disabled'}><select class="cell" data-field="potId" aria-label="Savings pot" ${active.some(source => source.id === item.id) ? '' : 'disabled'}>${potOptions(adjustments[item.id]?.allocations || [], adjustments[item.id]?.potId)}</select></td>
           <td><button class="link-btn delete-income" data-id="${WR.ui.escapeText(item.id)}">Delete</button></td>
         </tr>`)
       .join('');
     const totalIncome = incomes
       .filter((item) => Number(item.year || year) === year && WR.ui.isActiveForMonth(item, summaryMonth))
-      .reduce((sum, item) => sum + WR.ui.monthlyAmountFromFrequency(item.amount, item.frequency || 'monthly'), 0);
+      .reduce((sum, item) => sum + WR.ui.monthlyAmountFromFrequency(item.amount, item.frequency || 'monthly') - Number(adjustments[item.id]?.advanceAmount || 0) - (adjustments[item.id]?.allocations || []).reduce((savedTotal, allocation) => savedTotal + Number(allocation.amount), 0), Number(saved.bufferAmount) || 0);
 
     WR.ui.setHTML(container, `
       <h1>Income</h1>
-      <p class="fine-print">Choose the months this income applies to. Annual income starts with the first dated financial record for that year.</p>
-      <div class="toolbar"><label>Year: <select id="income-year">${WR.ui.yearsAroundCurrent(3, 4).map((y) => `<option value="${WR.ui.escapeText(y)}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></label></div>
+      <div class="toolbar"><label>Month<input id="income-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
       <div class="stat-grid">
-        <div class="stat"><span class="stat-label">Expected income before advances (${WR.ui.monthName(Number(summaryMonth.slice(5)))} ${year})</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
+        <div class="stat"><span class="stat-label">Total income</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
       </div>
-      <table class="data-table">
-        <thead><tr><th>Source</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Start month</th><th>End month</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="6" class="empty">No income sources for this year.</td></tr>'}</tbody>
+      <table class="data-table income-table">
+        <thead><tr><th>Source</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Start month</th><th>End month</th><th>Advance</th><th>Savings taken</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="8" class="empty">No income sources.</td></tr>'}</tbody>
       </table>
 
       <h3>Add income source</h3>
@@ -5068,36 +5148,39 @@ WR.ui = WR.ui || {};
         <button type="submit">Add</button>
       </form>
       <p id="income-form-message" class="warning"></p>
-      <section class="feature-section" id="income-payday"></section>
+      <section class="feature-section income-buffer"><h2>Buffer</h2><div class="stat-grid"><div class="stat"><span class="stat-label">Available</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(snapshot.payCycleBudget.carryOver)}</span></div></div>
+        <form id="income-buffer-form" class="inline-form"><label>Add to total income<input name="amount" type="number" step="0.01" min="0" max="${Math.max(0, snapshot.payCycleBudget.carryOver)}" value="${WR.ui.escapeText(saved.bufferAmount || 0)}" required></label><button type="submit">Save</button></form>
+      </section>
     `);
 
-    document.getElementById('income-year').addEventListener('change', (event) => {
-      WR.ui._incomeYear = Number(event.target.value);
+    document.getElementById('income-month').addEventListener('change', (event) => {
+      WR.ui._paydayMonth = event.target.value;
       renderIncome(container);
     });
 
-    container.querySelectorAll('tbody tr').forEach((tr) => {
+    container.querySelectorAll('.income-table tbody tr[data-id]').forEach((tr) => {
       const id = tr.dataset.id;
       tr.querySelectorAll('.cell').forEach((input) => {
         input.addEventListener('change', async () => {
-          const income = await WR.repos.incomeSources.getById(id);
-          if (!income) return;
           const field = input.dataset.field;
-          if (field === 'amount') {
-            income.amount = Math.max(0, parseFloat(input.value) || 0);
-            input.value = income.amount;
-          } else {
-            income[field] = input.value;
-          }
-          income.year = year;
-          income.currency = profile.baseCurrency;
-          if (!isMonthRangeValid(income.startMonth, income.endMonth)) {
-            WR.ui.notify('Income month range is invalid.', 'error');
-            renderIncome(container);
-            return;
-          }
-          await WR.repos.incomeSources.update(income);
-          WR.ui.flashSaved(input);
+          try {
+            if (['advanceAmount', 'savingsAmount', 'potId'].includes(field)) {
+              const amount = Number(tr.querySelector('[data-field="savingsAmount"]').value);
+              const potId = tr.querySelector('[data-field="potId"]').value;
+              const adjustment = field === 'advanceAmount' ? { advanceAmount: Number(input.value) } : { potId, allocations: amount > 0 ? [{ potId, amount }] : [] };
+              if (field !== 'advanceAmount' && amount > 0 && !potId) { tr.querySelector('[data-field="potId"]').focus(); return; }
+              await saveIncomeBudget(month, { sourceId: id, adjustment });
+            } else {
+              const income = await WR.repos.incomeSources.getById(id);
+              if (!income) return;
+              const sourceFields = { [field]: field === 'amount' ? Number(input.value) : input.value };
+              if (field === 'amount' && (!Number.isFinite(sourceFields.amount) || sourceFields.amount < 0)) throw new Error('Enter a valid amount.');
+              if (!isMonthRangeValid(sourceFields.startMonth ?? income.startMonth, sourceFields.endMonth ?? income.endMonth)) throw new Error('Invalid month range.');
+              await saveIncomeBudget(month, { sourceId: id, sourceFields });
+            }
+            await renderIncome(container);
+            WR.ui.enhanceResponsiveContent(container);
+          } catch (error) { WR.ui.notify(error.message, 'error'); await renderIncome(container); WR.ui.enhanceResponsiveContent(container); }
         });
       });
     });
@@ -5105,12 +5188,7 @@ WR.ui = WR.ui || {};
     container.querySelectorAll('.delete-income').forEach((button) => {
       button.addEventListener('click', async () => {
         if (!confirm('Delete this income source?')) return;
-        await WR.ui.removeWithUndo({
-          repo: WR.repos.incomeSources,
-          id: button.dataset.id,
-          entityLabel: 'Income source',
-          afterChange: async () => { await renderIncome(container); },
-        });
+        try { await saveIncomeBudget(month, { sourceId: button.dataset.id, removeSource: true }); await renderIncome(container); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
       });
     });
 
@@ -5125,7 +5203,7 @@ WR.ui = WR.ui || {};
         return;
       }
       message.textContent = '';
-      await WR.repos.incomeSources.add(WR.models.createIncomeSource({
+      const newSource = WR.models.createIncomeSource({
         year,
         name: form.name.value.trim(),
         amount: Math.max(0, parseFloat(form.amount.value) || 0),
@@ -5133,10 +5211,13 @@ WR.ui = WR.ui || {};
         frequency: form.frequency.value,
         startMonth,
         endMonth,
-      }));
-      renderIncome(container);
+      });
+      try { await saveIncomeBudget(month, { sourceId: newSource.id, newSource }); await renderIncome(container); WR.ui.enhanceResponsiveContent(container); } catch (error) { message.textContent = error.message; }
     });
-    await renderPaydayIncome(container.querySelector('#income-payday'));
+    document.getElementById('income-buffer-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      try { await saveIncomeBudget(month, { bufferAmount: Number(event.currentTarget.elements.amount.value) }); await renderIncome(container); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
+    });
   }
 
   async function renderFixedExpenses(container) {
@@ -5573,7 +5654,7 @@ WR.ui = WR.ui || {};
   }
 
   async function renderDayToDay(container) {
-    const [profile, accounts, transactions, expenseCategories, emergencyFundContributions, payCycles, payAdvances] = await Promise.all([
+    const [profile, accounts, transactions, expenseCategories, emergencyFundContributions, storedCycles, payAdvances] = await Promise.all([
       WR.ui.getOrCreateProfile(),
       WR.repos.dayToDayAccounts.getAll(),
       WR.repos.dayToDayTransactions.getAll(),
@@ -5582,6 +5663,8 @@ WR.ui = WR.ui || {};
       WR.repos.payCycles.getAll(),
       WR.repos.payAdvances.getAll(),
     ]);
+    const budgetSnapshot = storedCycles.some(cycle => cycle.mode === 'income-table') ? await WR.ui.buildSnapshot(WR.ui._dayMonth || WR.ui.currentBudgetMonth()) : null;
+    const payCycles = budgetSnapshot ? budgetSnapshot.payCycles : storedCycles;
     const paydayMode = payCycles.length > 0 || payAdvances.length > 0;
     const month = WR.ui._dayMonth || (paydayMode ? WR.ui.currentBudgetMonth() : WR.ui.currentMonthKey());
     const year = Number(month.slice(0, 4));
@@ -5663,7 +5746,6 @@ WR.ui = WR.ui || {};
 
     WR.ui.setHTML(container, `
       <h1>Transactions</h1>
-      <p class="fine-print">${paydayMode ? 'Everyday spending uses your confirmed payday budget and carry-over. Reserved expenses were already deducted on Income.' : 'Track daily account money separately from budget categories. Spend entries deduct from the current day-to-day balance. Set up payday funding on Income to connect your budget.'}</p>
       <div class="toolbar"><label>Month: <input id="day-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
 
       <div class="stat-grid">
@@ -5674,8 +5756,7 @@ WR.ui = WR.ui || {};
         <div class="stat"><span class="stat-label">Current balance</span><span class="stat-value ${current < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(current)}</span></div>
         <div class="stat"><span class="stat-label">Transactions this month</span><span class="stat-value">${monthTx.length}</span></div>
       </div>
-      <p class="fine-print">${paydayMode ? `Pay cycle: ${dates.start} to ${dates.endExclusive} (next payday excluded). Carry-over + payday budget + extra money received - everyday spending = remaining. ${payBudget.confirmed ? '' : 'This cycle has no confirmed payday funding yet.'}` : 'Balance at start of month + money added - money spent = current balance. Add a transaction to top up the balance; it will carry into future months automatically.'}</p>
-      ${paydayMode ? `<div class="day-category-meter" role="progressbar" aria-label="Pay-cycle budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(payBudget.remainingPct)}"><span style="--share: ${payBudget.remainingPct}%"></span></div><p class="fine-print">${Math.round(payBudget.remainingPct)}% of available money remaining. Payday funding and unlinked advance receipts are included automatically, not duplicated as editable transactions.</p>` : ''}
+      ${paydayMode ? `<div class="day-category-meter" role="progressbar" aria-label="Budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(payBudget.remainingPct)}"><span style="--share: ${payBudget.remainingPct}%"></span></div><p class="fine-print">${Math.round(payBudget.remainingPct)}% remaining</p>` : ''}
 
       ${reductionCard}
 
@@ -7335,9 +7416,9 @@ WR.ui = WR.ui || {};
           <p class="fine-print">WealthRoute is deterministic: formulas calculate outcomes and the assistant explains existing numbers only.</p>
           <ul>
             <li>Pay cycles run from the 25th to the day before the next payday. October's budget is funded on 25 September.</li>
-            <li>Budgeted for the month = expected income - advances already taken - fixed and variable expense reservations - debt reservations - linked savings allocations.</li>
-            <li>Remaining to spend = carry-over + confirmed payday funding + extra money received - everyday transactions. Expenses already reserved on Income are not deducted again.</li>
-            <li>Confirming payday savings credits the linked pots once. Editing or unconfirming adjusts both sides atomically and requires an online connection.</li>
+            <li>Total income = income sources - advances - savings taken + added buffer.</li>
+            <li>Budgeted for the month = total income - fixed expenses - actual variable expenses - debt payments recorded for the month.</li>
+            <li>Remaining money includes carry-over once, less everyday spending. Savings edits update linked pots atomically and require an online connection.</li>
             <li>Emergency cover = liquid emergency-ready funds divided by essential monthly expenses.</li>
             <li>Financial health score blends cash flow, emergency cover, debt burden, savings rate, and net-worth trend.</li>
             <li>Forecasts are scenarios, not guarantees.</li>
@@ -7352,7 +7433,7 @@ WR.ui = WR.ui || {};
           <summary>Release notes</summary>
           <ul>
             <li>Version 3.0: redesigned balance card, compact annual overview, and dashboard shortcuts for Transactions, Budget, Savings, and Goals.</li>
-            <li>Payday budgeting on Income: advances against future pay, linked savings allocations, confirmation and reversal, and automatic carry-over into Transactions.</li>
+            <li>Income has editable Advance and Savings taken columns, linked savings pots, and a separate Buffer section. Totals update automatically.</li>
             <li>Hide or show dashboard balances, charts, and financial recommendation details with one privacy control. This device remembers the choice per account.</li>
             <li>Show or hide the password while logging in or signing up; passwords always start hidden.</li>
             <li>Responsive two-column balance rows and touch-friendly controls in light and dark mode.</li>
