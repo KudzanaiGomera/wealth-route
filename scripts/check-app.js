@@ -169,7 +169,7 @@ async function checkTransactionLayout() {
         previousMonthKey: () => '2026-09', escapeText: context.escapeText,
         syncBudgetMonth() {},
         payCycleDates: () => ({ start: '2026-09-25', endExclusive: '2026-10-25' }),
-        calculatePayCycleBudget: () => ({ carryOver: 9999, funding: 4321, added: 800, spent: 98, remaining: 5023 }),
+        calculatePayCycleBudget: () => ({ carryOver: 9999, funding: 4321, added: 800, spent: 98, remaining: 4223 }),
         calculateBudgetRemainingPercentage: () => 0,
         buildSnapshot: async () => ({ payCycles: [], paydayFunding: { budget: 4321 } }),
         fmt: amount => Number(amount).toFixed(2),
@@ -196,7 +196,10 @@ async function checkTransactionLayout() {
   assert.ok(!markup.includes('coveredByBudget'));
   assert.ok(!markup.includes('Reserved expense'));
   assert.ok(!markup.includes('day-balance-form'));
-  assert.ok(markup.includes('Current balance</span><span class="stat-value ">ZAR 5023.00'));
+  assert.ok(markup.includes('Current balance</span><span class="stat-value ">ZAR 4223.00'));
+  assert.equal((markup.match(/class="day-category-row/g) || []).length, 1);
+  assert.ok(markup.includes('class="day-category-list" role="list"'));
+  assert.ok(!markup.includes('day-category-card'));
   assert.ok(!markup.includes('stat-label">Buffer'));
   transactions.length = 0;
   await layoutContext.renderDayToDay(container);
@@ -246,9 +249,10 @@ async function checkPaydayBudget() {
   assert.equal(paydayContext.calculateBudgetRemainingPercentage(10000, -500), 0);
   assert.equal(paydayContext.calculateBudgetRemainingPercentage(10000, 12000), 100);
   const percentageBudget = paydayContext.calculatePayCycleBudget([], [{ date: '2026-09-26', kind: 'spend', amount: 1500 }, { date: '2026-09-27', kind: 'add', amount: 500 }], cycles, [], '2026-10', 25, '2026-10-24');
-  assert.equal(percentageBudget.remaining, 3000);
-  assert.equal(percentageBudget.available, 4500);
-  assert.equal(percentageBudget.remainingPct, 75);
+  assert.equal(percentageBudget.remaining, 2500);
+  assert.equal(percentageBudget.available, 4000);
+  assert.equal(percentageBudget.remainingPct, 62.5);
+  assert.equal(percentageBudget.funding - percentageBudget.remaining, percentageBudget.spent);
   const withBuffer = paydayContext.calculatePayCycleBudget(accounts, transactions, [{ ...cycles[0], bufferAmount: 2000 }], advances, '2026-10', 25, '2026-10-24');
   assert.equal(withBuffer.remaining, budget.remaining + 2000);
   assert.equal(withBuffer.funding, 6000);
@@ -377,6 +381,21 @@ async function checkPaydayBudget() {
   const yearRollover = await paydayContext.ensurePaydayRollover({ ...rolloverData, incomeSources: [{ id: 'new-year-salary', year: 2027, amount: 10000, frequency: 'monthly' }], transactions: [], cycles: [{ ...funding, month: '2026-12', payDate: '2026-11-25', confirmed: true }] }, '2027-01', '2026-12-25');
   assert.equal(yearRollover.rolloverSourceMonth, '2026-12');
   assert.equal(yearRollover.rolloverAvailable, 4000);
+  const correction = { fixedAmount: 0, variableAmount: 0, debtAmount: 0, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], profileId: 'profile', availableBuffer: 4000, openingBuffer: 0 } };
+  await paydayContext.savePayCycle(month, correction);
+  assert.equal(documents.get(base + 'payCycles/' + month).rolloverAvailable, 0);
+  assert.equal(documents.get(base + 'payCycles/' + month).bufferAmount, 0);
+  assert.equal(documents.get(base + 'payCycles/' + month).shortfallAmount, 0);
+  assert.equal(documents.get(base + 'payCycles/' + month).bufferCorrected, true);
+  await paydayContext.savePayCycle(month, { ...correction, incomeTable: { ...correction.incomeTable, openingBuffer: 1200 } });
+  assert.equal(documents.get(base + 'payCycles/' + month).bufferAmount, 1200);
+  documents.set(base + 'userProfile/profile', { id: 'profile', baseCurrency: 'ZAR', autoUseBuffer: false });
+  await paydayContext.savePayCycle(month, { ...correction, incomeTable: { ...correction.incomeTable, openingBuffer: 500 } });
+  assert.equal(documents.get(base + 'payCycles/' + month).bufferAmount, 500);
+  await paydayContext.savePayCycle(month, { ...correction, incomeTable: { ...correction.incomeTable, openingBuffer: -250 } });
+  assert.equal(documents.get(base + 'payCycles/' + month).bufferAmount, 0);
+  assert.equal(documents.get(base + 'payCycles/' + month).shortfallAmount, 250);
+  await assert.rejects(() => paydayContext.savePayCycle(month, { ...correction, incomeTable: { ...correction.incomeTable, openingBuffer: 'invalid' } }), /valid buffer/);
   paydayContext.WR.ui.buildSnapshot = async () => ({ cashflow: { fixedExpenses: 1500, variableExpenses: 500 }, debts: [{ currency: 'ZAR', currentBalance: 10000, minPayment: 600, paymentFrequency: 'monthly' }], exchangeRates: [], profile: { baseCurrency: 'ZAR' }, payCycleBudget: { carryOver: 2000 }, debtPayments: [{ month, amount: 9999 }] });
   vm.runInContext(functions.get('saveIncomeBudget'), paydayContext);
   await paydayContext.saveIncomeBudget(month);
@@ -399,6 +418,10 @@ async function checkPaydayBudget() {
   assert.ok(paydayMarkup.includes('id="income-total">ZAR 8000.00'));
   assert.ok(paydayMarkup.includes('<th>Advance</th><th>Savings taken</th>'));
   assert.ok(paydayMarkup.includes('<h2>Buffer</h2>'));
+  assert.ok(paydayMarkup.includes('id="income-buffer-opening-form"'));
+  assert.ok(paydayMarkup.includes('<summary>Edit balance</summary>'));
+  assert.ok(paydayMarkup.includes('class="buffer-layout"'));
+  assert.ok(paydayMarkup.includes('type="checkbox" role="switch"'));
   assert.ok(!paydayMarkup.includes('next payday excluded'));
   assert.ok(!paydayMarkup.includes('id="payday-form"'));
   assert.ok(!paydayMarkup.includes('data-field="potId"'));

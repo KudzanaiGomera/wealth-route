@@ -31,7 +31,7 @@ this means for offline use.
 - **Responsive controls:** two-column balance rows on phones, larger touch
   targets, compact mobile shortcuts, and existing light/dark and PWA
   safe-area support.
-- **Cleaner transaction view:** compact spending cards and a date-grouped
+- **Cleaner transaction view:** one spending-breakdown card with compact category rows and a date-grouped
   activity ledger with signed amounts, inline editing, and labeled fields on phones.
 - **Version 3.0.0** in package metadata, Settings, and exported backups;
   the service-worker shell cache is refreshed for the release.
@@ -58,8 +58,10 @@ the change and reloads affected records from the server, without a page refresh.
 expenses - monthly minimum payments on active debts.** These totals stay linked
 to their pages. Updating the budget does not mark a debt as paid.
 Transactions shows this same budget as **Balance at start of month**.
-**Current balance = monthly budget + money added - transaction spending.**
+**Current balance = monthly budget - transaction spending.**
 Unallocated buffer and old initial balances are not added to Transactions.
+**Add to buffer** receipts are reserved for carry-over, not credited to the
+current spending balance. Allocate buffer through Income to include it in a budget.
 
 Savings taken only reduces income and the spending budget. Add that money
 to the chosen savings pots manually on Savings. Increasing, reducing, or
@@ -73,6 +75,16 @@ existing money; it enters the transaction balance once, through the budget.
 Unallocated carry-over remains outside that spending balance. Negative
 carry-over is retained. Annual income excludes buffer reallocations and savings
 deductions so they are not counted as earnings.
+**Available buffer** is editable for a started pay cycle. Open **Edit balance**,
+set it to `0`, and choose **Apply** if you had no carry-over when you first started using
+the app. Corrections are saved and will not be overwritten by rollover or
+refresh. Reducing available buffer also reduces any allocation above that
+amount; with auto-use enabled, the allocation follows the corrected positive
+balance. Negative corrections are carried as a shortfall. Savings pots and
+transaction records are not changed by this correction.
+The Buffer section displays the available balance beside the allocation form
+and auto-use switch on desktop, stacking them on phones. Balance correction
+is collapsed until requested; all controls remain keyboard accessible.
 
 On the 25th, the previous cycle's remaining money plus any unused reserve
 becomes Available buffer. The opening amount is saved once per cycle, so
@@ -91,13 +103,15 @@ records and commit the opening amount atomically. If the app is closed on the
 payday boundary every minute and when brought back into view; historic month
 selections are preserved. Previous unused reserves remain available too.
 
-Everyday transactions reduce remaining money; the progress bar shows the
+Everyday transactions reduce remaining money; the Transactions progress bar shows the
 Transactions current balance divided by Budgeted for the month, multiplied
-by 100 and clamped to 0-100%. Dashboard and Transactions use the same ratio;
+by 100 and clamped to 0-100%;
 extra receipts do not change the budget used as its denominator.
+The dashboard shows **spent = budget - Transactions current balance**, with
+a spent-percentage bar. Transactions retains its remaining-percentage bar.
 
 An Advance in the table reduces the selected future salary only. Record its
-receipt as Add money in Transactions if not already entered. Do not also put
+receipt as Add to buffer in Transactions if not already entered. Do not also put
 the principal in Variable Expenses; separate fees remain expenses. Existing
 advance receipt links and pot transfers are retained. Older aggregate
 deductions appear on the first active income row until edited. Pot credits
@@ -160,7 +174,8 @@ add to the "needs internet" list beyond the Excel tab and your account
 The 3.0 dashboard uses a theme-matched balance card with unframed balance rows,
 a separate annual overview, and compact icon shortcuts. Cards retain a
 maximum 8px corner radius; mobile rows and long amounts reflow without
-page-level horizontal scrolling. Spending cards use concise share labels;
+page-level horizontal scrolling. Spending categories appear as compact rows
+in one card, with amounts, percentage shares, and proportional bars;
 transaction activity groups rows by date and stacks editable fields on phones.
 
 ## Accounts, data, and privacy

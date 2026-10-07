@@ -718,13 +718,18 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .delta.neutral { color: var(--muted); font-weight: 500; }
 .hero-headline .delta { font-size: 0.85rem; margin-top: 0.35rem; }
 
-.day-category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 1rem; margin: 1rem 0 1.75rem; }
-.day-category-card { min-width: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1.15rem; box-shadow: var(--shadow); }
-.day-category-card.top-spend { border-top: 3px solid var(--gold); padding-top: calc(1.15rem - 2px); }
-.day-category-card h3 { margin: 0; font-size: 0.88rem; font-weight: 500; color: var(--text); overflow-wrap: anywhere; }
-.day-category-card .amount { display: block; font-family: var(--font-serif); font-size: 1.55rem; margin: 0.8rem 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-.day-category-card .share { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; color: var(--muted); font-size: 0.78rem; }
-.day-category-card .share strong { color: var(--gold); font-size: 0.72rem; font-weight: 600; }
+.day-category-list { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; margin: 1rem 0 1.75rem; overflow: hidden; }
+.day-category-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 1fr) minmax(120px, auto) 3rem; gap: 1rem; align-items: center; padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--border); }
+.day-category-row:last-child { border-bottom: 0; }
+.day-category-row h3 { margin: 0; font-size: 0.85rem; font-weight: 500; overflow-wrap: anywhere; }
+.day-category-row .amount { font-size: 0.88rem; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.day-category-row .share { color: var(--muted); font-size: 0.78rem; text-align: right; font-variant-numeric: tabular-nums; }
+.day-category-row .day-category-meter { margin: 0; }
+.day-category-row.top-spend .day-category-meter span { background: var(--gold); }
+@media (max-width: 680px) {
+  .day-category-row { grid-template-columns: minmax(0, 1fr) minmax(80px, auto) 2.5rem; gap: 0.5rem 0.7rem; padding: 0.8rem; }
+  .day-category-row .day-category-meter { grid-column: 1 / -1; grid-row: 2; }
+}
 .day-category-meter { height: 4px; border-radius: 999px; background: var(--border); overflow: hidden; margin-top: 0.65rem; }
 .day-category-meter span { display: block; height: 100%; width: var(--share); background: var(--accent); }
 .day-activity { margin-top: 2rem; }
@@ -1185,8 +1190,31 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .income-table th:last-child { width: 7%; }
 .data-table.income-table td input.cell, .data-table.income-table td select.cell { display: block; min-width: 0; }
 .income-table input[type="number"] { text-align: right; font-variant-numeric: tabular-nums; }
-.buffer-auto-control { display: flex; align-items: center; gap: 0.5rem; margin: 0.75rem 0; font-size: 0.88rem; }
-.buffer-auto-control input { width: 1rem; height: 1rem; flex: 0 0 1rem; accent-color: var(--accent); }
+.income-buffer { border-top: 1px solid var(--border); padding-top: 1.5rem; }
+.income-buffer h2 { margin: 0 0 1.1rem; }
+.buffer-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
+.buffer-balance { min-width: 0; }
+.buffer-value { display: block; font-family: var(--font-serif); font-size: 2rem; line-height: 1.2; font-variant-numeric: tabular-nums; margin-top: 0.35rem; overflow-wrap: anywhere; }
+.buffer-value.negative { color: var(--danger); }
+.buffer-edit.card-edit { margin-top: 1rem; border: 0; padding: 0; }
+.buffer-edit summary { min-height: 36px; }
+.buffer-controls { min-width: 0; padding-left: 2rem; border-left: 1px solid var(--border); }
+.buffer-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.65rem; margin: 0; }
+.buffer-form label { display: grid; gap: 0.4rem; min-width: 0; font-size: 0.82rem; color: var(--muted); }
+.buffer-form input { width: 100%; min-width: 0; height: 44px; font-variant-numeric: tabular-nums; }
+.buffer-form button { height: 44px; white-space: nowrap; }
+.buffer-edit .buffer-form { margin-top: 0.6rem; }
+.buffer-auto-control { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 44px; padding-top: 1rem; margin-top: 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; cursor: pointer; }
+.income-buffer .buffer-auto-control input { position: absolute; right: 0; bottom: 0; width: 44px; height: 28px; margin: 0; opacity: 0; }
+.buffer-switch { position: relative; flex: 0 0 44px; width: 44px; height: 26px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-alt); pointer-events: none; }
+.buffer-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--muted); transition: transform 0.15s ease; }
+.buffer-auto-control input:checked + .buffer-switch { background: var(--accent); border-color: var(--accent); }
+.buffer-auto-control input:checked + .buffer-switch::after { background: var(--accent-contrast); transform: translateX(18px); }
+.buffer-auto-control input:focus-visible + .buffer-switch { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 680px) {
+  .buffer-layout { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+  .buffer-controls { border-left: 0; border-top: 1px solid var(--border); padding: 1.25rem 0 0; }
+}
 .table-header-select { max-width: 5.2rem; padding: 0.15rem 0.25rem; border: 1px solid var(--border); border-radius: 4px; background: var(--panel); color: var(--text); font: inherit; }
 .debts-table td:nth-child(8), .debts-table td:nth-child(9) { min-width: 11rem; }
 .debts-table td:nth-child(10), .debts-table td:nth-child(11) { min-width: 8rem; }
@@ -3456,7 +3484,7 @@ WR.ui = WR.ui || {};
     const funding = dates.start <= today ? Number(budgetAmount ?? (cycle ? calculatePayCycleFunding(cycle).budget : 0)) : 0;
     const added = sum(period.filter(item => item.kind === 'add'));
     const spent = -sum(period.filter(item => item.kind === 'spend'));
-    const available = Math.round((funding + added) * 100) / 100;
+    const available = Math.round(funding * 100) / 100;
     const remaining = Math.round((available - spent) * 100) / 100;
     return { ...dates, enabled: !!enabledFrom, confirmed: !!cycle, carryOver, funding, added, spent, available, remaining, remainingPct: calculateBudgetRemainingPercentage(funding, remaining) };
   }
@@ -4316,6 +4344,8 @@ WR.ui = WR.ui || {};
     const bills = billOccurrences.filter((bill) => !bill.paid);
     const paidBills = billOccurrences.filter((bill) => bill.paid);
     const monthlySurplus = s.paydayFunding.budget;
+    const budgetSpent = Math.round((monthlySurplus - s.dayToDaySummary.currentBalance) * 100) / 100;
+    const spentPct = WR.ui.calculateBudgetRemainingPercentage(monthlySurplus, budgetSpent);
 
     function billRow(bill) {
       const index = billOccurrences.indexOf(bill);
@@ -4426,7 +4456,7 @@ WR.ui = WR.ui || {};
             <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
             <div class="stat"><span class="stat-label">Savings</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
           </div>
-          <div data-private-detail><p class="fine-print">${currency} ${fmt(s.dayToDaySummary.currentBalance)} remaining · ${Math.round(s.payCycleBudget.remainingPct)}%</p><div class="day-category-meter" role="progressbar" aria-label="Budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(s.payCycleBudget.remainingPct)}"><span style="--share: ${s.payCycleBudget.remainingPct}%"></span></div></div>
+          <div data-private-detail><p class="fine-print">${currency} ${fmt(budgetSpent)} spent · ${Math.round(spentPct)}%</p><div class="day-category-meter" role="progressbar" aria-label="Budget spent" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(spentPct)}"><span style="--share: ${spentPct}%"></span></div></div>
         </div>
 
         <div class="dashboard-card annual-card">
@@ -4992,14 +5022,27 @@ WR.ui = WR.ui || {};
         const advanceAmount = active.reduce((sum, source) => sum + value(adjustments[source.id]?.advanceAmount || 0), 0);
         const savingsAmount = active.reduce((sum, source) => sum + value(adjustments[source.id]?.savingsAmount || 0), 0);
         allocations = [];
-        const bufferAmount = value(settings.bufferAmount ?? old.bufferAmount ?? 0);
-        if (bufferAmount > Math.max(0, settings.availableBuffer)) throw new Error('Buffer exceeds the available balance.');
+        let availableBuffer = old.rolloverApplied ? Number(old.rolloverAvailable) || 0 : settings.availableBuffer;
+        let bufferAmount = value(settings.bufferAmount ?? old.bufferAmount ?? 0);
+        if (settings.openingBuffer != null) {
+          if (payDate > new Date().toISOString().slice(0, 10)) throw new Error('Correct the opening buffer after this pay cycle starts.');
+          const corrected = Number(settings.openingBuffer);
+          if (!Number.isFinite(corrected)) throw new Error('Enter a valid buffer amount.');
+          availableBuffer = Math.round(corrected * 100) / 100;
+          const profileRef = api.doc(db, 'users', uid, 'userProfile', settings.profileId);
+          const profileSnapshot = await transaction.get(profileRef);
+          const automatic = profileSnapshot.exists() && profileSnapshot.data().autoUseBuffer;
+          bufferAmount = automatic ? Math.max(0, availableBuffer) : Math.min(bufferAmount, Math.max(0, availableBuffer));
+          Object.assign(fields, { rolloverApplied: true, rolloverAvailable: availableBuffer, bufferCorrected: true, shortfallAmount: Math.max(0, -availableBuffer) });
+        }
+        if (bufferAmount > Math.max(0, availableBuffer)) throw new Error('Buffer exceeds the available balance.');
         Object.assign(fields, { expectedIncome: active.reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0), advanceAmount, savingsAmount, bufferAmount, sourceAdjustments: adjustments, confirmed: payDate <= new Date().toISOString().slice(0, 10) });
       }
       const next = { ...old, id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(fields.advanceAmount ?? old.advanceAmount ?? 0), bufferAmount: value(fields.bufferAmount ?? old.bufferAmount ?? 0), fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
       if (fields.incomeTable) {
         next.mode = 'income-table';
         next.savingsAmount = value(fields.savingsAmount);
+        if (fields.rolloverApplied) Object.assign(next, { rolloverApplied: true, rolloverAvailable: fields.rolloverAvailable, bufferCorrected: true, shortfallAmount: fields.shortfallAmount });
         if (old.allocations?.length && !old.legacySavingsAllocations) next.legacySavingsAllocations = old.allocations;
       }
       if (fields.sourceAdjustments) next.sourceAdjustments = fields.sourceAdjustments;
@@ -5216,9 +5259,18 @@ WR.ui = WR.ui || {};
         <button type="submit">Add</button>
       </form>
       <p id="income-form-message" class="warning"></p>
-      <section class="feature-section income-buffer"><h2>Buffer</h2><div class="stat-grid"><div class="stat"><span class="stat-label">Available</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(snapshot.payCycleBudget.carryOver)}</span></div></div>
-        <label class="buffer-auto-control"><input id="income-auto-buffer" type="checkbox" ${profile.autoUseBuffer ? 'checked' : ''}>Use all buffer automatically</label>
-        <form id="income-buffer-form" class="inline-form"><label>Add to total income<input name="amount" type="number" step="0.01" min="0" max="${Math.max(0, snapshot.payCycleBudget.carryOver)}" value="${WR.ui.escapeText(saved.bufferAmount || 0)}" required></label><button type="submit">Save</button></form>
+      <section class="feature-section income-buffer"><h2>Buffer</h2>
+        <div class="buffer-layout">
+          <div class="buffer-balance"><span class="stat-label">Available buffer</span><strong class="buffer-value ${snapshot.payCycleBudget.carryOver < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(snapshot.payCycleBudget.carryOver)}</strong>
+            <details class="card-edit buffer-edit"><summary>Edit balance</summary>
+              <form id="income-buffer-opening-form" class="buffer-form"><label>Available buffer<input name="amount" type="number" step="0.01" value="${WR.ui.escapeText(snapshot.payCycleBudget.carryOver)}" ${WR.ui.payCycleDates(month).start > new Date().toISOString().slice(0, 10) ? 'disabled' : ''} required></label><button type="submit" ${WR.ui.payCycleDates(month).start > new Date().toISOString().slice(0, 10) ? 'disabled' : ''}>Apply</button></form>
+            </details>
+          </div>
+          <div class="buffer-controls">
+            <form id="income-buffer-form" class="buffer-form"><label>Add to total income<input name="amount" type="number" step="0.01" min="0" max="${Math.max(0, snapshot.payCycleBudget.carryOver)}" value="${WR.ui.escapeText(saved.bufferAmount || 0)}" required></label><button type="submit">Save</button></form>
+            <label class="buffer-auto-control"><span>Use all buffer automatically</span><input id="income-auto-buffer" type="checkbox" role="switch" ${profile.autoUseBuffer ? 'checked' : ''}><span class="buffer-switch" aria-hidden="true"></span></label>
+          </div>
+        </div>
       </section>
     `);
 
@@ -5291,6 +5343,10 @@ WR.ui = WR.ui || {};
         endMonth,
       });
       try { await saveIncomeBudget(month, { sourceId: newSource.id, newSource }); await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); } catch (error) { message.textContent = error.message; }
+    });
+    document.getElementById('income-buffer-opening-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      try { await saveIncomeBudget(month, { openingBuffer: Number(event.currentTarget.elements.amount.value) }); await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
     });
     document.getElementById('income-buffer-form').addEventListener('submit', async event => {
       event.preventDefault();
@@ -5799,11 +5855,11 @@ WR.ui = WR.ui || {};
     const categoryCards = categorySpend.map((item, index) => {
       const share = spent > 0 ? (item.amount / spent) * 100 : 0;
       return `
-        <article class="day-category-card ${index === 0 ? 'top-spend' : ''}">
+        <article class="day-category-row ${index === 0 ? 'top-spend' : ''}" role="listitem">
           <h3>${escapeHtml(item.category)}</h3>
+          <div class="day-category-meter" aria-hidden="true"><span style="--share: ${share.toFixed(2)}%"></span></div>
           <span class="amount">${profile.baseCurrency} ${WR.ui.fmt(item.amount)}</span>
-          <span class="share"><span>${share.toFixed(0)}% of spending</span>${index === 0 ? '<strong>Most spent</strong>' : ''}</span>
-          <div class="day-category-meter" aria-hidden="true"><span style="--share: ${Math.max(3, share).toFixed(0)}%"></span></div>
+          <span class="share">${share.toFixed(0)}%</span>
         </article>`;
     }).join('');
 
@@ -5813,7 +5869,7 @@ WR.ui = WR.ui || {};
       ${index === 0 || item.date !== monthTx[index - 1].date ? `<tr class="day-date-group"><th colspan="7" scope="rowgroup">${escapeHtml(item.date)}<span>${dateCounts.get(item.date)} transaction${dateCounts.get(item.date) === 1 ? '' : 's'}</span></th></tr>` : ''}
       <tr data-id="${WR.ui.escapeText(item.id)}">
         <td data-label="Date"><input class="cell" data-field="date" type="date" value="${escapeHtml(item.date)}"></td>
-        <td data-label="Type"><select class="cell" data-field="kind"><option value="spend" ${item.kind !== 'add' ? 'selected' : ''}>Spend</option><option value="add" ${item.kind === 'add' ? 'selected' : ''}>Add money</option></select></td>
+        <td data-label="Type"><select class="cell" data-field="kind"><option value="spend" ${item.kind !== 'add' ? 'selected' : ''}>Spend</option><option value="add" ${item.kind === 'add' ? 'selected' : ''}>Add to buffer</option></select></td>
         <td data-label="Description"><input class="cell" data-field="description" value="${escapeHtml(item.description || '')}"></td>
         <td data-label="Category"><select class="cell" data-field="category">${categoryOptions(item.category)}</select></td>
         <td data-label="Note"><input class="cell" data-field="note" value="${escapeHtml(item.note || '')}"></td>
@@ -5827,7 +5883,7 @@ WR.ui = WR.ui || {};
 
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Balance at start of month</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(balanceBeforeMonth)}</span></div>
-        <div class="stat"><span class="stat-label">Money added</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(added)}</span></div>
+        <div class="stat"><span class="stat-label">Money added to buffer</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(added)}</span></div>
         <div class="stat"><span class="stat-label">Money spent</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(spent)}</span></div>
         <div class="stat"><span class="stat-label">Current balance</span><span class="stat-value ${current < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(current)}</span></div>
         <div class="stat"><span class="stat-label">Transactions this month</span><span class="stat-value">${monthTx.length}</span></div>
@@ -5838,7 +5894,7 @@ WR.ui = WR.ui || {};
 
       <section>
         <h2>Where your money is going</h2>
-        <div class="day-category-grid">${categoryCards || '<p class="empty">No spending recorded for this month yet.</p>'}</div>
+        <div class="day-category-list" role="list">${categoryCards || '<p class="empty">No spending recorded for this month yet.</p>'}</div>
       </section>
 
       <h3>Add category</h3>
@@ -5858,7 +5914,7 @@ WR.ui = WR.ui || {};
       <h3>Add day-to-day transaction</h3>
       <form id="day-add-form" class="inline-form">
         <input name="date" type="date" value="${WR.ui.escapeText(transactionDate)}" required>
-        <select name="kind"><option value="spend">Spend</option><option value="add">Add money</option></select>
+        <select name="kind"><option value="spend">Spend</option><option value="add">Add to buffer</option></select>
         <input name="description" placeholder="Description" required>
         <select name="category">${categoryOptions()}</select>
         <input name="note" placeholder="Optional note">
