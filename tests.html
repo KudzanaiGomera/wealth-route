@@ -7,8 +7,9 @@
     <style>body { font-family: system-ui, -apple-system, sans-serif; max-width: 700px; margin: 3rem auto; padding: 0 1.5rem; color: #1a1a1a; }</style>
   </head>
   <body>
-    <h1>WealthRoute &mdash; Full test suite</h1>
+    <h1>WealthRoute 3.0 &mdash; Full test suite</h1>
     <div id="results"></div>
+    <script src="vendor/purify.min.js"></script>
     <script>
 // Uses an isolated Firebase app with in-memory authentication. A disposable
 // email/password account is used when anonymous sign-in is disabled, and
@@ -2486,6 +2487,71 @@ WR.testRuns.push(
     });
   })(),
 );
+WR.testRuns.push((async function () {
+  const { test, expect } = WR.test;
+  const response = await fetch('./index.html', { cache: 'no-store' });
+  if (!response.ok) throw new Error('Unable to load production UI helpers');
+  const production = new DOMParser().parseFromString(await response.text(), 'text/html');
+  const source = [...production.scripts].find((script) => script.textContent.includes('function bindFinancialVisibility('))?.textContent;
+  const boundary = source?.indexOf('// Firestore-backed data layer.');
+  if (!(boundary > 0)) throw new Error('Production UI helper boundary not found');
+  const preferences = new Map();
+  let uid = 'ui-test-first';
+  const account = { getCurrentUser: () => ({ uid }) };
+  const storage = { getItem: key => preferences.get(key), setItem: (key, value) => preferences.set(key, value) };
+  const isolatedWindow = { WR: { ui: {}, account } };
+  const ui = new Function('window', 'WR', 'document', 'localStorage', 'DOMPurify', source.slice(0, boundary) + '\nreturn WR.ui;')(
+    isolatedWindow, isolatedWindow.WR, document, storage, DOMPurify,
+  );
+
+  function dashboard() {
+    const root = document.createElement('div');
+    ui.setHTML(root, '<button type="button" data-balance-toggle></button><span class="hero-value">ZAR 12,345.67</span><span class="stat-value">ZAR 900.00</span><div data-private-detail><svg><text>12345</text></svg><span class="legend-value">ZAR 900.00</span></div>');
+    ui.bindFinancialVisibility(root);
+    return root;
+  }
+
+  await test('UI privacy > removes amounts and chart text, then restores the same nodes', () => {
+    const root = dashboard();
+    const before = root.textContent;
+    const chart = root.querySelector('[data-private-detail] svg');
+    const button = root.querySelector('button');
+    button.click();
+    expect(root.querySelector('.hero-value').textContent).toBe('****');
+    expect(root.querySelector('.stat-value').textContent).toBe('****');
+    expect(root.textContent.includes('900')).toBe(false);
+    expect(root.querySelector('[data-private-detail] svg')).toBe(null);
+    expect(button.getAttribute('aria-label')).toBe('Show dashboard balances');
+    button.click();
+    expect(root.textContent).toBe(before);
+    expect(root.querySelector('[data-private-detail] svg')).toBe(chart);
+  });
+
+  await test('UI privacy > persists on rerender and remains separate per account', () => {
+    preferences.clear();
+    dashboard().querySelector('button').click();
+    expect(dashboard().querySelector('.hero-value').textContent).toBe('****');
+    uid = 'ui-test-second';
+    expect(dashboard().querySelector('.hero-value').textContent).toBe('ZAR 12,345.67');
+  });
+
+  await test('UI password > reveals and hides without changing value or autocomplete', () => {
+    const input = document.createElement('input');
+    const button = document.createElement('button');
+    input.autocomplete = 'new-password';
+    input.value = 'test-only-not-a-real-password';
+    ui.bindPasswordVisibility(input, button);
+    expect(input.type).toBe('password');
+    button.click();
+    expect(input.type).toBe('text');
+    expect(button.getAttribute('aria-label')).toBe('Hide password');
+    button.click();
+    expect(input.type).toBe('password');
+    expect(input.value).toBe('test-only-not-a-real-password');
+    expect(input.autocomplete).toBe('new-password');
+  });
+})());
+
 // Waits for every suite registered in WR.testRuns (storage-tests.js,
 // financial/tests.js, and any future test files that push onto that array),
 // then renders one combined results page. Must be the last script loaded.

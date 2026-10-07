@@ -1,7 +1,7 @@
 {
   "name": "WealthRoute",
   "short_name": "WealthRoute",
-  "description": "Local-first personal finance planner and dashboard.",
+  "description": "Personal finance planner with account sync and private dashboard balances. Version 3.0.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

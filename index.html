@@ -629,8 +629,27 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .dashboard-card h2 {
   margin-top: 0;
 }
-.dashboard-card h1, .dashboard-card h2 { letter-spacing: 0.01em; }
-.position-card { border-left: 4px solid var(--accent); }
+.dashboard-card h1, .dashboard-card h2 { letter-spacing: 0; }
+.dashboard-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin: 0.4rem 0 1.25rem; }
+.dashboard-heading h1 { margin: 0.25rem 0 0; font-size: 1.6rem; }
+.dashboard-heading .month-label { margin: 0; font-size: 0.85rem; }
+.position-card { background: linear-gradient(115deg, #08795f, #064a46); border-color: #08795f; color: #fff; }
+.position-card .stat-label { color: #c9eee4; }
+.balance-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.visibility-toggle { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-alt); color: var(--text); }
+.visibility-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.position-card .visibility-toggle { background: #ffffff14; border-color: #ffffff45; color: #fff; }
+.position-card .visibility-toggle:hover { background: #ffffff28; }
+.position-card .visibility-toggle:focus-visible { outline-color: #fff; }
+.password-field { position: relative; min-width: 0; }
+.auth-form .password-field input { width: 100%; padding-right: 3.6rem; }
+.password-field .visibility-toggle { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; }
+.balance-masked { color: inherit !important; }
+[data-private-detail].balance-masked { min-height: 2.5rem; display: flex; align-items: center; color: var(--muted) !important; font-size: 0.85rem; }
+.dashboard-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin: 1rem 0 1.5rem; }
+.dashboard-actions a { display: flex; align-items: center; justify-content: center; gap: 0.55rem; min-height: 52px; min-width: 0; padding: 0.65rem; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: var(--panel); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+.dashboard-actions a:hover { border-color: var(--accent); color: var(--accent); }
+.dashboard-actions svg { flex-shrink: 0; width: 20px; height: 20px; }
 .annual-card { border-left: 4px solid var(--gold); }
 .annual-card h2 { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .annual-card h2::after {
@@ -646,22 +665,25 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   background: color-mix(in srgb, var(--gold) 8%, var(--panel));
 }
 .hero-headline {
-  padding: 1.2rem;
-  margin: 1rem 0 1.25rem;
-  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
-  border-left: 3px solid var(--accent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 4%, var(--panel));
+  padding: 0 0 1.25rem;
+  margin: 0 0 0.3rem;
+  border: 0;
+  border-bottom: 1px solid #ffffff38;
+  border-radius: 0;
+  background: transparent;
 }
 .hero-headline .stat-label { font-size: 0.85rem; }
 .hero-headline .hero-value {
   display: block;
   font-family: var(--font-serif);
-  font-size: clamp(2.35rem, 5vw, 4rem);
+  font-size: 3rem;
   line-height: 1.15;
   margin-top: 0.15rem;
 }
-.hero-headline .hero-value.negative { color: var(--danger); }
+.hero-headline .hero-value { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.hero-headline .hero-value.negative, .position-card .stat-value.negative { color: #ffd0c9; }
+.position-card .delta.positive, .position-card .delta.neutral { color: #c9eee4; }
+.position-card .delta.negative { color: #ffd0c9; }
 
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.65rem; margin: 1rem 0; }
 .dashboard-card .stat-grid { gap: 0.8rem; }
@@ -678,14 +700,16 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   min-height: 5.7rem;
   box-shadow: none;
 }
-.position-card .stat { border-color: color-mix(in srgb, var(--accent) 24%, var(--border)); background: color-mix(in srgb, var(--accent) 4%, var(--panel)); }
-.annual-card .stat { border-color: color-mix(in srgb, var(--gold) 30%, var(--border)); background: color-mix(in srgb, var(--gold) 5%, var(--panel)); }
+.position-card .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0; }
+.position-card .stat { border: 0; background: transparent; border-radius: 0; padding: 0.5rem 0; min-height: 4.4rem; }
+.annual-card .stat-grid { grid-template-columns: 1fr; margin-bottom: 0; }
+.annual-card .stat { border: 0; border-top: 1px solid var(--border); background: transparent; border-radius: 0; padding: 0.75rem 0; min-height: 0; gap: 0.25rem; }
 .dashboard-card .stat::after {
   content: none;
 }
 .stat-label { display: block; font-size: 0.78rem; color: var(--muted); }
 .stat-value { display: block; font-family: var(--font-serif); font-size: 1.3rem; margin-top: 0.2rem; }
-.dashboard-card .stat-value { font-size: clamp(1.25rem, 2.2vw, 1.65rem); line-height: 1.2; }
+.dashboard-card .stat-value { font-size: 1.35rem; line-height: 1.2; overflow-wrap: anywhere; }
 .stat-value.negative { color: var(--danger); }
 .delta { display: block; font-size: 0.76rem; font-weight: 600; margin-top: 0.2rem; }
 .delta.positive { color: var(--success); }
@@ -1367,7 +1391,7 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
   .position-summary-grid { grid-template-columns: 1fr; }
   .dashboard-card { padding: 1.15rem; }
   .dashboard-card .stat { min-height: 5rem; }
-  .hero-headline { padding: 1.25rem 1.4rem; }
+  .hero-headline { padding: 0 0 1.1rem; }
   .hero-headline .hero-value { font-size: 2.25rem; }
   .charts { grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
   .summary-charts { grid-template-columns: 1fr; }
@@ -1400,7 +1424,10 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
   .topbar { align-items: center; }
   .nav-controls { gap: 0.35rem; }
   .brand { font-size: 1.2rem; gap: 0.6rem; }
-  .dashboard-card, .hero-headline, .health-score, .chart-block, .pie-card { padding: 0.95rem; }
+  .dashboard-card, .health-score, .chart-block, .pie-card { padding: 0.95rem; }
+  .dashboard-heading { align-items: flex-start; flex-direction: column; gap: 0.35rem; }
+  .dashboard-actions { gap: 0.4rem; }
+  .dashboard-actions a { flex-direction: column; gap: 0.4rem; font-size: 0.75rem; padding: 0.6rem 0.25rem; }
   .ef-summary { flex-direction: column; align-items: stretch; padding: 1.1rem; }
   .ef-summary-side { gap: 1rem; }
   .data-table th, .data-table td { padding: 0.48rem 0.55rem; font-size: 0.82rem; }
@@ -1448,6 +1475,60 @@ function setHTML(element, html) {
 }
 WR.ui.setHTML = setHTML;
 WR.ui.assertActiveView = assertActiveView;
+
+function visibilityIcon(hidden) {
+  return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>${hidden ? '<path d="m3 3 18 18"/>' : ''}</svg>`;
+}
+
+function bindPasswordVisibility(input, button) {
+  if (!input || !button) return;
+  function update() {
+    const visible = input.type === 'text';
+    const label = visible ? 'Hide password' : 'Show password';
+    button.setAttribute('aria-label', label);
+    button.setAttribute('aria-pressed', String(visible));
+    button.title = label;
+    setHTML(button, visibilityIcon(!visible));
+  }
+  input.type = 'password';
+  update();
+  button.addEventListener('click', () => {
+    input.type = input.type === 'password' ? 'text' : 'password';
+    update();
+  });
+}
+
+function bindFinancialVisibility(container) {
+  const button = container.querySelector('[data-balance-toggle]');
+  if (!button) return;
+  const key = `wr_hide_balances_${WR.account.getCurrentUser()?.uid || 'local'}`;
+  const originals = new Map();
+  container.querySelectorAll('.hero-value, .stat-value, .delta, .bill-amount, .legend-value, [data-private-detail]').forEach((element) => {
+    if (!element.parentElement.closest('[data-private-detail]')) originals.set(element, [...element.childNodes]);
+  });
+  let hidden = false;
+  try { hidden = localStorage.getItem(key) === 'true'; } catch {}
+  function update() {
+    for (const [element, children] of originals) {
+      element.replaceChildren(...(hidden ? [document.createTextNode(element.hasAttribute('data-private-detail') ? 'Hidden for privacy' : '****')] : children));
+      element.classList.toggle('balance-masked', hidden);
+    }
+    const label = hidden ? 'Show dashboard balances' : 'Hide dashboard balances';
+    button.setAttribute('aria-label', label);
+    button.setAttribute('aria-pressed', String(hidden));
+    button.title = label;
+    setHTML(button, visibilityIcon(hidden));
+  }
+  update();
+  button.addEventListener('click', () => {
+    hidden = !hidden;
+    try { localStorage.setItem(key, String(hidden)); } catch {}
+    update();
+  });
+}
+WR.ui.visibilityIcon = visibilityIcon;
+WR.ui.bindPasswordVisibility = bindPasswordVisibility;
+WR.ui.bindFinancialVisibility = bindFinancialVisibility;
 
 // Firestore-backed data layer. Every entity lives under
 // users/{uid}/{storeName}/{id} in the signed-in user's own document tree, so
@@ -4067,10 +4148,10 @@ WR.ui = WR.ui || {};
             <span class="rec-title">${escapeText(r.title)}</span>
             ${priorityBadge(r.priority)}
           </div>
-          <p class="rec-reason"><strong>Reason:</strong> ${escapeText(r.reason)}</p>
-          <p class="rec-impact"><strong>Financial impact:</strong> ${escapeText(r.financialImpact)}</p>
-          <p class="rec-action"><strong>Suggested action:</strong> ${escapeText(r.suggestedAction)}</p>
-          ${r.assumptions && r.assumptions.length ? `<p class="rec-assumptions"><strong>Assumptions:</strong> ${escapeText(r.assumptions.join(' '))}</p>` : ''}
+          <p class="rec-reason" data-private-detail><strong>Reason:</strong> ${escapeText(r.reason)}</p>
+          <p class="rec-impact" data-private-detail><strong>Financial impact:</strong> ${escapeText(r.financialImpact)}</p>
+          <p class="rec-action" data-private-detail><strong>Suggested action:</strong> ${escapeText(r.suggestedAction)}</p>
+          ${r.assumptions && r.assumptions.length ? `<p class="rec-assumptions" data-private-detail><strong>Assumptions:</strong> ${escapeText(r.assumptions.join(' '))}</p>` : ''}
         </div>`,
           )
           .join('')
@@ -4134,14 +4215,14 @@ WR.ui = WR.ui || {};
       </section>
       `}
 
+      <header class="dashboard-heading">
+        <div><p class="greeting">${escapeText(greeting(WR.account.getUsername() || s.profile.displayName))}</p><h1>Your money at a glance</h1></div>
+        <p class="month-label">${s.monthLabel}</p>
+      </header>
       <section class="position-summary-grid">
         <div class="hero dashboard-card position-card">
-          <p class="greeting">${escapeText(greeting(WR.account.getUsername() || s.profile.displayName))}</p>
-          <h1>Your Financial Position</h1>
-          <p class="month-label">${s.monthLabel}</p>
-
           <div class="hero-headline">
-            <span class="stat-label">Net Worth</span>
+            <div class="balance-heading"><span class="stat-label">Net Worth</span><button type="button" class="visibility-toggle" data-balance-toggle aria-label="Hide dashboard balances" aria-pressed="false" title="Hide dashboard balances">${WR.ui.visibilityIcon(false)}</button></div>
             <span class="hero-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span>
             ${deltaBadge(s.netWorthDelta, currency, fmt, 'since last recorded snapshot')}
           </div>
@@ -4151,11 +4232,13 @@ WR.ui = WR.ui || {};
             <div class="stat"><span class="stat-label">After debt minimums</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
             <div class="stat"><span class="stat-label">Day-to-Day Balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
             <div class="stat"><span class="stat-label">Savings Pots</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
+            <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
+            <div class="stat"><span class="stat-label">Total Assets</span><span class="stat-value">${currency} ${fmt(s.netWorth.totalAssets)}</span></div>
           </div>
         </div>
 
         <div class="dashboard-card annual-card">
-          <h2>Annual Financial Summary (${s.selectedYear})</h2>
+          <h2>${s.selectedYear} overview</h2>
           <p class="fine-print">${s.annualStartMonth ? `Income counted from ${WR.ui.monthName(Number(s.annualStartMonth.slice(5)))} through ${WR.ui.monthName(Number(s.month.slice(5)))} ${s.selectedYear}.` : 'No income months recorded yet.'} Savings Pots Total is the current balance across active pots only.</p>
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
@@ -4165,16 +4248,23 @@ WR.ui = WR.ui || {};
         </div>
       </section>
 
+      <nav class="dashboard-actions" aria-label="Money shortcuts">
+        <a href="#/transactions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16M16 3l4 4-4 4M20 17H4m4-4-4 4 4 4"/></svg>Transactions</a>
+        <a href="#/variable-expenses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>Budget</a>
+        <a href="#/savings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 8h18v12H3zM3 8l3-4h12l3 4M9 12h6"/></svg>Savings</a>
+        <a href="#/goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>Goals</a>
+      </nav>
+
       <section class="dashboard-insights-grid">
         ${debtProgress ? `
         <article class="dashboard-card debt-free-card">
           <h2>Road to debt-free</h2>
-          <div class="debt-free-head">
+          <div class="debt-free-head" data-private-detail>
             <strong>${debtProgress.months === null ? 'Not within 50 years' : debtProgress.months === 0 ? 'This month' : `${debtProgress.months} months`}</strong>
             <span>${debtProgress.freeDateLabel ? `Debt-free by ${debtProgress.freeDateLabel}` : 'Increase payments to set a finish date'}</span>
           </div>
-          <div class="goal-meter" role="progressbar" aria-valuenow="${debtProgress.paidPct.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${debtProgress.paidPct}%"></span></div>
-          <p class="fine-print">${debtProgress.paidPct.toFixed(0)}% paid off · ${currency} ${fmt(debtProgress.paid)} paid, ${currency} ${fmt(debtProgress.remaining)} to go. Based on your ${debtProgress.strategy} plan on the Debts page.</p>
+          <div data-private-detail><div class="goal-meter" role="progressbar" aria-label="Debt repaid" aria-valuenow="${debtProgress.paidPct.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${debtProgress.paidPct}%"></span></div></div>
+          <p class="fine-print" data-private-detail>${debtProgress.paidPct.toFixed(0)}% paid off · ${currency} ${fmt(debtProgress.paid)} paid, ${currency} ${fmt(debtProgress.remaining)} to go. Based on your ${debtProgress.strategy} plan on the Debts page.</p>
           <a class="link-btn" href="#/debts">View payoff plan</a>
         </article>` : ''}
         <article class="dashboard-card bills-card">
@@ -4210,7 +4300,7 @@ WR.ui = WR.ui || {};
       </section>
 
       <details class="dashboard-disclosure"><summary>Monthly and annual spending breakdowns</summary>
-      <section class="summary-charts">
+      <section class="summary-charts" data-private-detail>
         <article class="pie-card">
           <h3>Monthly Breakdown (${s.monthLabel})</h3>
           <div class="pie-layout">
@@ -4236,17 +4326,18 @@ WR.ui = WR.ui || {};
       <section class="charts">
         <div class="chart-block">
           <h3>This Month's Cash Flow</h3>
-          ${cashflowChart}
+          <div data-private-detail>${cashflowChart}</div>
         </div>
         <div class="chart-block">
           <h3>Net Worth History</h3>
-          ${netWorthChart}
+          <div data-private-detail>${netWorthChart}</div>
           <button id="snapshot-networth-btn" class="secondary">Record today's net worth snapshot</button>
           ${s.netWorthHistory.length < 3 ? '<p class="fine-print">A snapshot is recorded automatically each month, so this trend line fills in over time.</p>' : ''}
         </div>
       </section>
     `);
 
+    WR.ui.bindFinancialVisibility(container);
     container.querySelectorAll('[data-bill-status]').forEach((button) => {
       button.addEventListener('click', async () => {
         const bill = billOccurrences[Number(button.dataset.billIndex)];
@@ -6723,7 +6814,7 @@ window.WR = window.WR || {};
 WR.ui = WR.ui || {};
 
 (function () {
-  const APP_VERSION = '2.0.0';
+  const APP_VERSION = '3.0.0';
 
   function hardConfirm(actionLabel) {
     return new Promise((resolve) => {
@@ -6963,6 +7054,10 @@ WR.ui = WR.ui || {};
         <details class="settings-details">
           <summary>Release notes</summary>
           <ul>
+            <li>Version 3.0: redesigned balance card, compact annual overview, and dashboard shortcuts for Transactions, Budget, Savings, and Goals.</li>
+            <li>Hide or show dashboard balances, charts, and financial recommendation details with one privacy control. This device remembers the choice per account.</li>
+            <li>Show or hide the password while logging in or signing up; passwords always start hidden.</li>
+            <li>Responsive two-column balance rows and touch-friendly controls in light and dark mode.</li>
             <li>Real accounts: email/password and Google sign-in, with a required unique username.</li>
             <li>Data now lives in your account (Firestore), not this browser — log in from any device to see the same data, fully isolated per account.</li>
             <li>Every page is gated behind sign-in; nothing renders until you're authenticated.</li>
@@ -7608,9 +7703,11 @@ WR.ui = WR.ui || {};
               <label>Email
                 <input type="email" id="auth-email-input" autocomplete="email" required>
               </label>
-              ${isReset ? '' : `<label>Password
+              ${isReset ? '' : `<label for="auth-password-input">Password</label>
+              <div class="password-field">
                 <input type="password" id="auth-password-input" autocomplete="${isSignup ? 'new-password' : 'current-password'}" minlength="6" required>
-              </label>`}
+                <button type="button" id="auth-password-toggle" class="visibility-toggle" aria-controls="auth-password-input" aria-label="Show password" title="Show password">${WR.ui.visibilityIcon(true)}</button>
+              </div>`}
               <p id="auth-error" class="auth-error" role="alert"></p>
               <p id="auth-reset-status" class="fine-print" role="status"></p>
               <button type="submit" id="auth-submit-btn">${isReset ? 'Send reset link' : isSignup ? 'Sign up' : 'Log in'}</button>
@@ -7628,6 +7725,7 @@ WR.ui = WR.ui || {};
       const form = document.getElementById('auth-form');
       const errorEl = document.getElementById('auth-error');
       const submitBtn = document.getElementById('auth-submit-btn');
+      WR.ui.bindPasswordVisibility(document.getElementById('auth-password-input'), document.getElementById('auth-password-toggle'));
 
       function showError(err) {
         errorEl.textContent = isReset ? 'Unable to send the reset link. Please try again shortly.' : authErrorMessage(err, isSignup);

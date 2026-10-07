@@ -1,12 +1,12 @@
 # WealthRoute
 
-Personal finance & wealth planning assistant, version **2.0**. Core files:
+Personal finance & wealth planning assistant, version **3.0**. Core files:
 `index.html` (the whole app), `tests.html` (test suite),
 `manifest.webmanifest`, `service-worker.js` (PWA install/offline shell), and
 `worker.js`/`wrangler.toml` (optional Cloudflare Worker for live rates and the
-AI assistant). No npm, no bundler, no build step, no TypeScript compiler for
-the app itself \u2014 everything is inlined into a single `<script>`/`<style>`
-tag per file.
+AI assistant). No bundler or TypeScript compiler for the app itself:
+everything is inlined into a single `<script>`/`<style>` tag per file.
+Use npm for validation and to prepare the bundled DOMPurify dependency.
 
 **Architecture change in 2.0: real accounts, not local-only storage.**
 Every visitor signs up or logs in (email/password or Google) before seeing
@@ -16,7 +16,25 @@ after clearing browser data, and your data is exactly as you left it. See
 "Accounts, data, and privacy" below for the full picture, including what
 this means for offline use.
 
-## What's new in 2.0
+## What's new in 3.0
+
+- **Balance-first dashboard:** an emerald net-worth card with two-column
+  balance rows, emergency fund and total assets, a compact annual overview,
+  and direct links to Transactions, Budget, Savings, and Goals.
+- **Dashboard privacy:** the eye button hides or shows all dashboard amounts,
+  monetary deltas, chart contents, debt progress details, and financial
+  recommendation details together. The preference is remembered on this
+  browser per account and reapplied when the dashboard rerenders.
+- **Password visibility:** login and signup have a separate show/hide button.
+  Passwords start hidden on each form; toggling never changes the typed value
+  or stores a password. Password reset remains email-based.
+- **Responsive controls:** two-column balance rows on phones, larger touch
+  targets, compact mobile shortcuts, and existing light/dark and PWA
+  safe-area support.
+- **Version 3.0.0** in package metadata, Settings, and exported backups;
+  the service-worker shell cache is refreshed for the release.
+
+### Previous release: 2.0
 
 - **Real accounts**: email/password and Google sign-in, a required unique
   username, password reset, all backed by Firebase Auth.
@@ -51,6 +69,11 @@ external font/icon dependencies \u2014 system font stacks only, so this doesn't
 add to the "needs internet" list beyond the Excel tab and your account
 (see below).
 
+The 3.0 dashboard uses one emerald balance card with unframed balance rows,
+a separate annual overview, and compact icon shortcuts. Cards retain a
+maximum 8px corner radius; mobile rows and long amounts reflow without
+page-level horizontal scrolling.
+
 ## Accounts, data, and privacy
 
 Settings \u2192 **Profile** shows your username and email, lets you change your
@@ -63,6 +86,15 @@ scoped entirely to that account by security rules
 (`request.auth.uid == uid`) \u2014 not just hidden by the UI. Nobody else who
 signs into this app, on this device or any other, can read or write your
 data.
+
+**Balance visibility is display privacy, not encryption or access control.**
+The dashboard eye button replaces displayed amounts and sensitive details
+with placeholders, including charts and closed spending breakdowns. Original
+content is restored when you show balances again. Other pages, exports, and
+stored financial records are unchanged; hide mode does not conceal bill names,
+health scores, or recommendation titles. Only the visibility preference is
+saved in localStorage under a per-account key, never passwords or balances.
+If browser storage is unavailable, the toggle still works for the current view.
 
 **Offline behavior changed from 1.x.** The app previously worked fully
 offline via IndexedDB with no login at all. Now: the very first sign-in on
@@ -186,6 +218,15 @@ Storage tests use an isolated Firebase app with in-memory authentication,
 falling back to a disposable email/password user if anonymous sign-in is
 disabled. Test records and the test user are removed afterward. The runner
 does not reuse a signed-in app user's authentication session.
+
+Version 3.0 checks cover dashboard masking and exact restoration, preference
+retention across rerenders and separation between accounts, unavailable
+localStorage, password show/hide without changing the value, and matching
+release versions. The browser UI suite loads the production visibility helpers
+without signing in or accessing financial records. Responsive visual checks
+should include 320px, 375px, 768px, and 1440px widths in both themes, keyboard
+focus on the eye buttons, and login/signup/reset modes. Real iOS home-screen
+safe-area behavior still requires an on-device check.
 
 ## What's built
 

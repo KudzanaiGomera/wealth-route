@@ -67,7 +67,7 @@ for (const match of fs.readFileSync(path.join(root, 'tests.html'), 'utf8').match
   acorn.parse(match[1], { ecmaVersion: 'latest' });
 }
 
-const names = ['escapeText', 'assertActiveView', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'convertCurrency', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus'];
+const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'convertCurrency', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus'];
 const context = { WR: { financial: {} } };
 vm.createContext(context);
 vm.runInContext(names.filter(name => functions.has(name)).map(name => functions.get(name)).join('\n'), context);
@@ -88,6 +88,66 @@ assert.equal(context.calculateTotalDebt(debts, rates, 'ZAR'), 40000);
 assert.equal(context.calculateDebtToIncomeRatio(debts, 30000, rates, 'ZAR'), 2000 / 30000);
 assert.equal(context.calculateTotalMinPayments(debts, [], 'ZAR'), 0);
 console.log('Production scripts, safe HTML boundaries, escaping, lending balances, and surplus checks passed.');
+
+function checkVisibility() {
+  const stored = new Map();
+  let uid = 'privacy-test';
+  context.WR.account = { getCurrentUser: () => ({ uid }) };
+  context.localStorage = { getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value) };
+  context.document = { createTextNode: textContent => ({ textContent }) };
+  context.setHTML = (element, markup) => { element.markup = markup; };
+  function control(detail = false) {
+    return {
+      childNodes: [{ textContent: 'ZAR 12,345.67' }],
+      attributes: {}, events: {}, type: 'password', value: 'test-only-value',
+      parentElement: { closest: () => null }, classList: { toggle() {} },
+      hasAttribute: name => detail && name === 'data-private-detail',
+      setAttribute(name, value) { this.attributes[name] = value; },
+      addEventListener(name, listener) { this.events[name] = listener; },
+      replaceChildren(...children) { this.childNodes = children; },
+    };
+  }
+  const input = control();
+  const passwordButton = control();
+  context.bindPasswordVisibility(input, passwordButton);
+  assert.equal(input.type, 'password');
+  assert.equal(passwordButton.attributes['aria-label'], 'Show password');
+  passwordButton.events.click();
+  assert.equal(input.type, 'text');
+  assert.equal(passwordButton.attributes['aria-pressed'], 'true');
+  passwordButton.events.click();
+  assert.equal(input.type, 'password');
+  assert.equal(input.value, 'test-only-value');
+
+  function dashboard() {
+    const button = control();
+    const amount = control();
+    const detail = control(true);
+    const originalAmount = amount.childNodes[0];
+    const root = { querySelector: () => button, querySelectorAll: () => [amount, detail] };
+    context.bindFinancialVisibility(root);
+    return { button, amount, detail, originalAmount };
+  }
+  const first = dashboard();
+  first.button.events.click();
+  assert.equal(first.amount.childNodes[0].textContent, '****');
+  assert.equal(first.detail.childNodes[0].textContent, 'Hidden for privacy');
+  assert.equal(first.button.attributes['aria-label'], 'Show dashboard balances');
+  assert.equal(dashboard().amount.childNodes[0].textContent, '****');
+  first.button.events.click();
+  assert.equal(first.amount.childNodes[0], first.originalAmount);
+  first.button.events.click();
+  uid = 'other-account';
+  assert.equal(dashboard().amount.childNodes[0].textContent, 'ZAR 12,345.67');
+  context.localStorage = { getItem() { throw new Error('Unavailable'); }, setItem() { throw new Error('Unavailable'); } };
+  const restricted = dashboard();
+  assert.doesNotThrow(() => restricted.button.events.click());
+  assert.equal(restricted.amount.childNodes[0].textContent, '****');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version, '3.0.0');
+  assert.ok(html.includes("const APP_VERSION = '3.0.0'"));
+  console.log('Balance masking/restoration, per-account preferences, unavailable storage, password visibility, and version checks passed.');
+}
+checkVisibility();
 
 async function checkPayments() {
   const documents = new Map();
