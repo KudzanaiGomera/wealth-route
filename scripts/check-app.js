@@ -183,11 +183,13 @@ async function checkTransactionLayout() {
   vm.runInContext(functions.get('renderDayToDay'), layoutContext);
   const container = { querySelectorAll: selector => { selectors.push(selector); return []; } };
   await layoutContext.renderDayToDay(container);
-  assert.equal((markup.match(/class="day-date-group"/g) || []).length, 2);
-  assert.equal((markup.match(/<tr data-id=/g) || []).length, 3);
+  assert.equal((markup.match(/class="day-date-group"/g) || []).length, 1);
+  assert.equal((markup.match(/<tr data-id=/g) || []).length, 2);
   assert.ok(markup.includes('2 transactions'));
-  assert.ok(markup.includes('1 transaction</span>'));
-  assert.ok(markup.includes('day-credit'));
+  assert.ok(!markup.includes('data-field="kind"'));
+  assert.ok(!markup.includes('name="kind"'));
+  assert.ok(!markup.includes('data-id="third"'));
+  assert.ok(functions.get('renderDayToDay').includes("kind: 'spend'"));
   assert.ok(markup.includes('data-label="Amount (ZAR)"'));
   assert.ok(markup.includes('&lt;unsafe&gt;'));
   assert.ok(!markup.includes("of this month's day-to-day spending"));
@@ -201,6 +203,10 @@ async function checkTransactionLayout() {
   assert.ok(markup.includes('class="day-category-list" role="list"'));
   assert.ok(!markup.includes('day-category-card'));
   assert.ok(!markup.includes('stat-label">Buffer'));
+  assert.ok(!markup.includes('Money added to buffer'));
+  assert.ok(!markup.includes('<th>Note</th>'));
+  assert.ok(!markup.includes('data-field="note"'));
+  assert.ok(markup.includes('colspan="5" scope="rowgroup"'));
   transactions.length = 0;
   await layoutContext.renderDayToDay(container);
   assert.ok(markup.includes('No day-to-day transactions yet.'));
@@ -208,6 +214,69 @@ async function checkTransactionLayout() {
   console.log('Transaction date grouping, counts, mobile labels, escaping, edit binding, and empty-state checks passed.');
 }
 checkTransactionLayout().catch(error => { console.error(error); process.exitCode = 1; });
+
+async function checkSavingsActivity() {
+  const savingsContext = {
+    escapeEf: context.escapeText,
+    WR: {
+      ui: {
+        getOrCreateProfile: async () => ({ baseCurrency: 'ZAR', emergencyFundAccounts: [{ id: 'main', label: 'Emergency savings' }] }),
+        currentMonthKey: () => '2026-10', escapeText: context.escapeText,
+        fmt: number => Number(number).toFixed(2),
+        buildSnapshot: async () => ({ essentialVsDiscretionary: { essential: 1000 }, cashflow: { fixedExpenses: 1000 }, emergencyFundTargetMonths: 3 }),
+        setHTML: (container, markup) => { container.markup = markup; },
+      },
+      repos: { emergencyFundContributions: { getAll: async () => [{ id: 'contribution', date: '2026-10-07', account: 'main', amount: 90.53 }] } },
+    },
+  };
+  vm.createContext(savingsContext);
+  vm.runInContext(functions.get('renderEmergencyFund'), savingsContext);
+  const host = id => ({ id, querySelectorAll: () => [], querySelector: selector => selector === '#emergency-fund-month' && id === 'emergency-savings' ? null : { addEventListener() {} } });
+  const savings = host('emergency-savings');
+  await savingsContext.renderEmergencyFund(savings);
+  assert.ok(!savings.markup.includes('ef-activity-card'));
+  assert.ok(!savings.markup.includes('id="emergency-fund-month"'));
+  assert.ok(savings.markup.includes('ZAR 90.53'));
+  assert.ok(savings.markup.includes('id="emergency-add-form"'));
+  const standalone = host('content');
+  await savingsContext.renderEmergencyFund(standalone);
+  assert.ok(standalone.markup.includes('ef-activity-card'));
+  assert.ok(standalone.markup.includes('id="emergency-fund-month"'));
+  console.log('Savings hides emergency activity while preserving balances, contribution controls, and standalone history.');
+}
+checkSavingsActivity().catch(error => { console.error(error); process.exitCode = 1; });
+
+function checkNavigationLayout() {
+  const classes = new Set();
+  let width = 1440;
+  const elements = Object.fromEntries([['.brand', 180], ['.nav-horizontal', 950], ['.nav-wide-actions', 130], ['.theme-toggle', 44], ['.nav-account', 0]].map(([selector, size]) => [selector, { scrollWidth: size, getBoundingClientRect: () => ({ width: size }), styles: { display: size ? 'flex' : 'none' } }]));
+  let expanded;
+  const topbar = {
+    isConnected: true, get clientWidth() { return width; },
+    styles: { columnGap: '16px', paddingLeft: '24px', paddingRight: '24px' },
+    classList: { add: value => classes.add(value), remove: value => classes.delete(value), toggle: (value, enabled) => enabled ? classes.add(value) : classes.delete(value) },
+    querySelector: selector => elements[selector],
+    querySelectorAll: () => [{ setAttribute: (_name, value) => { expanded = value; } }],
+  };
+  const navContext = { window: { matchMedia: () => ({ matches: width >= 901 }) }, getComputedStyle: element => element.styles };
+  vm.createContext(navContext);
+  vm.runInContext(functions.get('updateNavigationLayout'), navContext);
+  navContext.updateNavigationLayout(topbar);
+  assert.equal(classes.has('nav-expanded'), true);
+  assert.equal(expanded, 'false');
+  width = 1280;
+  navContext.updateNavigationLayout(topbar);
+  assert.equal(classes.has('nav-expanded'), false);
+  width = 1920;
+  navContext.updateNavigationLayout(topbar);
+  assert.equal(classes.has('nav-expanded'), true);
+  width = 375;
+  navContext.updateNavigationLayout(topbar);
+  assert.equal(classes.has('nav-expanded'), false);
+  assert.equal(classes.has('nav-measuring'), false);
+  console.log('Navigation expands only when all links and actions fit and collapses cleanly on smaller screens.');
+}
+checkNavigationLayout();
 
 async function checkPaydayBudget() {
   const documents = new Map();
@@ -396,6 +465,27 @@ async function checkPaydayBudget() {
   assert.equal(documents.get(base + 'payCycles/' + month).bufferAmount, 0);
   assert.equal(documents.get(base + 'payCycles/' + month).shortfallAmount, 250);
   await assert.rejects(() => paydayContext.savePayCycle(month, { ...correction, incomeTable: { ...correction.incomeTable, openingBuffer: 'invalid' } }), /valid buffer/);
+  const depositMonth = paydayContext.currentBudgetMonth();
+  const depositPath = base + 'payCycles/' + depositMonth;
+  documents.set(depositPath, { id: depositMonth, month: depositMonth, payDate: paydayContext.payCycleDates(depositMonth).start, mode: 'income-table', confirmed: true, expectedIncome: 10500, advanceAmount: 0, savingsAmount: 0, fixedAmount: 1500, variableAmount: 500, debtAmount: 600, rolloverApplied: true, rolloverAvailable: 1000, bufferAmount: 400, sourceAdjustments: {} });
+  const depositFields = { fixedAmount: 1500, variableAmount: 500, debtAmount: 600, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], profileId: 'profile', availableBuffer: 1000, addFunds: { id: 'funds-one', amount: 500 } } };
+  await paydayContext.savePayCycle(depositMonth, depositFields);
+  await paydayContext.savePayCycle(depositMonth, depositFields);
+  assert.equal(documents.get(depositPath).rolloverAvailable, 1500);
+  assert.equal(documents.get(depositPath).bufferAmount, 400);
+  assert.equal(Object.keys(documents.get(depositPath).bufferDeposits).length, 1);
+  assert.equal(documents.get(base + 'savingsPots/holiday').currentAmount, 1500);
+  await assert.rejects(() => paydayContext.savePayCycle(depositMonth, { ...depositFields, incomeTable: { ...depositFields.incomeTable, addFunds: { id: 'zero-funds', amount: 0 } } }), /greater than zero/);
+  await assert.rejects(() => paydayContext.savePayCycle(depositMonth, { ...depositFields, incomeTable: { ...depositFields.incomeTable, addFunds: { id: 'negative-funds', amount: -100 } } }), /zero or greater/);
+  documents.set(base + 'userProfile/profile', { id: 'profile', baseCurrency: 'ZAR', autoUseBuffer: true });
+  await paydayContext.savePayCycle(depositMonth, { ...depositFields, incomeTable: { ...depositFields.incomeTable, addFunds: { id: 'funds-two', amount: 250 } } });
+  assert.equal(documents.get(depositPath).rolloverAvailable, 1750);
+  assert.equal(documents.get(depositPath).bufferAmount, 1750);
+  documents.set(depositPath, { ...documents.get(depositPath), rolloverAvailable: -300, bufferAmount: 0, shortfallAmount: 300 });
+  await paydayContext.savePayCycle(depositMonth, { ...depositFields, incomeTable: { ...depositFields.incomeTable, addFunds: { id: 'cover-shortfall', amount: 200 } } });
+  assert.equal(documents.get(depositPath).rolloverAvailable, -100);
+  assert.equal(documents.get(depositPath).shortfallAmount, 100);
+  assert.equal(documents.get(depositPath).bufferAmount, 0);
   paydayContext.WR.ui.buildSnapshot = async () => ({ cashflow: { fixedExpenses: 1500, variableExpenses: 500 }, debts: [{ currency: 'ZAR', currentBalance: 10000, minPayment: 600, paymentFrequency: 'monthly' }], exchangeRates: [], profile: { baseCurrency: 'ZAR' }, payCycleBudget: { carryOver: 2000 }, debtPayments: [{ month, amount: 9999 }] });
   vm.runInContext(functions.get('saveIncomeBudget'), paydayContext);
   await paydayContext.saveIncomeBudget(month);
@@ -419,6 +509,7 @@ async function checkPaydayBudget() {
   assert.ok(paydayMarkup.includes('<th>Advance</th><th>Savings taken</th>'));
   assert.ok(paydayMarkup.includes('<h2>Buffer</h2>'));
   assert.ok(paydayMarkup.includes('id="income-buffer-opening-form"'));
+  assert.ok(paydayMarkup.includes('id="income-buffer-funds-form"'));
   assert.ok(paydayMarkup.includes('<summary>Edit balance</summary>'));
   assert.ok(paydayMarkup.includes('class="buffer-layout"'));
   assert.ok(paydayMarkup.includes('type="checkbox" role="switch"'));

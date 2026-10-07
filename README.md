@@ -38,6 +38,11 @@ this means for offline use.
 - **Income and buffer:** editable Advance and Savings taken columns reduce
   Total income; savings pots are updated manually. Buffer adds an existing carry-over
   amount to Total income without duplicating cash.
+- **Responsive navigation:** all page links appear horizontally when the
+  header has enough room, with Settings last. Smaller desktops use the compact
+  links and hamburger; phones retain bottom navigation and a header hamburger.
+  Fit is measured from the actual links and actions rather than a fixed desktop
+  breakpoint. Support, installation, and logout remain available in both layouts.
 
 ### Payday Budgeting
 
@@ -60,8 +65,8 @@ to their pages. Updating the budget does not mark a debt as paid.
 Transactions shows this same budget as **Balance at start of month**.
 **Current balance = monthly budget - transaction spending.**
 Unallocated buffer and old initial balances are not added to Transactions.
-**Add to buffer** receipts are reserved for carry-over, not credited to the
-current spending balance. Allocate buffer through Income to include it in a budget.
+Extra receipts are added through **Income > Buffer > Add funds**, not through
+Transactions. Allocate buffer through Income to include it in a spending budget.
 
 Savings taken only reduces income and the spending budget. Add that money
 to the chosen savings pots manually on Savings. Increasing, reducing, or
@@ -85,6 +90,15 @@ transaction records are not changed by this correction.
 The Buffer section displays the available balance beside the allocation form
 and auto-use switch on desktop, stacking them on phones. Balance correction
 is collapsed until requested; all controls remain keyboard accessible.
+**Add funds** increases Available buffer by the entered positive amount; it
+does not replace the balance. Each deposit has a saved ID and date, so retries
+cannot duplicate it. With auto-use off, the allocation stays unchanged until
+you update Add to total income. With auto-use on, the new positive buffer is
+allocated automatically. Deposits may cover a shortfall first. Add funds is
+available for the current budget month only and requires an online connection.
+Borrowed funds should also be recorded as a debt manually; its monthly minimum
+payment is included in the budget calculation. Adding funds does not create a
+debt or change savings pots automatically.
 
 On the 25th, the previous cycle's remaining money plus any unused reserve
 becomes Available buffer. The opening amount is saved once per cycle, so
@@ -111,16 +125,19 @@ The dashboard shows **spent = budget - Transactions current balance**, with
 a spent-percentage bar. Transactions retains its remaining-percentage bar.
 
 An Advance in the table reduces the selected future salary only. Record its
-receipt as Add to buffer in Transactions if not already entered. Do not also put
+receipt using Add funds on Income if not already entered. Do not also put
 the principal in Variable Expenses; separate fees remain expenses. Existing
 advance receipt links and pot transfers are retained. Older aggregate
 deductions appear on the first active income row until edited. Pot credits
 from the earlier automatic-linking implementation are preserved, not reversed
 or credited again when changing the new amount-only deduction.
 
-Transactions uses the selected pay-cycle budget. Every Spend entry reduces
+Transactions is spending-only and uses the selected pay-cycle budget. New
+entries are always Spend; there is no transaction-type selector. Every entry reduces
 that budget; there is no reserved-expense checkbox or exemption. Legacy
 reserved flags are ignored, so those entries now count as spending too.
+Old Add money records are preserved and hidden from the spending list; they
+are not converted into expenses and retain their original carry-over behavior.
 Enter everyday spending here rather than duplicating expenses already
 deducted on the Fixed/Variable Expenses pages. Budget funding is not copied
 into editable transaction rows. Existing transaction records are preserved.
