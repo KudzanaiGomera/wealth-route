@@ -320,11 +320,35 @@ async function checkPaydayBudget() {
   paydayContext.RECURRING_FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
   vm.runInContext(functions.get('recurringFrequencyOptions') + '\n' + functions.get('renderIncome'), paydayContext);
   await paydayContext.renderIncome({ querySelector: () => ({ addEventListener() {} }), querySelectorAll: () => [] });
-  assert.ok(paydayMarkup.includes('Total income</span><span class="stat-value">ZAR 8000.00'));
+  assert.ok(paydayMarkup.includes('id="income-total">ZAR 8000.00'));
   assert.ok(paydayMarkup.includes('<th>Advance</th><th>Savings taken</th>'));
   assert.ok(paydayMarkup.includes('<h2>Buffer</h2>'));
   assert.ok(!paydayMarkup.includes('next payday excluded'));
   assert.ok(!paydayMarkup.includes('id="payday-form"'));
+  const controls = Object.fromEntries(['amount', 'advanceAmount', 'savingsAmount'].map(field => [field, { dataset: { field }, value: field === 'amount' ? '10000' : field === 'advanceAmount' ? '2000' : '0', events: {}, addEventListener(event, listener) { this.events[event] = listener; } }]));
+  const row = { dataset: { id: 'salary' }, querySelectorAll: () => Object.values(controls), querySelector: selector => controls[selector.match(/data-field="([^"]+)"/)[1]] };
+  const total = {};
+  const liveContainer = { querySelector: () => total, querySelectorAll: selector => selector === '.income-table tbody tr[data-id]' ? [row] : [] };
+  await paydayContext.renderIncome(liveContainer);
+  controls.advanceAmount.value = '3000';
+  controls.advanceAmount.events.input();
+  assert.equal(total.textContent, 'ZAR 7000.00');
+  controls.savingsAmount.value = '500';
+  controls.savingsAmount.events.input();
+  assert.equal(total.textContent, 'ZAR 6500.00');
+  let freshReads = 0;
+  const cached = { docs: [{ data: () => ({ advanceAmount: 2000 }) }] };
+  const current = { docs: [{ data: () => ({ advanceAmount: 3000 }) }] };
+  const repositoryContext = {
+    requireContext: () => ({ uid: 'test', db: {}, api: { collection: () => ({ path: 'payCycles' }), getDocsFromServer: async () => { freshReads++; return current; } } }),
+    readDocs: async () => cached,
+  };
+  vm.createContext(repositoryContext);
+  vm.runInContext(functions.get('createRepository'), repositoryContext);
+  const cycleRepo = repositoryContext.createRepository('payCycles');
+  assert.equal((await cycleRepo.getAll())[0].advanceAmount, 2000);
+  assert.equal((await cycleRepo.getAll({ fresh: true }))[0].advanceAmount, 3000);
+  assert.equal(freshReads, 1);
   console.log('Payday funding, inline income deductions, buffer single counting, atomic savings, linked receipts, and compact Income layout passed.');
 }
 checkPaydayBudget().catch(error => { console.error(error); process.exitCode = 1; });

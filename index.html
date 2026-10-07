@@ -1668,10 +1668,10 @@ window.WR = window.WR || {};
       return api.doc(db, 'users', uid, storeName, id);
     }
     return {
-      async getAll() {
+      async getAll({ fresh = false } = {}) {
         const { api } = requireContext();
         const ref = collectionRef();
-        const snap = await readDocs(api, ref, ref.path);
+        const snap = fresh ? await api.getDocsFromServer(ref) : await readDocs(api, ref, ref.path);
         return snap.docs.map((d) => d.data());
       },
       /** @param {string} id */
@@ -5085,12 +5085,12 @@ WR.ui = WR.ui || {};
   }
   Object.assign(WR.ui, { savePayCycle, savePayAdvance, renderPaydayIncome });
 
-  async function renderIncome(container) {
+  async function renderIncome(container, fresh = false) {
     const [profile, incomes, pots, cycles] = await Promise.all([
       WR.ui.getOrCreateProfile(),
-      WR.repos.incomeSources.getAll(),
-      WR.repos.savingsPots.getAll(),
-      WR.repos.payCycles.getAll(),
+      WR.repos.incomeSources.getAll({ fresh }),
+      WR.repos.savingsPots.getAll({ fresh }),
+      WR.repos.payCycles.getAll({ fresh }),
     ]);
     const month = WR.ui._paydayMonth || WR.ui.currentBudgetMonth();
     WR.ui._paydayMonth = month;
@@ -5131,7 +5131,7 @@ WR.ui = WR.ui || {};
       <h1>Income</h1>
       <div class="toolbar"><label>Month<input id="income-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
       <div class="stat-grid">
-        <div class="stat"><span class="stat-label">Total income</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
+        <div class="stat"><span class="stat-label">Total income</span><span class="stat-value" id="income-total">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
       </div>
       <table class="data-table income-table">
         <thead><tr><th>Source</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Start month</th><th>End month</th><th>Advance</th><th>Savings taken</th><th></th></tr></thead>
@@ -5161,6 +5161,18 @@ WR.ui = WR.ui || {};
     container.querySelectorAll('.income-table tbody tr[data-id]').forEach((tr) => {
       const id = tr.dataset.id;
       tr.querySelectorAll('.cell').forEach((input) => {
+        if (['amount', 'advanceAmount', 'savingsAmount'].includes(input.dataset.field)) {
+          input.addEventListener('input', () => {
+            let preview = Number(saved.bufferAmount) || 0;
+            container.querySelectorAll('.income-table tbody tr[data-id]').forEach(row => {
+              if (!active.some(source => source.id === row.dataset.id)) return;
+              const value = field => Number(row.querySelector(`[data-field="${field}"]`).value) || 0;
+              const source = incomes.find(item => item.id === row.dataset.id);
+              preview += WR.ui.monthlyAmountFromFrequency(value('amount'), source.frequency || 'monthly') - value('advanceAmount') - value('savingsAmount');
+            });
+            container.querySelector('#income-total').textContent = `${profile.baseCurrency} ${WR.ui.fmt(preview)}`;
+          });
+        }
         input.addEventListener('change', async () => {
           const field = input.dataset.field;
           try {
@@ -5178,7 +5190,7 @@ WR.ui = WR.ui || {};
               if (!isMonthRangeValid(sourceFields.startMonth ?? income.startMonth, sourceFields.endMonth ?? income.endMonth)) throw new Error('Invalid month range.');
               await saveIncomeBudget(month, { sourceId: id, sourceFields });
             }
-            await renderIncome(container);
+            await renderIncome(container, true);
             WR.ui.enhanceResponsiveContent(container);
           } catch (error) { WR.ui.notify(error.message, 'error'); await renderIncome(container); WR.ui.enhanceResponsiveContent(container); }
         });
@@ -5188,7 +5200,7 @@ WR.ui = WR.ui || {};
     container.querySelectorAll('.delete-income').forEach((button) => {
       button.addEventListener('click', async () => {
         if (!confirm('Delete this income source?')) return;
-        try { await saveIncomeBudget(month, { sourceId: button.dataset.id, removeSource: true }); await renderIncome(container); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
+        try { await saveIncomeBudget(month, { sourceId: button.dataset.id, removeSource: true }); await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
       });
     });
 
@@ -5212,11 +5224,11 @@ WR.ui = WR.ui || {};
         startMonth,
         endMonth,
       });
-      try { await saveIncomeBudget(month, { sourceId: newSource.id, newSource }); await renderIncome(container); WR.ui.enhanceResponsiveContent(container); } catch (error) { message.textContent = error.message; }
+      try { await saveIncomeBudget(month, { sourceId: newSource.id, newSource }); await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); } catch (error) { message.textContent = error.message; }
     });
     document.getElementById('income-buffer-form').addEventListener('submit', async event => {
       event.preventDefault();
-      try { await saveIncomeBudget(month, { bufferAmount: Number(event.currentTarget.elements.amount.value) }); await renderIncome(container); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
+      try { await saveIncomeBudget(month, { bufferAmount: Number(event.currentTarget.elements.amount.value) }); await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
     });
   }
 

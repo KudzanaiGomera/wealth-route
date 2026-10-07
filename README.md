@@ -49,6 +49,8 @@ On Income, select a month. The table has Source, Amount, Frequency, Start
 month, End month, Advance, and Savings taken. Amount is income before
 advances and savings. Deductions belong to the selected month, not every
 future month. Choose a pot in the Savings taken cell; edits save automatically.
+Total income previews numeric edits while typing. Leaving the field saves
+the change and reloads affected records from the server, without a page refresh.
 
 **Total income = income sources - advances - savings taken + added buffer.**
 
