@@ -5317,7 +5317,7 @@ WR.ui = WR.ui || {};
 
       <h3>Add category</h3>
       <form id="day-category-form" class="inline-form">
-        <input name="name" placeholder="New category" required>
+        <input name="categoryName" placeholder="New category" required>
         <button type="submit" class="secondary">Add category</button>
       </form>
 
@@ -5357,7 +5357,7 @@ WR.ui = WR.ui || {};
     document.getElementById('day-category-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.target;
-      const name = form.name.value.trim();
+      const name = form.categoryName.value.trim();
       if (!name) return;
       if (!categoryNames.some((category) => category.toLowerCase() === name.toLowerCase())) {
         await WR.repos.expenseCategories.add(WR.models.createExpenseCategory({ name, type: 'variable', essential: false }));
