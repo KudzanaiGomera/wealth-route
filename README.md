@@ -35,6 +35,66 @@ this means for offline use.
   activity ledger with signed amounts, inline editing, and labeled fields on phones.
 - **Version 3.0.0** in package metadata, Settings, and exported backups;
   the service-worker shell cache is refreshed for the release.
+- **Payday budgets:** expected income less advances, reserved expenses, debt
+  payments, and linked savings allocations funds the day-to-day budget once
+  payday is confirmed. Positive and negative balances carry forward.
+
+### Payday Budgeting
+
+Payday is the **25th**. The budget named October runs from **25 September
+through 24 October**; November begins on 25 October. Dashboard and the
+payday-enabled Transactions view use these same date boundaries.
+
+On Income, select a budget month and review the expected income **before
+advances**, fixed expenses, variable reservations, and debt payments. New
+plans default to recurring income/fixed expenses, the larger of planned and
+actual variable expenses, and monthly-equivalent debt minimums. These are
+editable reservations, not automatic bill or debt payments. Saved cycles
+keep their own amounts; changes to recurring sources do not rewrite them.
+
+Record each wage advance with its received date and future payday. It adds
+available money when received and reduces that future payday's salary.
+The advance principal is **not** also a variable expense or a debt payment.
+If already recorded as an Add money transaction, link that matching date
+and amount instead of crediting it again. Linked entries cannot be edited
+or deleted independently. Remove the link on Income first; removing a
+linked advance preserves the original transaction. Separate advance fees
+remain expenses. Confirmed cycles must be unconfirmed before their
+advances can be changed.
+
+Select a savings pot and amount under **Savings from payday**. Multiple
+allocations are supported. Save unchecked for a plan; check **Pay received
+and listed savings transferred** only after payday and the real transfer.
+Confirmation credits the pots and funds the spending budget in one
+Firestore transaction. Repeated saves do not duplicate money. Editing an
+allocation or unconfirming adjusts/reverses the pot credits atomically.
+Reversal is blocked if that money is no longer in the pot. Future paydays
+cannot be confirmed; these operations require an online connection.
+
+**New budget = expected income - advances - fixed reservations - variable
+reservations - debt reservations - savings allocations.**
+
+**Remaining = carry-over + confirmed new budget + extra money received -
+everyday spending.** Carry-over includes overspending; negative balances
+are never reset to zero. The progress bar shows the percentage of available
+money remaining, including carry-over and extra receipts, clamped to 0-100%.
+
+Transactions remains in its existing calendar-month mode until a payday
+plan or advance exists. In payday mode, mark payments already included in
+Income reservations as **Already reserved on Income**; they must not
+reduce the everyday balance a second time. Payday funding and unlinked
+advance receipts are calculated automatically, not copied into editable
+transaction rows.
+
+**Existing-data setup:** export a backup first. Remove advance principal
+from Variable Expenses yourself, link any existing advance receipt, and
+reconcile the initial balance and earlier Add money entries before
+confirming historical payday funding. Do not also enter a funded payday
+budget as Add money or manually add its savings to a pot. Existing records
+are not automatically deleted or reclassified, because names alone cannot
+reliably identify an advance, salary deposit, or duplicate savings transfer.
+An old manual payday top-up must be reconciled before confirming that same
+payday. Legacy general-savings entries are not automatically linked to pots.
 
 ### Previous release: 2.0
 
@@ -231,6 +291,14 @@ should include 320px, 375px, 768px, and 1440px widths in both themes, keyboard
 focus on the eye buttons, and login/signup/reset modes. Real iOS home-screen
 safe-area behavior still requires an on-device check.
 
+`npm test` also exercises the production payday functions with isolated,
+in-memory transactional fixtures: date boundaries, cent-rounded funding,
+positive/negative carry-over, future dates, planned versus confirmed funding,
+advance receipt linking and duplicate guards, savings confirmation/edit/reversal,
+missing pots, insufficient reversal balances, and pre-advance Income defaults.
+These tests never access a real account. Browser form/layout checks should
+also cover Income, Transactions, Dashboard, and Savings in both themes.
+
 ## What's built
 
 The main navigation now opens Transactions for day-to-day activity and keeps
@@ -254,14 +322,14 @@ payments (weekly 52/12, biweekly 26/12, quarterly 1/3, yearly 1/12). Dates
 and interest are estimates; actual interest, rate changes, and new borrowing
 must be reconciled against lender statements.
 
-**Dashboard** \u2014 net worth, income, expenses, surplus, debt, emergency fund
+**Dashboard** \u2014 net worth, payday budget, remaining money, carry-over, debt, emergency fund
 months, financial health score with a transparent per-component breakdown,
 the "What Should I Do Now?" recommendations panel, cash flow and net worth
 charts, one-click net worth snapshot recording.
 
-**Transactions** \u2014 sortable, category-taggable, inline-editable budget
-lines (income, fixed, variable, savings, debt payment) per month,
-budget-vs-actual-vs-difference.
+**Transactions** \u2014 date-grouped, inline-editable everyday activity,
+connected payday funding, carry-over, and remaining-budget progress.
+**Variable Expenses** retains monthly budget-vs-actual expense planning.
 
 **Debts** \u2014 inline-editable including currency, plus avalanche/snowball/
 hybrid prioritisation with a month-by-month payoff simulator: total months
@@ -272,8 +340,10 @@ The page separates "Debts I owe" and "Owed to me" into tabs. Loan details,
 paid-off history, the monthly tracker, and payoff settings can be expanded
 as needed. Dashboard Paid/Unpaid actions share the debt payment ledger and
 update balances atomically; payment changes require an online connection.
-Monthly Surplus means income minus fixed and variable expenses. The separate
-"After debt minimums" amount is used by recommendations.
+The dashboard's Budgeted for the month deducts advances, expense/debt
+reservations, and linked payday savings. Recommendations use the payday
+budget where a cycle is saved; otherwise they retain the legacy cash-flow
+calculation. Reservation changes do not mark debts as paid.
 
 The separate **Money owed to me** section records personal loans and bills
 paid on someone else's behalf, including the person, principal, currency,

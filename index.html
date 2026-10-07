@@ -748,6 +748,9 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .day-ledger .day-credit, .day-ledger .day-credit input { color: var(--success); }
 .day-ledger .delete-day { color: var(--muted); font-size: 0.8rem; }
 .day-ledger .delete-day:hover { color: var(--danger); }
+.data-table.day-ledger td input.cell[type="checkbox"], #payday-form input[type="checkbox"], #day-add-form input[type="checkbox"] { width: 1rem; min-width: 1rem; height: 1rem; min-height: 1rem; flex: 0 0 1rem; accent-color: var(--accent); }
+#payday-form .payday-check, #payday-form .payday-check span { display: flex; align-items: flex-start; gap: 0.5rem; }
+#payday-form .payday-check input { margin-top: 0.15rem; }
 @media (max-width: 680px) {
   .data-table.day-ledger { min-width: 0; }
   .day-ledger thead { display: none; }
@@ -1708,6 +1711,8 @@ window.WR = window.WR || {};
     moneyOwed: createRepository('moneyOwed'),
     emergencyFundContributions: createRepository('emergencyFundContributions'),
     savingsPots: createRepository('savingsPots'),
+    payCycles: createRepository('payCycles'),
+    payAdvances: createRepository('payAdvances'),
     financialGoals: createRepository('financialGoals'),
     dayToDayAccounts: createRepository('dayToDayAccounts'),
     dayToDayTransactions: createRepository('dayToDayTransactions'),
@@ -3383,6 +3388,53 @@ WR.ui = WR.ui || {};
     };
   }
 
+  function payCycleDates(month, payday = 25) {
+    const [year, monthNumber] = month.split('-').map(Number);
+    const day = Math.min(31, Math.max(1, Number(payday) || 25));
+    const dateFor = (offset) => {
+      const date = new Date(year, monthNumber - 1 + offset, 1);
+      const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+      date.setDate(Math.min(day, lastDay));
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+    return { start: dateFor(-1), endExclusive: dateFor(0) };
+  }
+
+  function currentBudgetMonth(date = new Date(), payday = 25) {
+    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    const offset = date.getDate() >= Math.min(Number(payday) || 25, lastDay) ? 1 : 0;
+    return currentMonthKey(new Date(date.getFullYear(), date.getMonth() + offset, 1));
+  }
+
+  function calculatePayCycleFunding(cycle) {
+    const cents = value => Math.round((Number(value) || 0) * 100);
+    const savings = (cycle.allocations || []).reduce((sum, item) => sum + cents(item.amount), 0);
+    const salary = cents(cycle.expectedIncome) - cents(cycle.advanceAmount);
+    const expenses = cents(cycle.fixedAmount) + cents(cycle.variableAmount) + cents(cycle.debtAmount);
+    return { salary: salary / 100, savings: savings / 100, expenses: expenses / 100, budget: (salary - savings - expenses) / 100 };
+  }
+
+  function calculatePayCycleBudget(accounts, transactions, cycles, advances, month, payday = 25, today = new Date().toISOString().slice(0, 10)) {
+    const dates = payCycleDates(month, payday);
+    const confirmed = cycles.filter(cycle => cycle.confirmed && cycle.payDate <= today);
+    const events = transactions.map(item => ({ date: item.date, amount: (item.kind === 'add' ? 1 : -1) * (Number(item.amount) || 0), covered: item.kind !== 'add' && !!item.coveredByBudget, kind: item.kind === 'add' ? 'add' : 'spend' }));
+    confirmed.forEach(cycle => events.push({ date: cycle.payDate, amount: calculatePayCycleFunding(cycle).budget, kind: 'funding' }));
+    advances.filter(item => !item.transactionId).forEach(item => events.push({ date: item.receivedDate, amount: Number(item.amount) || 0, kind: 'add' }));
+    const opening = Number(accounts.slice().sort((left, right) => Number(left.year) - Number(right.year))[0]?.startingBalance) || 0;
+    const enabledFrom = confirmed.slice().sort((left, right) => left.payDate.localeCompare(right.payDate))[0]?.payDate;
+    const counted = events.filter(item => item.date && item.date <= today && !(item.covered && enabledFrom && item.date >= enabledFrom));
+    const sum = items => Math.round(items.reduce((total, item) => total + item.amount, 0) * 100) / 100;
+    const carryOver = Math.round((opening + sum(counted.filter(item => item.date < dates.start))) * 100) / 100;
+    const period = counted.filter(item => item.date >= dates.start && item.date < dates.endExclusive);
+    const cycle = confirmed.find(item => item.month === month);
+    const funding = cycle ? calculatePayCycleFunding(cycle).budget : 0;
+    const added = sum(period.filter(item => item.kind === 'add'));
+    const spent = -sum(period.filter(item => item.kind === 'spend'));
+    const available = Math.round((carryOver + funding + added) * 100) / 100;
+    const remaining = Math.round((carryOver + sum(period)) * 100) / 100;
+    return { ...dates, enabled: !!enabledFrom, confirmed: !!cycle, carryOver, funding, added, spent, available, remaining, remainingPct: available > 0 ? Math.max(0, Math.min(100, remaining / available * 100)) : 0 };
+  }
+
   /**
    * @param {string} [monthKey] - 'YYYY-MM', defaults to the current month
    */
@@ -3392,7 +3444,7 @@ WR.ui = WR.ui || {};
     const selectedYear = Number(month.slice(0, 4));
     const selectedMonthNumber = Number(month.slice(5, 7));
 
-    const [allBudgetLines, debts, assets, investments, exchangeRates, expenseCategories, netWorthHistory, profile, incomeSources, fixedExpenses, emergencyFundContributions, dayToDayAccounts, dayToDayTransactions, savingsPots, debtPayments] =
+    const [allBudgetLines, debts, assets, investments, exchangeRates, expenseCategories, netWorthHistory, profile, incomeSources, fixedExpenses, emergencyFundContributions, dayToDayAccounts, dayToDayTransactions, savingsPots, debtPayments, payCycles, payAdvances] =
       await Promise.all([
         WR.repos.budgetLines.getAll(),
         WR.repos.debts.getAll(),
@@ -3409,6 +3461,8 @@ WR.ui = WR.ui || {};
         WR.repos.dayToDayTransactions.getAll(),
         WR.repos.savingsPots.getAll(),
         WR.repos.debtPayments.getAll(),
+        WR.repos.payCycles.getAll(),
+        WR.repos.payAdvances.getAll(),
       ]);
 
     const monthBudgetLines = allBudgetLines.filter((line) => line.month === month);
@@ -3434,10 +3488,20 @@ WR.ui = WR.ui || {};
         actualAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'),
       }));
 
-    const budgetLines = monthBudgetLines
+    const applyPaydayIncome = (lines, monthId) => {
+      const cycle = payCycles.find(item => item.month === monthId);
+      if (!cycle) return lines;
+      const result = Number.isFinite(Number(cycle.expectedIncome))
+        ? lines.filter(item => item.type !== 'income').concat({ type: 'income', name: 'Expected payday income', actualAmount: Number(cycle.expectedIncome), budgetAmount: Number(cycle.expectedIncome) })
+        : lines.slice();
+      result.push({ type: 'income', name: 'Advance already received', actualAmount: -(Number(cycle.advanceAmount) || 0), budgetAmount: -(Number(cycle.advanceAmount) || 0) });
+      if (cycle.confirmed) result.push({ type: 'savings', name: 'Payday savings allocations', actualAmount: calculatePayCycleFunding(cycle).savings, budgetAmount: calculatePayCycleFunding(cycle).savings });
+      return result;
+    };
+    const budgetLines = applyPaydayIncome(monthBudgetLines
       .filter((line) => line.type !== 'income' && line.type !== 'fixed')
       .concat(recurringIncomeLines)
-      .concat(recurringFixedLines);
+      .concat(recurringFixedLines), month);
 
     const prevRecurringIncomeLines = incomeSources
       .filter((source) => Number(source.year || Number(prevMonth.slice(0, 4))) === Number(prevMonth.slice(0, 4)) && isActiveForMonth(source, prevMonth))
@@ -3457,14 +3521,17 @@ WR.ui = WR.ui || {};
         budgetAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'),
         actualAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'),
       }));
-    const prevBudgetLines = prevMonthBudgetLines
+    const prevBudgetLines = applyPaydayIncome(prevMonthBudgetLines
       .filter((line) => line.type !== 'income' && line.type !== 'fixed')
       .concat(prevRecurringIncomeLines)
-      .concat(prevRecurringFixedLines);
+      .concat(prevRecurringFixedLines), prevMonth);
 
     const F = WR.financial;
     const minimumDebtPayments = F.calculateTotalMinPayments(debts, exchangeRates, profile.baseCurrency);
     const cashflow = F.calculateCashFlowSummary(budgetLines, minimumDebtPayments);
+    const paydayRecord = payCycles.find(item => item.month === month);
+    const paydayFunding = calculatePayCycleFunding({ expectedIncome: recurringIncomeLines.reduce((sum, line) => sum + line.actualAmount, 0), fixedAmount: cashflow.fixedExpenses, variableAmount: budgetLines.filter(item => item.type === 'variable').reduce((sum, item) => sum + Math.max(Number(item.budgetAmount) || 0, Number(item.actualAmount) || 0), 0), debtAmount: minimumDebtPayments, allocations: [], ...paydayRecord });
+    if (paydayRecord) cashflow.availableSurplus = paydayFunding.budget;
     const prevCashflow = F.calculateCashFlowSummary(prevBudgetLines, minimumDebtPayments);
     const surplusDelta = prevBudgetLines.length > 0 ? cashflow.monthlySurplus - prevCashflow.monthlySurplus : null;
     const split = F.calculateEssentialVsDiscretionary(budgetLines, expenseCategories);
@@ -3526,12 +3593,13 @@ WR.ui = WR.ui || {};
       ...debtPayments.map((payment) => payment.month),
       ...emergencyFundContributions.map((item) => String(item.date || '').slice(0, 7)),
       ...dayToDayTransactions.map((transaction) => String(transaction.date || '').slice(0, 7)),
+      ...payCycles.map(cycle => cycle.month),
     ].filter((monthId) => String(monthId).startsWith(`${selectedYear}-`)).sort();
     const firstRecordedMonth = recordedMonths[0];
     const recordedAnnualMonths = annualMonths.filter((monthId) => monthId <= month && (!firstRecordedMonth || monthId >= firstRecordedMonth) && (
       allBudgetLines.some((line) => line.month === monthId) ||
       incomeSources.some((source) => Number(source.year || selectedYear) === selectedYear && isActiveForMonth(source, monthId)) ||
-      fixedExpenses.some((expense) => isActiveForMonth(expense, monthId))
+      fixedExpenses.some((expense) => isActiveForMonth(expense, monthId)) || payCycles.some(cycle => cycle.month === monthId)
     ));
     const annualRows = recordedAnnualMonths.map((monthId) => {
       const monthLines = allBudgetLines.filter((line) => line.month === monthId && line.type !== 'income' && line.type !== 'fixed');
@@ -3541,7 +3609,7 @@ WR.ui = WR.ui || {};
       const monthFixed = fixedExpenses
         .filter((expense) => isActiveForMonth(expense, monthId))
         .map((expense) => ({ type: 'fixed', actualAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly') }));
-      const fullLines = monthLines.concat(monthIncome).concat(monthFixed);
+      const fullLines = applyPaydayIncome(monthLines.concat(monthIncome).concat(monthFixed), monthId);
       const monthCashflow = F.calculateCashFlowSummary(fullLines, minimumDebtPayments);
       return { month: monthId, cashflow: monthCashflow };
     });
@@ -3584,6 +3652,8 @@ WR.ui = WR.ui || {};
       }, 0);
     const dayToDayAccount = getDayToDayOpeningAccount(dayToDayAccounts, selectedYear);
     const dayToDaySummary = calculateDayToDaySummary(dayToDayAccounts, dayToDayTransactions, month);
+    const payCycleBudget = calculatePayCycleBudget(dayToDayAccounts, dayToDayTransactions, payCycles, payAdvances, month);
+    if (payCycles.length || payAdvances.length) dayToDaySummary.currentBalance = payCycleBudget.remaining;
 
     const snapshot = {
       month,
@@ -3617,6 +3687,11 @@ WR.ui = WR.ui || {};
       incomeSources,
       fixedExpenses,
       dayToDaySummary,
+      payCycleBudget,
+      paydayFunding,
+      paydayRecord,
+      payCycles,
+      payAdvances,
       dayToDayAccount,
       dayToDayTransactions,
       debts,
@@ -3647,6 +3722,7 @@ WR.ui = WR.ui || {};
     return day >= 1 && day <= 31 ? day : undefined;
   };
   WR.ui.calculateDayToDayMonthBalance = calculateDayToDayMonthBalance;
+  Object.assign(WR.ui, { payCycleDates, currentBudgetMonth, calculatePayCycleFunding, calculatePayCycleBudget });
   WR.ui.buildSnapshot = buildSnapshot;
 })();
 // UI layer, part 1: layout shell, DOM helpers, and the Dashboard view.
@@ -4136,7 +4212,7 @@ WR.ui = WR.ui || {};
   }
 
   async function renderDashboard(container) {
-    const s = await WR.ui.buildSnapshot();
+    const s = await WR.ui.buildSnapshot(WR.ui.currentBudgetMonth());
     WR.ui.assertActiveView(container);
     const currency = s.profile.baseCurrency;
     const setupComplete = s.cashflow.income > 0 && s.budgetLines.some((line) => line.type === 'fixed' || line.type === 'variable');
@@ -4153,7 +4229,7 @@ WR.ui = WR.ui || {};
     }
     const bills = billOccurrences.filter((bill) => !bill.paid);
     const paidBills = billOccurrences.filter((bill) => bill.paid);
-    const monthlySurplus = s.cashflow.monthlySurplus;
+    const monthlySurplus = s.paydayFunding.budget;
 
     function billRow(bill) {
       const index = billOccurrences.indexOf(bill);
@@ -4261,13 +4337,14 @@ WR.ui = WR.ui || {};
           </div>
 
           <div class="stat-grid">
-            <div class="stat"><span class="stat-label">Monthly Surplus</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
-            <div class="stat"><span class="stat-label">After debt minimums</span><span class="stat-value ${s.availableSurplus < 0 ? 'negative' : ''}">${currency} ${fmt(s.availableSurplus)}</span></div>
-            <div class="stat"><span class="stat-label">Day-to-Day Balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
+            <div class="stat"><span class="stat-label">Budgeted for the month${s.paydayRecord?.confirmed ? '' : ' (planned)'}</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
+            <div class="stat"><span class="stat-label">Carry-over buffer</span><span class="stat-value ${s.payCycleBudget.carryOver < 0 ? 'negative' : ''}">${currency} ${fmt(s.payCycleBudget.carryOver)}</span></div>
+            <div class="stat"><span class="stat-label">Remaining to spend</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
             <div class="stat"><span class="stat-label">Savings Pots</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
             <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
             <div class="stat"><span class="stat-label">Total Assets</span><span class="stat-value">${currency} ${fmt(s.netWorth.totalAssets)}</span></div>
           </div>
+          <div data-private-detail><div class="day-category-meter" role="progressbar" aria-label="Pay-cycle budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(s.payCycleBudget.remainingPct)}"><span style="--share: ${s.payCycleBudget.remainingPct}%"></span></div><p class="fine-print">${Math.round(s.payCycleBudget.remainingPct)}% remaining ${s.paydayRecord?.confirmed ? '' : '- confirm payday funding on Income'} · ${s.payCycleBudget.start} to ${s.payCycleBudget.endExclusive} (next payday excluded)</p></div>
         </div>
 
         <div class="dashboard-card annual-card">
@@ -4779,6 +4856,169 @@ WR.ui = WR.ui || {};
     return String(startMonth) <= String(endMonth);
   }
 
+  async function savePayCycle(month, fields) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Choose a valid budget month.');
+    const value = input => {
+      const number = Number(input);
+      if (!Number.isFinite(number) || number < 0) throw new Error('Amounts must be zero or greater.');
+      return Math.round(number * 100) / 100;
+    };
+    const payDate = WR.ui.payCycleDates(month).start;
+    if (fields.confirmed && payDate > new Date().toISOString().slice(0, 10)) throw new Error('A future payday can only be saved as a plan.');
+    const allocations = (fields.allocations || []).map(item => ({ potId: String(item.potId || ''), amount: value(item.amount) }));
+    if (allocations.some(item => !item.potId || item.amount <= 0)) throw new Error('Choose a pot and a positive amount for each savings allocation.');
+    const api = WR.account.getFirestoreApi();
+    const db = WR.account.getDb();
+    const uid = WR.account.getCurrentUser()?.uid;
+    if (!uid) throw new Error('Not signed in.');
+    const cycleRef = api.doc(db, 'users', uid, 'payCycles', month);
+    await api.runTransaction(db, async transaction => {
+      const previous = await transaction.get(cycleRef);
+      const old = previous.exists() ? previous.data() : {};
+      const next = { id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(old.advanceAmount || 0), fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
+      if (WR.ui.calculatePayCycleFunding(next).salary < 0) throw new Error('Advances exceed the expected salary. Correct the salary or advances first.');
+      if (WR.ui.calculatePayCycleFunding(next).savings > WR.ui.calculatePayCycleFunding(next).salary) throw new Error('Savings allocations exceed the salary arriving on payday.');
+      const deltas = new Map();
+      if (old.confirmed) (old.allocations || []).forEach(item => deltas.set(item.potId, (deltas.get(item.potId) || 0) - Number(item.amount)));
+      if (next.confirmed) allocations.forEach(item => deltas.set(item.potId, (deltas.get(item.potId) || 0) + item.amount));
+      const potIds = [...new Set([...deltas.keys(), ...allocations.map(item => item.potId)])];
+      const pots = await Promise.all(potIds.map(async potId => {
+        const ref = api.doc(db, 'users', uid, 'savingsPots', potId);
+        const snapshot = await transaction.get(ref);
+        if (!snapshot.exists()) throw new Error('A linked savings pot no longer exists.');
+        const pot = snapshot.data();
+        const delta = Math.round((deltas.get(potId) || 0) * 100) / 100;
+        const balance = Math.round(((Number(pot.currentAmount) || 0) + delta) * 100) / 100;
+        if (balance < 0) throw new Error('Cannot reverse savings already moved or spent. Restore the money to that pot first.');
+        if (pot.archived && (delta > 0 || (!old.confirmed && allocations.some(item => item.potId === potId)))) throw new Error('Choose an active savings pot.');
+        return { ref, delta, balance };
+      }));
+      pots.filter(pot => pot.delta !== 0).forEach(pot => transaction.update(pot.ref, { currentAmount: pot.balance }));
+      transaction.set(cycleRef, next);
+    });
+  }
+
+  async function savePayAdvance(id, fields, remove = false) {
+    const validDate = input => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(input || '')) return false;
+      const parsed = new Date(`${input}T12:00:00Z`);
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === input;
+    };
+    if (!remove && (!validDate(fields.receivedDate) || !validDate(fields.payDate) || fields.payDate.slice(-2) !== '25' || fields.receivedDate >= fields.payDate || fields.receivedDate > new Date().toISOString().slice(0, 10) || !Number.isFinite(Number(fields.amount)) || Number(fields.amount) <= 0)) throw new Error('Enter a positive advance received before its future payday on the 25th.');
+    const api = WR.account.getFirestoreApi();
+    const db = WR.account.getDb();
+    const uid = WR.account.getCurrentUser()?.uid;
+    if (!uid) throw new Error('Not signed in.');
+    const ref = api.doc(db, 'users', uid, 'payAdvances', id);
+    await api.runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(ref);
+      if (!remove && snapshot.exists()) return;
+      if (remove && !snapshot.exists()) return;
+      const record = remove ? snapshot.data() : { id, amount: Math.round(Number(fields.amount) * 100) / 100, receivedDate: fields.receivedDate, payDate: fields.payDate, transactionId: fields.transactionId || '' };
+      const payday = new Date(`${record.payDate}T12:00:00`);
+      const month = WR.ui.currentBudgetMonth(payday);
+      const cycleRef = api.doc(db, 'users', uid, 'payCycles', month);
+      const cycleSnapshot = await transaction.get(cycleRef);
+      const cycle = cycleSnapshot.exists() ? cycleSnapshot.data() : { id: month, month, payDate: record.payDate, allocations: [], confirmed: false };
+      if (cycle.confirmed) throw new Error('Unconfirm that payday before changing its advances.');
+      let linkedRef;
+      let linked;
+      if (record.transactionId) {
+        linkedRef = api.doc(db, 'users', uid, 'dayToDayTransactions', record.transactionId);
+        const linkedSnapshot = await transaction.get(linkedRef);
+        if (!linkedSnapshot.exists()) throw new Error('The linked transaction no longer exists.');
+        linked = linkedSnapshot.data();
+        if (!remove && (linked.kind !== 'add' || linked.date !== record.receivedDate || Math.round(Number(linked.amount) * 100) !== Math.round(record.amount * 100) || linked.paydayAdvanceId)) throw new Error('The linked Add money entry must have the same date and amount and must not already be linked.');
+      }
+      const advanceAmount = Math.round(((Number(cycle.advanceAmount) || 0) + (remove ? -1 : 1) * record.amount) * 100) / 100;
+      transaction.set(cycleRef, { ...cycle, advanceAmount: Math.max(0, advanceAmount) });
+      if (linkedRef) transaction.set(linkedRef, { ...linked, paydayAdvanceId: remove ? '' : id });
+      if (remove) transaction.delete(ref); else transaction.set(ref, record);
+    });
+  }
+
+  async function renderPaydayIncome(container) {
+    const [profile, cycles, advances, pots, transactions] = await Promise.all([WR.ui.getOrCreateProfile(), WR.repos.payCycles.getAll(), WR.repos.payAdvances.getAll(), WR.repos.savingsPots.getAll(), WR.repos.dayToDayTransactions.getAll()]);
+    const month = WR.ui._paydayMonth || WR.ui.currentBudgetMonth();
+    WR.ui._paydayMonth = month;
+    const snapshot = await WR.ui.buildSnapshot(month);
+    const saved = cycles.find(item => item.month === month);
+    const cycle = { expectedIncome: snapshot.paydayFunding.salary + (Number(saved?.advanceAmount) || 0), fixedAmount: snapshot.cashflow.fixedExpenses, variableAmount: snapshot.budgetLines.filter(item => item.type === 'variable').reduce((sum, item) => sum + Math.max(Number(item.budgetAmount) || 0, Number(item.actualAmount) || 0), 0), debtAmount: snapshot.cashflow.debtPayments, allocations: [], ...saved };
+    const funding = WR.ui.calculatePayCycleFunding(cycle);
+    const currency = WR.ui.escapeText(profile.baseCurrency);
+    const escape = WR.ui.escapeText;
+    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const upcomingMonth = WR.ui.currentMonthKey(new Date(now.getFullYear(), now.getMonth() + (now.getDate() >= 25 ? 2 : 1), 1));
+    const nextPayday = WR.ui.payCycleDates(upcomingMonth).start;
+    const options = selected => `<option value="">Choose a pot</option>${pots.filter(pot => !pot.archived || pot.id === selected).map(pot => `<option value="${escape(pot.id)}" ${pot.id === selected ? 'selected' : ''}>${escape(pot.name)}${pot.archived ? ' (archived)' : ''}</option>`).join('')}`;
+    WR.ui.setHTML(container, `
+      <h2>Payday budget</h2>
+      <div class="toolbar"><label>Budget month<input id="payday-month" type="month" value="${escape(month)}"></label><span class="fine-print">${escape(WR.ui.payCycleDates(month).start)} to ${escape(WR.ui.payCycleDates(month).endExclusive)} (next payday excluded)</span></div>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Salary arriving on payday</span><span class="stat-value">${currency} ${WR.ui.fmt(funding.salary)}</span></div>
+        <div class="stat"><span class="stat-label">Savings from payday</span><span class="stat-value">${currency} ${WR.ui.fmt(funding.savings)}</span></div>
+        <div class="stat"><span class="stat-label">Budgeted for the month${cycle.confirmed ? '' : ' (planned)'}</span><span class="stat-value ${funding.budget < 0 ? 'negative' : ''}">${currency} ${WR.ui.fmt(funding.budget)}</span></div>
+      </div>
+      <form id="payday-form" class="form-panel-grid">
+        <label>Expected income before advances<input name="expectedIncome" type="number" min="0" step="0.01" value="${escape(cycle.expectedIncome)}" required></label>
+        <label>Advance already taken<input value="${escape(cycle.advanceAmount || 0)}" readonly></label>
+        <label>Fixed expenses reserved<input name="fixedAmount" type="number" min="0" step="0.01" value="${escape(cycle.fixedAmount)}" required></label>
+        <label>Variable expenses reserved<input name="variableAmount" type="number" min="0" step="0.01" value="${escape(cycle.variableAmount)}" required></label>
+        <label>Debt payments reserved<input name="debtAmount" type="number" min="0" step="0.01" value="${escape(cycle.debtAmount)}" required></label>
+        <div class="span-2"><h3>Savings from payday</h3>
+          ${(cycle.allocations || []).map((item, index) => `<div class="inline-form payday-allocation" data-index="${index}"><label>Savings pot<select name="potId">${options(item.potId)}</select></label><label>Amount<input name="allocationAmount" type="number" min="0.01" step="0.01" value="${escape(item.amount)}" required></label><label class="payday-check"><input name="removeAllocation" type="checkbox">Remove allocation</label></div>`).join('')}
+          <div class="inline-form"><label>Additional savings pot<select name="newPotId">${options('')}</select></label><label>Amount<input name="newAllocationAmount" type="number" min="0.01" step="0.01" placeholder="0.00"></label></div>
+        </div>
+        <label class="span-2 payday-check"><span><input name="confirmed" type="checkbox" ${cycle.confirmed ? 'checked' : ''}>Pay received and listed savings transferred</span></label>
+        <div class="form-panel-actions"><button type="submit">Save payday budget</button></div>
+        <p class="fine-print span-2">Confirm only after payday. Use expected income before advances, not a deposit already reduced by advances. Do not also add this payday budget manually in Transactions. Reserved expenses are separate from everyday spending. Unconfirming reverses this funding and its linked savings.</p>
+      </form>
+      <h3>Wage advances</h3>
+      <form id="payday-advance-form" class="form-panel-grid">
+        <label>Amount received<input name="amount" type="number" min="0.01" step="0.01" required></label>
+        <label>Received date<input name="receivedDate" type="date" value="${today}" max="${today}" required></label>
+        <label>Taken from payday<input name="payDate" type="date" value="${nextPayday}" required></label>
+        <label>Already recorded in Transactions<select name="transactionId"><option value="">No, add to available money automatically</option>${transactions.filter(item => item.kind === 'add' && !item.paydayAdvanceId).map(item => `<option value="${escape(item.id)}">${escape(item.date)} - ${currency} ${WR.ui.fmt(item.amount)} - ${escape(item.description || '')}</option>`).join('')}</select></label>
+        <div class="form-panel-actions"><button type="submit">Record advance</button></div>
+      </form>
+      <table class="data-table"><thead><tr><th>Received</th><th>Future payday</th><th>Advance (${currency})</th><th></th></tr></thead><tbody>${advances.slice().sort((left, right) => right.receivedDate.localeCompare(left.receivedDate)).map(item => `<tr><td>${escape(item.receivedDate)}</td><td>${escape(item.payDate)}</td><td>${WR.ui.fmt(item.amount)}</td><td><button class="link-btn remove-pay-advance" data-id="${escape(item.id)}">Remove</button></td></tr>`).join('') || '<tr><td colspan="4" class="empty">No wage advances recorded.</td></tr>'}</tbody></table>
+    `);
+    container.querySelector('#payday-month').addEventListener('change', async event => { WR.ui._paydayMonth = event.target.value; await renderPaydayIncome(container); WR.ui.enhanceResponsiveContent(container); });
+    container.querySelector('#payday-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      try {
+        const allocations = [...form.querySelectorAll('.payday-allocation')].filter(row => !row.querySelector('[name="removeAllocation"]').checked).map(row => ({ potId: row.querySelector('[name="potId"]').value, amount: row.querySelector('[name="allocationAmount"]').value }));
+        if (form.elements.newPotId.value || form.elements.newAllocationAmount.value) allocations.push({ potId: form.elements.newPotId.value, amount: form.elements.newAllocationAmount.value });
+        await savePayCycle(month, { expectedIncome: form.elements.expectedIncome.value, fixedAmount: form.elements.fixedAmount.value, variableAmount: form.elements.variableAmount.value, debtAmount: form.elements.debtAmount.value, allocations, confirmed: form.elements.confirmed.checked });
+        WR.ui.notify('Payday budget and linked savings updated.', 'success');
+        await renderPaydayIncome(container);
+        WR.ui.enhanceResponsiveContent(container);
+      } catch (error) { WR.ui.notify(error.message, 'error'); } finally { button.disabled = false; }
+    });
+    const advanceId = WR.models.newId();
+    container.querySelector('#payday-advance-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      try {
+        await savePayAdvance(advanceId, { amount: form.elements.amount.value, receivedDate: form.elements.receivedDate.value, payDate: form.elements.payDate.value, transactionId: form.elements.transactionId.value });
+        WR.ui.notify('Advance recorded against the future payday.', 'success');
+        await renderPaydayIncome(container);
+        WR.ui.enhanceResponsiveContent(container);
+      } catch (error) { WR.ui.notify(error.message, 'error'); } finally { button.disabled = false; }
+    });
+    container.querySelectorAll('.remove-pay-advance').forEach(button => button.addEventListener('click', async () => {
+      if (!confirm('Remove this advance and reverse its available-money entry?')) return;
+      try { await savePayAdvance(button.dataset.id, {}, true); await renderPaydayIncome(container); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
+    }));
+  }
+  Object.assign(WR.ui, { savePayCycle, savePayAdvance, renderPaydayIncome });
+
   async function renderIncome(container) {
     const [profile, incomes] = await Promise.all([
       WR.ui.getOrCreateProfile(),
@@ -4811,7 +5051,7 @@ WR.ui = WR.ui || {};
       <p class="fine-print">Choose the months this income applies to. Annual income starts with the first dated financial record for that year.</p>
       <div class="toolbar"><label>Year: <select id="income-year">${WR.ui.yearsAroundCurrent(3, 4).map((y) => `<option value="${WR.ui.escapeText(y)}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></label></div>
       <div class="stat-grid">
-        <div class="stat"><span class="stat-label">Monthly Income (${WR.ui.monthName(Number(summaryMonth.slice(5)))} ${year})</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
+        <div class="stat"><span class="stat-label">Expected income before advances (${WR.ui.monthName(Number(summaryMonth.slice(5)))} ${year})</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
       </div>
       <table class="data-table">
         <thead><tr><th>Source</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Start month</th><th>End month</th><th></th></tr></thead>
@@ -4828,6 +5068,7 @@ WR.ui = WR.ui || {};
         <button type="submit">Add</button>
       </form>
       <p id="income-form-message" class="warning"></p>
+      <section class="feature-section" id="income-payday"></section>
     `);
 
     document.getElementById('income-year').addEventListener('change', (event) => {
@@ -4895,6 +5136,7 @@ WR.ui = WR.ui || {};
       }));
       renderIncome(container);
     });
+    await renderPaydayIncome(container.querySelector('#income-payday'));
   }
 
   async function renderFixedExpenses(container) {
@@ -5331,17 +5573,21 @@ WR.ui = WR.ui || {};
   }
 
   async function renderDayToDay(container) {
-    const [profile, accounts, transactions, expenseCategories, emergencyFundContributions] = await Promise.all([
+    const [profile, accounts, transactions, expenseCategories, emergencyFundContributions, payCycles, payAdvances] = await Promise.all([
       WR.ui.getOrCreateProfile(),
       WR.repos.dayToDayAccounts.getAll(),
       WR.repos.dayToDayTransactions.getAll(),
       WR.repos.expenseCategories.getAll(),
       WR.repos.emergencyFundContributions.getAll(),
+      WR.repos.payCycles.getAll(),
+      WR.repos.payAdvances.getAll(),
     ]);
-    const month = WR.ui._dayMonth || WR.ui.currentMonthKey();
+    const paydayMode = payCycles.length > 0 || payAdvances.length > 0;
+    const month = WR.ui._dayMonth || (paydayMode ? WR.ui.currentBudgetMonth() : WR.ui.currentMonthKey());
     const year = Number(month.slice(0, 4));
     const today = new Date().toISOString().slice(0, 10);
-    const transactionDate = today.slice(0, 7) === month ? today : `${month}-01`;
+    const dates = WR.ui.payCycleDates(month);
+    const transactionDate = paydayMode ? (today >= dates.start && today < dates.endExclusive ? today : dates.start) : (today.slice(0, 7) === month ? today : `${month}-01`);
     WR.ui._dayYear = year;
     WR.ui._dayMonth = month;
     const defaultCategories = ['Alcohol', 'Eating out', 'Transport', 'Bank charges', 'Additional groceries'];
@@ -5362,15 +5608,16 @@ WR.ui = WR.ui || {};
     const initialAccount = accounts.slice().sort((left, right) => Number(left.year) - Number(right.year))[0] || null;
     const initialBalanceYear = Number(initialAccount?.year) || year;
     const initialBalance = Number(initialAccount?.startingBalance) || 0;
-    const monthTx = transactions.filter((item) => String(item.date || '').slice(0, 7) === month).sort((a, b) => String(b.date).localeCompare(String(a.date)));
-    const added = monthTx.filter((item) => item.kind === 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const spent = monthTx.filter((item) => item.kind !== 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const monthTx = transactions.filter((item) => paydayMode ? item.date >= dates.start && item.date < dates.endExclusive : String(item.date || '').slice(0, 7) === month).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const payBudget = WR.ui.calculatePayCycleBudget(accounts, transactions, payCycles, payAdvances, month);
+    const added = paydayMode ? payBudget.added : monthTx.filter((item) => item.kind === 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const spent = paydayMode ? payBudget.spent : monthTx.filter((item) => item.kind !== 'add').reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     const monthBalance = WR.ui.calculateDayToDayMonthBalance(accounts, transactions, month);
     const opening = Number(account?.startingBalance) || 0;
-    const balanceBeforeMonth = monthBalance.balanceBeforeMonth;
-    const current = monthBalance.currentBalance;
+    const balanceBeforeMonth = paydayMode ? payBudget.carryOver : monthBalance.balanceBeforeMonth;
+    const current = paydayMode ? payBudget.remaining : monthBalance.currentBalance;
     const spendByCategory = new Map();
-    monthTx.filter((item) => item.kind !== 'add').forEach((item) => {
+    monthTx.filter((item) => item.kind !== 'add' && !(paydayMode && item.coveredByBudget)).forEach((item) => {
       const category = String(item.category || '').trim() || 'Uncategorised';
       spendByCategory.set(category, (spendByCategory.get(category) || 0) + (Number(item.amount) || 0));
     });
@@ -5409,24 +5656,26 @@ WR.ui = WR.ui || {};
         <td data-label="Type"><select class="cell" data-field="kind"><option value="spend" ${item.kind !== 'add' ? 'selected' : ''}>Spend</option><option value="add" ${item.kind === 'add' ? 'selected' : ''}>Add money</option></select></td>
         <td data-label="Description"><input class="cell" data-field="description" value="${escapeHtml(item.description || '')}"></td>
         <td data-label="Category"><select class="cell" data-field="category">${categoryOptions(item.category)}</select></td>
-        <td data-label="Note"><input class="cell" data-field="note" value="${escapeHtml(item.note || '')}"></td>
+        <td data-label="Note"><input class="cell" data-field="note" value="${escapeHtml(item.note || '')}">${paydayMode && item.kind !== 'add' ? `<label class="fine-print"><input class="cell" data-field="coveredByBudget" type="checkbox" ${item.coveredByBudget ? 'checked' : ''}>Reserved expense</label>` : ''}</td>
         <td data-label="Amount (${profile.baseCurrency})"><div class="day-amount ${item.kind === 'add' ? 'day-credit' : ''}"><span aria-hidden="true">${item.kind === 'add' ? '+' : '-'}</span><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${WR.ui.escapeText(item.amount)}"></div></td>
         <td><button class="link-btn delete-day" data-id="${WR.ui.escapeText(item.id)}">Delete</button></td>
       </tr>`).join('');
 
     WR.ui.setHTML(container, `
       <h1>Transactions</h1>
-      <p class="fine-print">Track daily account money separately from budget categories. Spend entries deduct from the current day-to-day balance.</p>
+      <p class="fine-print">${paydayMode ? 'Everyday spending uses your confirmed payday budget and carry-over. Reserved expenses were already deducted on Income.' : 'Track daily account money separately from budget categories. Spend entries deduct from the current day-to-day balance. Set up payday funding on Income to connect your budget.'}</p>
       <div class="toolbar"><label>Month: <input id="day-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
 
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Balance at start of month</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(balanceBeforeMonth)}</span></div>
-        <div class="stat"><span class="stat-label">Money added</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(added)}</span></div>
+        ${paydayMode ? `<div class="stat"><span class="stat-label">Payday budget</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(payBudget.funding)}</span></div>` : ''}
+        <div class="stat"><span class="stat-label">${paydayMode ? 'Extra money received' : 'Money added'}</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(added)}</span></div>
         <div class="stat"><span class="stat-label">Money spent</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(spent)}</span></div>
         <div class="stat"><span class="stat-label">Current balance</span><span class="stat-value ${current < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(current)}</span></div>
         <div class="stat"><span class="stat-label">Transactions this month</span><span class="stat-value">${monthTx.length}</span></div>
       </div>
-      <p class="fine-print">Balance at start of month + money added - money spent = current balance. Add a transaction to top up the balance; it will carry into future months automatically.</p>
+      <p class="fine-print">${paydayMode ? `Pay cycle: ${dates.start} to ${dates.endExclusive} (next payday excluded). Carry-over + payday budget + extra money received - everyday spending = remaining. ${payBudget.confirmed ? '' : 'This cycle has no confirmed payday funding yet.'}` : 'Balance at start of month + money added - money spent = current balance. Add a transaction to top up the balance; it will carry into future months automatically.'}</p>
+      ${paydayMode ? `<div class="day-category-meter" role="progressbar" aria-label="Pay-cycle budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(payBudget.remainingPct)}"><span style="--share: ${payBudget.remainingPct}%"></span></div><p class="fine-print">${Math.round(payBudget.remainingPct)}% of available money remaining. Payday funding and unlinked advance receipts are included automatically, not duplicated as editable transactions.</p>` : ''}
 
       ${reductionCard}
 
@@ -5464,6 +5713,7 @@ WR.ui = WR.ui || {};
         <select name="category">${categoryOptions()}</select>
         <input name="note" placeholder="Optional note">
         <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
+        ${paydayMode ? '<label><input name="coveredByBudget" type="checkbox">Already reserved on Income</label>' : ''}
         <button type="submit">Add</button>
       </form>
     `);
@@ -5502,8 +5752,11 @@ WR.ui = WR.ui || {};
         input.addEventListener('change', async () => {
           const row = await WR.repos.dayToDayTransactions.getById(id);
           if (!row) return;
+          if (row.paydayAdvanceId) { WR.ui.notify('Remove the advance link on Income before editing this transaction.', 'error'); renderDayToDay(container); return; }
           const field = input.dataset.field;
-          if (field === 'amount') {
+          if (field === 'coveredByBudget') {
+            row.coveredByBudget = input.checked;
+          } else if (field === 'amount') {
             row.amount = Math.max(0, parseFloat(input.value) || 0);
             input.value = row.amount;
           } else {
@@ -5519,6 +5772,8 @@ WR.ui = WR.ui || {};
 
     container.querySelectorAll('.delete-day').forEach((button) => {
       button.addEventListener('click', async () => {
+        const existing = await WR.repos.dayToDayTransactions.getById(button.dataset.id);
+        if (existing?.paydayAdvanceId) { WR.ui.notify('Remove the advance link on Income before deleting this transaction.', 'error'); return; }
         if (!confirm('Delete this day-to-day transaction?')) return;
         await WR.ui.removeWithUndo({
           repo: WR.repos.dayToDayTransactions,
@@ -5541,6 +5796,7 @@ WR.ui = WR.ui || {};
         category: form.category.value.trim() || undefined,
         note: form.note.value.trim() || undefined,
         amount: Math.max(0, parseFloat(form.amount.value) || 0),
+        coveredByBudget: form.elements.coveredByBudget?.checked && form.kind.value === 'spend' || false,
       }));
       renderDayToDay(container);
     });
@@ -7078,8 +7334,10 @@ WR.ui = WR.ui || {};
           <summary>How the numbers are calculated</summary>
           <p class="fine-print">WealthRoute is deterministic: formulas calculate outcomes and the assistant explains existing numbers only.</p>
           <ul>
-            <li>Monthly surplus = income - fixed expenses - variable expenses.</li>
-            <li>After debt minimums = monthly surplus - required minimum debt payments. Recommendations use this remaining amount.</li>
+            <li>Pay cycles run from the 25th to the day before the next payday. October's budget is funded on 25 September.</li>
+            <li>Budgeted for the month = expected income - advances already taken - fixed and variable expense reservations - debt reservations - linked savings allocations.</li>
+            <li>Remaining to spend = carry-over + confirmed payday funding + extra money received - everyday transactions. Expenses already reserved on Income are not deducted again.</li>
+            <li>Confirming payday savings credits the linked pots once. Editing or unconfirming adjusts both sides atomically and requires an online connection.</li>
             <li>Emergency cover = liquid emergency-ready funds divided by essential monthly expenses.</li>
             <li>Financial health score blends cash flow, emergency cover, debt burden, savings rate, and net-worth trend.</li>
             <li>Forecasts are scenarios, not guarantees.</li>
@@ -7094,6 +7352,7 @@ WR.ui = WR.ui || {};
           <summary>Release notes</summary>
           <ul>
             <li>Version 3.0: redesigned balance card, compact annual overview, and dashboard shortcuts for Transactions, Budget, Savings, and Goals.</li>
+            <li>Payday budgeting on Income: advances against future pay, linked savings allocations, confirmation and reversal, and automatic carry-over into Transactions.</li>
             <li>Hide or show dashboard balances, charts, and financial recommendation details with one privacy control. This device remembers the choice per account.</li>
             <li>Show or hide the password while logging in or signing up; passwords always start hidden.</li>
             <li>Responsive two-column balance rows and touch-friendly controls in light and dark mode.</li>

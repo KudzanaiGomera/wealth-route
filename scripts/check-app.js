@@ -162,11 +162,13 @@ async function checkTransactionLayout() {
     WR: {
       repos: {
         dayToDayAccounts: repo([]), dayToDayTransactions: repo(transactions),
-        expenseCategories: repo([]), emergencyFundContributions: repo([]),
+        expenseCategories: repo([]), emergencyFundContributions: repo([]), payCycles: repo([]), payAdvances: repo([]),
       },
       ui: {
         _dayMonth: '2026-10', getOrCreateProfile: async () => ({ baseCurrency: 'ZAR' }),
         previousMonthKey: () => '2026-09', escapeText: context.escapeText,
+        payCycleDates: () => ({ start: '2026-09-25', endExclusive: '2026-10-25' }),
+        calculatePayCycleBudget: () => ({}),
         fmt: amount => Number(amount).toFixed(2),
         calculateDayToDayMonthBalance: () => ({ balanceBeforeMonth: 0, currentBalance: 702 }),
         setHTML: (_container, value) => { markup = value; },
@@ -194,6 +196,107 @@ async function checkTransactionLayout() {
   console.log('Transaction date grouping, counts, mobile labels, escaping, edit binding, and empty-state checks passed.');
 }
 checkTransactionLayout().catch(error => { console.error(error); process.exitCode = 1; });
+
+async function checkPaydayBudget() {
+  const documents = new Map();
+  const copy = value => JSON.parse(JSON.stringify(value));
+  const api = {
+    doc: (_database, ...parts) => parts.join('/'),
+    runTransaction: async (_database, operation) => {
+      const writes = [];
+      const result = await operation({
+        get: async key => ({ exists: () => documents.has(key), data: () => copy(documents.get(key)) }),
+        set: (key, value) => writes.push(() => documents.set(key, copy(value))),
+        update: (key, value) => writes.push(() => documents.set(key, { ...documents.get(key), ...copy(value) })),
+        delete: key => writes.push(() => documents.delete(key)),
+      });
+      writes.forEach(write => write());
+      return result;
+    },
+  };
+  const paydayContext = { WR: { ui: {}, account: { getCurrentUser: () => ({ uid: 'payday-test' }), getFirestoreApi: () => api, getDb: () => ({}) } } };
+  vm.createContext(paydayContext);
+  vm.runInContext(['currentMonthKey', 'payCycleDates', 'currentBudgetMonth', 'calculatePayCycleFunding', 'calculatePayCycleBudget', 'savePayCycle', 'savePayAdvance'].map(name => functions.get(name)).join('\n'), paydayContext);
+  Object.assign(paydayContext.WR.ui, { payCycleDates: paydayContext.payCycleDates, currentBudgetMonth: paydayContext.currentBudgetMonth, calculatePayCycleFunding: paydayContext.calculatePayCycleFunding });
+  const funding = { expectedIncome: 10000, advanceAmount: 2000, fixedAmount: 1500, variableAmount: 500, debtAmount: 1000, allocations: [{ potId: 'holiday', amount: 1000 }] };
+  assert.equal(paydayContext.calculatePayCycleFunding(funding).budget, 4000);
+  assert.equal(paydayContext.calculatePayCycleFunding(funding).salary, 8000);
+  assert.deepEqual(copy(paydayContext.payCycleDates('2027-01')), { start: '2026-12-25', endExclusive: '2027-01-25' });
+  assert.equal(paydayContext.payCycleDates('2026-03', 31).start, '2026-02-28');
+  const cycles = [{ ...funding, month: '2026-10', payDate: '2026-09-25', confirmed: true }];
+  const transactions = [{ date: '2026-09-26', kind: 'spend', amount: 1000 }, { date: '2026-09-27', kind: 'spend', amount: 1500, coveredByBudget: true }];
+  const advances = [{ receivedDate: '2026-09-20', amount: 2000 }];
+  const accounts = [{ year: 2026, startingBalance: 500 }];
+  const budget = paydayContext.calculatePayCycleBudget(accounts, transactions, cycles, advances, '2026-10', 25, '2026-10-24');
+  assert.equal(budget.carryOver, 2500);
+  assert.equal(budget.remaining, 5500);
+  assert.equal(budget.spent, 1000);
+  const linked = paydayContext.calculatePayCycleBudget(accounts, [...transactions, { id: 'receipt', date: '2026-09-20', kind: 'add', amount: 2000 }], cycles, [{ ...advances[0], transactionId: 'receipt' }], '2026-10', 25, '2026-10-24');
+  assert.equal(linked.remaining, budget.remaining);
+  const next = paydayContext.calculatePayCycleBudget(accounts, [...transactions, { date: '2026-10-25', kind: 'spend', amount: 500 }], [...cycles, { ...funding, expectedIncome: 8000, month: '2026-11', payDate: '2026-10-25', confirmed: true }], advances, '2026-11', 25, '2026-11-01');
+  assert.equal(next.carryOver, 5500);
+  assert.equal(next.remaining, 7000);
+  assert.equal(paydayContext.calculatePayCycleBudget([], [{ date: '2026-09-26', kind: 'spend', amount: 6000 }], cycles, [], '2026-10', 25, '2026-10-24').remaining, -2000);
+  assert.equal(paydayContext.calculatePayCycleBudget([], [{ date: '2026-10-25', kind: 'spend', amount: 100 }], cycles, [], '2026-10', 25, '2026-10-24').remaining, 4000);
+  assert.equal(paydayContext.calculatePayCycleBudget([], [], [{ ...cycles[0], confirmed: false }], [], '2026-10', 25, '2026-10-24').funding, 0);
+
+  const base = 'users/payday-test/';
+  const today = new Date();
+  const payDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-25`;
+  const past = new Date(today.getFullYear(), today.getMonth() - 2, 25);
+  const month = paydayContext.currentBudgetMonth(past);
+  const earlierDate = new Date(past.getFullYear(), past.getMonth(), 20);
+  const receivedDate = `${earlierDate.getFullYear()}-${String(earlierDate.getMonth() + 1).padStart(2, '0')}-20`;
+  const earlierPayday = paydayContext.payCycleDates(month).start;
+  documents.set(base + 'savingsPots/holiday', { currentAmount: 500, archived: false });
+  documents.set(base + 'savingsPots/buffer', { currentAmount: 100, archived: false });
+  await paydayContext.savePayAdvance('advance', { amount: 2000, receivedDate, payDate: earlierPayday });
+  await paydayContext.savePayAdvance('advance', { amount: 2000, receivedDate, payDate: earlierPayday });
+  assert.equal(documents.get(base + 'payCycles/' + month).advanceAmount, 2000);
+  await paydayContext.savePayCycle(month, { ...funding, confirmed: false });
+  assert.equal(documents.get(base + 'savingsPots/holiday').currentAmount, 500);
+  await paydayContext.savePayCycle(month, { ...funding, confirmed: true });
+  await paydayContext.savePayCycle(month, { ...funding, confirmed: true });
+  assert.equal(documents.get(base + 'savingsPots/holiday').currentAmount, 1500);
+  await assert.rejects(() => paydayContext.savePayAdvance('advance', {}, true), /Unconfirm/);
+  await paydayContext.savePayCycle(month, { ...funding, allocations: [{ potId: 'buffer', amount: 700 }], confirmed: true });
+  assert.equal(documents.get(base + 'savingsPots/holiday').currentAmount, 500);
+  assert.equal(documents.get(base + 'savingsPots/buffer').currentAmount, 800);
+  documents.set(base + 'savingsPots/buffer', { currentAmount: 0, archived: false });
+  await assert.rejects(() => paydayContext.savePayCycle(month, { ...funding, allocations: [], confirmed: false }), /Cannot reverse/);
+  assert.equal(documents.get(base + 'payCycles/' + month).confirmed, true);
+  documents.set(base + 'savingsPots/buffer', { currentAmount: 800, archived: false });
+  await paydayContext.savePayCycle(month, { ...funding, allocations: [], confirmed: false });
+  assert.equal(documents.get(base + 'savingsPots/buffer').currentAmount, 100);
+  await paydayContext.savePayAdvance('advance', {}, true);
+  assert.equal(documents.get(base + 'payCycles/' + month).advanceAmount, 0);
+  await assert.rejects(() => paydayContext.savePayCycle(month, { ...funding, allocations: [{ potId: 'missing', amount: 100 }], confirmed: true }), /no longer exists/);
+  const futureMonth = paydayContext.currentBudgetMonth(new Date(today.getFullYear() + 1, today.getMonth(), 25));
+  await assert.rejects(() => paydayContext.savePayCycle(futureMonth, { ...funding, confirmed: true }), /future payday/);
+  documents.set(base + 'dayToDayTransactions/receipt', { date: receivedDate, kind: 'add', amount: 100 });
+  await paydayContext.savePayAdvance('linked', { amount: 100, receivedDate, payDate: earlierPayday, transactionId: 'receipt' });
+  assert.equal(documents.get(base + 'dayToDayTransactions/receipt').paydayAdvanceId, 'linked');
+  await assert.rejects(() => paydayContext.savePayAdvance('duplicate-link', { amount: 100, receivedDate, payDate: earlierPayday, transactionId: 'receipt' }), /already be linked/);
+  await paydayContext.savePayAdvance('linked', {}, true);
+  assert.equal(documents.get(base + 'dayToDayTransactions/receipt').amount, 100);
+  assert.equal(documents.get(base + 'dayToDayTransactions/receipt').paydayAdvanceId, '');
+  await assert.rejects(() => paydayContext.savePayAdvance('invalid', { amount: 100, receivedDate: '2026-02-30', payDate }), /positive advance/);
+  let paydayMarkup = '';
+  paydayContext.WR.repos = Object.fromEntries(['payCycles', 'payAdvances', 'savingsPots', 'dayToDayTransactions'].map(store => [store, { getAll: async () => store === 'payCycles' ? [{ month: '2026-10', advanceAmount: 2000 }] : [] }]));
+  paydayContext.WR.models = { newId: () => 'preview' };
+  Object.assign(paydayContext.WR.ui, {
+    _paydayMonth: '2026-10', getOrCreateProfile: async () => ({ baseCurrency: 'ZAR' }),
+    buildSnapshot: async () => ({ paydayFunding: { salary: 8000 }, cashflow: { income: 8000, fixedExpenses: 1000, debtPayments: 0 }, budgetLines: [] }),
+    currentMonthKey: paydayContext.currentMonthKey, escapeText: context.escapeText,
+    fmt: number => Number(number).toFixed(2), setHTML: (_container, markup) => { paydayMarkup = markup; },
+  });
+  vm.runInContext(functions.get('renderPaydayIncome'), paydayContext);
+  await paydayContext.renderPaydayIncome({ querySelector: () => ({ addEventListener() {} }), querySelectorAll: () => [] });
+  assert.ok(paydayMarkup.includes('name="expectedIncome" type="number" min="0" step="0.01" value="10000"'));
+  assert.ok(paydayMarkup.includes('Salary arriving on payday</span><span class="stat-value">ZAR 8000.00'));
+  console.log('Payday funding, carry-over, boundaries, advances, atomic savings lifecycle, linked receipts, and pre-advance form defaults passed.');
+}
+checkPaydayBudget().catch(error => { console.error(error); process.exitCode = 1; });
 
 async function checkPayments() {
   const documents = new Map();
