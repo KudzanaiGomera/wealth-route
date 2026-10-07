@@ -36,7 +36,7 @@ this means for offline use.
 - **Version 3.0.0** in package metadata, Settings, and exported backups;
   the service-worker shell cache is refreshed for the release.
 - **Income and buffer:** editable Advance and Savings taken columns reduce
-  Total income; savings link to a pot. Buffer adds an existing carry-over
+  Total income; savings pots are updated manually. Buffer adds an existing carry-over
   amount to Total income without duplicating cash.
 
 ### Payday Budgeting
@@ -48,51 +48,75 @@ payday-enabled Transactions view use these same date boundaries.
 On Income, select a month. The table has Source, Amount, Frequency, Start
 month, End month, Advance, and Savings taken. Amount is income before
 advances and savings. Deductions belong to the selected month, not every
-future month. Choose a pot in the Savings taken cell; edits save automatically.
+future month. Savings taken is an amount only; edits save automatically.
 Total income previews numeric edits while typing. Leaving the field saves
 the change and reloads affected records from the server, without a page refresh.
 
 **Total income = income sources - advances - savings taken + added buffer.**
 
 **Budgeted for the month = total income - fixed expenses - actual variable
-expenses - debt payments recorded for that month.** These totals stay linked
+expenses - monthly minimum payments on active debts.** These totals stay linked
 to their pages. Updating the budget does not mark a debt as paid.
+Transactions shows this same budget as **Balance at start of month**.
+**Current balance = monthly budget + money added - transaction spending.**
+Unallocated buffer and old initial balances are not added to Transactions.
 
-Savings edits update the pot and income together in one Firestore transaction.
-Repeated saves do not duplicate credits. Lowering/removing savings reverses
-the difference; reversal is blocked if that money has already left the pot.
-Edits require an online connection. Editing current/past months activates
-their funding automatically; future months stay planned and do not credit
-pots yet. Revisit/edit a future plan after payday to activate it.
+Savings taken only reduces income and the spending budget. Add that money
+to the chosen savings pots manually on Savings. Increasing, reducing, or
+clearing the income deduction never changes a pot balance. Edits require an
+online connection. Current/past months activate funding automatically;
+future months stay planned. Revisit/edit a future plan after payday to activate it.
 
 The **Buffer** section shows carry-over and lets you add an amount from it to
 Total income. It cannot exceed positive available carry-over. This allocates
-existing money, so remaining cash does not increase a second time. Negative
+existing money; it enters the transaction balance once, through the budget.
+Unallocated carry-over remains outside that spending balance. Negative
 carry-over is retained. Annual income excludes buffer reallocations and savings
 deductions so they are not counted as earnings.
 
+On the 25th, the previous cycle's remaining money plus any unused reserve
+becomes Available buffer. The opening amount is saved once per cycle, so
+refreshing or reopening on another device cannot credit it again. Later edits
+to historical spending do not silently rewrite a captured opening buffer.
+Use **Add to total income** to choose how much to spend, or enable **Use all
+buffer automatically** to include all positive buffer now and at later paydays.
+The toggle defaults off and is saved per account. Disabling it leaves the
+current allocation editable; it does not remove an amount already allocated.
+
+Overspending becomes a shortfall and reduces the next budget automatically,
+even with auto-use off. It is deducted once, not hidden or reset to zero.
+The first rollover for a cycle requires an online connection to read fresh
+records and commit the opening amount atomically. If the app is closed on the
+25th, rollover runs when that cycle is next opened. An open app checks the
+payday boundary every minute and when brought back into view; historic month
+selections are preserved. Previous unused reserves remain available too.
+
 Everyday transactions reduce remaining money; the progress bar shows the
-percentage remaining, clamped to 0-100%.
+Transactions current balance divided by Budgeted for the month, multiplied
+by 100 and clamped to 0-100%. Dashboard and Transactions use the same ratio;
+extra receipts do not change the budget used as its denominator.
 
 An Advance in the table reduces the selected future salary only. Record its
 receipt as Add money in Transactions if not already entered. Do not also put
 the principal in Variable Expenses; separate fees remain expenses. Existing
 advance receipt links and pot transfers are retained. Older aggregate
-deductions appear on the first active income row until edited. Old multi-pot
-allocations remain intact unless you explicitly change them.
+deductions appear on the first active income row until edited. Pot credits
+from the earlier automatic-linking implementation are preserved, not reversed
+or credited again when changing the new amount-only deduction.
 
-Transactions remains in its existing calendar-month mode until a payday
-record exists. Mark payments already included in fixed/variable expenses or
-the debt-payment ledger as **Already reserved on Income**; they must not
-reduce the everyday balance a second time. Payday funding and unlinked
-legacy advance receipts are calculated automatically, not copied into editable
-transaction rows.
+Transactions uses the selected pay-cycle budget. Every Spend entry reduces
+that budget; there is no reserved-expense checkbox or exemption. Legacy
+reserved flags are ignored, so those entries now count as spending too.
+Enter everyday spending here rather than duplicating expenses already
+deducted on the Fixed/Variable Expenses pages. Budget funding is not copied
+into editable transaction rows. Existing transaction records are preserved.
 
 **Existing-data setup:** export a backup first. Remove advance principal
 from Variable Expenses yourself, preserve existing advance receipts, and
 reconcile the initial balance and earlier Add money entries before
 editing historical Income deductions. Do not also enter a funded payday
-budget as Add money or manually add its savings to a pot. Existing records
+budget as Add money. Add new savings to pots manually, but do not duplicate
+credits already made by the earlier linked-savings implementation. Existing records
 are not automatically deleted or reclassified, because names alone cannot
 reliably identify an advance, salary deposit, or duplicate savings transfer.
 An old manual payday top-up must be reconciled before confirming that same
@@ -344,7 +368,7 @@ paid-off history, the monthly tracker, and payoff settings can be expanded
 as needed. Dashboard Paid/Unpaid actions share the debt payment ledger and
 update balances atomically; payment changes require an online connection.
 The dashboard's Budgeted for the month deducts advances, savings, fixed/actual
-variable expenses, and recorded monthly debt payments, and includes allocated
+variable expenses, and monthly debt minimums, and includes allocated
 buffer. Recommendations use the payday
 budget where a cycle is saved; otherwise they retain the legacy cash-flow
 calculation. Reservation changes do not mark debts as paid.

@@ -167,8 +167,11 @@ async function checkTransactionLayout() {
       ui: {
         _dayMonth: '2026-10', getOrCreateProfile: async () => ({ baseCurrency: 'ZAR' }),
         previousMonthKey: () => '2026-09', escapeText: context.escapeText,
+        syncBudgetMonth() {},
         payCycleDates: () => ({ start: '2026-09-25', endExclusive: '2026-10-25' }),
-        calculatePayCycleBudget: () => ({}),
+        calculatePayCycleBudget: () => ({ carryOver: 9999, funding: 4321, added: 800, spent: 98, remaining: 5023 }),
+        calculateBudgetRemainingPercentage: () => 0,
+        buildSnapshot: async () => ({ payCycles: [], paydayFunding: { budget: 4321 } }),
         fmt: amount => Number(amount).toFixed(2),
         calculateDayToDayMonthBalance: () => ({ balanceBeforeMonth: 0, currentBalance: 702 }),
         setHTML: (_container, value) => { markup = value; },
@@ -189,6 +192,12 @@ async function checkTransactionLayout() {
   assert.ok(markup.includes('&lt;unsafe&gt;'));
   assert.ok(!markup.includes("of this month's day-to-day spending"));
   assert.ok(selectors.includes('.day-ledger tbody tr[data-id]'));
+  assert.ok(markup.includes('Balance at start of month</span><span class="stat-value">ZAR 4321.00'));
+  assert.ok(!markup.includes('coveredByBudget'));
+  assert.ok(!markup.includes('Reserved expense'));
+  assert.ok(!markup.includes('day-balance-form'));
+  assert.ok(markup.includes('Current balance</span><span class="stat-value ">ZAR 5023.00'));
+  assert.ok(!markup.includes('stat-label">Buffer'));
   transactions.length = 0;
   await layoutContext.renderDayToDay(container);
   assert.ok(markup.includes('No day-to-day transactions yet.'));
@@ -216,11 +225,12 @@ async function checkPaydayBudget() {
   };
   const paydayContext = { WR: { ui: {}, account: { getCurrentUser: () => ({ uid: 'payday-test' }), getFirestoreApi: () => api, getDb: () => ({}) } } };
   vm.createContext(paydayContext);
-  vm.runInContext(['currentMonthKey', 'payCycleDates', 'currentBudgetMonth', 'calculatePayCycleFunding', 'calculatePayCycleBudget', 'savePayCycle', 'savePayAdvance'].map(name => functions.get(name)).join('\n'), paydayContext);
-  Object.assign(paydayContext.WR.ui, { payCycleDates: paydayContext.payCycleDates, currentBudgetMonth: paydayContext.currentBudgetMonth, calculatePayCycleFunding: paydayContext.calculatePayCycleFunding });
+  vm.runInContext(['currentMonthKey', 'previousMonthKey', 'payCycleDates', 'currentBudgetMonth', 'syncBudgetMonth', 'calculatePayCycleFunding', 'calculateBudgetRemainingPercentage', 'calculatePayCycleBudget', 'ensurePaydayRollover', 'savePayCycle', 'savePayAdvance'].map(name => functions.get(name)).join('\n'), paydayContext);
+  Object.assign(paydayContext.WR.ui, { payCycleDates: paydayContext.payCycleDates, currentBudgetMonth: paydayContext.currentBudgetMonth, previousMonthKey: paydayContext.previousMonthKey, syncBudgetMonth: paydayContext.syncBudgetMonth, calculatePayCycleFunding: paydayContext.calculatePayCycleFunding, calculatePayCycleBudget: paydayContext.calculatePayCycleBudget });
   const funding = { expectedIncome: 10000, advanceAmount: 2000, fixedAmount: 1500, variableAmount: 500, debtAmount: 1000, allocations: [{ potId: 'holiday', amount: 1000 }] };
   assert.equal(paydayContext.calculatePayCycleFunding(funding).budget, 4000);
   assert.equal(paydayContext.calculatePayCycleFunding(funding).salary, 8000);
+  assert.equal(paydayContext.calculatePayCycleFunding({ ...funding, shortfallAmount: 500 }).budget, 3500);
   assert.deepEqual(copy(paydayContext.payCycleDates('2027-01')), { start: '2026-12-25', endExclusive: '2027-01-25' });
   assert.equal(paydayContext.payCycleDates('2026-03', 31).start, '2026-02-28');
   const cycles = [{ ...funding, month: '2026-10', payDate: '2026-09-25', confirmed: true }];
@@ -229,18 +239,46 @@ async function checkPaydayBudget() {
   const accounts = [{ year: 2026, startingBalance: 500 }];
   const budget = paydayContext.calculatePayCycleBudget(accounts, transactions, cycles, advances, '2026-10', 25, '2026-10-24');
   assert.equal(budget.carryOver, 2500);
-  assert.equal(budget.remaining, 5500);
-  assert.equal(budget.spent, 1000);
+  assert.equal(budget.remaining, 1500);
+  assert.equal(budget.spent, 2500);
+  assert.equal(paydayContext.calculateBudgetRemainingPercentage(10000, 7000), 70);
+  assert.equal(paydayContext.calculateBudgetRemainingPercentage(0, 7000), 0);
+  assert.equal(paydayContext.calculateBudgetRemainingPercentage(10000, -500), 0);
+  assert.equal(paydayContext.calculateBudgetRemainingPercentage(10000, 12000), 100);
+  const percentageBudget = paydayContext.calculatePayCycleBudget([], [{ date: '2026-09-26', kind: 'spend', amount: 1500 }, { date: '2026-09-27', kind: 'add', amount: 500 }], cycles, [], '2026-10', 25, '2026-10-24');
+  assert.equal(percentageBudget.remaining, 3000);
+  assert.equal(percentageBudget.available, 4500);
+  assert.equal(percentageBudget.remainingPct, 75);
   const withBuffer = paydayContext.calculatePayCycleBudget(accounts, transactions, [{ ...cycles[0], bufferAmount: 2000 }], advances, '2026-10', 25, '2026-10-24');
-  assert.equal(withBuffer.remaining, budget.remaining);
+  assert.equal(withBuffer.remaining, budget.remaining + 2000);
   assert.equal(withBuffer.funding, 6000);
-  assert.equal(withBuffer.available, budget.available);
+  assert.equal(withBuffer.available, budget.available + 2000);
   assert.equal(paydayContext.calculatePayCycleFunding({ ...funding, bufferAmount: 2000 }).totalIncome, 9000);
   const linked = paydayContext.calculatePayCycleBudget(accounts, [...transactions, { id: 'receipt', date: '2026-09-20', kind: 'add', amount: 2000 }], cycles, [{ ...advances[0], transactionId: 'receipt' }], '2026-10', 25, '2026-10-24');
   assert.equal(linked.remaining, budget.remaining);
   const next = paydayContext.calculatePayCycleBudget(accounts, [...transactions, { date: '2026-10-25', kind: 'spend', amount: 500 }], [...cycles, { ...funding, expectedIncome: 8000, month: '2026-11', payDate: '2026-10-25', confirmed: true }], advances, '2026-11', 25, '2026-11-01');
-  assert.equal(next.carryOver, 5500);
-  assert.equal(next.remaining, 7000);
+  assert.equal(next.carryOver, 4000);
+  assert.equal(next.remaining, 1500);
+  const onlyBudget = paydayContext.calculatePayCycleBudget(accounts, transactions, [], [], '2026-10', 25, '2026-10-24', 4000);
+  assert.equal(onlyBudget.remaining, 1500);
+  assert.equal(onlyBudget.available, 4000);
+  const lockedCycle = { ...cycles[0], rolloverApplied: true, rolloverAvailable: 1500, bufferAmount: 1000 };
+  const locked = paydayContext.calculatePayCycleBudget([{ year: 2026, startingBalance: 99999 }], transactions, [lockedCycle], [], '2026-10', 25, '2026-10-24');
+  assert.equal(locked.carryOver, 1500);
+  assert.equal(locked.funding, 5000);
+  assert.equal(locked.remaining, 2500);
+  const following = paydayContext.calculatePayCycleBudget([], transactions, [lockedCycle], [], '2026-11', 25, '2026-11-01');
+  assert.equal(following.carryOver, 3000);
+  const deficitCycle = { ...cycles[0], rolloverApplied: true, rolloverAvailable: -500, shortfallAmount: 500 };
+  const deficitNext = paydayContext.calculatePayCycleBudget([], [], [deficitCycle], [], '2026-11', 25, '2026-11-01');
+  assert.equal(deficitNext.carryOver, 3500);
+  assert.equal(paydayContext.syncBudgetMonth(new Date(2026, 11, 24, 23, 59)), false);
+  paydayContext.WR.ui._dayMonth = '2026-12';
+  paydayContext.WR.ui._paydayMonth = '2026-11';
+  assert.equal(paydayContext.syncBudgetMonth(new Date(2026, 11, 25)), true);
+  assert.equal(paydayContext.WR.ui._dayMonth, '2027-01');
+  assert.equal(paydayContext.WR.ui._paydayMonth, '2026-11');
+  assert.equal(paydayContext.syncBudgetMonth(new Date(2026, 11, 25)), false);
   assert.equal(paydayContext.calculatePayCycleBudget([], [{ date: '2026-09-26', kind: 'spend', amount: 6000 }], cycles, [], '2026-10', 25, '2026-10-24').remaining, -2000);
   assert.equal(paydayContext.calculatePayCycleBudget([], [{ date: '2026-10-25', kind: 'spend', amount: 100 }], cycles, [], '2026-10', 25, '2026-10-24').remaining, 4000);
   assert.equal(paydayContext.calculatePayCycleBudget([], [], [{ ...cycles[0], confirmed: false }], [], '2026-10', 25, '2026-10-24').funding, 0);
@@ -289,10 +327,10 @@ async function checkPaydayBudget() {
   Object.assign(paydayContext.WR.ui, { isActiveForMonth: () => true, monthlyAmountFromFrequency: amount => Number(amount) });
   documents.set(base + 'incomeSources/salary', { id: 'salary', year: Number(month.slice(0, 4)), name: 'Salary', amount: 10000, frequency: 'monthly' });
   documents.set(base + 'incomeSources/claim', { id: 'claim', year: Number(month.slice(0, 4)), name: 'Claim', amount: 500, frequency: 'monthly' });
-  const tableFields = { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], sourceId: 'salary', availableBuffer: 2000, bufferAmount: 1000, adjustment: { advanceAmount: 2000, allocations: [{ potId: 'holiday', amount: 1000 }] } } };
+  const tableFields = { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], sourceId: 'salary', availableBuffer: 2000, bufferAmount: 1000, adjustment: { advanceAmount: 2000, savingsAmount: 1000 } } };
   await paydayContext.savePayCycle(month, tableFields);
   await paydayContext.savePayCycle(month, tableFields);
-  assert.equal(documents.get(base + 'savingsPots/holiday').currentAmount, 1500);
+  assert.equal(documents.get(base + 'savingsPots/holiday').currentAmount, 500);
   const tableCycle = documents.get(base + 'payCycles/' + month);
   assert.equal(tableCycle.mode, 'income-table');
   assert.equal(tableCycle.expectedIncome, 10500);
@@ -300,12 +338,50 @@ async function checkPaydayBudget() {
   assert.equal(paydayContext.calculatePayCycleFunding(tableCycle).budget, 5800);
   await paydayContext.savePayCycle(month, { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], sourceId: 'claim', availableBuffer: 2000, adjustment: { advanceAmount: 100, allocations: [] } } });
   assert.equal(documents.get(base + 'payCycles/' + month).advanceAmount, 2100);
-  assert.equal(documents.get(base + 'payCycles/' + month).sourceAdjustments.salary.allocations[0].amount, 1000);
+  assert.equal(documents.get(base + 'payCycles/' + month).sourceAdjustments.salary.savingsAmount, 1000);
   await assert.rejects(() => paydayContext.savePayCycle(month, { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], sourceId: 'salary', sourceFields: { amount: 100 }, availableBuffer: 2000 } }), /Advances exceed/);
   assert.equal(documents.get(base + 'incomeSources/salary').amount, 10000);
   await assert.rejects(() => paydayContext.savePayCycle(month, { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], availableBuffer: 2000, bufferAmount: 2001 } }), /Buffer exceeds/);
-  await paydayContext.savePayCycle(month, { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], sourceId: 'salary', adjustment: { allocations: [] }, availableBuffer: 2000 } });
+  await paydayContext.savePayCycle(month, { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], sourceId: 'salary', adjustment: { savingsAmount: 0 }, availableBuffer: 2000 } });
   assert.equal(documents.get(base + 'savingsPots/holiday').currentAmount, 500);
+  assert.equal(documents.get(base + 'payCycles/' + month).savingsAmount, 0);
+  documents.set(base + 'payCycles/' + month, { ...tableCycle, savingsAmount: undefined, allocations: [{ potId: 'holiday', amount: 1000 }], sourceAdjustments: { salary: { advanceAmount: 2000, allocations: [{ potId: 'holiday', amount: 1000 }] } } });
+  documents.set(base + 'savingsPots/holiday', { currentAmount: 1500, archived: false });
+  await paydayContext.savePayCycle(month, { fixedAmount: 1500, variableAmount: 500, debtAmount: 700, incomeTable: { sources: [{ id: 'salary' }, { id: 'claim' }], sourceId: 'salary', adjustment: { savingsAmount: 700 }, availableBuffer: 2000 } });
+  assert.equal(documents.get(base + 'savingsPots/holiday').currentAmount, 1500);
+  assert.equal(documents.get(base + 'payCycles/' + month).savingsAmount, 700);
+  assert.equal(documents.get(base + 'payCycles/' + month).legacySavingsAllocations[0].amount, 1000);
+  paydayContext.WR.repos = { incomeSources: { getAll: async () => [documents.get(base + 'incomeSources/salary'), documents.get(base + 'incomeSources/claim')] } };
+  paydayContext.WR.financial = { calculateTotalMinPayments: context.calculateTotalMinPayments };
+  paydayContext.WR.ui._activeBudgetMonth = undefined;
+  documents.set(base + 'userProfile/profile', { id: 'profile', baseCurrency: 'ZAR', autoUseBuffer: false });
+  const rolloverData = { profile: { id: 'profile', baseCurrency: 'ZAR' }, incomeSources: [{ id: 'roll-salary', year: 2026, amount: 10000, frequency: 'monthly' }], fixedExpenses: [], budgetLines: [], debts: [], exchangeRates: [], accounts: [], transactions: [{ date: '2026-10-24', kind: 'spend', amount: 2500 }, { date: '2026-10-25', kind: 'spend', amount: 999 }], cycles: [{ ...funding, month: '2026-10', payDate: '2026-09-25', confirmed: true }], advances: [] };
+  assert.equal(await paydayContext.ensurePaydayRollover(rolloverData, '2026-11', '2026-10-24'), undefined);
+  const manualRollover = await paydayContext.ensurePaydayRollover(rolloverData, '2026-11', '2026-10-25');
+  assert.equal(manualRollover.rolloverAvailable, 1500);
+  assert.equal(manualRollover.bufferAmount, 0);
+  const repeatRollover = await paydayContext.ensurePaydayRollover({ ...rolloverData, accounts: [{ year: 2026, startingBalance: 9999 }] }, '2026-11', '2026-10-25');
+  assert.equal(repeatRollover.rolloverAvailable, 1500);
+  assert.equal(repeatRollover.bufferAmount, 0);
+  documents.delete(base + 'payCycles/2026-11');
+  documents.set(base + 'userProfile/profile', { id: 'profile', baseCurrency: 'ZAR', autoUseBuffer: true });
+  const autoRollover = await paydayContext.ensurePaydayRollover(rolloverData, '2026-11', '2026-10-25');
+  assert.equal(autoRollover.bufferAmount, 1500);
+  assert.equal(paydayContext.calculatePayCycleFunding(autoRollover).budget, 11500);
+  documents.delete(base + 'payCycles/2026-11');
+  const negativeRollover = await paydayContext.ensurePaydayRollover({ ...rolloverData, transactions: [{ date: '2026-10-24', kind: 'spend', amount: 4500 }] }, '2026-11', '2026-10-25');
+  assert.equal(negativeRollover.rolloverAvailable, -500);
+  assert.equal(negativeRollover.bufferAmount, 0);
+  assert.equal(negativeRollover.shortfallAmount, 500);
+  assert.equal(paydayContext.calculatePayCycleFunding(negativeRollover).budget, 9500);
+  const yearRollover = await paydayContext.ensurePaydayRollover({ ...rolloverData, incomeSources: [{ id: 'new-year-salary', year: 2027, amount: 10000, frequency: 'monthly' }], transactions: [], cycles: [{ ...funding, month: '2026-12', payDate: '2026-11-25', confirmed: true }] }, '2027-01', '2026-12-25');
+  assert.equal(yearRollover.rolloverSourceMonth, '2026-12');
+  assert.equal(yearRollover.rolloverAvailable, 4000);
+  paydayContext.WR.ui.buildSnapshot = async () => ({ cashflow: { fixedExpenses: 1500, variableExpenses: 500 }, debts: [{ currency: 'ZAR', currentBalance: 10000, minPayment: 600, paymentFrequency: 'monthly' }], exchangeRates: [], profile: { baseCurrency: 'ZAR' }, payCycleBudget: { carryOver: 2000 }, debtPayments: [{ month, amount: 9999 }] });
+  vm.runInContext(functions.get('saveIncomeBudget'), paydayContext);
+  await paydayContext.saveIncomeBudget(month);
+  assert.equal(documents.get(base + 'payCycles/' + month).debtAmount, 600);
+  assert.ok(!functions.get('renderDashboard').includes('since last recorded snapshot'));
   let paydayMarkup = '';
   paydayContext.WR.repos = Object.fromEntries(['payCycles', 'payAdvances', 'savingsPots', 'dayToDayTransactions'].map(store => [store, { getAll: async () => store === 'payCycles' ? [{ month: '2026-10', advanceAmount: 2000 }] : [] }]));
   paydayContext.WR.repos.incomeSources = { getAll: async () => [{ id: 'salary', name: 'Salary', year: 2026, amount: 10000, frequency: 'monthly', startMonth: '2026-01', endMonth: '2026-12' }] };
@@ -325,6 +401,7 @@ async function checkPaydayBudget() {
   assert.ok(paydayMarkup.includes('<h2>Buffer</h2>'));
   assert.ok(!paydayMarkup.includes('next payday excluded'));
   assert.ok(!paydayMarkup.includes('id="payday-form"'));
+  assert.ok(!paydayMarkup.includes('data-field="potId"'));
   const controls = Object.fromEntries(['amount', 'advanceAmount', 'savingsAmount'].map(field => [field, { dataset: { field }, value: field === 'amount' ? '10000' : field === 'advanceAmount' ? '2000' : '0', events: {}, addEventListener(event, listener) { this.events[event] = listener; } }]));
   const row = { dataset: { id: 'salary' }, querySelectorAll: () => Object.values(controls), querySelector: selector => controls[selector.match(/data-field="([^"]+)"/)[1]] };
   const total = {};
