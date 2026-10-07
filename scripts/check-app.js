@@ -204,9 +204,19 @@ async function checkTransactionLayout() {
   assert.ok(!markup.includes('day-category-card'));
   assert.ok(!markup.includes('stat-label">Buffer'));
   assert.ok(!markup.includes('Money added to buffer'));
+  assert.equal((markup.match(/class="day-row-toggle"/g) || []).length, 2);
+  assert.equal((markup.match(/class="day-mobile-value day-mobile-description"/g) || []).length, 2);
+  assert.ok(markup.includes('class="day-mobile-value day-mobile-amount"'));
+  assert.ok(markup.includes('aria-expanded="false"'));
   assert.ok(!markup.includes('<th>Note</th>'));
   assert.ok(!markup.includes('data-field="note"'));
+  assert.ok(!markup.includes('name="note"'));
+  assert.ok(!functions.get('renderDayToDay').includes('form.note'));
   assert.ok(markup.includes('colspan="5" scope="rowgroup"'));
+  layoutContext.WR.ui._dayEditingId = 'first';
+  await layoutContext.renderDayToDay(container);
+  assert.ok(markup.includes('<tr data-id="first" class="is-editing">'));
+  assert.ok(markup.includes('aria-expanded="true"'));
   transactions.length = 0;
   await layoutContext.renderDayToDay(container);
   assert.ok(markup.includes('No day-to-day transactions yet.'));
@@ -491,6 +501,8 @@ async function checkPaydayBudget() {
   await paydayContext.saveIncomeBudget(month);
   assert.equal(documents.get(base + 'payCycles/' + month).debtAmount, 600);
   assert.ok(!functions.get('renderDashboard').includes('since last recorded snapshot'));
+  assert.ok(functions.get('renderDashboard').includes('Current balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0'));
+  assert.ok(functions.get('renderDashboard').includes('${fmt(s.dayToDaySummary.currentBalance)}</span>'));
   let paydayMarkup = '';
   paydayContext.WR.repos = Object.fromEntries(['payCycles', 'payAdvances', 'savingsPots', 'dayToDayTransactions'].map(store => [store, { getAll: async () => store === 'payCycles' ? [{ month: '2026-10', advanceAmount: 2000 }] : [] }]));
   paydayContext.WR.repos.incomeSources = { getAll: async () => [{ id: 'salary', name: 'Salary', year: 2026, amount: 10000, frequency: 'monthly', startMonth: '2026-01', endMonth: '2026-12' }] };

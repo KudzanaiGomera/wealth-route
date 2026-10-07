@@ -193,7 +193,9 @@ a separate annual overview, and compact icon shortcuts. Cards retain a
 maximum 8px corner radius; mobile rows and long amounts reflow without
 page-level horizontal scrolling. Spending categories appear as compact rows
 in one card, with amounts, percentage shares, and proportional bars;
-transaction activity groups rows by date and stacks editable fields on phones.
+transaction activity groups rows by date. Phones show compact description,
+category, and amount rows, with Edit revealing the fields and Delete action.
+Only one mobile editor opens at a time, and it stays open after an inline save.
 
 ## Accounts, data, and privacy
 

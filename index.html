@@ -757,6 +757,8 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .day-ledger .day-amount input { text-align: right; font-variant-numeric: tabular-nums; }
 .day-ledger .delete-day { color: var(--muted); font-size: 0.8rem; }
 .day-ledger .delete-day:hover { color: var(--danger); }
+.day-row-toggle { display: none; }
+.day-mobile-value { display: none; }
 .data-table.day-ledger td input.cell[type="checkbox"], #payday-form input[type="checkbox"], #day-add-form input[type="checkbox"] { width: 1rem; min-width: 1rem; height: 1rem; min-height: 1rem; flex: 0 0 1rem; accent-color: var(--accent); }
 #payday-form .payday-check, #payday-form .payday-check span { display: flex; align-items: flex-start; gap: 0.5rem; }
 #payday-form .payday-check input { margin-top: 0.15rem; }
@@ -764,11 +766,36 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   .data-table.day-ledger { min-width: 0; }
   .day-ledger thead { display: none; }
   .day-ledger tbody, .day-ledger tr, .day-ledger td, .day-ledger .day-date-group th { display: block; }
-  .day-ledger tr[data-id] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0.6rem; border-bottom: 1px solid var(--border); }
-  .data-table.day-ledger td { min-width: 0; border: 0; padding: 0.4rem; white-space: normal; }
-  .day-ledger td::before { content: attr(data-label); display: block; color: var(--muted); font-size: 0.72rem; margin-bottom: 0.15rem; }
-  .day-ledger td:last-child { grid-column: 1 / -1; text-align: right; }
-  .data-table.day-ledger td input.cell, .data-table.day-ledger td select.cell { font-size: 1rem; width: 100%; }
+  .day-ledger .day-date-group th { width: 100%; padding: 0.65rem 0.8rem; font-size: 0.78rem; }
+  .day-date-group th span { float: right; margin-left: 0.5rem; font-size: 0.72rem; }
+  .day-ledger tr[data-id] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(80px, 105px) 44px; gap: 0 0.35rem; align-items: center; padding: 0.7rem; border-bottom: 1px solid var(--border); }
+  .data-table.day-ledger td { min-width: 0; border: 0; padding: 0; white-space: normal; }
+  .day-ledger td::before { display: none; }
+  .day-ledger td:nth-child(1) { display: none; }
+  .day-ledger td:nth-child(2) { grid-column: 1; grid-row: 1; }
+  .day-ledger td:nth-child(3) { grid-column: 1; grid-row: 2; }
+  .day-ledger td:nth-child(4) { grid-column: 2; grid-row: 1 / 3; }
+  .day-ledger td:last-child { grid-column: 3; grid-row: 1 / 3; text-align: right; }
+  .data-table.day-ledger td input.cell, .data-table.day-ledger td select.cell { width: 100%; font-size: 1rem; min-height: 28px; padding: 0.15rem 0; }
+  .data-table.day-ledger td select.cell { color: var(--muted); font-size: 0.78rem; }
+  .data-table.day-ledger td .day-amount input { font-weight: 600; min-height: 44px; }
+  .day-ledger tr:not(.is-editing) .cell { display: none; }
+  .day-ledger .day-mobile-value { display: block; overflow-wrap: anywhere; }
+  .day-mobile-description { font-size: 0.92rem; font-weight: 500; line-height: 1.3; }
+  .day-mobile-category { color: var(--muted); font-size: 0.75rem; line-height: 1.3; padding-top: 0.2rem; }
+  .day-mobile-amount { width: 100%; font-size: 0.95rem; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+  .day-ledger tr.is-editing .day-mobile-value { display: none; }
+  .day-ledger .delete-day { display: none; }
+  .day-row-toggle { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; font-size: 0.73rem; background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .day-ledger tr.is-editing { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; background: var(--panel-alt); padding: 0.85rem; }
+  .day-ledger tr.is-editing td:nth-child(1) { display: block; grid-column: 1; grid-row: 1; }
+  .day-ledger tr.is-editing td:nth-child(2) { grid-column: 2; grid-row: 1; }
+  .day-ledger tr.is-editing td:nth-child(3) { grid-column: 1; grid-row: 2; }
+  .day-ledger tr.is-editing td:nth-child(4) { grid-column: 2; grid-row: 2; }
+  .day-ledger tr.is-editing td:last-child { grid-column: 1 / -1; grid-row: 3; display: flex; align-items: center; justify-content: space-between; }
+  .day-ledger tr.is-editing td[data-label]::before { content: attr(data-label); display: block; color: var(--muted); font-size: 0.72rem; margin-bottom: 0.25rem; }
+  .data-table.day-ledger tr.is-editing input.cell, .data-table.day-ledger tr.is-editing select.cell { min-height: 44px; padding: 0.4rem; font-size: 1rem; border-color: var(--border); background: var(--panel); }
+  .day-ledger tr.is-editing .delete-day { display: inline-flex; align-items: center; min-height: 44px; color: var(--danger); }
 }
 .day-suggestion-card { background: color-mix(in srgb, var(--accent) 7%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); border-radius: 8px; padding: 1rem; margin: 1rem 0; box-shadow: var(--shadow); }
 .day-suggestion-card h2 { margin: 0 0 0.35rem; }
@@ -4510,6 +4537,7 @@ WR.ui = WR.ui || {};
 
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Budgeted for the month</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
+            <div class="stat"><span class="stat-label">Current balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
             <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
             <div class="stat"><span class="stat-label">Savings</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
           </div>
@@ -5946,12 +5974,12 @@ WR.ui = WR.ui || {};
     monthTx.forEach((item) => dateCounts.set(item.date, (dateCounts.get(item.date) || 0) + 1));
     const rows = monthTx.map((item, index) => `
       ${index === 0 || item.date !== monthTx[index - 1].date ? `<tr class="day-date-group"><th colspan="5" scope="rowgroup">${escapeHtml(item.date)}<span>${dateCounts.get(item.date)} transaction${dateCounts.get(item.date) === 1 ? '' : 's'}</span></th></tr>` : ''}
-      <tr data-id="${WR.ui.escapeText(item.id)}">
+      <tr data-id="${WR.ui.escapeText(item.id)}"${WR.ui._dayEditingId === item.id ? ' class="is-editing"' : ''}>
         <td data-label="Date"><input class="cell" data-field="date" type="date" value="${escapeHtml(item.date)}"></td>
-        <td data-label="Description"><input class="cell" data-field="description" value="${escapeHtml(item.description || '')}"></td>
-        <td data-label="Category"><select class="cell" data-field="category">${categoryOptions(item.category)}</select></td>
-        <td data-label="Amount (${profile.baseCurrency})"><div class="day-amount"><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${WR.ui.escapeText(item.amount)}"></div></td>
-        <td><button class="link-btn delete-day" data-id="${WR.ui.escapeText(item.id)}">Delete</button></td>
+        <td data-label="Description"><span class="day-mobile-value day-mobile-description">${escapeHtml(item.description || 'Transaction')}</span><input class="cell" data-field="description" value="${escapeHtml(item.description || '')}"></td>
+        <td data-label="Category"><span class="day-mobile-value day-mobile-category">${escapeHtml(item.category || 'Uncategorised')}</span><select class="cell" data-field="category">${categoryOptions(item.category)}</select></td>
+        <td data-label="Amount (${profile.baseCurrency})"><div class="day-amount"><span class="day-mobile-value day-mobile-amount" aria-label="${escapeHtml(profile.baseCurrency)} ${WR.ui.fmt(item.amount)}">${WR.ui.fmt(item.amount)}</span><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${WR.ui.escapeText(item.amount)}"></div></td>
+        <td><button type="button" class="day-row-toggle" aria-expanded="${WR.ui._dayEditingId === item.id}" aria-label="${WR.ui._dayEditingId === item.id ? 'Close editor for' : 'Edit'} ${escapeHtml(item.description || 'transaction')}" title="Edit transaction">${WR.ui._dayEditingId === item.id ? 'Done' : 'Edit'}</button><button class="link-btn delete-day" data-id="${WR.ui.escapeText(item.id)}">Delete</button></td>
       </tr>`).join('');
 
     WR.ui.setHTML(container, `
@@ -5992,7 +6020,6 @@ WR.ui = WR.ui || {};
         <input name="date" type="date" value="${WR.ui.escapeText(transactionDate)}" required>
         <input name="description" placeholder="Description" required>
         <select name="category">${categoryOptions()}</select>
-        <input name="note" placeholder="Optional note">
         <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
         <button type="submit">Add</button>
       </form>
@@ -6000,6 +6027,7 @@ WR.ui = WR.ui || {};
 
     document.getElementById('day-month').addEventListener('change', (event) => {
       WR.ui._dayMonth = event.target.value;
+      WR.ui._dayEditingId = null;
       renderDayToDay(container);
     });
 
@@ -6014,6 +6042,23 @@ WR.ui = WR.ui || {};
       }
       renderDayToDay(container);
     });
+
+    container.querySelectorAll('.day-row-toggle').forEach(button => button.addEventListener('click', () => {
+      const row = button.closest('tr');
+      const expanded = row.classList.toggle('is-editing');
+      if (expanded) container.querySelectorAll('.day-ledger tr.is-editing').forEach(other => {
+        if (other === row) return;
+        other.classList.remove('is-editing');
+        const toggle = other.querySelector('.day-row-toggle');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-label', `Edit ${other.querySelector('[data-field="description"]').value || 'transaction'}`);
+        toggle.textContent = 'Edit';
+      });
+      WR.ui._dayEditingId = expanded ? row.dataset.id : null;
+      button.setAttribute('aria-expanded', String(expanded));
+      button.setAttribute('aria-label', `${expanded ? 'Close editor for' : 'Edit'} ${row.querySelector('[data-field="description"]').value || 'transaction'}`);
+      button.textContent = expanded ? 'Done' : 'Edit';
+    }));
 
     container.querySelectorAll('.day-ledger tbody tr[data-id]').forEach((tr) => {
       const id = tr.dataset.id;
@@ -6061,7 +6106,6 @@ WR.ui = WR.ui || {};
         kind: 'spend',
         description: form.description.value.trim(),
         category: form.category.value.trim() || undefined,
-        note: form.note.value.trim() || undefined,
         amount: Math.max(0, parseFloat(form.amount.value) || 0),
       }));
       renderDayToDay(container);
