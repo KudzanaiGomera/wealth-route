@@ -358,9 +358,11 @@ async function checkPaydayBudget() {
   assert.equal(paydayContext.syncBudgetMonth(new Date(2026, 11, 24, 23, 59)), false);
   paydayContext.WR.ui._dayMonth = '2026-12';
   paydayContext.WR.ui._paydayMonth = '2026-11';
+  paydayContext.WR.ui._transactionsMonth = '2026-12';
   assert.equal(paydayContext.syncBudgetMonth(new Date(2026, 11, 25)), true);
   assert.equal(paydayContext.WR.ui._dayMonth, '2027-01');
   assert.equal(paydayContext.WR.ui._paydayMonth, '2026-11');
+  assert.equal(paydayContext.WR.ui._transactionsMonth, '2027-01');
   assert.equal(paydayContext.syncBudgetMonth(new Date(2026, 11, 25)), false);
   assert.equal(paydayContext.calculatePayCycleBudget([], [{ date: '2026-09-26', kind: 'spend', amount: 6000 }], cycles, [], '2026-10', 25, '2026-10-24').remaining, -2000);
   assert.equal(paydayContext.calculatePayCycleBudget([], [{ date: '2026-10-25', kind: 'spend', amount: 100 }], cycles, [], '2026-10', 25, '2026-10-24').remaining, 4000);

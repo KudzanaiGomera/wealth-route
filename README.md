@@ -47,8 +47,11 @@ this means for offline use.
 ### Payday Budgeting
 
 Payday is the **25th**. The budget named October runs from **25 September
-through 24 October**; November begins on 25 October. Dashboard and the
-payday-enabled Transactions view use these same date boundaries.
+through 24 October**; November begins on 25 October. Dashboard, Variable
+Expenses, and the payday-enabled Transactions view use these same date
+boundaries. Variable Expenses lets you record an expense as an Actual or in
+Transactions; do not record the same expense in both, since both reduce the
+cycle balance.
 
 On Income, select a month. The table has Source, Amount, Frequency, Start
 month, End month, Advance, and Savings taken. Amount is income before

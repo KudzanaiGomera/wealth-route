@@ -3489,6 +3489,7 @@ WR.ui = WR.ui || {};
     if (!previous || previous === month) return false;
     if (WR.ui._dayMonth === previous) WR.ui._dayMonth = month;
     if (WR.ui._paydayMonth === previous) WR.ui._paydayMonth = month;
+    if (WR.ui._transactionsMonth === previous) WR.ui._transactionsMonth = month;
     return true;
   }
 
@@ -4748,8 +4749,9 @@ WR.ui = WR.ui || {};
   }
 
   async function renderTransactions(container) {
-    const month = WR.ui._transactionsMonth || WR.ui.currentMonthKey();
+    const month = WR.ui._transactionsMonth || WR.ui.currentBudgetMonth();
     WR.ui._transactionsMonth = month;
+    const dates = WR.ui.payCycleDates(month);
     const sort = WR.ui._transactionsSort || { field: 'type', dir: 'asc' };
     WR.ui._transactionsSort = sort;
 
@@ -4790,15 +4792,15 @@ WR.ui = WR.ui || {};
     WR.ui.setHTML(container, `
       <h1>Variable Expenses</h1>
       <div class="toolbar">
-        <label>Month:
+        <label>Pay cycle:
           <input type="month" id="month-picker" value="${WR.ui.escapeText(month)}">
         </label>
       </div>
-      <p class="fine-print">Plan and record variable expenses for the selected month. Changes save immediately.</p>
+      <p class="fine-print">This cycle runs from ${WR.ui.escapeText(dates.start)} to ${WR.ui.escapeText(dates.endExclusive)} (next payday excluded). Changes save immediately. Record each expense here or in Transactions, not both.</p>
       ${sortedLines.length === 0 && prevVariableLines.length > 0 ? `
       <div class="notice-card copy-budget-card">
-        <span>Start from last month? Copies ${prevVariableLines.length} line${prevVariableLines.length === 1 ? '' : 's'} with their budget amounts (actuals start at 0).</span>
-        <button type="button" id="copy-last-month-btn">Copy last month's budget</button>
+        <span>Start from last cycle? Copies ${prevVariableLines.length} line${prevVariableLines.length === 1 ? '' : 's'} with their budget amounts (actuals start at 0).</span>
+        <button type="button" id="copy-last-month-btn">Copy last cycle's budget</button>
       </div>` : ''}
 
       <div class="stat-grid">
@@ -4833,7 +4835,7 @@ WR.ui = WR.ui || {};
         actualAmount: 0,
         currency: line.currency || profile.baseCurrency,
       }))));
-      WR.ui.notify(`Copied ${prevVariableLines.length} budget line${prevVariableLines.length === 1 ? '' : 's'} from last month.`, 'success');
+      WR.ui.notify(`Copied ${prevVariableLines.length} budget line${prevVariableLines.length === 1 ? '' : 's'} from last cycle.`, 'success');
       renderTransactions(container);
     });
 
