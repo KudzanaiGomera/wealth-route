@@ -1483,6 +1483,7 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
   }
   #content { padding: 1.1rem 1rem calc(6.5rem + env(safe-area-inset-bottom)); min-width: 0; }
   .topbar .nav-controls { display: none; }
+  .topbar .theme-toggle { margin-left: auto; }
   #nav a.in-mobile-nav { display: none; }
   .mobile-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; padding: 0.3rem max(0.3rem, env(safe-area-inset-right)) calc(0.3rem + env(safe-area-inset-bottom)) max(0.3rem, env(safe-area-inset-left)); gap: 0.2rem; background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.14); }
   .mobile-nav a, .mobile-nav button { display: grid; justify-items: center; align-content: center; gap: 0.2rem; height: 3.55rem; min-width: 0; color: var(--muted); background: transparent; border: 0; text-decoration: none; font: inherit; border-radius: 12px; cursor: pointer; }
@@ -6819,6 +6820,24 @@ WR.ui = WR.ui || {};
     return { total, unconvertedNames };
   }
 
+  async function refreshWealthSummary(container) {
+    const summary = container.closest('#content')?.querySelector('#wealth-summary');
+    if (!summary) return;
+    const [assets, investments, exchangeRates, profile] = await Promise.all([
+      WR.repos.assets.getAll(),
+      WR.repos.investments.getAll(),
+      WR.repos.exchangeRates.getAll(),
+      WR.ui.getOrCreateProfile(),
+    ]);
+    const { total, unconvertedNames } = sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency);
+    WR.ui.setHTML(summary, `
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Total wealth</span><span class="stat-value">${WR.ui.escapeText(profile.baseCurrency)} ${WR.ui.fmt(total)}</span></div>
+      </div>
+      ${unconvertedNames.length > 0 ? `<p class="fine-print">No exchange rate on file for: ${unconvertedNames.map(name => WR.ui.escapeText(name)).join(', ')} &mdash; shown at face value.</p>` : ''}
+    `);
+  }
+
   async function renderAssets(container) {
     const [assets, exchangeRates, profile] = await Promise.all([
       WR.repos.assets.getAll(),
@@ -6882,6 +6901,7 @@ WR.ui = WR.ui || {};
           }
           await WR.repos.assets.update(asset);
           WR.ui.flashSaved(input);
+          await refreshWealthSummary(container);
         });
       });
     });
@@ -6911,6 +6931,7 @@ WR.ui = WR.ui || {};
       await WR.repos.assets.add(asset);
       renderAssets(container);
     });
+    await refreshWealthSummary(container);
   }
 
   /** Returns an emoji reflecting good/neutral/bad performance for a value against thresholds. */
@@ -7029,6 +7050,7 @@ WR.ui = WR.ui || {};
           }
           await WR.repos.investments.update(inv);
           WR.ui.flashSaved(input);
+          await refreshWealthSummary(container);
         });
       });
     });
@@ -7059,6 +7081,7 @@ WR.ui = WR.ui || {};
       await WR.repos.investments.add(inv);
       renderInvestments(container);
     });
+    await refreshWealthSummary(container);
   }
 
   WR.ui.renderAssets = renderAssets;
@@ -8721,7 +8744,7 @@ WR.ui = WR.ui || {};
   }
 
   async function renderWealth(container) {
-    WR.ui.setHTML(container, '<h1>Wealth</h1><section class="feature-section" id="wealth-investments"></section><section class="feature-section" id="wealth-assets"></section>');
+    WR.ui.setHTML(container, '<h1>Wealth</h1><div id="wealth-summary"></div><section class="feature-section" id="wealth-investments"></section><section class="feature-section" id="wealth-assets"></section>');
     await WR.ui.renderInvestments(container.querySelector('#wealth-investments'));
     await WR.ui.renderAssets(container.querySelector('#wealth-assets'));
   }
