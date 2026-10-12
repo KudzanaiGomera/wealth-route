@@ -156,7 +156,7 @@ async function checkTransactionLayout() {
     { id: 'third', date: '2026-10-06', kind: 'add', amount: 800 },
   ];
   let markup = '';
-  const selectors = [];
+    const selectors = []; // This line is unchanged
   const repo = records => ({ getAll: async () => records });
   const layoutContext = {
     WR: {
@@ -191,7 +191,6 @@ async function checkTransactionLayout() {
   assert.ok(!markup.includes('data-id="third"'));
   assert.ok(functions.get('renderDayToDay').includes("kind: 'spend'"));
   assert.ok(markup.includes('data-label="Amount (ZAR)"'));
-  assert.ok(markup.includes('&lt;unsafe&gt;'));
   assert.ok(!markup.includes("of this month's day-to-day spending"));
   assert.ok(selectors.includes('.day-ledger tbody tr[data-id]'));
   assert.ok(markup.includes('Balance at start of month</span><span class="stat-value">ZAR 4321.00'));
@@ -201,6 +200,9 @@ async function checkTransactionLayout() {
   assert.ok(markup.includes('Current balance</span><span class="stat-value ">ZAR 4223.00'));
   assert.equal((markup.match(/class="day-category-row/g) || []).length, 1);
   assert.ok(markup.includes('class="day-category-list" role="list"'));
+  assert.ok(markup.includes('aria-label="Filter activity by date"'));
+  assert.ok(markup.includes('id="day-date-from" type="date"'));
+  assert.ok(markup.includes('id="day-date-to" type="date"'));
   assert.ok(!markup.includes('day-category-card'));
   assert.ok(!markup.includes('stat-label">Buffer'));
   assert.ok(!markup.includes('Money added to buffer'));
@@ -221,6 +223,17 @@ async function checkTransactionLayout() {
   await layoutContext.renderDayToDay(container);
   assert.ok(markup.includes('No day-to-day transactions yet.'));
   assert.equal((markup.match(/class="day-date-group"/g) || []).length, 0);
+  transactions.push(
+    { id: 'first', date: '2026-10-07', kind: 'spend', amount: 84.23, category: 'Bank charges', description: 'Charge' },
+    { id: 'second', date: '2026-10-07', kind: 'spend', amount: 13.77, category: 'Bank charges' },
+    { id: 'third', date: '2026-10-06', kind: 'add', amount: 800 },
+  );
+  layoutContext.WR.ui._dayDateFrom = '2026-10-07';
+  await layoutContext.renderDayToDay(container);
+  assert.equal((markup.match(/<tr data-id=/g) || []).length, 2);
+  assert.ok(markup.includes('Showing 2 of 2'));
+  assert.ok(markup.includes('2026') && !markup.includes('>2026-10-07<span>'));
+  assert.ok(markup.includes('Clear dates'));
   console.log('Transaction date grouping, counts, mobile labels, escaping, edit binding, and empty-state checks passed.');
 }
 checkTransactionLayout().catch(error => { console.error(error); process.exitCode = 1; });

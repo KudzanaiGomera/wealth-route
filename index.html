@@ -742,6 +742,15 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .day-activity-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
 .day-activity-heading h2 { margin: 0; }
 .day-activity-heading span { color: var(--muted); font-size: 0.8rem; }
+.day-date-filter { display: flex; align-items: end; gap: 0.75rem; padding: 0.85rem; margin-bottom: 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--panel-alt) 76%, transparent); }
+.day-date-filter label { display: grid; gap: 0.3rem; color: var(--muted); font-size: 0.75rem; font-weight: 600; }
+.day-date-filter input { width: 170px; min-height: 2.5rem; padding: 0.4rem 0.55rem; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); font: inherit; font-weight: 400; }
+.day-date-filter .secondary { min-height: 2.5rem; padding: 0.4rem 0.8rem; }
+@media (max-width: 520px) {
+  .day-date-filter { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+  .day-date-filter input { width: 100%; min-width: 0; }
+  .day-date-filter .secondary { grid-column: 1 / -1; }
+}
 .day-ledger .day-date-group th { padding: 0.8rem 1rem; color: var(--text); background: var(--panel-alt); font-size: 0.82rem; }
 .day-date-group th span { margin-left: 0.75rem; font-weight: 400; color: var(--muted); }
 .data-table.day-ledger { table-layout: fixed; min-width: 900px; }
@@ -5932,6 +5941,9 @@ WR.ui = WR.ui || {};
       return `<option value="" ${selected ? '' : 'selected'}>None</option>${options}`;
     };
     const monthTx = transactions.filter((item) => item.kind !== 'add' && item.date >= dates.start && item.date < dates.endExclusive).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const dateFrom = WR.ui._dayDateFrom || '';
+    const dateTo = WR.ui._dayDateTo || '';
+    const visibleTransactions = monthTx.filter((item) => (!dateFrom || item.date >= dateFrom) && (!dateTo || item.date <= dateTo));
     const payBudget = WR.ui.calculatePayCycleBudget(accounts, transactions, payCycles, payAdvances, month, 25, undefined, budgetSnapshot.paydayFunding.budget);
     const spent = payBudget.spent;
     const balanceBeforeMonth = budgetSnapshot.paydayFunding.budget;
@@ -5969,9 +5981,10 @@ WR.ui = WR.ui || {};
     }).join('');
 
     const dateCounts = new Map();
-    monthTx.forEach((item) => dateCounts.set(item.date, (dateCounts.get(item.date) || 0) + 1));
-    const rows = monthTx.map((item, index) => `
-      ${index === 0 || item.date !== monthTx[index - 1].date ? `<tr class="day-date-group"><th colspan="5" scope="rowgroup">${escapeHtml(item.date)}<span>${dateCounts.get(item.date)} transaction${dateCounts.get(item.date) === 1 ? '' : 's'}</span></th></tr>` : ''}
+    visibleTransactions.forEach((item) => dateCounts.set(item.date, (dateCounts.get(item.date) || 0) + 1));
+    const formatLedgerDate = (value) => new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    const rows = visibleTransactions.map((item, index) => `
+      ${index === 0 || item.date !== visibleTransactions[index - 1].date ? `<tr class="day-date-group"><th colspan="5" scope="rowgroup">${escapeHtml(formatLedgerDate(item.date))}<span>${dateCounts.get(item.date)} transaction${dateCounts.get(item.date) === 1 ? '' : 's'}</span></th></tr>` : ''}
       <tr data-id="${WR.ui.escapeText(item.id)}"${WR.ui._dayEditingId === item.id ? ' class="is-editing"' : ''}>
         <td data-label="Date"><input class="cell" data-field="date" type="date" value="${escapeHtml(item.date)}"></td>
         <td data-label="Description"><span class="day-mobile-value day-mobile-description">${escapeHtml(item.description || 'Transaction')}</span><input class="cell" data-field="description" value="${escapeHtml(item.description || '')}"></td>
@@ -6006,10 +6019,15 @@ WR.ui = WR.ui || {};
       </form>
 
       <section class="day-activity" aria-labelledby="day-activity-title">
-      <div class="day-activity-heading"><h2 id="day-activity-title">Activity</h2><span>${monthTx.length} transaction${monthTx.length === 1 ? '' : 's'}</span></div>
+      <div class="day-activity-heading"><h2 id="day-activity-title">Activity</h2><span>${dateFrom || dateTo ? `Showing ${visibleTransactions.length} of ${monthTx.length}` : `${monthTx.length} transaction${monthTx.length === 1 ? '' : 's'}`}</span></div>
+      <div class="day-date-filter" role="group" aria-label="Filter activity by date">
+        <label>From<input id="day-date-from" type="date" value="${WR.ui.escapeText(dateFrom)}" aria-label="From date"></label>
+        <label>To<input id="day-date-to" type="date" value="${WR.ui.escapeText(dateTo)}" aria-label="To date"></label>
+        <button type="button" id="day-date-clear" class="secondary" ${dateFrom || dateTo ? '' : 'disabled'}>Clear dates</button>
+      </div>
       <table class="data-table day-ledger">
         <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount (${profile.baseCurrency})</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="5" class="empty">No day-to-day transactions yet.</td></tr>'}</tbody>
+        <tbody>${rows || `<tr><td colspan="5" class="empty">${dateFrom || dateTo ? 'No transactions match these dates.' : 'No day-to-day transactions yet.'}</td></tr>`}</tbody>
       </table>
       </section>
 
@@ -6025,6 +6043,20 @@ WR.ui = WR.ui || {};
 
     document.getElementById('day-month').addEventListener('change', (event) => {
       WR.ui._dayMonth = event.target.value;
+      WR.ui._dayEditingId = null;
+      renderDayToDay(container);
+    });
+
+    ['day-date-from', 'day-date-to'].forEach((id) => {
+      document.getElementById(id).addEventListener('change', (event) => {
+        WR.ui[id === 'day-date-from' ? '_dayDateFrom' : '_dayDateTo'] = event.target.value;
+        WR.ui._dayEditingId = null;
+        renderDayToDay(container);
+      });
+    });
+    document.getElementById('day-date-clear').addEventListener('click', () => {
+      WR.ui._dayDateFrom = '';
+      WR.ui._dayDateTo = '';
       WR.ui._dayEditingId = null;
       renderDayToDay(container);
     });
