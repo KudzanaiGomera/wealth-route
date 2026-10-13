@@ -7913,15 +7913,13 @@ WR.ui = WR.ui || {};
             </div>
             <button id="account-logout-btn" class="danger">Log out</button>
           </div>
+          <form id="display-name-form" class="settings-row-control">
+            <label>Display name <small>Optional \u2014 shown in your dashboard greeting</small>
+              <input name="displayName" value="${esc(profile.displayName || '')}" placeholder="e.g. Kudzanai" maxlength="60">
+            </label>
+            <button type="submit">Save</button>
+          </form>
           <div class="settings-rows">
-            <div class="settings-row">
-              <div class="settings-row-text"><strong>Username</strong><span>3\u201320 characters: letters, numbers or underscores.</span></div>
-              <form id="username-form" class="settings-row-control">
-                <input type="text" id="username-input" placeholder="Username" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" value="${esc(username || '')}" required aria-label="Username">
-                <button type="submit">${username ? 'Update' : 'Choose'}</button>
-              </form>
-            </div>
-            <p id="username-result" class="fine-print settings-result"></p>
             <div class="settings-row">
               <div class="settings-row-text"><strong>Password</strong><span>${WR.account.usesPasswordProvider() ? 'We\u2019ll email you a secure link to set a new password.' : 'Signed in with Google \u2014 manage your password in your Google account.'}</span></div>
               ${WR.account.usesPasswordProvider() ? '<div class="settings-row-control"><button type="button" id="reset-password-btn" class="secondary">Send reset email</button></div>' : ''}
@@ -7942,9 +7940,6 @@ WR.ui = WR.ui || {};
           </select>
         </label>
         <form id="profile-form" class="settings-form-grid">
-          <label class="span-2">Display name <small>Optional \u2014 shown in your dashboard greeting</small>
-            <input name="displayName" value="${esc(profile.displayName || '')}" placeholder="e.g. Kudzanai" maxlength="60">
-          </label>
           <label>Base currency
             <select name="baseCurrency">
               ${['ZAR', 'USD', 'EUR', 'GBP'].map((c) => `<option value="${WR.ui.escapeText(c)}" ${c === profile.baseCurrency ? 'selected' : ''}>${c}</option>`).join('')}
@@ -8216,10 +8211,14 @@ WR.ui = WR.ui || {};
       }
     });
 
+    WR.ui.bindReliableForm(document.getElementById('display-name-form'), async (form) => {
+      await WR.repos.userProfile.update({ ...profile, displayName: form.elements.displayName.value.trim() });
+      WR.ui.notify('Display name saved.', 'success');
+    });
+
     WR.ui.bindReliableForm(document.getElementById('profile-form'), async (form) => {
       const updated = {
         ...profile,
-        displayName: form.displayName.value.trim(),
         baseCurrency: form.baseCurrency.value,
         country: form.country.value,
         emergencyFundTargetMonths: parseFloat(form.emergencyFundTargetMonths.value) || 3,
@@ -8250,26 +8249,6 @@ WR.ui = WR.ui || {};
     });
 
     if (WR.account.isConfigured()) {
-      const usernameForm = document.getElementById('username-form');
-      if (usernameForm) {
-        usernameForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const usernameResult = document.getElementById('username-result');
-          const input = document.getElementById('username-input');
-          const btn = usernameForm.querySelector('button');
-          btn.disabled = true;
-          try {
-            await WR.account.updateUsername(input.value);
-            usernameResult.textContent = 'Username saved.';
-            WR.ui.notify('Username saved.', 'success');
-            WR.ui.renderNavAccount();
-          } catch (err) {
-            usernameResult.textContent = err.message;
-          } finally {
-            btn.disabled = false;
-          }
-        });
-      }
       const resetPasswordBtn = document.getElementById('reset-password-btn');
       if (resetPasswordBtn) {
         resetPasswordBtn.addEventListener('click', async () => {
