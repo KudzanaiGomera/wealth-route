@@ -4027,7 +4027,8 @@ WR.ui = WR.ui || {};
     status.dataset.state = state.failed ? 'error' : state.pending ? 'pending' : 'ready';
     status.textContent = state.failed ? "Couldn't save. Please retry."
       : offline ? state.pending ? 'Offline - waiting to sync' : 'Offline'
-      : state.pending ? 'Saving...' : state.saved ? 'Saved' : 'Online';
+      : state.pending ? 'Saving...' : state.saved ? 'Saved' : '';
+    status.hidden = !status.textContent;
   }
 
   async function submitWithFeedback(form, operation) {
@@ -4459,7 +4460,7 @@ WR.ui = WR.ui || {};
         <button id="theme-toggle-btn" class="theme-toggle" type="button"></button>
       </header>
       <div id="global-notice" class="global-notice"></div>
-      <div id="save-status" class="save-status" role="status" aria-live="polite"></div>
+      <div id="save-status" class="save-status" role="status" aria-live="polite" hidden></div>
       <main id="content"></main>
       <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
     `);

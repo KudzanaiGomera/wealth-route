@@ -215,11 +215,15 @@ async function checkSaveFeedback() {
   vm.createContext(saveContext);
   vm.runInContext(['trackSave', 'renderSaveStatus', 'submitWithFeedback'].map(name => functions.get(name)).join('\n'), saveContext);
   saveContext.WR.ui.renderSaveStatus = saveContext.renderSaveStatus;
+  saveContext.renderSaveStatus();
+  assert.equal(status.textContent, '');
+  assert.equal(status.hidden, true);
   let acknowledge;
   let writes = 0;
   const operation = () => saveContext.trackSave(() => { writes += 1; return new Promise(resolve => { acknowledge = resolve; }); });
   const pending = saveContext.submitWithFeedback(form, operation);
   assert.equal(status.textContent, 'Saving...');
+  assert.equal(status.hidden, false);
   assert.equal(form.attributes['aria-busy'], 'true');
   assert.ok(controls.every(control => control.disabled));
   assert.equal(await saveContext.submitWithFeedback(form, operation), false);
