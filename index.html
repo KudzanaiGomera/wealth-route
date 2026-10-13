@@ -4155,7 +4155,8 @@ WR.ui = WR.ui || {};
       }
       if (saved && typeof document !== 'undefined' && formDraftKey(form) === key && window.location.hash === form.dataset.draftRoute) {
         const replacement = [...document.querySelectorAll('form[data-draft-key]')].find(candidate => candidate.dataset.draftKey === key);
-        replacement?.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus();
+        const isTouchDevice = window.matchMedia?.('(hover: none) and (pointer: coarse)').matches;
+        if (!isTouchDevice) replacement?.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus();
       }
     });
   }
@@ -4786,7 +4787,7 @@ WR.ui = WR.ui || {};
       `}
 
       <header class="dashboard-heading">
-        <div><p class="greeting">${escapeText(greeting(WR.account.getUsername() || s.profile.displayName))}</p><h1>Your money at a glance</h1></div>
+        <div><p class="greeting">${escapeText(greeting(s.profile.displayName || WR.account.getUsername()))}</p><h1>Your money at a glance</h1></div>
         <p class="month-label">${s.monthLabel}</p>
       </header>
       <section class="position-summary-grid">
@@ -7921,7 +7922,7 @@ WR.ui = WR.ui || {};
             </div>
             <button id="account-logout-btn" class="danger">Log out</button>
           </div>
-          <form id="display-name-form" class="settings-row-control">
+          <form id="display-name-form" class="settings-row-control display-name-form">
             <label>Display name <small>Optional \u2014 shown in your dashboard greeting</small>
               <input name="displayName" value="${esc(profile.displayName || '')}" placeholder="e.g. Kudzanai" maxlength="60">
             </label>
