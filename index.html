@@ -4771,7 +4771,7 @@ WR.ui = WR.ui || {};
         <p class="month-label">${s.monthLabel}</p>
       </header>
       <section class="position-summary-grid">
-        <div class="hero dashboard-card position-card">
+        <div class="dashboard-card position-card">
           <div class="hero-headline">
             <div class="balance-heading"><span class="stat-label">Net Worth</span><button type="button" class="visibility-toggle" data-balance-toggle aria-label="Hide dashboard balances" aria-pressed="false" title="Hide dashboard balances">${WR.ui.visibilityIcon(false)}</button></div>
             <span class="hero-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span>
