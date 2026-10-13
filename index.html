@@ -1687,9 +1687,12 @@ window.WR = window.WR || {};
 
 (function () {
   const state = { pending: 0, failed: false, saved: false };
+  let savedTimer = null;
   async function trackSave(operation) {
+    clearTimeout(savedTimer);
     state.pending += 1;
     state.failed = false;
+    state.saved = false;
     WR.ui.renderSaveStatus?.();
     try {
       const result = await operation();
@@ -1701,6 +1704,12 @@ window.WR = window.WR || {};
     } finally {
       state.pending -= 1;
       WR.ui.renderSaveStatus?.();
+      if (!state.pending && state.saved && !state.failed) {
+        savedTimer = setTimeout(() => {
+          state.saved = false;
+          WR.ui.renderSaveStatus?.();
+        }, 2500);
+      }
     }
   }
   WR.saves = { state, trackSave };

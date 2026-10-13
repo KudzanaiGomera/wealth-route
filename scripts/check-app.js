@@ -206,14 +206,17 @@ async function checkSaveFeedback() {
   };
   const listeners = new Map();
   const state = { pending: 0, failed: false, saved: false };
+  let expireSaved;
   const saveContext = {
     state, navigator: { onLine: true },
+    setTimeout(callback, delay) { assert.equal(delay, 2500); expireSaved = callback; return 1; },
+    clearTimeout() { expireSaved = null; },
     document: { getElementById: () => status },
     window: { addEventListener: (name, listener) => listeners.set(name, listener), removeEventListener: name => listeners.delete(name) },
     WR: { saves: { state }, ui: { notify() {} } },
   };
   vm.createContext(saveContext);
-  vm.runInContext(['trackSave', 'renderSaveStatus', 'submitWithFeedback'].map(name => functions.get(name)).join('\n'), saveContext);
+  vm.runInContext('let savedTimer = null;\n' + ['trackSave', 'renderSaveStatus', 'submitWithFeedback'].map(name => functions.get(name)).join('\n'), saveContext);
   saveContext.WR.ui.renderSaveStatus = saveContext.renderSaveStatus;
   saveContext.renderSaveStatus();
   assert.equal(status.textContent, '');
@@ -241,6 +244,10 @@ async function checkSaveFeedback() {
   assert.equal(controls[0].disabled, false);
   assert.equal(controls[1].disabled, true);
   assert.equal(listeners.size, 0);
+  expireSaved();
+  assert.equal(state.saved, false);
+  assert.equal(status.hidden, true);
+  assert.equal(status.textContent, '');
   const failed = await saveContext.submitWithFeedback(form, () => saveContext.trackSave(() => Promise.reject(Error('Denied'))));
   assert.equal(failed, false);
   assert.equal(controls[0].value, 'Unsaved entry');
@@ -250,6 +257,8 @@ async function checkSaveFeedback() {
   assert.equal(form.attributes['aria-busy'], 'false');
   assert.equal(await saveContext.submitWithFeedback(form, () => saveContext.trackSave(() => Promise.resolve())), true);
   assert.equal(status.textContent, 'Saved');
+  expireSaved();
+  assert.equal(status.hidden, true);
   console.log('Pending/offline acknowledgement, duplicate-submit guards, failure/retry, preserved entries, and control restoration checks passed.');
 }
 checkSaveFeedback().catch(error => { console.error(error); process.exitCode = 1; });
