@@ -564,10 +564,11 @@ WR.financial = WR.financial || {};
    * decision logic in a later sprint.
    * @param {Array} debts
    */
-  function calculateWeightedAverageInterestRate(debts) {
-    const totalBalance = calculateTotalDebt(debts);
+  function calculateWeightedAverageInterestRate(debts, exchangeRates = [], baseCurrency) {
+    const balances = debts.map(debt => ({ debt, balance: Math.max(0, baseCurrency ? WR.financial.convertCurrency(debt.currentBalance, debt.currency || baseCurrency, baseCurrency, exchangeRates).value : Number(debt.currentBalance) || 0) }));
+    const totalBalance = balances.reduce((sum, item) => sum + item.balance, 0);
     if (totalBalance <= 0) return 0;
-    const weightedSum = debts.reduce((sum, debt) => sum + debt.interestRate * debt.currentBalance, 0);
+    const weightedSum = balances.reduce((sum, item) => sum + (Number(item.debt.interestRate) || 0) * item.balance, 0);
     return weightedSum / totalBalance;
   }
 
@@ -591,8 +592,8 @@ WR.financial = WR.financial || {};
 (function () {
   /**
    * Converts an amount from one currency to another using the most recent
-   * matching ExchangeRate record. Returns the original amount unconverted
-   * (with a warning flag) if no rate is found and the currencies differ —
+  * matching valid ExchangeRate record. Returns zero with a warning flag
+  * if no rate is found and the currencies differ —
    * silently assuming a 1:1 rate would misstate net worth, so callers get
    * an explicit signal instead.
    *
@@ -603,26 +604,33 @@ WR.financial = WR.financial || {};
    * @returns {{ value: number, converted: boolean }}
    */
   function convertCurrency(amount, fromCurrency, toCurrency, exchangeRates) {
-    if (fromCurrency === toCurrency) return { value: amount, converted: true };
+    const numericAmount = Number(amount);
+    const sourceCurrency = String(fromCurrency || toCurrency || '').trim().toUpperCase();
+    const targetCurrency = String(toCurrency || '').trim().toUpperCase();
+    if (!Number.isFinite(numericAmount) || !sourceCurrency || !targetCurrency) return { value: 0, converted: false };
+    if (sourceCurrency === targetCurrency) return { value: numericAmount, converted: true };
+    const validRates = (exchangeRates || []).filter(rate => Number.isFinite(Number(rate.rate)) && Number(rate.rate) > 0);
 
-    const candidates = exchangeRates.filter(
-      (r) => r.fromCurrency === fromCurrency && r.toCurrency === toCurrency,
+    const candidates = validRates.filter(
+      (rate) => String(rate.fromCurrency).trim().toUpperCase() === sourceCurrency && String(rate.toCurrency).trim().toUpperCase() === targetCurrency,
     );
     if (candidates.length > 0) {
       const latest = candidates.reduce((a, b) => (a.date > b.date ? a : b));
-      return { value: amount * latest.rate, converted: true };
+      const value = numericAmount * Number(latest.rate);
+      return { value: Number.isFinite(value) ? value : 0, converted: Number.isFinite(value) };
     }
 
     // Try the inverse rate if that's what's stored.
-    const inverseCandidates = exchangeRates.filter(
-      (r) => r.fromCurrency === toCurrency && r.toCurrency === fromCurrency,
+    const inverseCandidates = validRates.filter(
+      (rate) => String(rate.fromCurrency).trim().toUpperCase() === targetCurrency && String(rate.toCurrency).trim().toUpperCase() === sourceCurrency,
     );
     if (inverseCandidates.length > 0) {
       const latest = inverseCandidates.reduce((a, b) => (a.date > b.date ? a : b));
-      return { value: amount / latest.rate, converted: true };
+      const value = numericAmount / Number(latest.rate);
+      return { value: Number.isFinite(value) ? value : 0, converted: Number.isFinite(value) };
     }
 
-    return { value: amount, converted: false };
+    return { value: 0, converted: false };
   }
 
   /**
@@ -702,8 +710,8 @@ WR.financial = WR.financial || {};
    * easily-accessed savings), as opposed to a house or a retirement annuity.
    * @param {Array} assets
    */
-  function calculateLiquidAssets(assets) {
-    return assets.filter((a) => a.liquidity === 'high').reduce((sum, a) => sum + a.currentValue, 0);
+  function calculateLiquidAssets(assets, exchangeRates = [], baseCurrency) {
+    return assets.filter(asset => asset.liquidity === 'high').reduce((sum, asset) => sum + (baseCurrency ? WR.financial.convertCurrency(asset.currentValue, asset.currency || baseCurrency, baseCurrency, exchangeRates).value : Number(asset.currentValue) || 0), 0);
   }
 
   /**

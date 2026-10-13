@@ -67,11 +67,12 @@ for (const match of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].
 }
 if (process.argv.includes('--migrate-html') || process.argv.includes('--escape-values')) fs.writeFileSync(htmlPath, html);
 acorn.parse(fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8'), { ecmaVersion: 'latest' });
+assert.ok(!/<(?:input|select|textarea)\b[^>]*\bname="(?:name|target)"/i.test(html), 'Form field names must survive DOM-clobbering sanitization');
 for (const match of fs.readFileSync(path.join(root, 'tests.html'), 'utf8').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
   acorn.parse(match[1], { ecmaVersion: 'latest' });
 }
 
-const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'convertCurrency', 'calculateTotalInvestments', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus'];
+const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'calculateWeightedAverageInterestRate', 'calculateLiquidAssets', 'convertCurrency', 'calculateNetWorth', 'calculateTotalInvestments', 'sumInBaseCurrency', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus'];
 const context = { WR: { financial: {} } };
 vm.createContext(context);
 vm.runInContext(names.filter(name => functions.has(name)).map(name => functions.get(name)).join('\n'), context);
@@ -96,7 +97,27 @@ assert.equal(context.calculateTotalInvestments(investments, rates, 'ZAR'), 2500)
 assert.equal(context.calculateTotalInvestments([], rates, 'ZAR'), 0);
 assert.equal(context.calculateTotalInvestments(investments, [], 'ZAR'), 500);
 assert.ok(functions.get('buildSnapshot').includes('annualSummary.totalInvested = F.calculateTotalInvestments(investments, exchangeRates, profile.baseCurrency)'));
-assert.ok(functions.get('renderDashboard').includes('${fmt(s.annualSummary.totalInvested)}</span>'));
+const wealthItems = [{ name: 'Home', currentValue: 10000, currency: 'ZAR' }, ...investments];
+assert.equal(context.sumInBaseCurrency(wealthItems, 'currentValue', rates, 'ZAR').total, 12500);
+assert.equal(context.sumInBaseCurrency([], 'currentValue', rates, 'ZAR').total, 0);
+assert.equal(context.sumInBaseCurrency(wealthItems, 'currentValue', [], 'ZAR').total, 10500);
+assert.equal(context.convertCurrency(100, 'EUR', 'ZAR', []).value, 0);
+assert.equal(context.convertCurrency(100, 'EUR', 'ZAR', []).converted, false);
+assert.equal(context.convertCurrency('100', ' zar ', 'ZAR', []).value, 100);
+assert.equal(context.convertCurrency(100, 'USD', 'ZAR', [{ fromCurrency: 'ZAR', toCurrency: 'USD', rate: 0.05 }]).value, 2000);
+for (const rate of [0, -2, Infinity, NaN]) {
+  assert.equal(context.convertCurrency(100, 'USD', 'ZAR', [{ fromCurrency: 'USD', toCurrency: 'ZAR', rate }]).converted, false);
+}
+assert.equal(context.convertCurrency(1e308, 'USD', 'ZAR', rates).converted, false);
+assert.equal(context.calculateNetWorth(wealthItems, [], [{ currency: 'EUR', currentBalance: 500 }], [], 'ZAR').netWorth, 10500);
+assert.equal(context.calculateLiquidAssets([{ currency: 'USD', currentValue: 100, liquidity: 'high' }, { currency: 'ZAR', currentValue: 500, liquidity: 'high' }], rates, 'ZAR'), 2500);
+assert.equal(context.calculateLiquidAssets([{ currency: 'USD', currentValue: 100, liquidity: 'high' }], [], 'ZAR'), 0);
+assert.ok(Math.abs(context.calculateWeightedAverageInterestRate([{ currency: 'USD', currentBalance: 100, interestRate: 0.1 }, { currency: 'ZAR', currentBalance: 1000, interestRate: 0.2 }], rates, 'ZAR') - 0.13333333333333333) < 1e-10);
+assert.ok(functions.get('buildSnapshot').includes("annualSummary.totalWealth = F.sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency).total"));
+assert.ok(functions.get('refreshWealthSummary').includes("sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency)"));
+assert.ok(functions.get('renderDashboard').includes('${fmt(s.annualSummary.totalWealth)}</span>'));
+assert.ok(functions.get('renderDashboard').includes('>Total Wealth</span>'));
+assert.ok(!functions.get('renderDashboard').includes('>Total Investments</span>'));
 console.log('Production scripts, safe HTML boundaries, escaping, lending balances, and surplus checks passed.');
 
 function checkThemePreferences() {
@@ -117,6 +138,7 @@ function checkThemePreferences() {
       localStorage: {
         getItem() { if (blocked) throw Error('Unavailable'); return stored; },
         setItem(_key, value) { if (blocked) throw Error('Unavailable'); stored = value; },
+        removeItem() { if (blocked) throw Error('Unavailable'); stored = null; },
       },
     };
     vm.createContext(themeContext);
@@ -124,6 +146,7 @@ function checkThemePreferences() {
     return {
       theme: () => attributes['data-theme'], label: () => attributes['aria-label'],
       stored: () => stored, toggle: () => themeContext.WR.ui.toggleTheme(),
+      preference: value => themeContext.WR.ui.setThemePreference(value),
       change(value) { media.matches = value; onChange(); },
     };
   }
@@ -146,6 +169,12 @@ function checkThemePreferences() {
   dark.toggle();
   assert.equal(dark.theme(), 'dark');
   assert.equal(dark.stored(), 'dark');
+  dark.preference('system');
+  assert.equal(dark.stored(), null);
+  dark.change(false);
+  assert.equal(dark.theme(), 'light');
+  dark.change(true);
+  assert.equal(dark.theme(), 'dark');
   for (const saved of ['light', 'dark']) {
     const manual = start({ dark: saved === 'light', saved });
     assert.equal(manual.theme(), saved);
@@ -165,6 +194,196 @@ function checkThemePreferences() {
   console.log('Device theme defaults, live changes, manual overrides, legacy listeners, and unavailable storage checks passed.');
 }
 checkThemePreferences();
+
+async function checkSaveFeedback() {
+  const status = { dataset: {}, textContent: '' };
+  const feedback = { dataset: {}, textContent: '' };
+  const controls = [{ value: 'Unsaved entry', disabled: false }, { disabled: true }];
+  const form = {
+    dataset: {}, attributes: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
+    querySelectorAll: () => controls, querySelector: () => feedback,
+  };
+  const listeners = new Map();
+  const state = { pending: 0, failed: false, saved: false };
+  const saveContext = {
+    state, navigator: { onLine: true },
+    document: { getElementById: () => status },
+    window: { addEventListener: (name, listener) => listeners.set(name, listener), removeEventListener: name => listeners.delete(name) },
+    WR: { saves: { state }, ui: { notify() {} } },
+  };
+  vm.createContext(saveContext);
+  vm.runInContext(['trackSave', 'renderSaveStatus', 'submitWithFeedback'].map(name => functions.get(name)).join('\n'), saveContext);
+  saveContext.WR.ui.renderSaveStatus = saveContext.renderSaveStatus;
+  let acknowledge;
+  let writes = 0;
+  const operation = () => saveContext.trackSave(() => { writes += 1; return new Promise(resolve => { acknowledge = resolve; }); });
+  const pending = saveContext.submitWithFeedback(form, operation);
+  assert.equal(status.textContent, 'Saving...');
+  assert.equal(form.attributes['aria-busy'], 'true');
+  assert.ok(controls.every(control => control.disabled));
+  assert.equal(await saveContext.submitWithFeedback(form, operation), false);
+  assert.equal(writes, 1);
+  saveContext.navigator.onLine = false;
+  saveContext.renderSaveStatus();
+  listeners.get('offline')();
+  assert.equal(status.textContent, 'Offline - waiting to sync');
+  assert.equal(feedback.textContent, 'Offline - waiting to sync');
+  assert.equal(state.saved, false);
+  saveContext.navigator.onLine = true;
+  acknowledge();
+  assert.equal(await pending, true);
+  assert.equal(status.textContent, 'Saved');
+  assert.equal(controls[0].disabled, false);
+  assert.equal(controls[1].disabled, true);
+  assert.equal(listeners.size, 0);
+  const failed = await saveContext.submitWithFeedback(form, () => saveContext.trackSave(() => Promise.reject(Error('Denied'))));
+  assert.equal(failed, false);
+  assert.equal(controls[0].value, 'Unsaved entry');
+  assert.equal(feedback.dataset.state, 'error');
+  assert.equal(status.dataset.state, 'error');
+  assert.equal(state.pending, 0);
+  assert.equal(form.attributes['aria-busy'], 'false');
+  assert.equal(await saveContext.submitWithFeedback(form, () => saveContext.trackSave(() => Promise.resolve())), true);
+  assert.equal(status.textContent, 'Saved');
+  console.log('Pending/offline acknowledgement, duplicate-submit guards, failure/retry, preserved entries, and control restoration checks passed.');
+}
+checkSaveFeedback().catch(error => { console.error(error); process.exitCode = 1; });
+
+async function checkReliableDrafts() {
+  let uid = 'first';
+  const draftContext = {
+    WR: { account: { getCurrentUser: () => ({ uid }) }, ui: { notify() {} } },
+    window: { location: { hash: '#/settings' }, addEventListener() {}, removeEventListener() {} },
+    navigator: { onLine: true },
+  };
+  vm.createContext(draftContext);
+  vm.runInContext('const formDrafts = new Map(); const pendingForms = new Set();\n' + ['formDraftKey', 'draftFields', 'captureFormDraft', 'captureFormDrafts', 'clearFormDraft', 'clearFormDrafts', 'submitWithFeedback', 'bindReliableForm'].map(name => functions.get(name)).join('\n'), draftContext);
+  function form() {
+    const fields = [{ name: 'name', type: 'text', value: '', disabled: false }, { name: 'amount', type: 'number', value: '', disabled: false }, { name: 'password', type: 'password', value: '', disabled: false }];
+    const feedback = { dataset: {}, textContent: '' };
+    return {
+      id: 'test-form', dataset: {}, fields, feedback, events: {}, isConnected: true,
+      querySelectorAll: () => fields, querySelector: () => feedback,
+      closest: () => ({ open: false }), setAttribute() {},
+      addEventListener(event, listener) { this.events[event] = listener; },
+    };
+  }
+  let saved = false;
+  const original = form();
+  draftContext.bindReliableForm(original, async () => { throw Error('Denied'); });
+  original.fields[0].value = 'Unsaved name';
+  original.fields[1].value = '120';
+  original.fields[2].value = 'do-not-retain';
+  original.events.input();
+  await original.events.submit({ preventDefault() {} });
+  assert.equal(original.feedback.dataset.state, 'error');
+  const restored = form();
+  draftContext.bindReliableForm(restored, async () => {}, () => { saved = true; });
+  assert.equal(restored.fields[0].value, 'Unsaved name');
+  assert.equal(restored.fields[1].value, '120');
+  assert.equal(restored.fields[2].value, '');
+  uid = 'second';
+  const isolated = form();
+  draftContext.bindReliableForm(isolated, async () => {});
+  assert.equal(isolated.fields[0].value, '');
+  uid = 'first';
+  await restored.events.submit({ preventDefault() {} });
+  assert.equal(saved, true);
+  const clean = form();
+  draftContext.bindReliableForm(clean, async () => {});
+  assert.equal(clean.fields[0].value, '');
+  original.events.input();
+  draftContext.clearFormDrafts();
+  const signedOut = form();
+  draftContext.bindReliableForm(signedOut, async () => {});
+  assert.equal(signedOut.fields[0].value, '');
+  console.log('Session draft restoration, save failure/retry, password exclusion, account isolation, and sign-out clearing checks passed.');
+}
+checkReliableDrafts().catch(error => { console.error(error); process.exitCode = 1; });
+
+async function checkEmergencyAtomicWrites() {
+  const records = new Map();
+  let rejectCommit = false;
+  const api = {
+    doc: (_db, ...parts) => parts.join('/'),
+    async runTransaction(_db, operation) {
+      const writes = [];
+      await operation({ set: (key, value) => writes.push(() => records.set(key, value)) });
+      if (rejectCommit) throw Error('Rejected commit');
+      writes.forEach(write => write());
+    },
+  };
+  const emergencyContext = { WR: { account: { getCurrentUser: () => ({ uid: 'test' }), getFirestoreApi: () => api, getDb: () => ({}) } } };
+  vm.createContext(emergencyContext);
+  vm.runInContext(functions.get('saveEmergencyFundEntries'), emergencyContext);
+  const entries = [{ id: 'out', amount: -100, note: undefined }, { id: 'in', amount: 100 }];
+  rejectCommit = true;
+  await assert.rejects(emergencyContext.saveEmergencyFundEntries(entries));
+  assert.equal(records.size, 0);
+  rejectCommit = false;
+  await emergencyContext.saveEmergencyFundEntries(entries);
+  assert.equal(records.size, 2);
+  assert.equal(records.get('users/test/emergencyFundContributions/out').amount, -100);
+  assert.ok(!Object.hasOwn(records.get('users/test/emergencyFundContributions/out'), 'note'));
+  records.clear();
+  await emergencyContext.saveEmergencyFundEntries([entries[0]], { id: 'borrow-budget', actualAmount: 100 });
+  assert.equal(records.size, 2);
+  assert.equal(records.get('users/test/budgetLines/borrow-budget').actualAmount, 100);
+  console.log('Emergency transfers and linked borrowing commit together or leave no partial records.');
+}
+checkEmergencyAtomicWrites().catch(error => { console.error(error); process.exitCode = 1; });
+
+async function checkRouteRaces() {
+  let current;
+  let headingFocused = false;
+  let retry;
+  function view() {
+    return {
+      dataset: {}, isConnected: true, children: [], classList: { toggle() {} }, markup: '',
+      closest() { return this; }, cloneNode() { return view(); },
+      replaceWith(next) { this.isConnected = false; current = next; },
+      setAttribute() {},
+      querySelector(selector) { return selector === 'h1' ? { focus() { headingFocused = true; } } : { addEventListener(_event, listener) { retry = listener; } }; },
+    };
+  }
+  current = view();
+  let finishFirst;
+  let renders = 0;
+  const routeContext = {
+    lastRoutedHash: '', navigationId: 0, SKELETON_HTML: 'Loading',
+    ROUTES: { '#/income': 'renderIncome', '#/settings': 'renderSettings' },
+    window: { location: { hash: '#/income' } },
+    document: { getElementById: () => current }, console: { error() {} },
+    WR: { account: { isConfigured: () => false }, saves: { state: { pending: 0 } }, ui: {
+      setActiveNav() {}, captureFormDrafts() {}, escapeText: context.escapeText,
+      setHTML(element, markup) { context.assertActiveView(element); element.markup = markup; },
+      async renderIncome(element) { const render = ++renders; if (render === 1) await new Promise(resolve => { finishFirst = resolve; }); routeContext.WR.ui.setHTML(element, render === 1 ? 'old' : 'new'); },
+      async renderSettings(element) { routeContext.WR.ui.setHTML(element, 'settings'); },
+    } },
+  };
+  vm.createContext(routeContext);
+  vm.runInContext(functions.get('handleRoute'), routeContext);
+  const first = routeContext.handleRoute();
+  await routeContext.handleRoute();
+  finishFirst();
+  await first;
+  assert.equal(current.markup, 'new');
+  assert.equal(current.inert, false);
+  routeContext.window.location.hash = '#/settings';
+  await routeContext.handleRoute();
+  assert.equal(current.markup, 'settings');
+  assert.equal(headingFocused, true);
+  routeContext.WR.ui.renderSettings = async () => { throw Error('<img src=x onerror=alert(1)>'); };
+  await routeContext.handleRoute();
+  assert.ok(current.markup.includes('&lt;img'));
+  assert.ok(current.markup.includes('route-retry-btn'));
+  routeContext.WR.ui.renderSettings = async element => routeContext.WR.ui.setHTML(element, 'retried');
+  await retry();
+  assert.equal(current.markup, 'retried');
+  console.log('Same-route race isolation, active-view focus, escaped load errors, and page retry checks passed.');
+}
+checkRouteRaces().catch(error => { console.error(error); process.exitCode = 1; });
 
 function checkVisibility() {
   const stored = new Map();
@@ -269,6 +488,14 @@ async function checkTransactionLayout() {
   };
   const container = { querySelectorAll: selector => { selectors.push(selector); return selector === '.day-date-toggle' ? [dateToggle] : []; } };
   await layoutContext.renderDayToDay(container);
+  assert.ok(markup.indexOf('id="day-add-form"') < markup.indexOf('id="day-activity-title"'));
+  assert.ok(markup.indexOf('id="day-activity-title"') < markup.indexOf('Where your money is going'));
+  assert.ok(markup.includes('id="day-today"'));
+  assert.ok(markup.includes('id="day-collapse-all"'));
+  assert.ok(markup.includes('id="day-expand-all"'));
+  assert.ok(markup.includes('inputmode="decimal"'));
+  assert.ok(markup.includes('<label>Description<input'));
+  assert.ok(markup.includes('<details class="day-disclosure">'));
   dateToggle.click();
   assert.equal(firstRow.hidden, true);
   assert.equal(secondRow.hidden, true);
@@ -346,6 +573,7 @@ async function checkSavingsActivity() {
         getOrCreateProfile: async () => ({ baseCurrency: 'ZAR', emergencyFundAccounts: [{ id: 'main', label: 'Emergency savings' }] }),
         currentMonthKey: () => '2026-10', escapeText: context.escapeText,
         fmt: number => Number(number).toFixed(2),
+        bindReliableForm() {},
         buildSnapshot: async () => ({ essentialVsDiscretionary: { essential: 1000 }, cashflow: { fixedExpenses: 1000 }, emergencyFundTargetMonths: 3 }),
         setHTML: (container, markup) => { container.markup = markup; },
       },
@@ -630,6 +858,7 @@ async function checkPaydayBudget() {
   });
   paydayContext.document = { getElementById: () => ({ addEventListener() {} }) };
   paydayContext.RECURRING_FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
+  paydayContext.WR.ui.bindReliableForm = () => {};
   vm.runInContext(functions.get('recurringFrequencyOptions') + '\n' + functions.get('renderIncome'), paydayContext);
   await paydayContext.renderIncome({ querySelector: () => ({ addEventListener() {} }), querySelectorAll: () => [] });
   assert.ok(paydayMarkup.includes('id="income-total">ZAR 8000.00'));
@@ -657,16 +886,24 @@ async function checkPaydayBudget() {
   let freshReads = 0;
   const cached = { docs: [{ data: () => ({ advanceAmount: 2000 }) }] };
   const current = { docs: [{ data: () => ({ advanceAmount: 3000 }) }] };
+  let accountUid = 'test';
   const repositoryContext = {
+    WR: { account: { getCurrentUser: () => ({ uid: accountUid }) } },
     requireContext: () => ({ uid: 'test', db: {}, api: { collection: () => ({ path: 'payCycles' }), getDocsFromServer: async () => { freshReads++; return current; } } }),
     readDocs: async () => cached,
   };
   vm.createContext(repositoryContext);
-  vm.runInContext(functions.get('createRepository'), repositoryContext);
+  vm.runInContext(functions.get('assertAccount') + '\n' + functions.get('createRepository'), repositoryContext);
   const cycleRepo = repositoryContext.createRepository('payCycles');
   assert.equal((await cycleRepo.getAll())[0].advanceAmount, 2000);
   assert.equal((await cycleRepo.getAll({ fresh: true }))[0].advanceAmount, 3000);
   assert.equal(freshReads, 1);
+  let releaseRead;
+  repositoryContext.readDocs = () => new Promise(resolve => { releaseRead = resolve; });
+  const staleRead = cycleRepo.getAll();
+  accountUid = 'other-account';
+  releaseRead(cached);
+  await assert.rejects(staleRead, { name: 'AbortError' });
   console.log('Payday funding, inline income deductions, buffer single counting, atomic savings, linked receipts, and compact Income layout passed.');
 }
 checkPaydayBudget().catch(error => { console.error(error); process.exitCode = 1; });

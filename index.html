@@ -38,7 +38,7 @@
   --border: #e3e0d3;
   --accent: #0e6b57;
   --accent-contrast: #ffffff;
-  --gold: #a9781f;
+  --gold: #8a6018;
   --danger: #a6332b;
   --success: #2e7d4f;
   --shadow: 0 1px 2px rgba(23, 26, 25, 0.04);
@@ -742,6 +742,25 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .day-activity-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
 .day-activity-heading h2 { margin: 0; }
 .day-activity-heading span { color: var(--muted); font-size: 0.8rem; }
+.day-disclosure { border-top: 1px solid var(--border); padding: 0.75rem 0; margin-top: 0.75rem; }
+.day-disclosure > summary { min-height: 44px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+.day-disclosure > summary::before { content: '\203A'; font-size: 1.2rem; }
+.day-disclosure[open] > summary::before { transform: rotate(90deg); }
+.day-entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
+.day-entry-grid label { display: grid; gap: 0.35rem; font-size: 0.82rem; color: var(--muted); }
+.day-entry-grid input, .day-entry-grid select { width: 100%; min-width: 0; min-height: 44px; }
+.day-entry-grid .day-entry-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.75rem; }
+.day-entry-actions button, .day-activity-tools button { min-height: 44px; }
+.save-status { padding: 0.4rem 1.5rem; color: var(--muted); font-size: 0.78rem; }
+.save-status[data-state="error"], [data-save-feedback][data-state="error"] { color: var(--danger); }
+[data-save-feedback] { font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+.day-activity-tools { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+@media (max-width: 680px) {
+  .stat-grid.day-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .day-summary-grid .stat-value { font-size: 1.05rem; overflow-wrap: anywhere; }
+  .day-ledger tr.is-editing td:last-child { gap: 1rem; }
+  .day-ledger tr.is-editing .delete-day { min-height: 44px; padding: 0.5rem 0.75rem; }
+}
 .day-date-filter { display: flex; align-items: end; gap: 0.75rem; padding: 0.85rem; margin-bottom: 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--panel-alt) 76%, transparent); }
 .day-date-filter label { display: grid; gap: 0.3rem; color: var(--muted); font-size: 0.75rem; font-weight: 600; }
 .day-date-filter input { width: 170px; min-height: 2.5rem; padding: 0.4rem 0.55rem; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); font: inherit; font-weight: 400; }
@@ -1144,7 +1163,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .settings-header { margin-bottom: 1.25rem; }
 .settings-header h1 { margin-bottom: 0.2rem; }
 .settings-jump { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.9rem; }
-.settings-chip { min-height: 0; padding: 0.4rem 0.85rem; border-radius: 999px; background: var(--panel); color: var(--text); border: 1px solid var(--border); font-weight: 500; font-size: 0.84rem; }
+.settings-chip { min-height: 44px; padding: 0.4rem 0.85rem; border-radius: 999px; background: var(--panel); color: var(--text); border: 1px solid var(--border); font-weight: 500; font-size: 0.84rem; }
 .settings-chip:hover { border-color: var(--accent); color: var(--accent); filter: none; }
 .settings-page > section.settings-card { background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); min-width: 0; border-radius: 14px; padding: clamp(1.1rem, 2.8vw, 1.6rem); margin: 0 0 1.1rem; scroll-margin-top: 5rem; }
 .settings-card-head { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 1.1rem; }
@@ -1494,7 +1513,8 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
   .topbar .nav-controls { display: none; }
   .topbar .theme-toggle { margin-left: auto; }
   #nav a.in-mobile-nav { display: none; }
-  .mobile-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; padding: 0.3rem max(0.3rem, env(safe-area-inset-right)) calc(0.3rem + env(safe-area-inset-bottom)) max(0.3rem, env(safe-area-inset-left)); gap: 0.2rem; background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.14); }
+  .mobile-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; padding: 0.3rem max(0.3rem, env(safe-area-inset-right)) calc(0.3rem + env(safe-area-inset-bottom)) max(0.3rem, env(safe-area-inset-left)); gap: 0.2rem; background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.14); }
+  :root[data-editing="true"] .mobile-nav { display: none; }
   .mobile-nav a, .mobile-nav button { display: grid; justify-items: center; align-content: center; gap: 0.2rem; height: 3.55rem; min-width: 0; color: var(--muted); background: transparent; border: 0; text-decoration: none; font: inherit; border-radius: 12px; cursor: pointer; }
   .mobile-nav a.active, .mobile-nav button[aria-expanded="true"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, var(--panel)); font-weight: 600; }
   .mobile-nav a:hover, .mobile-nav button:hover { background: var(--panel-alt); }
@@ -1591,6 +1611,7 @@ function assertActiveView(element) {
 }
 function setHTML(element, html) {
   assertActiveView(element);
+  WR.ui.captureFormDrafts?.(element);
   element.innerHTML = DOMPurify.sanitize(String(html ?? ''), { ADD_ATTR: ['target'], FORBID_TAGS: ['style'] });
   if (WR.ui.enhanceResponsiveContent) WR.ui.enhanceResponsiveContent(element);
 }
@@ -1664,10 +1685,35 @@ WR.ui.bindFinancialVisibility = bindFinancialVisibility;
 window.WR = window.WR || {};
 
 (function () {
+  const state = { pending: 0, failed: false, saved: false };
+  async function trackSave(operation) {
+    state.pending += 1;
+    state.failed = false;
+    WR.ui.renderSaveStatus?.();
+    try {
+      const result = await operation();
+      state.saved = true;
+      return result;
+    } catch (error) {
+      state.failed = true;
+      throw error;
+    } finally {
+      state.pending -= 1;
+      WR.ui.renderSaveStatus?.();
+    }
+  }
+  WR.saves = { state, trackSave };
+})();
+
+(function () {
   function requireContext() {
     const user = WR.account.getCurrentUser();
     if (!user) throw new Error('Not signed in.');
     return { uid: user.uid, api: WR.account.getFirestoreApi(), db: WR.account.getDb() };
+  }
+
+  function assertAccount(uid) {
+    if (WR.account.getCurrentUser()?.uid !== uid) throw Object.assign(new Error('Account changed'), { name: 'AbortError' });
   }
 
   /** @param {string} storeName */
@@ -1690,6 +1736,7 @@ window.WR = window.WR || {};
     clearTimeout(rerenderTimer);
     rerenderTimer = setTimeout(() => {
       const active = document.activeElement;
+      if (WR.ui._daySaving || WR.saves.state.pending) return;
       // Don't wipe out something the user is in the middle of typing.
       if (active && active.closest && active.closest('#content') && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName)) return;
       if (WR.ui && WR.ui.reRenderCurrentRoute) WR.ui.reRenderCurrentRoute();
@@ -1747,38 +1794,40 @@ window.WR = window.WR || {};
     }
     return {
       async getAll({ fresh = false } = {}) {
-        const { api } = requireContext();
+        const { api, uid } = requireContext();
         const ref = collectionRef();
         const snap = fresh ? await api.getDocsFromServer(ref) : await readDocs(api, ref, ref.path);
+        assertAccount(uid);
         return snap.docs.map((d) => d.data());
       },
       /** @param {string} id */
       async getById(id) {
-        const { api } = requireContext();
+        const { api, uid } = requireContext();
         const snap = await readDoc(api, docRef(id));
+        assertAccount(uid);
         return snap.exists() ? snap.data() : undefined;
       },
       /** @param {{id: string}} item */
       async add(item) {
         const { api } = requireContext();
-        await api.setDoc(docRef(item.id), stripUndefined(item));
+        await WR.saves.trackSave(() => api.setDoc(docRef(item.id), stripUndefined(item)));
         return item.id;
       },
       /** @param {{id: string}} item */
       async update(item) {
         const { api } = requireContext();
-        await api.setDoc(docRef(item.id), stripUndefined(item));
+        await WR.saves.trackSave(() => api.setDoc(docRef(item.id), stripUndefined(item)));
         return item.id;
       },
       /** @param {string} id */
       async remove(id) {
         const { api } = requireContext();
-        await api.deleteDoc(docRef(id));
+        await WR.saves.trackSave(() => api.deleteDoc(docRef(id)));
       },
       async clear() {
         const { api } = requireContext();
         const snap = await api.getDocs(collectionRef());
-        await Promise.all(snap.docs.map((d) => api.deleteDoc(d.ref)));
+        await WR.saves.trackSave(() => Promise.all(snap.docs.map((d) => api.deleteDoc(d.ref))));
       },
     };
   }
@@ -2224,10 +2273,11 @@ WR.financial = WR.financial || {};
    * decision logic in a later sprint.
    * @param {Array} debts
    */
-  function calculateWeightedAverageInterestRate(debts) {
-    const totalBalance = calculateTotalDebt(debts);
+  function calculateWeightedAverageInterestRate(debts, exchangeRates = [], baseCurrency) {
+    const balances = debts.map(debt => ({ debt, balance: Math.max(0, baseCurrency ? WR.financial.convertCurrency(debt.currentBalance, debt.currency || baseCurrency, baseCurrency, exchangeRates).value : Number(debt.currentBalance) || 0) }));
+    const totalBalance = balances.reduce((sum, item) => sum + item.balance, 0);
     if (totalBalance <= 0) return 0;
-    const weightedSum = debts.reduce((sum, debt) => sum + debt.interestRate * debt.currentBalance, 0);
+    const weightedSum = balances.reduce((sum, item) => sum + (Number(item.debt.interestRate) || 0) * item.balance, 0);
     return weightedSum / totalBalance;
   }
 
@@ -2251,8 +2301,8 @@ WR.financial = WR.financial || {};
 (function () {
   /**
    * Converts an amount from one currency to another using the most recent
-   * matching ExchangeRate record. Returns the original amount unconverted
-   * (with a warning flag) if no rate is found and the currencies differ —
+  * matching valid ExchangeRate record. Returns zero with a warning flag
+  * if no rate is found and the currencies differ —
    * silently assuming a 1:1 rate would misstate net worth, so callers get
    * an explicit signal instead.
    *
@@ -2263,26 +2313,33 @@ WR.financial = WR.financial || {};
    * @returns {{ value: number, converted: boolean }}
    */
   function convertCurrency(amount, fromCurrency, toCurrency, exchangeRates) {
-    if (fromCurrency === toCurrency) return { value: amount, converted: true };
+    const numericAmount = Number(amount);
+    const sourceCurrency = String(fromCurrency || toCurrency || '').trim().toUpperCase();
+    const targetCurrency = String(toCurrency || '').trim().toUpperCase();
+    if (!Number.isFinite(numericAmount) || !sourceCurrency || !targetCurrency) return { value: 0, converted: false };
+    if (sourceCurrency === targetCurrency) return { value: numericAmount, converted: true };
+    const validRates = (exchangeRates || []).filter(rate => Number.isFinite(Number(rate.rate)) && Number(rate.rate) > 0);
 
-    const candidates = exchangeRates.filter(
-      (r) => r.fromCurrency === fromCurrency && r.toCurrency === toCurrency,
+    const candidates = validRates.filter(
+      (rate) => String(rate.fromCurrency).trim().toUpperCase() === sourceCurrency && String(rate.toCurrency).trim().toUpperCase() === targetCurrency,
     );
     if (candidates.length > 0) {
       const latest = candidates.reduce((a, b) => (a.date > b.date ? a : b));
-      return { value: amount * latest.rate, converted: true };
+      const value = numericAmount * Number(latest.rate);
+      return { value: Number.isFinite(value) ? value : 0, converted: Number.isFinite(value) };
     }
 
     // Try the inverse rate if that's what's stored.
-    const inverseCandidates = exchangeRates.filter(
-      (r) => r.fromCurrency === toCurrency && r.toCurrency === fromCurrency,
+    const inverseCandidates = validRates.filter(
+      (rate) => String(rate.fromCurrency).trim().toUpperCase() === targetCurrency && String(rate.toCurrency).trim().toUpperCase() === sourceCurrency,
     );
     if (inverseCandidates.length > 0) {
       const latest = inverseCandidates.reduce((a, b) => (a.date > b.date ? a : b));
-      return { value: amount / latest.rate, converted: true };
+      const value = numericAmount / Number(latest.rate);
+      return { value: Number.isFinite(value) ? value : 0, converted: Number.isFinite(value) };
     }
 
-    return { value: amount, converted: false };
+    return { value: 0, converted: false };
   }
 
   /**
@@ -2369,8 +2426,8 @@ WR.financial = WR.financial || {};
    * easily-accessed savings), as opposed to a house or a retirement annuity.
    * @param {Array} assets
    */
-  function calculateLiquidAssets(assets) {
-    return assets.filter((a) => a.liquidity === 'high').reduce((sum, a) => sum + a.currentValue, 0);
+  function calculateLiquidAssets(assets, exchangeRates = [], baseCurrency) {
+    return assets.filter(asset => asset.liquidity === 'high').reduce((sum, asset) => sum + (baseCurrency ? WR.financial.convertCurrency(asset.currentValue, asset.currency || baseCurrency, baseCurrency, exchangeRates).value : Number(asset.currentValue) || 0), 0);
   }
 
   /**
@@ -3361,11 +3418,19 @@ WR.ui = WR.ui || {};
   function toggleTheme() {
     const current = document.documentElement.getAttribute('data-theme') || getSystemTheme();
     const next = current === 'dark' ? 'light' : 'dark';
-    preferredTheme = next;
+    setThemePreference(next);
+  }
+
+  function setThemePreference(theme) {
+    if (!['system', 'light', 'dark'].includes(theme)) return;
+    preferredTheme = theme === 'system' ? null : theme;
     try {
-      localStorage.setItem(STORAGE_KEY, next);
+      if (preferredTheme) localStorage.setItem(STORAGE_KEY, preferredTheme);
+      else localStorage.removeItem(STORAGE_KEY);
     } catch {}
-    applyTheme(next);
+    initTheme();
+    const select = document.getElementById('theme-preference');
+    if (select) select.value = preferredTheme || 'system';
   }
 
   function followSystemTheme() {
@@ -3378,6 +3443,8 @@ WR.ui = WR.ui || {};
   WR.ui.initTheme = initTheme;
   WR.ui.toggleTheme = toggleTheme;
   WR.ui.updateToggleIcon = updateToggleIcon;
+  WR.ui.getThemePreference = () => preferredTheme || 'system';
+  WR.ui.setThemePreference = setThemePreference;
 
   // Runs immediately at script load, not on DOMContentLoaded \u2014
   // document.documentElement already exists by the time this executes, and
@@ -3728,7 +3795,7 @@ WR.ui = WR.ui || {};
     const debtToIncomeRatio = F.calculateDebtToIncomeRatio(debts, cashflow.income, exchangeRates, profile.baseCurrency);
     const highestInterestDebt = F.getHighestInterestDebt(debts);
 
-    const liquidAssets = F.calculateLiquidAssets(assets);
+    const liquidAssets = F.calculateLiquidAssets(assets, exchangeRates, profile.baseCurrency);
     // Fall back to fixed expenses as a rough proxy for "essential monthly
     // expenses" when no categories have been tagged essential yet.
     const essentialMonthlyExpenses = split.essential > 0 ? split.essential : cashflow.fixedExpenses;
@@ -3821,6 +3888,7 @@ WR.ui = WR.ui || {};
       availableSurplus: 0,
     });
     annualSummary.totalInvested = F.calculateTotalInvestments(investments, exchangeRates, profile.baseCurrency);
+    annualSummary.totalWealth = F.sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency).total;
 
     // Match the Emergency Fund page: a borrowed (negative) entry marked
     // "returned" no longer counts against the balance once repaid.
@@ -3950,6 +4018,138 @@ WR.ui = WR.ui || {};
     element.classList.add('just-saved');
     setTimeout(() => element.classList.remove('just-saved'), 700);
   }
+
+  function renderSaveStatus() {
+    const status = document.getElementById('save-status');
+    if (!status) return;
+    const state = WR.saves.state;
+    const offline = navigator.onLine === false;
+    status.dataset.state = state.failed ? 'error' : state.pending ? 'pending' : 'ready';
+    status.textContent = state.failed ? "Couldn't save. Please retry."
+      : offline ? state.pending ? 'Offline - waiting to sync' : 'Offline'
+      : state.pending ? 'Saving...' : state.saved ? 'Saved' : 'Online';
+  }
+
+  async function submitWithFeedback(form, operation) {
+    if (form.dataset.saving === 'true') return false;
+    form.dataset.saving = 'true';
+    form.setAttribute('aria-busy', 'true');
+    const controls = [...form.querySelectorAll('input, select, textarea, button')].map(control => [control, control.disabled]);
+    controls.forEach(([control]) => { control.disabled = true; });
+    const status = form.querySelector('[data-save-feedback]');
+    const update = () => { if (status) status.textContent = navigator.onLine === false ? 'Offline - waiting to sync' : 'Saving...'; };
+    if (status) status.dataset.state = 'pending';
+    update();
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    try {
+      await operation();
+      if (status) { status.textContent = 'Saved'; status.dataset.state = 'ready'; }
+      return true;
+    } catch (error) {
+      if (status) { status.textContent = "Couldn't save. Your entry is still here. Please retry."; status.dataset.state = 'error'; }
+      WR.ui.notify("Couldn't save. Your entry is still here. Please retry.", 'error');
+      return false;
+    } finally {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+      controls.forEach(([control, disabled]) => { control.disabled = disabled; });
+      form.dataset.saving = 'false';
+      form.setAttribute('aria-busy', 'false');
+    }
+  }
+
+  WR.ui.renderSaveStatus = renderSaveStatus;
+  WR.ui.submitWithFeedback = submitWithFeedback;
+  const formDrafts = new Map();
+  const pendingForms = new Set();
+  function formDraftKey(form) {
+    return `${WR.account?.getCurrentUser()?.uid || 'local'}|${form.dataset.draftRoute || window.location.hash}|${form.id || form.dataset.id + ':' + form.className}`;
+  }
+  function draftFields(form) {
+    return [...form.querySelectorAll('input[name], select[name], textarea[name]')].filter(field => !['password', 'file', 'hidden'].includes(field.type));
+  }
+  function captureFormDraft(form) {
+    if (form.dataset.draftDirty !== 'true') return;
+    const values = draftFields(form).map(field => ({ name: field.name, value: field.value, checked: field.checked }));
+    formDrafts.set(form.dataset.draftKey, values);
+  }
+  function captureFormDrafts(container) {
+    container.querySelectorAll('form[data-draft-key]').forEach(captureFormDraft);
+  }
+  function clearFormDraft(form) {
+    formDrafts.delete(form.dataset.draftKey);
+    form.dataset.draftDirty = 'false';
+  }
+  function clearFormDrafts() {
+    formDrafts.clear();
+    pendingForms.clear();
+    if (typeof document !== 'undefined') document.querySelectorAll('form[data-draft-key]').forEach(form => { form.dataset.draftDirty = 'false'; });
+    WR.ui._dayDraft = null;
+    WR.ui._dayDraftOwner = null;
+  }
+  function bindReliableForm(form, operation, afterSave) {
+    if (!form) return;
+    form.dataset.draftRoute = window.location.hash;
+    form.dataset.draftKey = formDraftKey(form);
+    const key = form.dataset.draftKey;
+    const fields = draftFields(form);
+    const draft = formDrafts.get(key);
+    if (draft) {
+      fields.forEach(field => {
+        const saved = draft.find(value => value.name === field.name);
+        if (!saved) return;
+        if (['checkbox', 'radio'].includes(field.type)) field.checked = saved.checked;
+        else field.value = saved.value;
+      });
+      form.dataset.draftDirty = 'true';
+      const details = form.closest('details');
+      if (details) details.open = true;
+    }
+    if (!form.querySelector('[data-save-feedback]')) {
+      const status = document.createElement('span');
+      status.setAttribute('data-save-feedback', '');
+      status.setAttribute('role', 'status');
+      status.className = 'span-2';
+      form.appendChild(status);
+    }
+    const remember = () => { form.dataset.draftDirty = 'true'; captureFormDraft(form); };
+    form.addEventListener('input', remember);
+    form.addEventListener('change', remember);
+    form.addEventListener('reset', () => clearFormDraft(form));
+    if (pendingForms.has(key)) form.querySelectorAll('input, select, textarea, button').forEach(control => { control.disabled = true; });
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (pendingForms.has(key)) return;
+      remember();
+      pendingForms.add(key);
+      const saved = await submitWithFeedback(form, () => operation(form));
+      pendingForms.delete(key);
+      if (saved) clearFormDraft(form);
+      if (!form.isConnected) {
+        if (window.location.hash === form.dataset.draftRoute && formDraftKey(form) === key) WR.ui.reRenderCurrentRoute?.();
+        return;
+      }
+      if (saved && afterSave) {
+        try { await afterSave(form); }
+        catch (error) { if (error.name !== 'AbortError') WR.ui.notify('Saved, but the view could not refresh. Reload this page.', 'error'); }
+      }
+      if (saved && typeof document !== 'undefined' && formDraftKey(form) === key && window.location.hash === form.dataset.draftRoute) {
+        const replacement = [...document.querySelectorAll('form[data-draft-key]')].find(candidate => candidate.dataset.draftKey === key);
+        replacement?.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus();
+      }
+    });
+  }
+  Object.assign(WR.ui, { captureFormDrafts, clearFormDrafts, bindReliableForm });
+  window.addEventListener('online', renderSaveStatus);
+  window.addEventListener('offline', renderSaveStatus);
+  const updateEditingState = () => {
+    const active = document.activeElement;
+    const editing = active && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName) && !['checkbox', 'radio', 'button', 'submit'].includes(active.type);
+    document.documentElement.setAttribute('data-editing', String(!!editing));
+  };
+  document.addEventListener('focusin', updateEditingState);
+  document.addEventListener('focusout', () => requestAnimationFrame(updateEditingState));
 
   function notify(message, tone) {
     const stack = document.getElementById('toast-stack');
@@ -4097,7 +4297,7 @@ WR.ui = WR.ui || {};
   const HORIZONTAL_NAV_HASHES = ['#/dashboard', '#/transactions', '#/debts', '#/savings', '#/settings'];
   const HORIZONTAL_NAV_ITEMS = HORIZONTAL_NAV_HASHES.map((hash) => NAV_ITEMS.find((i) => i.hash === hash)).filter(Boolean);
   // Must match the links in the mobile bottom bar (.mobile-nav) in renderShell().
-  const MOBILE_NAV_HASHES = ['#/dashboard', '#/debts', '#/savings'];
+  const MOBILE_NAV_HASHES = ['#/dashboard', '#/transactions', '#/debts', '#/savings'];
   const SUPPORT_WHATSAPP_URL = 'https://wa.me/27625417921?text=' + encodeURIComponent('Hi WealthRoute support, I need help with...');
 
   function renderNavAccount() {
@@ -4244,6 +4444,7 @@ WR.ui = WR.ui || {};
         <nav id="nav" aria-label="All sections">${nav}</nav>
         <nav class="mobile-nav" aria-label="Mobile navigation">
           <a href="#/dashboard" data-hash="#/dashboard" aria-label="Home" title="Home"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h14V9M9 21v-7h6v7"/></svg><small>Home</small></a>
+          <a href="#/transactions" data-hash="#/transactions" aria-label="Transactions" title="Transactions"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M16 3l4 4-4 4M20 17H4m4-4-4 4 4 4"/></svg><small>Activity</small></a>
           <a href="#/debts" data-hash="#/debts" aria-label="Debts" title="Debts"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M16 14h2"/></svg><small>Debts</small></a>
           <a href="#/savings" data-hash="#/savings" aria-label="Savings" title="Savings"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9.5A7 7 0 0 1 18.5 8H21v6h-2.5a7 7 0 0 1-13.5-4.5Z"/><path d="M5 10H3v4h4M10 7h.01M14 7h.01M9 15c1.5 1 3.5 1 5 0"/></svg><small>Savings</small></a>
           <button id="mobile-more-btn" type="button" aria-label="More navigation" aria-expanded="false" title="More navigation"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg><small>More</small></button>
@@ -4258,11 +4459,13 @@ WR.ui = WR.ui || {};
         <button id="theme-toggle-btn" class="theme-toggle" type="button"></button>
       </header>
       <div id="global-notice" class="global-notice"></div>
+      <div id="save-status" class="save-status" role="status" aria-live="polite"></div>
       <main id="content"></main>
       <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
     `);
     WR.ui.updateToggleIcon(document.documentElement.getAttribute('data-theme') || 'light');
     document.getElementById('theme-toggle-btn').addEventListener('click', WR.ui.toggleTheme);
+    renderSaveStatus();
     const toggleNavigation = () => {
       const topbar = document.querySelector('.topbar');
       const isOpen = topbar.classList.toggle('nav-open');
@@ -4302,7 +4505,10 @@ WR.ui = WR.ui || {};
 
   function setActiveNav(hash) {
     document.querySelectorAll('#nav a, .nav-horizontal a, .mobile-nav a').forEach((a) => {
-      a.classList.toggle('active', a.getAttribute('data-hash') === hash);
+      const active = a.getAttribute('data-hash') === hash;
+      a.classList.toggle('active', active);
+      if (active) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
     });
     const topbar = document.querySelector('.topbar');
     const toggle = document.getElementById('nav-toggle-btn');
@@ -4582,11 +4788,11 @@ WR.ui = WR.ui || {};
 
         <div class="dashboard-card annual-card">
           <h2>${s.selectedYear} overview</h2>
-          <p class="fine-print">${s.annualStartMonth ? `Income counted from ${WR.ui.monthName(Number(s.annualStartMonth.slice(5)))} through ${WR.ui.monthName(Number(s.month.slice(5)))} ${s.selectedYear}.` : 'No income months recorded yet.'} Savings and investments show current balances.</p>
+          <p class="fine-print">${s.annualStartMonth ? `Income counted from ${WR.ui.monthName(Number(s.annualStartMonth.slice(5)))} through ${WR.ui.monthName(Number(s.month.slice(5)))} ${s.selectedYear}.` : 'No income months recorded yet.'} Savings and wealth show current balances.</p>
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
             <div class="stat"><span class="stat-label">Savings Pots Total</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSavedAndInvested)}</span></div>
-            <div class="stat"><span class="stat-label" title="Current portfolio value in your base currency">Total Investments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalInvested)}</span></div>
+            <div class="stat"><span class="stat-label" title="Current assets and investments before subtracting debts">Total Wealth</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalWealth)}</span></div>
             <div class="stat"><span class="stat-label">Total Debt Payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
           </div>
         </div>
@@ -4851,7 +5057,7 @@ WR.ui = WR.ui || {};
 
       <h3>Add a line</h3>
       <form id="add-line-form" class="inline-form">
-        <input name="name" placeholder="Name (e.g. Groceries)" required>
+        <input name="recordName" placeholder="Name (e.g. Groceries)" required>
         <select name="categoryId">${categoryOptions(variableCategories)}</select>
         <input name="budgetAmount" type="number" step="0.01" min="0" placeholder="Budget" required>
         <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Actual" required>
@@ -4933,7 +5139,7 @@ WR.ui = WR.ui || {};
       const line = WR.models.createBudgetLine({
         month,
         type: 'variable',
-        name: form.name.value,
+        name: form.elements.recordName.value,
         categoryId: form.categoryId.value || undefined,
         budgetAmount: Math.max(0, parseFloat(form.budgetAmount.value) || 0),
         actualAmount: Math.max(0, parseFloat(form.actualAmount.value) || 0),
@@ -5003,7 +5209,7 @@ WR.ui = WR.ui || {};
 
       <h3>Add savings</h3>
       <form id="add-saving-form" class="inline-form">
-        <input name="name" placeholder="Name (e.g. Emergency fund)" required>
+        <input name="recordName" placeholder="Name (e.g. Emergency fund)" required>
         <input name="budgetAmount" type="number" step="0.01" min="0" placeholder="Planned" required>
         <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Added this month" required>
         <button type="submit">Add</button>
@@ -5053,7 +5259,7 @@ WR.ui = WR.ui || {};
       await WR.repos.budgetLines.add(WR.models.createBudgetLine({
         month,
         type: 'savings',
-        name: form.name.value,
+        name: form.elements.recordName.value,
         budgetAmount: Math.max(0, parseFloat(form.budgetAmount.value) || 0),
         actualAmount: Math.max(0, parseFloat(form.actualAmount.value) || 0),
         currency: profile.baseCurrency,
@@ -5388,7 +5594,7 @@ WR.ui = WR.ui || {};
 
       <h3>Add income source</h3>
       <form id="income-add-form" class="inline-form">
-        <input name="name" placeholder="Salary, side business, rental" required>
+        <input name="recordName" placeholder="Salary, side business, rental" required>
         <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
         <select name="frequency">${recurringFrequencyOptions('monthly')}</select>
         <input name="startMonth" type="month" value="${WR.ui.escapeText(defaultStartMonth)}">
@@ -5448,7 +5654,7 @@ WR.ui = WR.ui || {};
             }
             await renderIncome(container, true);
             WR.ui.enhanceResponsiveContent(container);
-          } catch (error) { WR.ui.notify(error.message, 'error'); await renderIncome(container); WR.ui.enhanceResponsiveContent(container); }
+          } catch (error) { WR.ui.notify("Couldn't save this edit. Your value is still here. " + error.message, 'error'); }
         });
       });
     });
@@ -5460,44 +5666,31 @@ WR.ui = WR.ui || {};
       });
     });
 
-    document.getElementById('income-add-form').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const form = event.target;
+    WR.ui.bindReliableForm(document.getElementById('income-add-form'), async (form) => {
       const startMonth = form.startMonth.value;
       const endMonth = form.endMonth.value;
       const message = document.getElementById('income-form-message');
       if (!isMonthRangeValid(startMonth, endMonth)) {
         message.textContent = 'Invalid month range: start month must be before or equal to end month.';
-        return;
+        throw new Error(message.textContent);
       }
       message.textContent = '';
       const newSource = WR.models.createIncomeSource({
         year,
-        name: form.name.value.trim(),
+        name: form.elements.recordName.value.trim(),
         amount: Math.max(0, parseFloat(form.amount.value) || 0),
         currency: profile.baseCurrency,
         frequency: form.frequency.value,
         startMonth,
         endMonth,
       });
-      try { await saveIncomeBudget(month, { sourceId: newSource.id, newSource }); await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); } catch (error) { message.textContent = error.message; }
-    });
-    document.getElementById('income-buffer-opening-form').addEventListener('submit', async event => {
-      event.preventDefault();
-      try { await saveIncomeBudget(month, { openingBuffer: Number(event.currentTarget.elements.amount.value) }); await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
-    });
-    document.getElementById('income-buffer-form').addEventListener('submit', async event => {
-      event.preventDefault();
-      try { await saveIncomeBudget(month, { bufferAmount: Number(event.currentTarget.elements.amount.value) }); await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
-    });
+      await saveIncomeBudget(month, { sourceId: newSource.id, newSource });
+    }, async () => { await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); });
+    const refreshIncome = async () => { await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); };
+    WR.ui.bindReliableForm(document.getElementById('income-buffer-opening-form'), form => saveIncomeBudget(month, { openingBuffer: Number(form.elements.amount.value) }), refreshIncome);
+    WR.ui.bindReliableForm(document.getElementById('income-buffer-form'), form => saveIncomeBudget(month, { bufferAmount: Number(form.elements.amount.value) }), refreshIncome);
     const depositId = WR.models.newId();
-    document.getElementById('income-buffer-funds-form').addEventListener('submit', async event => {
-      event.preventDefault();
-      const form = event.currentTarget;
-      const button = form.querySelector('button');
-      button.disabled = true;
-      try { await saveIncomeBudget(month, { addFunds: { id: depositId, amount: Number(form.elements.amount.value) } }); await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); } finally { button.disabled = false; }
-    });
+    WR.ui.bindReliableForm(document.getElementById('income-buffer-funds-form'), form => saveIncomeBudget(month, { addFunds: { id: depositId, amount: Number(form.elements.amount.value) } }), refreshIncome);
     document.getElementById('income-auto-buffer').addEventListener('change', async event => {
       const enabled = event.target.checked;
       try { await saveIncomeBudget(month, { autoUseBuffer: enabled, ...(enabled ? { bufferAmount: Math.max(0, snapshot.payCycleBudget.carryOver) } : {}) }); await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); } catch (error) { event.target.checked = !enabled; WR.ui.notify(error.message, 'error'); }
@@ -5544,7 +5737,7 @@ WR.ui = WR.ui || {};
 
       <h3>Add fixed expense</h3>
       <form id="fixed-add-form" class="inline-form">
-        <input name="name" placeholder="Rent, insurance, internet" required>
+        <input name="recordName" placeholder="Rent, insurance, internet" required>
         <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
         <select name="frequency">${recurringFrequencyOptions('monthly')}</select>
         <select name="categoryId">${categoryOptions(categories, undefined, 'fixed')}</select>
@@ -5606,7 +5799,7 @@ WR.ui = WR.ui || {};
       }
       message.textContent = '';
       await WR.repos.fixedExpenses.add(WR.models.createFixedExpense({
-        name: form.name.value.trim(),
+        name: form.elements.recordName.value.trim(),
         amount: Math.max(0, parseFloat(form.amount.value) || 0),
         frequency: form.frequency.value,
         categoryId: form.categoryId.value || undefined,
@@ -5624,6 +5817,18 @@ WR.ui = WR.ui || {};
     { id: 'fnb', label: 'FNB Emergency Fund' },
   ];
   const escapeEf = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+  async function saveEmergencyFundEntries(entries, budgetLine) {
+    const user = WR.account.getCurrentUser();
+    if (!user) throw new Error('Not signed in.');
+    const api = WR.account.getFirestoreApi();
+    const db = WR.account.getDb();
+    const clean = item => Object.fromEntries(Object.entries(item).filter(([, value]) => value !== undefined));
+    await api.runTransaction(db, async transaction => {
+      entries.forEach(entry => transaction.set(api.doc(db, 'users', user.uid, 'emergencyFundContributions', entry.id), clean(entry)));
+      if (budgetLine) transaction.set(api.doc(db, 'users', user.uid, 'budgetLines', budgetLine.id), clean(budgetLine));
+    });
+  }
 
   async function renderEmergencyFund(container) {
     const [profile, contributions] = await Promise.all([
@@ -5691,7 +5896,7 @@ WR.ui = WR.ui || {};
         <strong>${targetProgress}% Complete</strong><div class="goal-meter" role="progressbar" aria-valuenow="${targetProgress}" aria-valuemin="0" aria-valuemax="100"><span style="width:${targetProgress}%"></span></div>
         <p>${target > 0 ? `${profile.baseCurrency} ${WR.ui.fmt(total)} of ${profile.baseCurrency} ${WR.ui.fmt(target)}` : 'Set a target amount to track your progress.'}</p>
         <form id="emergency-target-form" class="inline-form"><label>Target amount (${profile.baseCurrency}):
-          <input name="target" type="number" min="0.01" step="0.01" value="${WR.ui.escapeText(Number(profile.emergencyFundTargetAmount) || '')}" required></label>
+          <input name="targetAmount" type="number" min="0.01" step="0.01" value="${WR.ui.escapeText(Number(profile.emergencyFundTargetAmount) || '')}" required></label>
           <button type="submit">Save target</button></form></div>
 
       <div class="ef-account-grid">
@@ -5797,7 +6002,7 @@ WR.ui = WR.ui || {};
 
     container.querySelector('#emergency-target-form').addEventListener('submit', async (event) => {
       event.preventDefault();
-      profile.emergencyFundTargetAmount = Number(event.currentTarget.elements.target.value);
+      profile.emergencyFundTargetAmount = Number(event.currentTarget.elements.targetAmount.value);
       await WR.repos.userProfile.update(profile);
       renderEmergencyFund(container);
     });
@@ -5850,90 +6055,82 @@ WR.ui = WR.ui || {};
       });
     });
 
-    container.querySelector('#emergency-add-form').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const form = event.target;
+    const refreshEmergencyFund = async () => { await WR.ui.refreshIntegrityNotice(); await renderEmergencyFund(container); };
+    WR.ui.bindReliableForm(container.querySelector('#emergency-add-form'), async (form) => {
       await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
         date: form.date.value,
         account: form.account.value,
         amount: Math.max(0, parseFloat(form.amount.value) || 0),
         note: form.note.value.trim() || undefined,
       }));
-      WR.ui.refreshIntegrityNotice();
-      renderEmergencyFund(container);
-    });
+    }, refreshEmergencyFund);
 
-    container.querySelector('#emergency-borrow-form').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const form = event.target;
+    WR.ui.bindReliableForm(container.querySelector('#emergency-borrow-form'), async (form) => {
       const amount = Math.max(0, parseFloat(form.amount.value) || 0);
-      if (!amount) return;
+      if (!amount) throw new Error('Enter an amount greater than zero.');
       const account = form.account.value;
       const accountTotal = (totalsByAccount.find((a) => a.id === account) || { total: 0 }).total;
       if (amount > accountTotal) {
-        WR.ui.notify(`You can borrow up to ${profile.baseCurrency} ${WR.ui.fmt(accountTotal)} from ${emergencyFundAccountLabel(account)}.`, 'error');
-        return;
+        throw new Error(`You can borrow up to ${profile.baseCurrency} ${WR.ui.fmt(accountTotal)} from ${emergencyFundAccountLabel(account)}.`);
       }
       const date = form.date.value;
       const note = form.note.value.trim();
-      await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
+      const entry = WR.models.createEmergencyFundContribution({
         date,
         account,
         amount: -amount,
         note: note ? `Borrowed: ${note}` : 'Borrowed from emergency fund',
         returned: false,
-      }));
-      await WR.repos.budgetLines.add(WR.models.createBudgetLine({
+      });
+      const budgetLine = WR.models.createBudgetLine({
         month: date.slice(0, 7),
         type: 'variable',
         name: 'Emergency Fund Borrowed',
         budgetAmount: amount,
         actualAmount: amount,
         currency: profile.baseCurrency,
-      }));
-      WR.ui.refreshIntegrityNotice();
+      });
+      await saveEmergencyFundEntries([entry], budgetLine);
+    }, async () => {
       WR.ui.notify('Borrowed amount recorded and added to variable expenses.', 'success');
-      renderEmergencyFund(container);
+      await refreshEmergencyFund();
     });
 
-    container.querySelector('#emergency-transfer-form').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const form = event.target;
+    WR.ui.bindReliableForm(container.querySelector('#emergency-transfer-form'), async (form) => {
       const fromAccount = form.fromAccount.value;
       const toAccount = form.toAccount.value;
       const amount = Math.max(0, parseFloat(form.amount.value) || 0);
       if (fromAccount === toAccount) {
-        WR.ui.notify('Choose two different accounts to move funds.', 'error');
-        return;
+        throw new Error('Choose two different accounts to move funds.');
       }
       const sourceTotal = (totalsByAccount.find((a) => a.id === fromAccount) || { total: 0 }).total;
       if (!amount || amount > sourceTotal) {
-        WR.ui.notify(`You can move up to ${profile.baseCurrency} ${WR.ui.fmt(sourceTotal)} from ${emergencyFundAccountLabel(fromAccount)}.`, 'error');
-        return;
+        throw new Error(`You can move up to ${profile.baseCurrency} ${WR.ui.fmt(sourceTotal)} from ${emergencyFundAccountLabel(fromAccount)}.`);
       }
       const transferId = WR.models.newId();
       const date = form.date.value;
       const note = form.note.value.trim();
       const description = note ? `Transfer: ${note}` : 'Transfer between emergency fund accounts';
-      await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
+      const outgoing = WR.models.createEmergencyFundContribution({
         date,
         account: fromAccount,
         amount: -amount,
         note: `${description} to ${emergencyFundAccountLabel(toAccount)}`,
         transferId,
         transferDirection: 'out',
-      }));
-      await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
+      });
+      const incoming = WR.models.createEmergencyFundContribution({
         date,
         account: toAccount,
         amount,
         note: `${description} from ${emergencyFundAccountLabel(fromAccount)}`,
         transferId,
         transferDirection: 'in',
-      }));
-      WR.ui.refreshIntegrityNotice();
+      });
+      await saveEmergencyFundEntries([outgoing, incoming]);
+    }, async () => {
       WR.ui.notify('Funds moved successfully.', 'success');
-      renderEmergencyFund(container);
+      await refreshEmergencyFund();
     });
   }
 
@@ -5952,15 +6149,27 @@ WR.ui = WR.ui || {};
     const payCycles = budgetSnapshot.payCycles;
     const month = WR.ui._dayMonth || WR.ui.currentBudgetMonth();
     const year = Number(month.slice(0, 4));
-    const today = new Date().toISOString().slice(0, 10);
+    const localDate = new Date();
+    const today = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
     const dates = WR.ui.payCycleDates(month);
     const transactionDate = today >= dates.start && today < dates.endExclusive ? today : dates.start;
+    const draftOwner = WR.account?.getCurrentUser()?.uid || 'local';
+    if (WR.ui._dayDraftOwner !== draftOwner) {
+      WR.ui._dayDraft = null;
+      WR.ui._dayLastCategory = '';
+      WR.ui._daySaving = false;
+      WR.ui._dayDraftOwner = draftOwner;
+    }
+    const categoryKey = `wr_day_category_${draftOwner}`;
+    let lastCategory = WR.ui._dayLastCategory || '';
+    try { lastCategory = lastCategory || localStorage.getItem(categoryKey) || ''; } catch {}
+    const draft = WR.ui._dayDraft || { date: transactionDate, description: '', category: lastCategory, amount: '' };
     WR.ui._dayYear = year;
     WR.ui._dayMonth = month;
     const defaultCategories = ['Alcohol', 'Eating out', 'Transport', 'Bank charges', 'Additional groceries'];
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
     const categoryNames = [];
-    [...defaultCategories, ...expenseCategories.map((category) => category.name), ...transactions.map((transaction) => transaction.category)]
+    [...defaultCategories, lastCategory, ...expenseCategories.map((category) => category.name), ...transactions.map((transaction) => transaction.category)]
       .map((category) => String(category || '').trim())
       .filter(Boolean)
       .forEach((category) => {
@@ -5995,11 +6204,11 @@ WR.ui = WR.ui || {};
       ? `You added to your emergency fund last month, so keeping this reduction in ${reductionDestination} will improve cash flow.`
       : `Last month had no emergency fund contribution, so this is a good place to direct the freed-up money.`;
     const reductionCard = topSpend ? `
-      <section class="day-suggestion-card">
-        <h2>Spending suggestion</h2>
+      <details class="day-disclosure">
+        <summary>Spending suggestion</summary>
         <p>Reduce ${escapeHtml(topSpend.category)} by about ${profile.baseCurrency} ${WR.ui.fmt(reductionAmount)} this month and direct it to ${reductionDestination}.</p>
         <p class="fine-print">${escapeHtml(reductionContext)} ${escapeHtml(topSpend.category)} is currently your highest day-to-day category at ${profile.baseCurrency} ${WR.ui.fmt(topSpend.amount)}.</p>
-      </section>` : '';
+      </details>` : '';
     const categoryCards = categorySpend.map((item, index) => {
       const share = spent > 0 ? (item.amount / spent) * 100 : 0;
       return `
@@ -6029,7 +6238,7 @@ WR.ui = WR.ui || {};
       <h1>Transactions</h1>
       <div class="toolbar"><label>Month: <input id="day-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
 
-      <div class="stat-grid">
+      <div class="stat-grid day-summary-grid">
         <div class="stat"><span class="stat-label">Balance at start of month</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(balanceBeforeMonth)}</span></div>
         <div class="stat"><span class="stat-label">Money spent</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(spent)}</span></div>
         <div class="stat"><span class="stat-label">Current balance</span><span class="stat-value ${current < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(current)}</span></div>
@@ -6037,21 +6246,24 @@ WR.ui = WR.ui || {};
       </div>
       <div class="day-category-meter" role="progressbar" aria-label="Budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(payBudget.remainingPct)}"><span style="--share: ${payBudget.remainingPct}%"></span></div><p class="fine-print">${Math.round(payBudget.remainingPct)}% remaining</p>
 
-      ${reductionCard}
-
-      <section>
-        <h2>Where your money is going</h2>
-        <div class="day-category-list" role="list">${categoryCards || '<p class="empty">No spending recorded for this month yet.</p>'}</div>
-      </section>
-
-      <h3>Add category</h3>
-      <form id="day-category-form" class="inline-form">
-        <input name="categoryName" placeholder="New category" required>
-        <button type="submit" class="secondary">Add category</button>
-      </form>
+      <details id="day-entry" class="day-disclosure" ${WR.ui._dayDraft ? 'open' : ''}>
+        <summary>Add spending</summary>
+        <form id="day-add-form" class="day-entry-grid">
+          <label>Date<input name="date" type="date" value="${escapeHtml(draft.date)}" ${WR.ui._daySaving ? 'disabled' : ''} required></label>
+          <label>Description<input name="description" value="${escapeHtml(draft.description)}" ${WR.ui._daySaving ? 'disabled' : ''} autocomplete="off" required></label>
+          <label>Category<select name="category" ${WR.ui._daySaving ? 'disabled' : ''}>${categoryOptions(draft.category)}</select></label>
+          <label>Amount (${profile.baseCurrency})<input name="amount" type="number" inputmode="decimal" value="${escapeHtml(draft.amount)}" ${WR.ui._daySaving ? 'disabled' : ''} step="0.01" min="0.01" required></label>
+          <div class="day-entry-actions"><button type="submit" ${WR.ui._daySaving ? 'disabled' : ''}>Add spending</button><span data-save-feedback role="status">${WR.ui._daySaving ? 'Waiting to save...' : ''}</span></div>
+        </form>
+      </details>
 
       <section class="day-activity" aria-labelledby="day-activity-title">
       <div class="day-activity-heading"><h2 id="day-activity-title">Activity</h2><span>${dateFrom || dateTo ? `Showing ${visibleTransactions.length} of ${monthTx.length}` : `${monthTx.length} transaction${monthTx.length === 1 ? '' : 's'}`}</span></div>
+      <div class="day-activity-tools" role="group" aria-label="Activity controls">
+        <button type="button" id="day-today" class="secondary">Today</button>
+        <button type="button" id="day-collapse-all" class="secondary">Collapse all</button>
+        <button type="button" id="day-expand-all" class="secondary">Expand all</button>
+      </div>
       <div class="day-date-filter" role="group" aria-label="Filter activity by date">
         <label>From<input id="day-date-from" type="date" value="${WR.ui.escapeText(dateFrom)}" aria-label="From date"></label>
         <label>To<input id="day-date-to" type="date" value="${WR.ui.escapeText(dateTo)}" aria-label="To date"></label>
@@ -6063,15 +6275,34 @@ WR.ui = WR.ui || {};
       </table>
       </section>
 
-      <h3>Add spending</h3>
-      <form id="day-add-form" class="inline-form">
-        <input name="date" type="date" value="${WR.ui.escapeText(transactionDate)}" required>
-        <input name="description" placeholder="Description" required>
-        <select name="category">${categoryOptions()}</select>
-        <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
-        <button type="submit">Add</button>
-      </form>
+      ${reductionCard}
+      <details class="day-disclosure">
+        <summary>Where your money is going</summary>
+        <div class="day-category-list" role="list">${categoryCards || '<p class="empty">No spending recorded for this month yet.</p>'}</div>
+        <form id="day-category-form" class="inline-form">
+          <label>New category<input name="categoryName" required></label>
+          <button type="submit" class="secondary">Add category</button>
+          <span data-save-feedback role="status"></span>
+        </form>
+      </details>
     `);
+
+    document.getElementById('day-today').addEventListener('click', () => {
+      WR.ui._dayMonth = WR.ui.currentBudgetMonth();
+      WR.ui._dayDateFrom = today;
+      WR.ui._dayDateTo = today;
+      collapsedDates.delete(today);
+      WR.ui._dayEditingId = null;
+      renderDayToDay(container);
+    });
+    ['day-collapse-all', 'day-expand-all'].forEach(id => {
+      document.getElementById(id).addEventListener('click', () => {
+        container.querySelectorAll('.day-date-toggle').forEach(button => {
+          const expanded = button.getAttribute('aria-expanded') === 'true';
+          if (expanded === (id === 'day-collapse-all')) button.click();
+        });
+      });
+    });
 
     document.getElementById('day-month').addEventListener('change', (event) => {
       WR.ui._dayMonth = event.target.value;
@@ -6099,7 +6330,8 @@ WR.ui = WR.ui || {};
       const name = form.categoryName.value.trim();
       if (!name) return;
       if (!categoryNames.some((category) => category.toLowerCase() === name.toLowerCase())) {
-        await WR.repos.expenseCategories.add(WR.models.createExpenseCategory({ name, type: 'variable', essential: false }));
+        const saved = await WR.ui.submitWithFeedback(form, () => WR.repos.expenseCategories.add(WR.models.createExpenseCategory({ name, type: 'variable', essential: false })));
+        if (!saved) return;
         WR.ui.notify('Day-to-day category added.', 'success');
       }
       renderDayToDay(container);
@@ -6150,7 +6382,15 @@ WR.ui = WR.ui || {};
             row[field] = input.value;
           }
           row.year = Number(String(row.date || '').slice(0, 4)) || year;
-          await WR.repos.dayToDayTransactions.update(row);
+          try {
+            input.disabled = true;
+            await WR.repos.dayToDayTransactions.update(row);
+          } catch (error) {
+            WR.ui.notify("Couldn't save this edit. Please retry.", 'error');
+            return;
+          } finally {
+            input.disabled = false;
+          }
           WR.ui.flashSaved(input);
           renderDayToDay(container);
         });
@@ -6171,19 +6411,41 @@ WR.ui = WR.ui || {};
       });
     });
 
+    document.getElementById('day-add-form').addEventListener('input', (event) => {
+      const form = event.currentTarget;
+      WR.ui._dayDraft = { date: form.date.value, description: form.description.value, category: form.category.value, amount: form.amount.value };
+    });
     document.getElementById('day-add-form').addEventListener('submit', async (event) => {
       event.preventDefault();
+      if (WR.ui._daySaving) return;
       const form = event.target;
       const date = form.date.value;
-      await WR.repos.dayToDayTransactions.add(WR.models.createDayToDayTransaction({
+      const category = form.category.value.trim();
+      const amount = Number(form.amount.value);
+      const description = form.description.value.trim();
+      if (!date || !description || !Number.isFinite(amount) || amount <= 0) {
+        WR.ui.notify('Enter a date, description, and amount greater than zero.', 'error');
+        return;
+      }
+      WR.ui._dayDraft = { date, description, category, amount: form.amount.value };
+      const transaction = WR.models.createDayToDayTransaction({
         year: Number(date.slice(0, 4)),
         date,
         kind: 'spend',
-        description: form.description.value.trim(),
-        category: form.category.value.trim() || undefined,
-        amount: Math.max(0, parseFloat(form.amount.value) || 0),
-      }));
-      renderDayToDay(container);
+        description,
+        category: category || undefined,
+        amount,
+      });
+      WR.ui._daySaving = true;
+      const saved = await WR.ui.submitWithFeedback(form, () => WR.repos.dayToDayTransactions.add(transaction));
+      WR.ui._daySaving = false;
+      if (!saved) return;
+      WR.ui._dayDraft = null;
+      WR.ui._dayLastCategory = category;
+      try { localStorage.setItem(categoryKey, category); } catch {}
+      collapsedDates.delete(date);
+      WR.ui.notify('Spending saved.', 'success');
+      if (container.isConnected) await renderDayToDay(container);
     });
   }
 
@@ -6701,7 +6963,7 @@ WR.ui = WR.ui || {};
 
       <details id="debt-add-panel" class="debt-disclosure" ${debts.length ? '' : 'open'}><summary>Add a debt</summary>
       <form id="add-debt-form" class="form-panel-grid">
-        <label>Name<input name="name" placeholder="e.g. Credit Card" required></label>
+        <label>Name<input name="recordName" placeholder="e.g. Credit Card" required></label>
         <label>Original balance<input name="originalBalance" type="number" step="0.01" min="0" required></label>
         <label>Current balance<input name="currentBalance" type="number" step="0.01" min="0" required></label>
         <label>Currency<select name="currency">${currencyOptions(profile.baseCurrency)}</select></label>
@@ -6764,7 +7026,7 @@ WR.ui = WR.ui || {};
     });
     container.querySelector('#open-add-debt').addEventListener('click', () => {
       container.querySelector('#debt-add-panel').open = true;
-      container.querySelector('#add-debt-form [name="name"]').focus();
+      container.querySelector('#add-debt-form [name="recordName"]').focus();
     });
 
     container.querySelectorAll('tbody tr').forEach((tr) => {
@@ -6788,7 +7050,13 @@ WR.ui = WR.ui || {};
             input.value = debt[field];
           }
           if (field === 'currentBalance') updateDebtPaidOffDate(debt, previousBalance);
-          await WR.repos.debts.update(debt);
+          try {
+            input.disabled = true;
+            await WR.repos.debts.update(debt);
+          } catch (error) {
+            WR.ui.notify("Couldn't save this edit. Your value is still here. Please retry.", 'error');
+            return;
+          } finally { input.disabled = false; }
           WR.ui.flashSaved(input);
           // Only the payoff projection needs to update \u2014 not the whole
           // table \u2014 so the row being edited doesn't lose focus.
@@ -6814,11 +7082,9 @@ WR.ui = WR.ui || {};
       renderDebts(container);
     });
 
-    document.getElementById('add-debt-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
+    WR.ui.bindReliableForm(document.getElementById('add-debt-form'), async (form) => {
       const debt = WR.models.createDebt({
-        name: form.name.value,
+        name: form.elements.recordName.value,
         originalBalance: Math.max(0, parseFloat(form.originalBalance.value) || 0),
         currentBalance: Math.max(0, parseFloat(form.currentBalance.value) || 0),
         currency: form.currency.value,
@@ -6829,8 +7095,7 @@ WR.ui = WR.ui || {};
         dueDay: WR.ui.parseDueDay(form.dueDay.value),
       });
       await WR.repos.debts.add(debt);
-      renderDebts(container);
-    });
+    }, () => renderDebts(container));
 
     document.getElementById('strategy-picker').addEventListener('change', (e) => {
       WR.ui._debtStrategy = e.target.value;
@@ -6894,6 +7159,8 @@ WR.ui = WR.ui || {};
     return { total, unconvertedNames };
   }
 
+  WR.financial.sumInBaseCurrency = sumInBaseCurrency;
+
   async function refreshWealthSummary(container) {
     const summary = container.closest('#content')?.querySelector('#wealth-summary');
     if (!summary) return;
@@ -6908,7 +7175,7 @@ WR.ui = WR.ui || {};
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Total wealth</span><span class="stat-value">${WR.ui.escapeText(profile.baseCurrency)} ${WR.ui.fmt(total)}</span></div>
       </div>
-      ${unconvertedNames.length > 0 ? `<p class="fine-print">No exchange rate on file for: ${unconvertedNames.map(name => WR.ui.escapeText(name)).join(', ')} &mdash; shown at face value.</p>` : ''}
+      ${unconvertedNames.length > 0 ? `<p class="warning">Missing or invalid exchange rate for: ${unconvertedNames.map(name => WR.ui.escapeText(name)).join(', ')} &mdash; excluded from this total.</p>` : ''}
     `);
   }
 
@@ -6939,7 +7206,7 @@ WR.ui = WR.ui || {};
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Total Asset Value</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalValue)}</span></div>
       </div>
-      ${unconvertedNames.length > 0 ? `<p class="fine-print">No exchange rate on file for: ${unconvertedNames.join(', ')} \u2014 shown at face value.</p>` : ''}
+      ${unconvertedNames.length > 0 ? `<p class="warning">Missing or invalid exchange rate for: ${unconvertedNames.map(name => WR.ui.escapeText(name)).join(', ')} - excluded from this total.</p>` : ''}
       <table class="data-table">
         <thead><tr><th>Name</th><th>Type</th><th>Value</th><th>Currency</th><th>Liquidity</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="6" class="empty">No assets recorded.</td></tr>'}</tbody>
@@ -6947,7 +7214,7 @@ WR.ui = WR.ui || {};
 
       <h3>Add an asset</h3>
       <form id="add-asset-form" class="inline-form">
-        <input name="name" placeholder="Name (e.g. Cash, Car)" required>
+        <input name="recordName" placeholder="Name (e.g. Cash, Car)" required>
         <input name="type" placeholder="Type (e.g. cash, vehicle, property)" required>
         <input name="currentValue" type="number" step="0.01" min="0" placeholder="Current value" required>
         <select name="currency">${optionsFor(CURRENCIES)}</select>
@@ -6996,7 +7263,7 @@ WR.ui = WR.ui || {};
       e.preventDefault();
       const form = e.target;
       const asset = WR.models.createAsset({
-        name: form.name.value,
+        name: form.elements.recordName.value,
         type: form.type.value,
         currentValue: Math.max(0, parseFloat(form.currentValue.value) || 0),
         currency: form.currency.value,
@@ -7082,7 +7349,7 @@ WR.ui = WR.ui || {};
         <div class="stat"><span class="stat-label">Total Contributions</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalContributions)}</span></div>
         <div class="stat"><span class="stat-label">Total Gain/Loss</span><span class="stat-value ${totalGain < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(totalGain)} ${totalContributions > 0 ? `(${gainPct.toFixed(1)}%)` : ''} ${investments.length > 0 ? moodEmoji(gainPct) : ''}</span></div>
       </div>
-      ${unconvertedNames.length > 0 ? `<p class="fine-print">No exchange rate on file for: ${unconvertedNames.join(', ')} \u2014 shown at face value.</p>` : ''}
+      ${unconvertedNames.length > 0 ? `<p class="warning">Missing or invalid exchange rate for: ${unconvertedNames.map(name => WR.ui.escapeText(name)).join(', ')} - excluded from this total.</p>` : ''}
       ${investments.length > 0 ? `
       <div class="suggestions-card">
         <h3>Suggestions</h3>
@@ -7095,7 +7362,7 @@ WR.ui = WR.ui || {};
 
       <h3>Add an investment</h3>
       <form id="add-investment-form" class="inline-form">
-        <input name="name" placeholder="Name (e.g. Satrix ETF)" required>
+        <input name="recordName" placeholder="Name (e.g. Satrix ETF)" required>
         <input name="type" placeholder="Type (e.g. etf, unit_trust, retirement_annuity)" required>
         <input name="currentValue" type="number" step="0.01" min="0" placeholder="Current value" required>
         <input name="totalContributions" type="number" step="0.01" min="0" placeholder="Total contributed" required>
@@ -7145,7 +7412,7 @@ WR.ui = WR.ui || {};
       e.preventDefault();
       const form = e.target;
       const inv = WR.models.createInvestment({
-        name: form.name.value,
+        name: form.elements.recordName.value,
         type: form.type.value,
         currentValue: Math.max(0, parseFloat(form.currentValue.value) || 0),
         totalContributions: Math.max(0, parseFloat(form.totalContributions.value) || 0),
@@ -7174,7 +7441,7 @@ WR.ui = WR.ui || {};
       monthlyDebtPayment: Math.max(snapshot.cashflow.debtPayments, 0),
       monthlyInvestmentContribution: Math.max(snapshot.cashflow.savings, 0),
       debtInterestAnnual: snapshot.debts.length
-        ? WR.financial.calculateWeightedAverageInterestRate(snapshot.debts)
+        ? WR.financial.calculateWeightedAverageInterestRate(snapshot.debts, snapshot.exchangeRates, snapshot.profile.baseCurrency)
         : 0,
       investmentReturnAnnual: snapshot.assumedInvestmentReturn,
       years: 10,
@@ -7185,7 +7452,7 @@ WR.ui = WR.ui || {};
       {
         currentNetWorth: snapshot.netWorth.netWorth,
         currentDebtTotal: snapshot.totalDebt,
-        currentInvestmentTotal: snapshot.investments.reduce((sum, i) => sum + i.currentValue, 0),
+        currentInvestmentTotal: WR.financial.calculateTotalInvestments(snapshot.investments, snapshot.exchangeRates, snapshot.profile.baseCurrency),
         monthlyDebtPayment: params.monthlyDebtPayment,
         monthlyInvestmentContribution: params.monthlyInvestmentContribution,
         debtInterestAnnual: params.debtInterestAnnual,
@@ -7207,6 +7474,7 @@ WR.ui = WR.ui || {};
 
     WR.ui.setHTML(container, `
       <h1>Forecast</h1>
+      ${snapshot.currencyWarnings.length ? '<p class="warning">This forecast is incomplete: amounts without valid exchange rates are excluded. Add exchange rates in Settings.</p>' : ''}
       <p class="fine-print">Projections based on the assumptions below \u2014 not guarantees. Actual results will differ. Anything except tagged investments (property, vehicles, etc.) is held constant, since projecting their future value would be pure speculation.</p>
 
       <form id="forecast-form" class="inline-form">
@@ -7657,6 +7925,11 @@ WR.ui = WR.ui || {};
 
       <section id="settings-preferences" class="settings-card">
         ${cardHead(ICONS.sliders, 'Preferences & assumptions', 'Currency, targets and the assumptions behind your projections.')}
+        <label class="settings-row">Theme
+          <select id="theme-preference">
+            ${[['system', 'Device theme'], ['light', 'Light'], ['dark', 'Dark']].map(([value, label]) => `<option value="${value}" ${WR.ui.getThemePreference() === value ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+        </label>
         <form id="profile-form" class="settings-form-grid">
           <label class="span-2">Display name <small>Optional \u2014 shown in your dashboard greeting</small>
             <input name="displayName" value="${esc(profile.displayName || '')}" placeholder="e.g. Kudzanai" maxlength="60">
@@ -7697,7 +7970,7 @@ WR.ui = WR.ui || {};
         ${cardHead(ICONS.tag, 'Expense categories', 'Mark which spending is essential \u2014 this drives your emergency fund target and spending insights.')}
         <div id="categories-list"></div>
         <form id="category-form" class="settings-form-grid category-form">
-          <label class="span-2">Category name <input name="name" placeholder="e.g. Groceries, Rent" required></label>
+          <label class="span-2">Category name <input name="recordName" placeholder="e.g. Groceries, Rent" required></label>
           <label>Type
             <select name="type">
               <option value="fixed">Fixed</option>
@@ -7786,6 +8059,10 @@ WR.ui = WR.ui || {};
       </section>
     `);
 
+    document.getElementById('theme-preference').addEventListener('change', (event) => {
+      WR.ui.setThemePreference(event.target.value);
+    });
+
     container.querySelectorAll('.settings-chip').forEach((chip) => {
       chip.addEventListener('click', () => {
         document.getElementById(chip.dataset.target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -7817,18 +8094,17 @@ WR.ui = WR.ui || {};
     }
     const categoryLoad = renderCategories();
 
-    document.getElementById('category-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
+    WR.ui.bindReliableForm(document.getElementById('category-form'), async (form) => {
       const category = WR.models.createExpenseCategory({
-        name: form.name.value,
+        name: form.elements.recordName.value,
         type: form.type.value,
         essential: form.essential.checked,
       });
       await WR.repos.expenseCategories.add(category);
+    }, async (form) => {
       form.reset();
       form.essential.checked = true;
-      renderCategories();
+      await renderCategories();
     });
 
     async function renderRates() {
@@ -7929,9 +8205,7 @@ WR.ui = WR.ui || {};
       }
     });
 
-    document.getElementById('profile-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
+    WR.ui.bindReliableForm(document.getElementById('profile-form'), async (form) => {
       const updated = {
         ...profile,
         displayName: form.displayName.value.trim(),
@@ -7945,22 +8219,23 @@ WR.ui = WR.ui || {};
       WR.ui.notify('Profile saved.', 'success');
     });
 
-    document.getElementById('rate-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
+    WR.ui.bindReliableForm(document.getElementById('rate-form'), async (form) => {
+      if (!(Number(form.rate.value) > 0) || !Number.isFinite(Number(form.rate.value))) throw new Error('Enter a positive exchange rate.');
+      if (![form.fromCurrency.value, form.toCurrency.value].every(value => /^[A-Z]{3}$/.test(value.trim().toUpperCase()))) throw new Error('Use three-letter currency codes.');
       const rate = WR.models.createExchangeRate({
-        fromCurrency: form.fromCurrency.value.toUpperCase(),
-        toCurrency: form.toCurrency.value.toUpperCase(),
+        fromCurrency: form.fromCurrency.value.trim().toUpperCase(),
+        toCurrency: form.toCurrency.value.trim().toUpperCase(),
         rate: parseFloat(form.rate.value),
         date: form.dataset.rateDate || new Date().toISOString().slice(0, 10),
         source: form.dataset.rateSource || 'Manual',
       });
       await WR.repos.exchangeRates.add(rate);
+    }, async (form) => {
       form.reset();
       delete form.dataset.rateDate;
       delete form.dataset.rateSource;
       WR.ui.notify('Exchange rate added.', 'success');
-      renderRates();
+      await renderRates();
     });
 
     if (WR.account.isConfigured()) {
@@ -8184,8 +8459,12 @@ WR.account = {};
     return db;
   }
 
+  let trackedFirestoreApi = null;
   function getFirestoreApi() {
-    return firestoreApi;
+    if (!trackedFirestoreApi && firestoreApi) {
+      trackedFirestoreApi = { ...firestoreApi, runTransaction: (...args) => WR.saves.trackSave(() => firestoreApi.runTransaction(...args)) };
+    }
+    return trackedFirestoreApi || firestoreApi;
   }
 
   function getUsername() {
@@ -8196,8 +8475,10 @@ WR.account = {};
    * users/{uid} profile doc. Safe to call even if no profile exists yet. */
   async function loadProfile() {
     if (!currentUser) { cachedUsername = null; return null; }
+    const uid = currentUser.uid;
     try {
-      const snap = await firestoreApi.getDoc(firestoreApi.doc(db, 'users', currentUser.uid));
+      const snap = await firestoreApi.getDoc(firestoreApi.doc(db, 'users', uid));
+      if (currentUser?.uid !== uid) return null;
       cachedUsername = snap.exists() ? snap.data().username || null : null;
     } catch (err) {
       console.warn('Loading profile failed', err);
@@ -8237,7 +8518,7 @@ WR.account = {};
       tx.set(usernameRef, { uid });
       tx.set(userRef, { username: display, usernameLower: lower, email: email || null }, { merge: true });
     });
-    cachedUsername = display;
+    if (currentUser?.uid === uid) cachedUsername = display;
     return display;
   }
 
@@ -8674,17 +8955,17 @@ WR.ui = WR.ui || {};
           ${meter(current, target)}${pot ? `<p class="pot-link-note">Linked to "${escape(pot.name)}" savings pot</p>` : ''}<dl><div><dt>Initial</dt><dd>${currency} ${WR.ui.fmt(amount(goal.initialAmount))}</dd></div>
           <div><dt>Remaining</dt><dd>${currency} ${WR.ui.fmt(Math.max(0, target - current))}</dd></div></dl>
           <details class="card-edit"><summary>Edit goal</summary>
-          <form class="goal-edit card-edit-form" data-id="${WR.ui.escapeText(goal.id)}"><label class="span-2">Goal name<input name="name" value="${escape(goal.name)}" required></label>
+          <form class="goal-edit card-edit-form" data-id="${WR.ui.escapeText(goal.id)}"><label class="span-2">Goal name<input name="recordName" value="${escape(goal.name)}" required></label>
           <label class="span-2">Linked savings pot<select name="potId">${potOptions(goal.potId)}</select></label>
           <label>Current amount<input name="current" type="number" min="0" step="0.01" value="${WR.ui.escapeText(current)}" ${pot ? 'disabled' : 'required'}></label>
-          <label>Target amount<input name="target" type="number" min="0.01" step="0.01" value="${WR.ui.escapeText(target)}" required></label>
+          <label>Target amount<input name="targetAmount" type="number" min="0.01" step="0.01" value="${WR.ui.escapeText(target)}" required></label>
           <div class="card-edit-actions span-2"><button>Save changes</button></div></form></details></article>`;
       }).join('') || '<p class="empty">No goals yet.</p>'}</div>
       <div class="form-panel"><h3>Create a goal</h3><form id="create-goal" class="form-panel-grid">
-        <label>Goal name<input name="name" placeholder="e.g. New car deposit" required></label>
+        <label>Goal name<input name="recordName" placeholder="e.g. New car deposit" required></label>
         <label>Linked savings pot<select name="potId">${potOptions('')}</select></label>
         <label>Current amount<input name="current" type="number" min="0" step="0.01" placeholder="0.00" value="${WR.ui.escapeText(savingsTotal)}" required></label>
-        <label>Target amount<input name="target" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
+        <label>Target amount<input name="targetAmount" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
         <div class="form-panel-actions"><button>Add goal</button></div></form></div></section>`);
     const syncCurrentInput = (form) => {
       const pot = potsById[form.elements.potId.value];
@@ -8700,7 +8981,7 @@ WR.ui = WR.ui || {};
       const form = event.currentTarget;
       const potId = form.elements.potId.value || undefined;
       const currentAmount = potId && potsById[potId] ? amount(potsById[potId].currentAmount) : amount(form.elements.current.value);
-      await WR.repos.financialGoals.add({ id: WR.models.newId(), name: form.elements.name.value.trim(), potId, initialAmount: currentAmount, currentAmount, targetAmount: amount(form.elements.target.value) });
+      await WR.repos.financialGoals.add({ id: WR.models.newId(), name: form.elements.recordName.value.trim(), potId, initialAmount: currentAmount, currentAmount, targetAmount: amount(form.elements.targetAmount.value) });
       renderGoals(container);
     });
     container.querySelectorAll('.goal-edit').forEach((form) => form.addEventListener('submit', async (event) => {
@@ -8709,7 +8990,7 @@ WR.ui = WR.ui || {};
       if (!goal) return;
       const potId = form.elements.potId.value || undefined;
       const pot = potId ? potsById[potId] : null;
-      Object.assign(goal, { name: form.elements.name.value.trim(), potId, currentAmount: pot ? amount(pot.currentAmount) : amount(form.elements.current.value), targetAmount: amount(form.elements.target.value) });
+      Object.assign(goal, { name: form.elements.recordName.value.trim(), potId, currentAmount: pot ? amount(pot.currentAmount) : amount(form.elements.current.value), targetAmount: amount(form.elements.targetAmount.value) });
       await WR.repos.financialGoals.update(goal);
       renderGoals(container);
     }));
@@ -8755,8 +9036,8 @@ WR.ui = WR.ui || {};
         <p class="pot-remaining">${target - saved > 0 ? `${currency} ${WR.ui.fmt(target - saved)} to go` : 'Target reached'}</p>
         ${archived ? `<div class="card-edit-actions"><button class="restore-pot secondary" data-id="${WR.ui.escapeText(pot.id)}">Restore pot</button></div>` : `
         <details class="card-edit"><summary>Edit pot</summary>
-          <form class="pot-edit card-edit-form" data-id="${WR.ui.escapeText(pot.id)}"><label class="span-2">Name<input name="name" value="${escape(pot.name)}" required></label>
-          <label>Target<input name="target" type="number" min="0.01" step="0.01" value="${WR.ui.escapeText(target)}" required></label>
+          <form class="pot-edit card-edit-form" data-id="${WR.ui.escapeText(pot.id)}"><label class="span-2">Name<input name="recordName" value="${escape(pot.name)}" required></label>
+          <label>Target<input name="targetAmount" type="number" min="0.01" step="0.01" value="${WR.ui.escapeText(target)}" required></label>
           <label>Saved in this pot<input name="current" type="number" min="0" step="0.01" value="${WR.ui.escapeText(saved)}" required></label>
           <div class="card-edit-actions span-2"><button>Save changes</button><button type="button" class="secondary archive-pot" data-id="${WR.ui.escapeText(pot.id)}">Archive pot</button></div></form>
         </details>`}</article>`;
@@ -8766,8 +9047,8 @@ WR.ui = WR.ui || {};
       <div class="goal-grid">${active.map((pot) => potCard(pot, false)).join('') || '<p class="empty">No active savings pots. Create one below to start tracking money you will not touch.</p>'}</div>
       <div class="form-panels">
         <div class="form-panel"><h3>Create a pot</h3><form id="create-pot" class="form-panel-grid">
-          <label class="span-2">Pot name<input name="name" placeholder="e.g. Holiday, School fees" required></label>
-          <label>Target amount<input name="target" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
+          <label class="span-2">Pot name<input name="recordName" placeholder="e.g. Holiday, School fees" required></label>
+          <label>Target amount<input name="targetAmount" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
           <label>Already saved<input name="current" type="number" min="0" step="0.01" placeholder="0.00" value="0" required></label>
           <div class="form-panel-actions"><button>Add pot</button></div></form></div>
         <div class="form-panel"><h3>Transfer between pots</h3><form id="transfer-pot" class="form-panel-grid">
@@ -8778,20 +9059,15 @@ WR.ui = WR.ui || {};
           <div class="form-panel-actions"><button>Transfer</button></div></form></div>
       </div>
       <details class="archived-pots"><summary>Archived pots (${pots.length - active.length})</summary><div class="goal-grid">${pots.filter((pot) => pot.archived).map((pot) => potCard(pot, true)).join('') || '<p class="empty">No archived pots.</p>'}</div></details>`);
-    container.querySelector('#create-pot').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const form = event.currentTarget;
-      await WR.repos.savingsPots.add({ id: WR.models.newId(), name: form.elements.name.value.trim(), targetAmount: amount(form.elements.target.value), currentAmount: amount(form.elements.current.value), archived: false });
-      renderSavingsPots(container);
-    });
-    container.querySelectorAll('.pot-edit').forEach((form) => form.addEventListener('submit', async (event) => {
-      event.preventDefault();
+    WR.ui.bindReliableForm(container.querySelector('#create-pot'), async (form) => {
+      await WR.repos.savingsPots.add({ id: WR.models.newId(), name: form.elements.recordName.value.trim(), targetAmount: amount(form.elements.targetAmount.value), currentAmount: amount(form.elements.current.value), archived: false });
+    }, () => renderSavingsPots(container));
+    container.querySelectorAll('.pot-edit').forEach((form) => WR.ui.bindReliableForm(form, async () => {
       const pot = await WR.repos.savingsPots.getById(form.dataset.id);
-      if (!pot) return;
-      Object.assign(pot, { name: form.elements.name.value.trim(), targetAmount: amount(form.elements.target.value), currentAmount: amount(form.elements.current.value) });
+      if (!pot) throw new Error('This savings pot no longer exists.');
+      Object.assign(pot, { name: form.elements.recordName.value.trim(), targetAmount: amount(form.elements.targetAmount.value), currentAmount: amount(form.elements.current.value) });
       await WR.repos.savingsPots.update(pot);
-      renderSavingsPots(container);
-    }));
+    }, () => renderSavingsPots(container)));
     container.querySelectorAll('.archive-pot, .restore-pot').forEach((button) => button.addEventListener('click', async () => {
       const pot = await WR.repos.savingsPots.getById(button.dataset.id);
       if (!pot) return;
@@ -8799,15 +9075,12 @@ WR.ui = WR.ui || {};
       await WR.repos.savingsPots.update(pot);
       renderSavingsPots(container);
     }));
-    container.querySelector('#transfer-pot').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const form = event.currentTarget;
-      if (form.elements.source.value === form.elements.destination.value) return WR.ui.notify('Choose different pots.', 'error');
-      try {
-        await transferSavings(form.elements.source.value, form.elements.destination.value, amount(form.elements.amount.value), month);
-        WR.ui.notify('Savings transferred.', 'success');
-        await renderSavingsPage(container.closest('#content'));
-      } catch (error) { WR.ui.notify(error.message, 'error'); }
+    WR.ui.bindReliableForm(container.querySelector('#transfer-pot'), async (form) => {
+      if (form.elements.source.value === form.elements.destination.value) throw new Error('Choose different pots.');
+      await transferSavings(form.elements.source.value, form.elements.destination.value, amount(form.elements.amount.value), month);
+    }, async () => {
+      WR.ui.notify('Savings transferred.', 'success');
+      await renderSavingsPage(container.closest('#content'));
     });
   }
 
@@ -8869,6 +9142,7 @@ WR.ui = WR.ui || {};
   let routerInitialized = false;
 
   async function handleRoute() {
+    if (WR.account.isConfigured() && !WR.account.getCurrentUser()) return;
     if (!window.location.hash || window.location.hash === '#') {
       window.location.hash = '#/dashboard';
       return;
@@ -8879,11 +9153,15 @@ WR.ui = WR.ui || {};
 
     const previousContent = document.getElementById('content');
     if (!previousContent) return;
+    if (hash === lastRoutedHash && WR.saves.state.pending) return;
+    WR.ui.captureFormDrafts(previousContent);
     const requestId = ++navigationId;
     const newView = hash !== lastRoutedHash || !previousContent.dataset.routeView;
-    const content = newView ? previousContent.cloneNode(false) : previousContent;
+    const content = previousContent.cloneNode(!newView);
     content.dataset.routeView = 'true';
-    if (newView) previousContent.replaceWith(content);
+    previousContent.replaceWith(content);
+    content.inert = true;
+    content.setAttribute('aria-busy', 'true');
     content.classList.toggle('settings-page', hash === '#/settings');
     // Only on navigation; background re-renders of the same page keep the current content.
     if (hash !== lastRoutedHash || !content.children.length) WR.ui.setHTML(content, SKELETON_HTML);
@@ -8892,11 +9170,19 @@ WR.ui = WR.ui || {};
       await WR.ui[renderFnName](content);
       if (requestId !== navigationId || !content.isConnected) return;
       if (WR.ui.enhanceResponsiveContent) WR.ui.enhanceResponsiveContent(content);
+      content.inert = false;
+      content.setAttribute('aria-busy', 'false');
+      if (newView) {
+        const heading = content.querySelector('h1');
+        if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
+      }
     } catch (err) {
       if (requestId !== navigationId || !content.isConnected || err.name === 'AbortError') return;
+      content.inert = false;
+      content.setAttribute('aria-busy', 'false');
       if (err && err.name === 'VersionError') {
         WR.ui.setHTML(content, `
-          <p class="warning">${err.message}</p>
+          <p class="warning">${WR.ui.escapeText(err.message)}</p>
           <button id="version-error-reload-btn">Reload app</button>
         `);
         document.getElementById('version-error-reload-btn').addEventListener('click', async () => {
@@ -8911,7 +9197,8 @@ WR.ui = WR.ui || {};
           window.location.reload();
         });
       } else {
-        WR.ui.setHTML(content, `<p class="warning">Something went wrong loading this page: ${err.message}</p>`);
+        WR.ui.setHTML(content, `<p class="warning" role="alert">Something went wrong loading this page: ${WR.ui.escapeText(err.message)}</p><button type="button" id="route-retry-btn">Retry</button>`);
+        content.querySelector('#route-retry-btn').addEventListener('click', handleRoute);
         console.error(err);
       }
     }
@@ -9070,7 +9357,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // auth screen and the real shell as sign-in state changes, and keeps the
   // topbar/current page in sync (e.g. the Dashboard greeting picking up a
   // username that finishes loading a moment after sign-in resolves).
+  let draftAccountUid = initialUser?.uid || null;
   WR.account.onAuthChange((user) => {
+    if ((user?.uid || null) !== draftAccountUid) WR.ui.clearFormDrafts?.();
+    draftAccountUid = user?.uid || null;
     if (user) {
       if (!document.getElementById('nav')) {
         bootApp();

@@ -183,8 +183,9 @@ payday. Legacy general-savings entries are not automatically linked to pots.
 
 ## Design
 
-Light and dark mode (toggle in the top bar, defaults to your system
-preference, remembered after that). Deep emerald as the primary accent,
+Light and dark mode follow device settings, including changes while the app
+is open, until you choose a manual theme using the top-bar toggle. Settings >
+Preferences > Theme lets you return to Device theme. Deep emerald as the primary accent,
 warm gold reserved for medium-priority signal, a serif used for the net
 worth figure and headings, sans-serif for everything functional. No
 external font/icon dependencies \u2014 system font stacks only, so this doesn't
@@ -199,6 +200,15 @@ in one card, with amounts, percentage shares, and proportional bars;
 transaction activity groups rows by date. Phones show compact description,
 category, and amount rows, with Edit revealing the fields and Delete action.
 Only one mobile editor opens at a time, and it stays open after an inline save.
+Transactions has a labelled quick-entry form below the balances, a decimal
+keyboard hint, and a remembered last category per account. Activity includes
+Today, Collapse all, Expand all, and individual date controls. Suggestions and
+category details are collapsed initially. Unsaved entry values survive view
+refreshes within the session; failures leave the form available for retry.
+The mobile bottom bar includes Activity and hides while editing a text field.
+The save indicator reports pending writes, server acknowledgement, offline
+status, and write failures. Offline writes are not labelled Saved before the
+server acknowledges them. Deletions retain the existing Undo action.
 
 ## Accounts, data, and privacy
 
@@ -306,27 +316,12 @@ Firestore's offline cache keeps the app usable without a connection.
 2. **Authentication** \u2192 Sign-in method \u2192 enable **Email/Password** (and
   **Google** if you want that option too). **Anonymous** is optional for
   browser tests; the runner can use a disposable email/password account.
-3. **Firestore Database** \u2192 create a database, then set these security
-  rules (Rules tab \u2192 replace everything \u2192 Publish):
-  ```
-  rules_version = '2';
-  service cloud.firestore {
-    match /databases/{database}/documents {
-      match /usernames/{username} {
-        allow read: if true;
-        allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
-        allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
-        allow update: if false;
-      }
-      match /users/{uid} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
-        match /{document=**} {
-          allow read, write: if request.auth != null && request.auth.uid == uid;
-        }
-      }
-    }
-  }
-  ```
+3. **Firestore Database** \u2192 create a database, then publish the contents of
+  [firestore.rules](firestore.rules) in the Rules tab. These rules restrict
+  profiles and financial collections to their account owner, permit individual
+  username availability checks, deny username listing, and prevent reassignment
+  of another user's username claim. Committing this file or publishing the
+  website does **not** deploy the Firebase rules; publish them separately.
 4. Project settings \u2192 add a Web app \u2192 copy the six `firebaseConfig` values
   (they're public identifiers, not secrets) into `FIREBASE_CONFIG` near the
   top of the `WR.account` module in `index.html`, and into the matching
@@ -362,6 +357,41 @@ missing pots, insufficient reversal balances, per-source deductions, compact
 Income rendering, and buffer single counting.
 These tests never access a real account. Browser form/layout checks should
 also cover Income, Transactions, Dashboard, and Savings in both themes.
+
+Production checks also cover valid/direct/inverse currency conversions,
+missing-rate exclusions, currency-weighted forecast inputs, account-switch
+read cancellation, session draft isolation, same-page render races, load-error
+retry, and atomic emergency-fund movements. HTML is sanitized centrally;
+form identifiers avoid DOM-clobbering names such as `name` and `target`.
+
+Income, debt creation, savings pots/transfers, emergency-fund contributions
+and movements, and Settings preference/rate/category forms retain unsaved
+drafts during view refreshes and navigation within the current session.
+Successful saves clear their draft; authentication changes clear all drafts.
+Passwords and file inputs are excluded. Reloading or closing the app still
+discards unsaved session drafts. Missing/invalid exchange rates are excluded
+from totals with warnings; amounts are never silently treated as 1:1.
+
+The checked-in rules require separate deployment and backend verification:
+use two disposable accounts to confirm each can access its own financial
+records but cannot read or write the other's, and cannot modify the other's
+username claim. Local UI fixtures cannot certify the deployed rules.
+
+### Mobile release checklist
+
+Automated checks cover save failure/retry, pending writes, duplicate-submit
+protection, device-theme reset, and transaction controls. Before releasing,
+check the installed app and browser versions on an actual iPhone and Android:
+
+- Add spending with the keyboard open; check numeric input, labels, and safe areas.
+- Use Today and date collapse controls; delete a transaction and Undo it.
+- Switch device themes, manually override, then return to Device theme.
+- Go offline during a save; confirm the pending indicator and later acknowledgement.
+- Check slow connectivity, larger accessibility text, and both orientations.
+- Check login, password reset, and session restoration after several days.
+
+Desktop browser emulation cannot certify native keyboards, iOS home-screen
+safe areas, background session retention, or password-reset email delivery.
 
 ## What's built
 
