@@ -752,7 +752,12 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   .day-date-filter .secondary { grid-column: 1 / -1; }
 }
 .day-ledger .day-date-group th { padding: 0.8rem 1rem; color: var(--text); background: var(--panel-alt); font-size: 0.82rem; }
-.day-date-group th span { margin-left: 0.75rem; font-weight: 400; color: var(--muted); }
+.day-date-toggle { display: flex; align-items: center; gap: 0.6rem; width: 100%; min-height: 44px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text); font: inherit; text-align: left; }
+.day-date-toggle:hover { background: transparent; color: var(--accent); }
+.day-date-toggle::before { content: '\203A'; font-size: 1.2rem; transform: rotate(90deg); }
+.day-date-toggle[aria-expanded="false"]::before { transform: none; }
+.day-date-toggle .day-date-count { margin-left: auto; font-weight: 400; color: var(--muted); text-align: right; }
+.day-ledger tr[hidden] { display: none !important; }
 .data-table.day-ledger { table-layout: fixed; min-width: 900px; }
 .day-ledger th:nth-child(1) { width: 145px; }
 .day-ledger th:nth-child(4) { width: 150px; }
@@ -776,7 +781,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   .day-ledger thead { display: none; }
   .day-ledger tbody, .day-ledger tr, .day-ledger td, .day-ledger .day-date-group th { display: block; }
   .day-ledger .day-date-group th { width: 100%; padding: 0.65rem 0.8rem; font-size: 0.78rem; }
-  .day-date-group th span { float: right; margin-left: 0.5rem; font-size: 0.72rem; }
+  .day-date-toggle .day-date-count { font-size: 0.72rem; }
   .day-ledger tr[data-id] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(80px, 105px) 44px; gap: 0 0.35rem; align-items: center; padding: 0.7rem; border-bottom: 1px solid var(--border); }
   .data-table.day-ledger td { min-width: 0; border: 0; padding: 0; white-space: normal; }
   .day-ledger td::before { display: none; }
@@ -2342,7 +2347,14 @@ WR.financial = WR.financial || {};
     };
   }
 
-  Object.assign(WR.financial, { convertCurrency, calculateNetWorth });
+  function calculateTotalInvestments(investments, exchangeRates, baseCurrency) {
+    return investments.reduce((total, investment) => {
+      const converted = convertCurrency(Number(investment.currentValue) || 0, investment.currency || baseCurrency, baseCurrency, exchangeRates);
+      return total + (converted.converted ? converted.value : 0);
+    }, 0);
+  }
+
+  Object.assign(WR.financial, { convertCurrency, calculateNetWorth, calculateTotalInvestments });
 })();
 // Emergency fund coverage: how many months of essential expenses the
 // user's liquid assets would cover.
@@ -3306,13 +3318,21 @@ WR.ui = WR.ui || {};
 
 (function () {
   const STORAGE_KEY = 'wr_theme';
+  const systemTheme = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
   function getStoredTheme() {
-    return localStorage.getItem(STORAGE_KEY);
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored === 'light' || stored === 'dark' ? stored : null;
+    } catch {
+      return null;
+    }
   }
 
+  let preferredTheme = getStoredTheme();
+
   function getSystemTheme() {
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return systemTheme?.matches ? 'dark' : 'light';
   }
 
   function applyTheme(theme) {
@@ -3335,15 +3355,25 @@ WR.ui = WR.ui || {};
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
 
   function initTheme() {
-    applyTheme(getStoredTheme() || getSystemTheme());
+    applyTheme(preferredTheme || getSystemTheme());
   }
 
   function toggleTheme() {
     const current = document.documentElement.getAttribute('data-theme') || getSystemTheme();
     const next = current === 'dark' ? 'light' : 'dark';
-    localStorage.setItem(STORAGE_KEY, next);
+    preferredTheme = next;
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {}
     applyTheme(next);
   }
+
+  function followSystemTheme() {
+    if (!preferredTheme) applyTheme(getSystemTheme());
+  }
+
+  if (systemTheme?.addEventListener) systemTheme.addEventListener('change', followSystemTheme);
+  else if (systemTheme?.addListener) systemTheme.addListener(followSystemTheme);
 
   WR.ui.initTheme = initTheme;
   WR.ui.toggleTheme = toggleTheme;
@@ -3355,7 +3385,7 @@ WR.ui = WR.ui || {};
   // before the rest of the page renders. The toggle button doesn't exist
   // yet at this point; updateToggleIcon() is called again once the shell
   // (with the button) is rendered.
-  applyTheme(getStoredTheme() || getSystemTheme());
+  initTheme();
 })();
 // Builds the FinancialSnapshot consumed by the dashboard, the health score,
 // and the recommendations engine. This is the one place raw stored records
@@ -3790,7 +3820,7 @@ WR.ui = WR.ui || {};
       totalDebtPaid: 0,
       availableSurplus: 0,
     });
-    annualSummary.totalInvested = annualSummary.totalSaved;
+    annualSummary.totalInvested = F.calculateTotalInvestments(investments, exchangeRates, profile.baseCurrency);
 
     // Match the Emergency Fund page: a borrowed (negative) entry marked
     // "returned" no longer counts against the balance once repaid.
@@ -4552,10 +4582,11 @@ WR.ui = WR.ui || {};
 
         <div class="dashboard-card annual-card">
           <h2>${s.selectedYear} overview</h2>
-          <p class="fine-print">${s.annualStartMonth ? `Income counted from ${WR.ui.monthName(Number(s.annualStartMonth.slice(5)))} through ${WR.ui.monthName(Number(s.month.slice(5)))} ${s.selectedYear}.` : 'No income months recorded yet.'} Savings Pots Total is the current balance across active pots only.</p>
+          <p class="fine-print">${s.annualStartMonth ? `Income counted from ${WR.ui.monthName(Number(s.annualStartMonth.slice(5)))} through ${WR.ui.monthName(Number(s.month.slice(5)))} ${s.selectedYear}.` : 'No income months recorded yet.'} Savings and investments show current balances.</p>
           <div class="stat-grid">
             <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
             <div class="stat"><span class="stat-label">Savings Pots Total</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSavedAndInvested)}</span></div>
+            <div class="stat"><span class="stat-label" title="Current portfolio value in your base currency">Total Investments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalInvested)}</span></div>
             <div class="stat"><span class="stat-label">Total Debt Payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
           </div>
         </div>
@@ -5982,10 +6013,11 @@ WR.ui = WR.ui || {};
 
     const dateCounts = new Map();
     visibleTransactions.forEach((item) => dateCounts.set(item.date, (dateCounts.get(item.date) || 0) + 1));
+    const collapsedDates = WR.ui._dayCollapsedDates || (WR.ui._dayCollapsedDates = new Set());
     const formatLedgerDate = (value) => new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     const rows = visibleTransactions.map((item, index) => `
-      ${index === 0 || item.date !== visibleTransactions[index - 1].date ? `<tr class="day-date-group"><th colspan="5" scope="rowgroup">${escapeHtml(formatLedgerDate(item.date))}<span>${dateCounts.get(item.date)} transaction${dateCounts.get(item.date) === 1 ? '' : 's'}</span></th></tr>` : ''}
-      <tr data-id="${WR.ui.escapeText(item.id)}"${WR.ui._dayEditingId === item.id ? ' class="is-editing"' : ''}>
+      ${index === 0 || item.date !== visibleTransactions[index - 1].date ? `<tr class="day-date-group"><th colspan="5" scope="rowgroup"><button type="button" class="day-date-toggle" data-date="${escapeHtml(item.date)}" aria-expanded="${!collapsedDates.has(item.date)}" title="Expand or collapse transactions for this date"><span>${escapeHtml(formatLedgerDate(item.date))}</span><span class="day-date-count">${dateCounts.get(item.date)} transaction${dateCounts.get(item.date) === 1 ? '' : 's'}</span></button></th></tr>` : ''}
+      <tr data-id="${WR.ui.escapeText(item.id)}"${WR.ui._dayEditingId === item.id ? ' class="is-editing"' : ''}${collapsedDates.has(item.date) ? ' hidden' : ''}>
         <td data-label="Date"><input class="cell" data-field="date" type="date" value="${escapeHtml(item.date)}"></td>
         <td data-label="Description"><span class="day-mobile-value day-mobile-description">${escapeHtml(item.description || 'Transaction')}</span><input class="cell" data-field="description" value="${escapeHtml(item.description || '')}"></td>
         <td data-label="Category"><span class="day-mobile-value day-mobile-category">${escapeHtml(item.category || 'Uncategorised')}</span><select class="cell" data-field="category">${categoryOptions(item.category)}</select></td>
@@ -6072,6 +6104,19 @@ WR.ui = WR.ui || {};
       }
       renderDayToDay(container);
     });
+
+    container.querySelectorAll('.day-date-toggle').forEach(button => button.addEventListener('click', () => {
+      const date = button.dataset.date;
+      const expanded = collapsedDates.has(date);
+      if (expanded) collapsedDates.delete(date);
+      else collapsedDates.add(date);
+      button.setAttribute('aria-expanded', String(expanded));
+      let row = button.closest('tr').nextElementSibling;
+      while (row && !row.classList.contains('day-date-group')) {
+        row.hidden = !expanded;
+        row = row.nextElementSibling;
+      }
+    }));
 
     container.querySelectorAll('.day-row-toggle').forEach(button => button.addEventListener('click', () => {
       const row = button.closest('tr');

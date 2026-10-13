@@ -13,6 +13,7 @@ if (process.argv.includes('--prepare')) {
 const htmlPath = path.join(root, 'index.html');
 let html = fs.readFileSync(htmlPath, 'utf8');
 const functions = new Map();
+let themeModule;
 function walk(node, visit) {
   if (!node || typeof node !== 'object') return;
   if (typeof node.type === 'string') visit(node);
@@ -28,6 +29,9 @@ for (const match of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].
   const tree = acorn.parse(source, { ecmaVersion: 'latest', sourceType: 'script' });
   let setter;
   walk(tree, node => {
+    if (node.type === 'FunctionExpression' && node.body.body.some(statement => statement.type === 'FunctionDeclaration' && statement.id.name === 'followSystemTheme')) {
+      themeModule = source.slice(node.start, node.end);
+    }
     if (node.type === 'FunctionDeclaration') {
       if (node.id.name === 'setHTML') setter = node;
       if (!functions.has(node.id.name)) functions.set(node.id.name, source.slice(node.start, node.end));
@@ -67,7 +71,7 @@ for (const match of fs.readFileSync(path.join(root, 'tests.html'), 'utf8').match
   acorn.parse(match[1], { ecmaVersion: 'latest' });
 }
 
-const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'convertCurrency', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus'];
+const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'convertCurrency', 'calculateTotalInvestments', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus'];
 const context = { WR: { financial: {} } };
 vm.createContext(context);
 vm.runInContext(names.filter(name => functions.has(name)).map(name => functions.get(name)).join('\n'), context);
@@ -87,7 +91,80 @@ assert.equal(context.calculateTotalMinPayments(debts, rates, 'ZAR'), 2000);
 assert.equal(context.calculateTotalDebt(debts, rates, 'ZAR'), 40000);
 assert.equal(context.calculateDebtToIncomeRatio(debts, 30000, rates, 'ZAR'), 2000 / 30000);
 assert.equal(context.calculateTotalMinPayments(debts, [], 'ZAR'), 0);
+const investments = [{ name: 'Local', currentValue: 500, currency: 'ZAR' }, { name: 'Foreign', currentValue: 100, currency: 'USD' }];
+assert.equal(context.calculateTotalInvestments(investments, rates, 'ZAR'), 2500);
+assert.equal(context.calculateTotalInvestments([], rates, 'ZAR'), 0);
+assert.equal(context.calculateTotalInvestments(investments, [], 'ZAR'), 500);
+assert.ok(functions.get('buildSnapshot').includes('annualSummary.totalInvested = F.calculateTotalInvestments(investments, exchangeRates, profile.baseCurrency)'));
+assert.ok(functions.get('renderDashboard').includes('${fmt(s.annualSummary.totalInvested)}</span>'));
 console.log('Production scripts, safe HTML boundaries, escaping, lending balances, and surplus checks passed.');
+
+function checkThemePreferences() {
+  function start({ dark = false, saved = null, blocked = false, legacy = false, mediaAvailable = true } = {}) {
+    const attributes = {};
+    const button = { setAttribute: (name, value) => { attributes[name] = value; } };
+    let stored = saved;
+    let onChange;
+    const media = { matches: dark };
+    media[legacy ? 'addListener' : 'addEventListener'] = (...args) => { onChange = args[args.length - 1]; };
+    const themeContext = {
+      WR: { ui: { setHTML() {} } },
+      window: { matchMedia: mediaAvailable ? () => media : undefined },
+      document: {
+        documentElement: { setAttribute: (name, value) => { attributes[name] = value; }, getAttribute: name => attributes[name] },
+        getElementById: () => button,
+      },
+      localStorage: {
+        getItem() { if (blocked) throw Error('Unavailable'); return stored; },
+        setItem(_key, value) { if (blocked) throw Error('Unavailable'); stored = value; },
+      },
+    };
+    vm.createContext(themeContext);
+    vm.runInContext(`(${themeModule})();`, themeContext);
+    return {
+      theme: () => attributes['data-theme'], label: () => attributes['aria-label'],
+      stored: () => stored, toggle: () => themeContext.WR.ui.toggleTheme(),
+      change(value) { media.matches = value; onChange(); },
+    };
+  }
+  const automatic = start();
+  assert.equal(automatic.theme(), 'light');
+  automatic.change(true);
+  assert.equal(automatic.theme(), 'dark');
+  assert.equal(automatic.label(), 'Switch to light mode');
+  automatic.change(false);
+  assert.equal(automatic.theme(), 'light');
+  assert.equal(automatic.stored(), null);
+  const dark = start({ dark: true });
+  assert.equal(dark.theme(), 'dark');
+  dark.toggle();
+  assert.equal(dark.theme(), 'light');
+  assert.equal(dark.stored(), 'light');
+  dark.change(false);
+  dark.change(true);
+  assert.equal(dark.theme(), 'light');
+  dark.toggle();
+  assert.equal(dark.theme(), 'dark');
+  assert.equal(dark.stored(), 'dark');
+  for (const saved of ['light', 'dark']) {
+    const manual = start({ dark: saved === 'light', saved });
+    assert.equal(manual.theme(), saved);
+    manual.change(saved !== 'dark');
+    assert.equal(manual.theme(), saved);
+  }
+  const invalid = start({ saved: 'invalid', dark: true, legacy: true });
+  invalid.change(false);
+  assert.equal(invalid.theme(), 'light');
+  const restricted = start({ blocked: true, dark: true });
+  restricted.change(false);
+  assert.equal(restricted.theme(), 'light');
+  assert.doesNotThrow(() => restricted.toggle());
+  restricted.change(false);
+  assert.equal(restricted.theme(), 'dark');
+  assert.equal(start({ mediaAvailable: false }).theme(), 'light');
+  console.log('Device theme defaults, live changes, manual overrides, legacy listeners, and unavailable storage checks passed.');
+}
+checkThemePreferences();
 
 function checkVisibility() {
   const stored = new Map();
@@ -181,8 +258,31 @@ async function checkTransactionLayout() {
   };
   vm.createContext(layoutContext);
   vm.runInContext(functions.get('renderDayToDay'), layoutContext);
-  const container = { querySelectorAll: selector => { selectors.push(selector); return []; } };
+  const nextDate = { hidden: false, classList: { contains: () => true } };
+  const secondRow = { hidden: false, classList: { contains: () => false }, nextElementSibling: nextDate };
+  const firstRow = { hidden: false, classList: { contains: () => false }, nextElementSibling: secondRow };
+  const dateToggle = {
+    dataset: { date: '2026-10-07' }, attributes: {},
+    closest: () => ({ nextElementSibling: firstRow }),
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(_name, listener) { this.click = listener; },
+  };
+  const container = { querySelectorAll: selector => { selectors.push(selector); return selector === '.day-date-toggle' ? [dateToggle] : []; } };
   await layoutContext.renderDayToDay(container);
+  dateToggle.click();
+  assert.equal(firstRow.hidden, true);
+  assert.equal(secondRow.hidden, true);
+  assert.equal(nextDate.hidden, false);
+  assert.equal(dateToggle.attributes['aria-expanded'], 'false');
+  await layoutContext.renderDayToDay(container);
+  assert.ok(markup.includes('<tr data-id="first" hidden>'));
+  assert.ok(markup.includes('<tr data-id="second" hidden>'));
+  dateToggle.click();
+  assert.equal(firstRow.hidden, false);
+  assert.equal(secondRow.hidden, false);
+  assert.equal(dateToggle.attributes['aria-expanded'], 'true');
+  await layoutContext.renderDayToDay(container);
+  assert.ok(!markup.includes('<tr data-id="first" hidden>'));
   assert.equal((markup.match(/class="day-date-group"/g) || []).length, 1);
   assert.equal((markup.match(/<tr data-id=/g) || []).length, 2);
   assert.ok(markup.includes('2 transactions'));
