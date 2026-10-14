@@ -1,7 +1,7 @@
 {
   "name": "WealthRoute",
   "short_name": "WealthRoute",
-  "description": "Personal finance planner with account sync and private dashboard balances. Version 3.0.",
+  "description": "Personal finance planner with account sync, CSV transaction review, and private dashboard balances. Version 3.1.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

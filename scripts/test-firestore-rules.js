@@ -5,7 +5,7 @@ const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@fir
 const { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } = require('firebase/firestore');
 
 async function main() {
-  const projectId = 'demo-wealthroute-rules';
+  const projectId = 'demo-wealthroute';
   const testEnvironment = await initializeTestEnvironment({
     projectId,
     firestore: {

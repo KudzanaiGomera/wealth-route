@@ -1,6 +1,6 @@
 # WealthRoute
 
-Personal finance & wealth planning assistant, version **3.0**. Core files:
+Personal finance & wealth planning assistant, version **3.1**. Core files:
 `index.html` (the whole app), `tests.html` (test suite),
 `manifest.webmanifest`, `service-worker.js` (PWA install/offline shell), and
 `worker.js`/`wrangler.toml` (optional Cloudflare Worker for live rates and the
@@ -16,7 +16,15 @@ after clearing browser data, and your data is exactly as you left it. See
 "Accounts, data, and privacy" below for the full picture, including what
 this means for offline use.
 
-## What's new in 3.0
+## What's new in 3.1
+
+- **Reviewed CSV transaction imports:** map statement columns and date/sign formats, edit rows, flag exact duplicates and likely transfers, import only spending, and undo the complete atomic import. There is no direct bank connection.
+- **Recurring-spend review:** stable monthly charges are suggested after repeated history; nothing is added to budgets automatically.
+- **Budget-cycle reconciliation:** Financial Insights compares spending, balance left, top category, and prior-cycle change for the 25th-to-24th cycle.
+- **Wealth tables:** Assets and Investments render their shared sortable and filterable table controls.
+- **Version 3.1.0** is used in package metadata, Settings, and exported backups; the PWA shell cache is refreshed.
+
+## 3.0 Highlights
 
 - **Balance-first dashboard:** a subtly accent-tinted net-worth card with two-column
   balance rows, emergency fund and total assets, a compact annual overview,
@@ -33,8 +41,6 @@ this means for offline use.
   safe-area support.
 - **Cleaner transaction view:** one spending-breakdown card with compact category rows and a date-grouped
   activity ledger with signed amounts, inline editing, and labeled fields on phones.
-- **Version 3.0.0** in package metadata, Settings, and exported backups;
-  the service-worker shell cache is refreshed for the release.
 - **Income and buffer:** editable Advance and Savings taken columns reduce
   Total income; savings pots are updated manually. Buffer adds an existing carry-over
   amount to Total income without duplicating cash.
@@ -250,9 +256,9 @@ offline cache; account data remains isolated by the published Firestore rules.
 
 **Editable everywhere.** Transactions, Debts, Assets, Investments, and
 Spreadsheet all have inline-editable cells now (previously some only
-supported delete). Every table: confirms before deleting, flashes green on
-a successful save, and clamps numeric fields to non-negative instead of
-silently accepting bad input.
+supported delete). Record deletions show a brief Undo action; account and
+whole-data deletion remain confirmation-based. Tables flash green on a
+successful save and clamp numeric fields to non-negative.
 
 **Excel import bug fixed.** `readSheetRows` assumed column headers always
 sit in row 1 and relied on SheetJS's default object-conversion, which
@@ -365,6 +371,10 @@ missing-rate exclusions, currency-weighted forecast inputs, account-switch
 read cancellation, session draft isolation, same-page render races, load-error
 retry, and atomic emergency-fund movements. HTML is sanitized centrally;
 form identifiers avoid DOM-clobbering names such as `name` and `target`.
+
+CSV import checks cover ISO and day/month date parsing, invalid dates, signed
+amounts, duplicate detection, transfer exclusion, non-spend rows, recurring
+charge candidates, cycle boundaries, category totals, and whole-import Undo.
 
 Income, debt creation, savings pots/transfers, emergency-fund contributions
 and movements, and Settings preference/rate/category forms retain unsaved
@@ -574,20 +584,16 @@ ui/snapshot, dashboard, transactions,
 bootstrap                     app entry point
 ```
 
-## Known remaining gaps (not fixed in this pass)
+## Known remaining gaps
 
 Flagging what's still open rather than letting it be a surprise:
 
-- **No sorting/filtering** on Debts, Assets, or Investments tables (only
-  Transactions has it). Fine at small scale, will get unwieldy with many
-  records.
-- **No undo** after a delete confirmation \u2014 the confirmation dialog is the
-  only safety net.
-- **No per-account local storage isolation on a shared browser.** Login
-  controls what's shown and Firestore enforces real data isolation
-  server-side, but there's no separate "who's using this browser" profile
-  switcher for people who deliberately want to avoid a real account.
-- **Not every page was click-tested during the 2.0 migration** \u2014
+- **Assets and Investments still need more list controls** as record counts
+  grow; Debts and Transactions already support sorting/filtering.
+- **No direct bank connections.** Transactions can be imported from CSV, but
+  automated feeds require choosing a provider that supports the users' banks
+  and region, then reviewing its security and cost.
+- **Not every page has recent click-through coverage** \u2014
   authentication, navigation, the Dashboard, Debts, and Settings/Profile
   were all verified live in a real browser against a live Firebase project,
   but Transactions, Assets, Investments, Forecast, the Excel workflow, and
@@ -598,6 +604,8 @@ Flagging what's still open rather than letting it be a surprise:
 
 - [x] Add explicit account deletion with provider re-authentication and
   confirmation.
+- [x] Verify account deletion with a disposable account and confirm its
+  username claim is released.
 - [ ] Run `npm run test:rules` in an environment with Java installed, then
   verify the published Firebase rules using two disposable accounts.
 - [ ] Complete the release checklist on physical iPhone and Android devices,
@@ -605,7 +613,8 @@ Flagging what's still open rather than letting it be a surprise:
 - [ ] Add first-time-user account recovery and deletion guidance.
 - [ ] Split `index.html` into storage, financial-core, and UI modules in
   behavior-preserving steps, keeping the no-bundler deployment model.
-- [ ] Revisit CSV statement import when manual-entry friction justifies it;
-  include review-before-save, duplicate detection, and undo.
+- [x] Add review-first CSV transaction import with duplicate and transfer
+  review plus whole-import Undo.
+- [x] Add review-only recurring-spend suggestions and prior-cycle comparison.
 - [ ] Add a simple feedback loop for early users to report UX and calculation
   issues.

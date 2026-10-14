@@ -8,6 +8,7 @@ const root = path.resolve(__dirname, '..');
 if (process.argv.includes('--prepare')) {
   fs.mkdirSync(path.join(root, 'vendor'), { recursive: true });
   fs.copyFileSync(require.resolve('dompurify/dist/purify.min.js'), path.join(root, 'vendor/purify.min.js'));
+  fs.copyFileSync(require.resolve('papaparse/papaparse.min.js'), path.join(root, 'vendor/papaparse.min.js'));
 }
 
 const htmlPath = path.join(root, 'index.html');
@@ -72,12 +73,61 @@ for (const match of fs.readFileSync(path.join(root, 'tests.html'), 'utf8').match
   acorn.parse(match[1], { ecmaVersion: 'latest' });
 }
 
-const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'calculateWeightedAverageInterestRate', 'calculateLiquidAssets', 'convertCurrency', 'calculateNetWorth', 'calculateTotalInvestments', 'sumInBaseCurrency', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus'];
+const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'authErrorMessage', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'calculateWeightedAverageInterestRate', 'calculateLiquidAssets', 'convertCurrency', 'calculateNetWorth', 'calculateTotalInvestments', 'sumInBaseCurrency', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus', 'parseAmount', 'normalizeTransactionImportDate', 'transactionImportDuplicateKey', 'prepareTransactionImportRows', 'findRecurringSpendPatterns', 'summarizeTransactionPeriod'];
 const context = { WR: { financial: {} } };
 vm.createContext(context);
 vm.runInContext(names.filter(name => functions.has(name)).map(name => functions.get(name)).join('\n'), context);
 context.WR.financial.convertCurrency = context.convertCurrency;
+const importContext = { WR: { excel: { parseAmount: context.parseAmount } } };
+vm.createContext(importContext);
+vm.runInContext(['normalizeTransactionImportDate', 'transactionImportDuplicateKey', 'prepareTransactionImportRows', 'findRecurringSpendPatterns'].map(name => functions.get(name)).join('\n'), importContext);
+assert.equal(importContext.normalizeTransactionImportDate('31/01/2026', 'dmy'), '2026-01-31');
+assert.equal(importContext.normalizeTransactionImportDate('04/05/2026', 'dmy'), '2026-05-04');
+assert.equal(importContext.normalizeTransactionImportDate('04/05/2026', 'mdy'), '2026-04-05');
+assert.equal(importContext.normalizeTransactionImportDate('31/02/2026', 'dmy'), '');
+const importRows = importContext.prepareTransactionImportRows([
+  { Date: '2026-01-02', Description: 'Coffee Shop', Amount: '(18.50)', Category: 'Food', Type: 'Card purchase' },
+  { Date: '2026-01-03', Description: 'Transfer to savings', Amount: '(200)', Category: '', Type: 'Transfer' },
+  { Date: '2026-01-04', Description: 'Coffee Shop', Amount: '(12)', Category: 'Food', Type: 'Card purchase' },
+  { Date: '2026-01-05', Description: 'Salary deposit', Amount: '1500', Category: 'Income', Type: 'Deposit' },
+], { date: 'Date', description: 'Description', amount: 'Amount', category: 'Category', type: 'Type' }, { dateFormat: 'dmy', spendSign: 'negative' }, [
+  { date: '2026-01-02', description: 'coffee shop', amount: 18.5 },
+]);
+assert.equal(importRows[0].duplicate, true);
+assert.equal(importRows[0].include, false);
+assert.equal(importRows[1].possibleTransfer, true);
+assert.equal(importRows[1].include, false);
+assert.equal(importRows[2].amount, 12);
+assert.equal(importRows[2].include, true);
+assert.equal(importRows[3].notSpend, true);
+assert.equal(importRows[3].problems.length, 0);
+assert.equal(importRows[3].include, false);
+const recurringTransactions = [
+  { date: '2026-03-05', description: 'Music Plan', category: 'Subscriptions', amount: 99, kind: 'spend' },
+  { date: '2026-04-05', description: 'Music Plan', category: 'Subscriptions', amount: 101, kind: 'spend' },
+  { date: '2026-05-05', description: 'Music Plan', category: 'Subscriptions', amount: 100, kind: 'spend' },
+  { date: '2026-06-05', description: 'Music Plan', category: 'Subscriptions', amount: 100, kind: 'spend' },
+  { date: '2026-06-10', description: 'One-off', category: 'Food', amount: 500, kind: 'spend' },
+  { date: '2026-06-12', description: 'Transfer', category: 'Transfer', amount: 100, kind: 'add' },
+];
+const recurringPatterns = importContext.findRecurringSpendPatterns(recurringTransactions, '2026-06');
+assert.equal(recurringPatterns.length, 1);
+assert.equal(recurringPatterns[0].description, 'Music Plan');
+assert.equal(recurringPatterns[0].occurrences, 4);
+assert.equal(recurringPatterns[0].averageAmount, 100);
+const periodSummary = context.summarizeTransactionPeriod([
+  { date: '2026-06-01', kind: 'spend', amount: 25, category: 'Food' },
+  { date: '2026-06-02', kind: 'spend', amount: 50, category: '' },
+  { date: '2026-05-31', kind: 'spend', amount: 999, category: 'Food' },
+  { date: '2026-06-03', kind: 'add', amount: 500, category: 'Income' },
+], '2026-06-01', '2026-07-01');
+assert.equal(periodSummary.count, 2);
+assert.equal(periodSummary.spent, 75);
+assert.equal(periodSummary.topCategory.name, 'Uncategorised');
+assert.equal(periodSummary.topCategory.amount, 50);
 assert.equal(context.escapeText('<img onerror="test">'), '&lt;img onerror=&quot;test&quot;&gt;');
+assert.match(context.authErrorMessage({ code: 'auth/unauthorized-domain' }, true), /authorized/i);
+assert.match(context.authErrorMessage({ code: 'auth/new-code' }, true), /auth\/new-code/);
 assert.throws(() => context.assertActiveView({ closest: () => ({ isConnected: false }) }), { name: 'AbortError' });
 assert.doesNotThrow(() => context.assertActiveView({ closest: () => ({ isConnected: true }) }));
 assert.equal(context.calculateMoneyOwed({ amount: 1000, interestRatePct: 10, repayments: [{ amount: 250 }] }).remaining, 850);
@@ -130,6 +180,11 @@ assert.ok(functions.get('renderDashboard').includes('aria-label="Current balance
 assert.ok(functions.get('renderDashboard').indexOf('class="dashboard-actions"') < functions.get('renderDashboard').indexOf('class="dashboard-card annual-card"'));
 assert.ok(functions.get('renderDashboard').indexOf('class="dashboard-card bills-card"') < functions.get('renderDashboard').indexOf('class="dashboard-card annual-card"'));
 assert.ok(!functions.get('renderDashboard').includes('>Total Investments</span>'));
+for (const viewName of ['renderAssets', 'renderInvestments']) {
+  assert.ok(functions.get(viewName).includes('WR.ui.sortRecords'), `${viewName} must use the shared table sort helper`);
+  assert.ok(functions.get(viewName).includes('WR.ui.recordSortHeader'), `${viewName} must use the shared table header helper`);
+  assert.ok(functions.get(viewName).includes('WR.ui.bindRecordTableControls'), `${viewName} must use the shared table controls`);
+}
 console.log('Production scripts, safe HTML boundaries, escaping, lending balances, and surplus checks passed.');
 
 function checkThemePreferences() {
@@ -206,6 +261,36 @@ function checkThemePreferences() {
   console.log('Device theme defaults, live changes, manual overrides, legacy listeners, and unavailable storage checks passed.');
 }
 checkThemePreferences();
+
+async function checkDeleteUndo() {
+  const records = new Map([['entry-1', { id: 'entry-1', amount: 75 }]]);
+  let undoAction;
+  let refreshed = 0;
+  const context = {
+    WR: { ui: {} },
+    notifyUndo(_message, action) { undoAction = action; },
+  };
+  vm.createContext(context);
+  vm.runInContext(functions.get('removeWithUndo'), context);
+  await context.removeWithUndo({
+    repo: {
+      async getById(id) { return records.get(id); },
+      async remove(id) { records.delete(id); },
+      async add(item) { records.set(item.id, item); },
+    },
+    id: 'entry-1',
+    entityLabel: 'Test entry',
+    afterChange: async () => { refreshed += 1; },
+  });
+  assert.equal(records.has('entry-1'), false);
+  assert.equal(refreshed, 1);
+  assert.equal(typeof undoAction, 'function');
+  await undoAction();
+  assert.deepEqual(records.get('entry-1'), { id: 'entry-1', amount: 75 });
+  assert.equal(refreshed, 2);
+  console.log('Record deletion and Undo restore the original entry and refresh the view.');
+}
+checkDeleteUndo().catch(error => { console.error(error); process.exitCode = 1; });
 
 async function checkSaveFeedback() {
   const status = { dataset: {}, textContent: '' };
@@ -464,8 +549,8 @@ function checkVisibility() {
   const restricted = dashboard();
   assert.doesNotThrow(() => restricted.button.events.click());
   assert.equal(restricted.amount.childNodes[0].textContent, '****');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version, '3.0.0');
-  assert.ok(html.includes("const APP_VERSION = '3.0.0'"));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version, '3.1.0');
+  assert.ok(html.includes("const APP_VERSION = '3.1.0'"));
   console.log('Balance masking/restoration, per-account preferences, unavailable storage, password visibility, and version checks passed.');
 }
 checkVisibility();
@@ -477,7 +562,9 @@ async function checkTransactionLayout() {
     { id: 'third', date: '2026-10-06', kind: 'add', amount: 800 },
   ];
   let markup = '';
-    const selectors = []; // This line is unchanged
+  const selectors = [];
+  let container;
+  const inertControl = { addEventListener() {}, querySelector() { return null; }, querySelectorAll() { return []; } };
   const repo = records => ({ getAll: async () => records });
   const layoutContext = {
     WR: {
@@ -495,13 +582,13 @@ async function checkTransactionLayout() {
         buildSnapshot: async () => ({ payCycles: [], paydayFunding: { budget: 4321 } }),
         fmt: amount => Number(amount).toFixed(2),
         calculateDayToDayMonthBalance: () => ({ balanceBeforeMonth: 0, currentBalance: 702 }),
-        setHTML: (_container, value) => { markup = value; },
+        setHTML: (target, value) => { if (target === container) markup = value; else target.markup = value; },
       },
     },
     document: { getElementById: () => ({ addEventListener() {} }) },
   };
   vm.createContext(layoutContext);
-  vm.runInContext(functions.get('renderDayToDay'), layoutContext);
+  vm.runInContext(`${functions.get('findRecurringSpendPatterns')}\n${functions.get('renderDayToDay')}`, layoutContext);
   const nextDate = { hidden: false, classList: { contains: () => true } };
   const secondRow = { hidden: false, classList: { contains: () => false }, nextElementSibling: nextDate };
   const firstRow = { hidden: false, classList: { contains: () => false }, nextElementSibling: secondRow };
@@ -511,7 +598,10 @@ async function checkTransactionLayout() {
     setAttribute(name, value) { this.attributes[name] = value; },
     addEventListener(_name, listener) { this.click = listener; },
   };
-  const container = { querySelectorAll: selector => { selectors.push(selector); return selector === '.day-date-toggle' ? [dateToggle] : []; } };
+  container = {
+    querySelector: () => inertControl,
+    querySelectorAll: selector => { selectors.push(selector); return selector === '.day-date-toggle' ? [dateToggle] : []; },
+  };
   await layoutContext.renderDayToDay(container);
   assert.ok(markup.indexOf('id="day-add-form"') < markup.indexOf('id="day-activity-title"'));
   assert.ok(markup.indexOf('id="day-activity-title"') < markup.indexOf('Where your money is going'));

@@ -748,6 +748,31 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .day-disclosure > summary { min-height: 44px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
 .day-disclosure > summary::before { content: '\203A'; font-size: 1.2rem; }
 .day-disclosure[open] > summary::before { transform: rotate(90deg); }
+.transaction-import-help { max-width: 72ch; line-height: 1.5; }
+.transaction-import-config { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 0.75rem; margin: 0.75rem 0; }
+.transaction-import-config label { display: grid; align-content: start; gap: 0.35rem; min-width: 0; color: var(--muted); font-size: 0.8rem; }
+.transaction-import-config select { width: 100%; min-height: 44px; }
+.transaction-import-preview { margin-top: 0.75rem; }
+.transaction-import-list { display: grid; max-height: 30rem; overflow-y: auto; }
+.transaction-import-row { display: grid; grid-template-columns: 5.5rem repeat(4, minmax(0, 1fr)); align-items: end; gap: 0.55rem 0.75rem; padding: 0.75rem 0; border-top: 1px solid var(--border); }
+.transaction-import-row label { display: grid; gap: 0.3rem; min-width: 0; color: var(--muted); font-size: 0.75rem; }
+.transaction-import-row input:not([type="checkbox"]) { width: 100%; min-width: 0; min-height: 40px; }
+.transaction-import-include { align-items: start; }
+.transaction-import-include input { width: 20px; height: 20px; margin: 0; }
+.transaction-import-row-status { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 0.78rem; }
+.transaction-import-status { min-height: 1.3rem; margin: 0.5rem 0; color: var(--muted); font-size: 0.85rem; }
+.transaction-import-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.75rem; }
+@media (max-width: 680px) {
+  .transaction-import-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; }
+  .transaction-import-include, .transaction-import-row-status { grid-column: 1 / -1; }
+  .transaction-import-row label[data-import-label="description"] { grid-column: 1 / -1; }
+}
+.cycle-review { margin: 1rem 0 1.5rem; padding: 1rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.cycle-review h2 { margin-top: 0; }
+.cycle-review-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 0.75rem; margin: 0.75rem 0; }
+.cycle-review-grid > div { display: grid; align-content: start; gap: 0.25rem; min-width: 0; padding-left: 0.7rem; border-left: 2px solid var(--border); }
+.cycle-review-grid span { color: var(--muted); font-size: 0.8rem; }
+.cycle-review-grid strong { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .day-entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
 .day-entry-grid label { display: grid; gap: 0.35rem; font-size: 0.82rem; color: var(--muted); }
 .day-entry-grid input, .day-entry-grid select { width: 100%; min-width: 0; min-height: 44px; }
@@ -1455,9 +1480,27 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
 
 /* ---------- Dashboard: debt-free + bills ---------- */
 .dashboard-insights-grid { grid-area: insights; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1rem; margin: 0; }
-.debt-free-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
-.debt-free-head strong { font-size: 1.6rem; }
+.debt-free-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.75rem 1rem; margin: 0.9rem 0 1rem; }
+.debt-free-head > div { display: grid; gap: 0.25rem; min-width: 0; }
+.debt-free-head > div:last-child { text-align: right; }
+.debt-free-head strong { font-size: 1.6rem; line-height: 1.2; }
 .debt-free-head span { color: var(--muted); font-size: 0.88rem; }
+.debt-free-progress { display: grid; gap: 0.8rem; }
+.debt-free-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; margin: 0.15rem 0 0.25rem; }
+.debt-free-stats > div { display: grid; align-content: start; gap: 0.25rem; min-width: 0; padding-left: 0.7rem; border-left: 2px solid var(--border); }
+.debt-free-stats span { color: var(--muted); font-size: 0.8rem; }
+.debt-free-stats strong { font-size: 0.98rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.debt-free-method { margin: 0.9rem 0; line-height: 1.55; }
+@media (max-width: 520px) {
+  .debt-free-head { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 0.65rem; }
+  .debt-free-head > div:last-child { text-align: right; }
+  .debt-free-head strong { font-size: 1.2rem; overflow-wrap: anywhere; }
+  .debt-free-head span { font-size: 0.76rem; }
+  .debt-free-stats { grid-template-columns: 1fr; gap: 0.45rem; }
+  .debt-free-stats > div { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
+  .debt-free-stats strong { font-size: 0.88rem; text-align: right; }
+  .debt-free-method { margin: 0.7rem 0; line-height: 1.45; }
+}
 .bill-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
 .bill-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-alt); }
 .bill-list li > div { display: grid; gap: 0.15rem; min-width: 0; }
@@ -1664,6 +1707,7 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   <body>
     <div id="app"></div>
     <script src="vendor/purify.min.js"></script>
+    <script src="vendor/papaparse.min.js"></script>
     <script>
 window.WR = window.WR || {};
 WR.ui = WR.ui || {};
@@ -1885,6 +1929,14 @@ window.WR = window.WR || {};
         await WR.saves.trackSave(() => api.setDoc(docRef(item.id), stripUndefined(item)));
         return item.id;
       },
+      async addMany(items) {
+        if (!items.length) return [];
+        const { api, uid, db } = requireContext();
+        const batch = api.writeBatch(db);
+        items.forEach((item) => batch.set(api.doc(db, 'users', uid, storeName, item.id), stripUndefined(item)));
+        await WR.saves.trackSave(() => batch.commit());
+        return items.map((item) => item.id);
+      },
       /** @param {{id: string}} item */
       async update(item) {
         const { api } = requireContext();
@@ -1895,6 +1947,13 @@ window.WR = window.WR || {};
       async remove(id) {
         const { api } = requireContext();
         await WR.saves.trackSave(() => api.deleteDoc(docRef(id)));
+      },
+      async removeMany(ids) {
+        if (!ids.length) return;
+        const { api, uid, db } = requireContext();
+        const batch = api.writeBatch(db);
+        ids.forEach((id) => batch.delete(api.doc(db, 'users', uid, storeName, id)));
+        await WR.saves.trackSave(() => batch.commit());
       },
       async clear({ fresh = false } = {}) {
         const { api } = requireContext();
@@ -5069,11 +5128,18 @@ WR.ui = WR.ui || {};
         <article class="dashboard-card debt-free-card">
           <h2>Road to debt-free</h2>
           <div class="debt-free-head" data-private-detail>
-            <strong>${debtProgress.months === null ? 'Not within 50 years' : debtProgress.months === 0 ? 'This month' : `${debtProgress.months} months`}</strong>
-            <span>${debtProgress.freeDateLabel ? `Debt-free by ${debtProgress.freeDateLabel}` : 'Increase payments to set a finish date'}</span>
+            <div><span>Estimated payoff</span><strong>${debtProgress.months === null ? 'Not within 50 years' : debtProgress.months === 0 ? 'This month' : `${debtProgress.months} months`}</strong></div>
+            <div><span>Estimated debt-free date</span><strong>${debtProgress.freeDateLabel || 'Increase payments to set a date'}</strong></div>
           </div>
-          <div data-private-detail><div class="goal-meter" role="progressbar" aria-label="Debt repaid" aria-valuenow="${debtProgress.paidPct.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${debtProgress.paidPct}%"></span></div></div>
-          <p class="fine-print" data-private-detail>${debtProgress.paidPct.toFixed(0)}% paid off · ${currency} ${fmt(debtProgress.paid)} paid, ${currency} ${fmt(debtProgress.remaining)} to go. Based on your ${debtProgress.strategy} plan on the Debts page.</p>
+          <div class="debt-free-progress" data-private-detail>
+            <div class="goal-meter" role="progressbar" aria-label="Debt repaid" aria-valuenow="${debtProgress.paidPct.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${debtProgress.paidPct}%"></span></div>
+            <div class="debt-free-stats" aria-label="Debt payoff progress">
+              <div><span>Repaid</span><strong>${debtProgress.paidPct.toFixed(0)}%</strong></div>
+              <div><span>Paid to date</span><strong>${currency} ${fmt(debtProgress.paid)}</strong></div>
+              <div><span>Remaining</span><strong>${currency} ${fmt(debtProgress.remaining)}</strong></div>
+            </div>
+          </div>
+          <p class="fine-print debt-free-method">Projection follows your ${debtProgress.strategy} plan on the Debts page; the date changes when balances or payments change.</p>
           <a class="link-btn" href="#/debts">View payoff plan</a>
         </article>` : ''}
       </section>
@@ -5393,7 +5459,6 @@ WR.ui = WR.ui || {};
 
     container.querySelectorAll('.delete-line').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!confirm('Delete this transaction? This cannot be undone.')) return;
         await WR.ui.removeWithUndo({
           repo: WR.repos.budgetLines,
           id: btn.dataset.id,
@@ -5510,7 +5575,6 @@ WR.ui = WR.ui || {};
 
     container.querySelectorAll('.delete-saving').forEach((button) => {
       button.addEventListener('click', async () => {
-        if (!confirm('Delete this savings record?')) return;
         await WR.ui.removeWithUndo({
           repo: WR.repos.budgetLines,
           id: button.dataset.id,
@@ -5806,8 +5870,19 @@ WR.ui = WR.ui || {};
       } catch (error) { WR.ui.notify(error.message, 'error'); } finally { button.disabled = false; }
     });
     container.querySelectorAll('.remove-pay-advance').forEach(button => button.addEventListener('click', async () => {
-      if (!confirm('Remove this advance and reverse its available-money entry?')) return;
-      try { await savePayAdvance(button.dataset.id, {}, true); await renderPaydayIncome(container); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
+      const id = button.dataset.id;
+      const advance = await WR.repos.payAdvances.getById(id);
+      if (!advance) return;
+      try {
+        await savePayAdvance(id, {}, true);
+        await renderPaydayIncome(container);
+        WR.ui.enhanceResponsiveContent(container);
+        WR.ui.notifyUndo('Pay advance removed and available money reversed.', async () => {
+          await savePayAdvance(id, advance);
+          await renderPaydayIncome(container);
+          WR.ui.enhanceResponsiveContent(container);
+        }, { undoSuccessMessage: 'Pay advance restored.' });
+      } catch (error) { WR.ui.notify(error.message, 'error'); }
     }));
   }
   Object.assign(WR.ui, { savePayCycle, savePayAdvance, renderPaydayIncome });
@@ -5861,6 +5936,7 @@ WR.ui = WR.ui || {};
         <thead><tr><th>Source</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Start month</th><th>End month</th><th>Advance</th><th>Savings taken</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="8" class="empty">No income sources.</td></tr>'}</tbody>
       </table>
+      <p class="fine-print"><strong>Advance</strong> is cash received early and reduces that future payday's income; record the receipt under Buffer only if it is not already entered. <strong>Savings taken</strong> reduces budgeted income but does not add money to a savings pot; transfer it separately on Savings.</p>
 
       <h3>Add income source</h3>
       <form id="income-add-form" class="inline-form">
@@ -5873,6 +5949,7 @@ WR.ui = WR.ui || {};
       </form>
       <p id="income-form-message" class="warning"></p>
       <section class="feature-section income-buffer"><h2>Buffer</h2>
+        <p class="fine-print">Available buffer is money carried from earlier cycles. Adding it to total income allocates existing funds, not new earnings. Add funds records a deposit; with auto-use enabled, positive deposits are allocated automatically.</p>
         <div class="buffer-layout">
           <div class="buffer-balance"><span class="stat-label">Available buffer</span><strong class="buffer-value ${snapshot.payCycleBudget.carryOver < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(snapshot.payCycleBudget.carryOver)}</strong>
             <details class="card-edit buffer-edit"><summary>Edit balance</summary>
@@ -5931,8 +6008,18 @@ WR.ui = WR.ui || {};
 
     container.querySelectorAll('.delete-income').forEach((button) => {
       button.addEventListener('click', async () => {
-        if (!confirm('Delete this income source?')) return;
-        try { await saveIncomeBudget(month, { sourceId: button.dataset.id, removeSource: true }); await renderIncome(container, true); WR.ui.enhanceResponsiveContent(container); } catch (error) { WR.ui.notify(error.message, 'error'); }
+        const source = incomes.find(item => item.id === button.dataset.id);
+        if (!source) return;
+        try {
+          await saveIncomeBudget(month, { sourceId: source.id, removeSource: true });
+          await renderIncome(container, true);
+          WR.ui.enhanceResponsiveContent(container);
+          WR.ui.notifyUndo('Income source deleted.', async () => {
+            await saveIncomeBudget(month, { sourceId: source.id, newSource: source });
+            await renderIncome(container, true);
+            WR.ui.enhanceResponsiveContent(container);
+          }, { undoSuccessMessage: 'Income source restored.' });
+        } catch (error) { WR.ui.notify(error.message, 'error'); }
       });
     });
 
@@ -6049,7 +6136,6 @@ WR.ui = WR.ui || {};
 
     container.querySelectorAll('.delete-fixed-expense').forEach((button) => {
       button.addEventListener('click', async () => {
-        if (!confirm('Delete this fixed expense?')) return;
         await WR.ui.removeWithUndo({
           repo: WR.repos.fixedExpenses,
           id: button.dataset.id,
@@ -6248,7 +6334,7 @@ WR.ui = WR.ui || {};
     const saveAccounts = async (accounts) => {
       profile.emergencyFundAccounts = accounts;
       await WR.repos.userProfile.update(profile);
-      renderEmergencyFund(container);
+      await renderEmergencyFund(container);
     };
     container.querySelectorAll('.ef-account-rename').forEach((input) => {
       input.addEventListener('change', async () => {
@@ -6259,8 +6345,19 @@ WR.ui = WR.ui || {};
     });
     container.querySelectorAll('.ef-account-remove').forEach((button) => {
       button.addEventListener('click', async () => {
-        if (!confirm(`Remove "${emergencyFundAccountLabel(button.dataset.id)}"?`)) return;
-        await saveAccounts(EMERGENCY_FUND_ACCOUNTS.filter((a) => a.id !== button.dataset.id));
+        const account = EMERGENCY_FUND_ACCOUNTS.find(item => item.id === button.dataset.id);
+        if (!account) return;
+        await saveAccounts(EMERGENCY_FUND_ACCOUNTS.filter((item) => item.id !== account.id));
+        WR.ui.notifyUndo(`Emergency fund account "${account.label}" removed.`, async () => {
+          const latest = await WR.repos.userProfile.getById(profile.id) || profile;
+          const accounts = Array.isArray(latest.emergencyFundAccounts) && latest.emergencyFundAccounts.length
+            ? latest.emergencyFundAccounts
+            : DEFAULT_EMERGENCY_FUND_ACCOUNTS;
+          if (!accounts.some(item => item.id === account.id)) {
+            await WR.repos.userProfile.update({ ...latest, emergencyFundAccounts: [...accounts, account] });
+          }
+          await renderEmergencyFund(container);
+        }, { undoSuccessMessage: 'Emergency fund account restored.' });
       });
     });
     container.querySelector('#ef-account-add-form').addEventListener('submit', async (event) => {
@@ -6312,7 +6409,6 @@ WR.ui = WR.ui || {};
 
     container.querySelectorAll('.delete-emergency').forEach((button) => {
       button.addEventListener('click', async () => {
-        if (!confirm('Delete this emergency contribution?')) return;
         await WR.ui.removeWithUndo({
           repo: WR.repos.emergencyFundContributions,
           id: button.dataset.id,
@@ -6404,6 +6500,99 @@ WR.ui = WR.ui || {};
     });
   }
 
+  function normalizeTransactionImportDate(raw, format) {
+    const text = String(raw ?? '').trim();
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ].*)?$/);
+    let year;
+    let month;
+    let day;
+    if (iso) [, year, month, day] = iso;
+    else {
+      const numeric = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+      if (!numeric) return '';
+      const first = Number(numeric[1]);
+      const second = Number(numeric[2]);
+      const inferredFormat = first > 12 ? 'dmy' : second > 12 ? 'mdy' : format;
+      if (inferredFormat === 'mdy') [month, day, year] = numeric.slice(1);
+      else [day, month, year] = numeric.slice(1);
+    }
+    const numbers = [Number(year), Number(month), Number(day)];
+    const parsed = new Date(Date.UTC(numbers[0], numbers[1] - 1, numbers[2]));
+    if (parsed.getUTCFullYear() !== numbers[0] || parsed.getUTCMonth() !== numbers[1] - 1 || parsed.getUTCDate() !== numbers[2]) return '';
+    return `${String(numbers[0]).padStart(4, '0')}-${String(numbers[1]).padStart(2, '0')}-${String(numbers[2]).padStart(2, '0')}`;
+  }
+
+  function transactionImportDuplicateKey(item) {
+    const description = String(item.description || '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+    return `${item.date}|${description}|${Math.round(Number(item.amount) * 100)}`;
+  }
+
+  function prepareTransactionImportRows(rawRows, mapping, options, existingTransactions) {
+    const seen = new Set((existingTransactions || []).map((item) => transactionImportDuplicateKey({
+      date: item.date,
+      description: item.description,
+      amount: item.amount,
+    })));
+    return (rawRows || []).map((raw, index) => {
+      const date = normalizeTransactionImportDate(raw[mapping.date], options.dateFormat || 'dmy');
+      const description = String(raw[mapping.description] ?? '').trim();
+      const category = mapping.category ? String(raw[mapping.category] ?? '').trim() : '';
+      const parsedAmount = WR.excel.parseAmount(raw[mapping.amount]);
+      const isSpendingSign = Number.isFinite(parsedAmount) && (options.spendSign === 'negative' ? parsedAmount < 0 : parsedAmount > 0);
+      const amount = isSpendingSign ? Math.round(Math.abs(parsedAmount) * 100) / 100 : 0;
+      const typeText = mapping.type ? String(raw[mapping.type] ?? '').trim() : '';
+      const possibleTransfer = /\b(?:transfer|top[\s-]?up|own account|internal move)\b/i.test(`${typeText} ${description}`);
+      const notSpend = /\b(?:income|deposit|refund|salary|payday|advance)\b/i.test(`${typeText} ${description}`) || !isSpendingSign;
+      const problems = [];
+      if (!date) problems.push('Check date and date format');
+      if (!description) problems.push('Add a description');
+      if (!Number.isFinite(parsedAmount) || parsedAmount === 0) problems.push('Amount must be a valid non-zero number');
+      const candidate = { index, date, description, category, amount, possibleTransfer, notSpend, problems };
+      candidate.duplicate = !problems.length && seen.has(transactionImportDuplicateKey(candidate));
+      if (!problems.length && !candidate.duplicate) seen.add(transactionImportDuplicateKey(candidate));
+      candidate.include = !problems.length && !candidate.duplicate && !possibleTransfer && !notSpend;
+      return candidate;
+    });
+  }
+
+  function findRecurringSpendPatterns(transactions, month) {
+    const [year, monthNumber] = String(month || '').split('-').map(Number);
+    if (!year || !monthNumber) return [];
+    const cutoff = new Date(Date.UTC(year, monthNumber - 7, 1)).toISOString().slice(0, 10);
+    const groups = new Map();
+    (transactions || []).forEach((transaction) => {
+      const date = String(transaction.date || '');
+      const amount = Number(transaction.amount);
+      const description = String(transaction.description || '').trim();
+      if (transaction.kind === 'add' || date < cutoff || date.slice(0, 7) > month || !description || !Number.isFinite(amount) || amount <= 0) return;
+      const key = `${description.toLocaleLowerCase().replace(/\s+/g, ' ')}|${String(transaction.category || '').trim().toLocaleLowerCase()}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ ...transaction, date, amount, description });
+    });
+    return [...groups.values()].flatMap((rows) => {
+      const byMonth = new Map();
+      rows.sort((left, right) => left.date.localeCompare(right.date)).forEach((row) => {
+        const key = row.date.slice(0, 7);
+        if (!byMonth.has(key)) byMonth.set(key, row);
+      });
+      const monthlyRows = [...byMonth.values()];
+      if (monthlyRows.length < 3) return [];
+      const gaps = monthlyRows.slice(1).map((row, index) => (Date.parse(`${row.date}T00:00:00Z`) - Date.parse(`${monthlyRows[index].date}T00:00:00Z`)) / 86400000);
+      if (gaps.some((gap) => gap < 23 || gap > 40)) return [];
+      const amounts = monthlyRows.map((row) => row.amount);
+      const averageAmount = amounts.reduce((sum, amount) => sum + amount, 0) / amounts.length;
+      if (averageAmount <= 0 || (Math.max(...amounts) - Math.min(...amounts)) / averageAmount > 0.25) return [];
+      const latest = monthlyRows[monthlyRows.length - 1];
+      return [{
+        description: latest.description,
+        category: latest.category || 'Uncategorised',
+        averageAmount: Math.round(averageAmount * 100) / 100,
+        occurrences: monthlyRows.length,
+        lastDate: latest.date,
+      }];
+    }).sort((left, right) => right.occurrences - left.occurrences || right.averageAmount - left.averageAmount).slice(0, 5);
+  }
+
   async function renderDayToDay(container) {
     WR.ui.syncBudgetMonth();
     const [profile, accounts, transactions, expenseCategories, emergencyFundContributions, storedCycles, payAdvances] = await Promise.all([
@@ -6450,6 +6639,7 @@ WR.ui = WR.ui || {};
       const options = categoryNames.map((category) => `<option value="${escapeHtml(category)}" ${category.toLowerCase() === selected.toLowerCase() ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('');
       return `<option value="" ${selected ? '' : 'selected'}>None</option>${options}`;
     };
+    let transactionImportState = null;
     const monthTx = transactions.filter((item) => item.kind !== 'add' && item.date >= dates.start && item.date < dates.endExclusive).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const dateFrom = WR.ui._dayDateFrom || '';
     const dateTo = WR.ui._dayDateTo || '';
@@ -6479,6 +6669,14 @@ WR.ui = WR.ui || {};
         <p>Reduce ${escapeHtml(topSpend.category)} by about ${profile.baseCurrency} ${WR.ui.fmt(reductionAmount)} this month and direct it to ${reductionDestination}.</p>
         <p class="fine-print">${escapeHtml(reductionContext)} ${escapeHtml(topSpend.category)} is currently your highest day-to-day category at ${profile.baseCurrency} ${WR.ui.fmt(topSpend.amount)}.</p>
       </details>` : '';
+    const recurringPatterns = findRecurringSpendPatterns(transactions, month);
+    const recurringCard = recurringPatterns.length ? `
+      <section class="day-disclosure" aria-labelledby="recurring-spend-title">
+        <h2 id="recurring-spend-title">Possible recurring charges</h2>
+        <p class="fine-print">These suggestions match at least three recent monthly charges with similar amounts. Nothing is added to your budget automatically.</p>
+        <ul class="bill-list">${recurringPatterns.map(item => `<li><div><strong>${escapeHtml(item.description)}</strong><span>${escapeHtml(item.category)} · ${item.occurrences} monthly charges · last seen ${escapeHtml(item.lastDate)}</span></div><strong>${profile.baseCurrency} ${WR.ui.fmt(item.averageAmount)} average</strong></li>`).join('')}</ul>
+        <p><a class="link-btn" href="#/fixed-expenses">Review Fixed Expenses</a></p>
+      </section>` : '';
     const categoryCards = categorySpend.map((item, index) => {
       const share = spent > 0 ? (item.amount / spent) * 100 : 0;
       return `
@@ -6527,6 +6725,14 @@ WR.ui = WR.ui || {};
         </form>
       </details>
 
+      <details id="day-import" class="day-disclosure">
+        <summary>Import transactions from CSV</summary>
+        <p class="fine-print transaction-import-help">Choose a statement file, map its columns, then review every row. Only Spend entries are imported; income and transfers are never added as money received. Exact date, description, and amount matches are flagged as duplicates.</p>
+        <label class="file-btn">Choose CSV file<input id="day-import-file" type="file" accept=".csv,text/csv"></label>
+        <div id="day-import-config"></div>
+        <div id="day-import-preview"></div>
+      </details>
+
       <section class="day-activity" aria-labelledby="day-activity-title">
       <div class="day-activity-heading"><h2 id="day-activity-title">Activity</h2><span>${dateFrom || dateTo ? `Showing ${visibleTransactions.length} of ${monthTx.length}` : `${monthTx.length} transaction${monthTx.length === 1 ? '' : 's'}`}</span></div>
       <div class="day-activity-tools" role="group" aria-label="Activity controls">
@@ -6546,6 +6752,7 @@ WR.ui = WR.ui || {};
       </section>
 
       ${reductionCard}
+      ${recurringCard}
       <details class="day-disclosure">
         <summary>Where your money is going</summary>
         <div class="day-category-list" role="list">${categoryCards || '<p class="empty">No spending recorded for this month yet.</p>'}</div>
@@ -6556,6 +6763,145 @@ WR.ui = WR.ui || {};
         </form>
       </details>
     `);
+
+    const importConfig = container.querySelector('#day-import-config');
+    const importPreview = container.querySelector('#day-import-preview');
+    const importStatus = () => container.querySelector('#day-import-status');
+    const headerKey = (header) => String(header || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const matchingHeader = (headers, alternatives) => headers.find(header => alternatives.includes(headerKey(header))) || '';
+    const columnSelect = (field, label, headers, selected, optional = false) => `
+      <label>${label}<select data-import-column="${field}" ${optional ? '' : 'required'}>
+        ${optional ? '<option value="">Not in file</option>' : '<option value="">Choose column</option>'}
+        ${headers.map(header => `<option value="${escapeHtml(header)}" ${header === selected ? 'selected' : ''}>${escapeHtml(header)}</option>`).join('')}
+      </select></label>`;
+
+    container.querySelector('#day-import-file').addEventListener('change', event => {
+      const file = event.currentTarget.files?.[0];
+      transactionImportState = null;
+      WR.ui.setHTML(importConfig, '');
+      WR.ui.setHTML(importPreview, '');
+      if (!file) return;
+      if (file.size > 3 * 1024 * 1024) {
+        WR.ui.setHTML(importConfig, '<p class="warning">CSV files must be 3 MB or smaller.</p>');
+        event.currentTarget.value = '';
+        return;
+      }
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: 'greedy',
+        complete: result => {
+          const headers = result.meta.fields || [];
+          const rawRows = result.data || [];
+          if (!headers.length || !rawRows.length) {
+            WR.ui.setHTML(importConfig, '<p class="warning">No transaction rows were found. Check that the CSV has a header row.</p>');
+            return;
+          }
+          if (rawRows.length > 5000) {
+            WR.ui.setHTML(importConfig, '<p class="warning">This file has more than 5,000 rows. Split it into smaller files and preview each separately.</p>');
+            return;
+          }
+          transactionImportState = { headers, rawRows };
+          const amountHeader = matchingHeader(headers, ['amount', 'debit', 'withdrawal', 'expense', 'transaction amount']);
+          const dateHeader = matchingHeader(headers, ['date', 'transaction date', 'posting date', 'posted date', 'value date']);
+          const descriptionHeader = matchingHeader(headers, ['description', 'details', 'transaction description', 'merchant', 'payee', 'narration', 'memo']);
+          const categoryHeader = matchingHeader(headers, ['category', 'transaction category']);
+          const typeHeader = matchingHeader(headers, ['type', 'transaction type']);
+          const numericAmounts = rawRows.map(row => WR.excel.parseAmount(row[amountHeader])).filter(Number.isFinite);
+          const spendSign = numericAmounts.some(amount => amount < 0) ? 'negative' : 'positive';
+          WR.ui.setHTML(importConfig, `
+            ${result.errors?.length ? `<p class="warning">${result.errors.length} CSV formatting warning(s). Check the preview before importing.</p>` : ''}
+            <form id="day-import-mapping">
+              <div class="transaction-import-config">
+                ${columnSelect('date', 'Date column', headers, dateHeader)}
+                ${columnSelect('description', 'Description column', headers, descriptionHeader)}
+                ${columnSelect('amount', 'Amount column', headers, amountHeader)}
+                ${columnSelect('category', 'Category column (optional)', headers, categoryHeader, true)}
+                ${columnSelect('type', 'Transaction type column (optional)', headers, typeHeader, true)}
+                <label>Date format for numeric dates<select data-import-format><option value="dmy" selected>Day / month / year</option><option value="mdy">Month / day / year</option></select></label>
+                <label>Expenses appear as<select data-import-sign><option value="negative" ${spendSign === 'negative' ? 'selected' : ''}>Negative amounts</option><option value="positive" ${spendSign === 'positive' ? 'selected' : ''}>Positive amounts</option></select></label>
+              </div>
+              <button type="submit">Review rows</button>
+              <p class="fine-print">Dates in YYYY-MM-DD format are detected automatically. Ambiguous numeric dates use the selected format.</p>
+            </form>
+          `);
+          importConfig.querySelector('#day-import-mapping').addEventListener('submit', mappingEvent => {
+            mappingEvent.preventDefault();
+            const mapping = Object.fromEntries([...importConfig.querySelectorAll('[data-import-column]')].map(select => [select.dataset.importColumn, select.value]));
+            if (!mapping.date || !mapping.description || !mapping.amount) {
+              WR.ui.notify('Choose date, description, and amount columns.', 'error');
+              return;
+            }
+            const options = {
+              dateFormat: importConfig.querySelector('[data-import-format]').value,
+              spendSign: importConfig.querySelector('[data-import-sign]').value,
+            };
+            const prepared = prepareTransactionImportRows(rawRows, mapping, options, transactions);
+            transactionImportState = { headers, rawRows, mapping, options, prepared };
+            const statusText = row => row.problems.length ? row.problems.join('; ')
+              : row.duplicate ? 'Duplicate of an existing transaction'
+                : row.possibleTransfer ? 'Possible transfer; excluded until selected'
+                  : row.notSpend ? 'Not identified as spending; excluded'
+                    : 'Ready to import';
+            const previewRows = prepared.map(row => `
+              <article class="transaction-import-row" data-import-index="${row.index}" data-possible-transfer="${row.possibleTransfer}">
+                <label class="transaction-import-include"><input type="checkbox" data-import-include aria-label="Include row ${row.index + 1}" ${row.include ? 'checked' : ''}>Include</label>
+                <label>Date<input type="text" data-import-field="date" value="${escapeHtml(row.date || String(rawRows[row.index][mapping.date] || ''))}" aria-label="Date for row ${row.index + 1}"></label>
+                <label data-import-label="description">Description<input type="text" data-import-field="description" value="${escapeHtml(row.description)}" aria-label="Description for row ${row.index + 1}"></label>
+                <label>Category<input type="text" data-import-field="category" value="${escapeHtml(row.category)}" aria-label="Category for row ${row.index + 1}"></label>
+                <label>Amount (${escapeHtml(profile.baseCurrency)})<input type="number" data-import-field="amount" min="0.01" step="0.01" value="${row.amount || ''}" aria-label="Amount for row ${row.index + 1}"></label>
+                <p class="transaction-import-row-status">${escapeHtml(statusText(row))}</p>
+              </article>`).join('');
+            WR.ui.setHTML(importPreview, `
+              <div class="transaction-import-preview">
+                <p class="fine-print">${prepared.filter(row => row.include).length} row(s) ready by default. Review dates, descriptions, categories, and amounts. Transfers are never preselected.</p>
+                <p id="day-import-status" class="transaction-import-status" role="status" aria-live="polite"></p>
+                <div class="transaction-import-list">${previewRows}</div>
+                <div class="transaction-import-actions"><button type="button" id="day-import-commit">Import selected</button><span>Maximum ${450} rows per atomic import.</span></div>
+              </div>`);
+            importPreview.querySelector('#day-import-commit').addEventListener('click', async buttonEvent => {
+              const button = buttonEvent.currentTarget;
+              const selectedRows = [...importPreview.querySelectorAll('.transaction-import-row[data-import-index]')].filter(row => row.querySelector('[data-import-include]').checked);
+              const status = importStatus();
+              if (!selectedRows.length) { status.textContent = 'Select at least one row to import.'; return; }
+              if (selectedRows.length > 450) { status.textContent = 'Select no more than 450 rows for one atomic import.'; return; }
+              button.disabled = true;
+              status.textContent = 'Checking selected rows against the latest transactions...';
+              try {
+                const existing = await WR.repos.dayToDayTransactions.getAll({ fresh: true });
+                const editedRows = selectedRows.map(row => ({
+                  date: row.querySelector('[data-import-field="date"]').value,
+                  description: row.querySelector('[data-import-field="description"]').value,
+                  category: row.querySelector('[data-import-field="category"]').value,
+                  amount: row.querySelector('[data-import-field="amount"]').value,
+                  type: row.dataset.possibleTransfer === 'true' ? 'Transfer' : '',
+                }));
+                const checked = prepareTransactionImportRows(editedRows, { date: 'date', description: 'description', category: 'category', amount: 'amount', type: 'type' }, { dateFormat: 'ymd', spendSign: 'positive' }, existing);
+                const invalid = checked.findIndex(row => row.problems.length || row.duplicate || row.notSpend);
+                if (invalid >= 0) throw new Error(`Selected row ${Number(selectedRows[invalid].dataset.importIndex) + 1} is invalid or a duplicate. Review the row and try again.`);
+                const imported = checked.map(row => WR.models.createDayToDayTransaction({
+                  year: Number(row.date.slice(0, 4)),
+                  date: row.date,
+                  kind: 'spend',
+                  description: row.description,
+                  category: row.category || undefined,
+                  amount: row.amount,
+                }));
+                await WR.repos.dayToDayTransactions.addMany(imported);
+                if (container.isConnected) await renderDayToDay(container);
+                WR.ui.notifyUndo(`${imported.length} transaction(s) imported.`, async () => {
+                  await WR.repos.dayToDayTransactions.removeMany(imported.map(item => item.id));
+                  if (container.isConnected) await renderDayToDay(container);
+                }, { undoLabel: 'Undo import', undoSuccessMessage: 'Import undone.' });
+              } catch (error) {
+                status.textContent = error.message || 'Import failed. No rows were added.';
+                button.disabled = false;
+              }
+            });
+          });
+        },
+        error: error => WR.ui.setHTML(importConfig, `<p class="warning">Couldn't read this CSV: ${escapeHtml(error.message)}</p>`),
+      });
+    });
 
     document.getElementById('day-today').addEventListener('click', () => {
       WR.ui._dayMonth = WR.ui.currentBudgetMonth();
@@ -6671,7 +7017,6 @@ WR.ui = WR.ui || {};
       button.addEventListener('click', async () => {
         const existing = await WR.repos.dayToDayTransactions.getById(button.dataset.id);
         if (existing?.paydayAdvanceId) { WR.ui.notify('Remove the advance link on Income before deleting this transaction.', 'error'); return; }
-        if (!confirm('Delete this day-to-day transaction?')) return;
         await WR.ui.removeWithUndo({
           repo: WR.repos.dayToDayTransactions,
           id: button.dataset.id,
@@ -6719,10 +7064,38 @@ WR.ui = WR.ui || {};
     });
   }
 
+  function summarizeTransactionPeriod(transactions, start, endExclusive) {
+    const rows = (transactions || []).filter(item => item.kind !== 'add' && item.date >= start && item.date < endExclusive);
+    const byCategory = new Map();
+    let spent = 0;
+    rows.forEach(item => {
+      const amount = Number(item.amount) || 0;
+      spent += amount;
+      const category = String(item.category || '').trim() || 'Uncategorised';
+      byCategory.set(category, (byCategory.get(category) || 0) + amount);
+    });
+    const topCategory = [...byCategory].sort((left, right) => right[1] - left[1])[0] || null;
+    return { count: rows.length, spent: Math.round(spent * 100) / 100, topCategory: topCategory ? { name: topCategory[0], amount: Math.round(topCategory[1] * 100) / 100 } : null };
+  }
+
   async function renderInsights(container) {
     const month = WR.ui._insightsMonth || WR.ui.currentMonthKey();
     WR.ui._insightsMonth = month;
-    const snapshot = await WR.ui.buildSnapshot(month);
+    const [snapshot, transactions] = await Promise.all([WR.ui.buildSnapshot(month), WR.repos.dayToDayTransactions.getAll()]);
+    const period = WR.ui.payCycleDates(month);
+    const previousPeriod = WR.ui.payCycleDates(WR.ui.previousMonthKey(month));
+    const currentReview = summarizeTransactionPeriod(transactions, period.start, period.endExclusive);
+    const previousReview = summarizeTransactionPeriod(transactions, previousPeriod.start, previousPeriod.endExclusive);
+    const spendChange = previousReview.count ? Math.round((currentReview.spent - previousReview.spent) * 100) / 100 : null;
+    const reviewNudge = !currentReview.count
+      ? 'No spending is recorded in this cycle yet.'
+      : currentReview.spent > snapshot.paydayFunding.budget
+        ? `Recorded spending is ${snapshot.profile.baseCurrency} ${WR.ui.fmt(currentReview.spent - snapshot.paydayFunding.budget)} over the everyday budget. Check for duplicate or uncategorised entries.`
+        : spendChange === null
+          ? 'This is the first cycle with recorded activity. Compare again next payday.'
+          : spendChange === 0
+            ? 'Recorded spending is unchanged from the previous cycle.'
+            : `Recorded spending is ${snapshot.profile.baseCurrency} ${WR.ui.fmt(Math.abs(spendChange))} ${spendChange > 0 ? 'higher' : 'lower'} than the previous cycle.`;
 
     const info = [
       `Month selected: ${snapshot.monthLabel}`,
@@ -6742,7 +7115,21 @@ WR.ui = WR.ui || {};
 
     WR.ui.setHTML(container, `
       <h1>Financial Insights</h1>
-      <div class="toolbar"><label>Month: <input type="month" id="insights-month" value="${WR.ui.escapeText(month)}"></label></div>
+      <div class="toolbar"><label>Budget cycle: <input type="month" id="insights-month" value="${WR.ui.escapeText(month)}"></label></div>
+      <section class="cycle-review" aria-labelledby="cycle-review-title">
+        <h2 id="cycle-review-title">Cycle review</h2>
+        <p class="fine-print">${WR.ui.escapeText(period.start)} to ${WR.ui.escapeText(period.endExclusive)}. This review is advisory; records remain editable.</p>
+        <div class="cycle-review-grid">
+          <div><span>Everyday budget</span><strong>${snapshot.profile.baseCurrency} ${WR.ui.fmt(snapshot.paydayFunding.budget)}</strong></div>
+          <div><span>Recorded spending</span><strong>${snapshot.profile.baseCurrency} ${WR.ui.fmt(currentReview.spent)}</strong></div>
+          <div><span>Balance left</span><strong>${snapshot.profile.baseCurrency} ${WR.ui.fmt(snapshot.dayToDaySummary.currentBalance)}</strong></div>
+          <div><span>Transactions</span><strong>${currentReview.count}</strong></div>
+          ${currentReview.topCategory ? `<div><span>Top category</span><strong>${WR.ui.escapeText(currentReview.topCategory.name)} · ${snapshot.profile.baseCurrency} ${WR.ui.fmt(currentReview.topCategory.amount)}</strong></div>` : ''}
+          ${spendChange !== null ? `<div><span>Change vs previous cycle</span><strong>${spendChange > 0 ? '+' : ''}${snapshot.profile.baseCurrency} ${WR.ui.fmt(spendChange)}</strong></div>` : ''}
+        </div>
+        <p class="fine-print" role="status">${WR.ui.escapeText(reviewNudge)}</p>
+        <p class="fine-print">Fixed expenses, variable-expense actuals, and debt minimums are handled in their budget sections; enter everyday transactions here once.</p>
+      </section>
       <section><h2>Information</h2><div class="assistant-answer">${info.map((line) => `<p>${line}</p>`).join('')}</div></section>
       <section><h2>Trends</h2><div class="assistant-answer">${trends.map((line) => `<p>${line}</p>`).join('')}</div></section>
       <section><h2>Suggestions</h2><div class="assistant-answer">${suggestions.map((line) => `<p>${line}</p>`).join('')}</div></section>
@@ -7128,14 +7515,23 @@ WR.ui = WR.ui || {};
     container.querySelectorAll('[data-delete-owed], [data-remove-repayment]').forEach((button) => {
       button.addEventListener('click', async () => {
         const removingPayment = !!button.dataset.removeRepayment;
-        if (!confirm(removingPayment ? 'Remove this repayment and restore the outstanding amount?' : 'Delete this money owed entry and its repayment history?')) return;
         button.disabled = true;
         try {
           if (removingPayment) {
             const entry = await WR.repos.moneyOwed.getById(button.closest('[data-owed-id]').dataset.owedId);
             if (!entry) throw new Error('This entry no longer exists.');
-            await WR.repos.moneyOwed.update({ ...entry, repayments: (entry.repayments || []).filter((payment) => payment.id !== button.dataset.removeRepayment) });
+            const repayment = (entry.repayments || []).find(payment => payment.id === button.dataset.removeRepayment);
+            if (!repayment) throw new Error('This repayment no longer exists.');
+            await WR.repos.moneyOwed.update({ ...entry, repayments: (entry.repayments || []).filter((payment) => payment.id !== repayment.id) });
             await renderMoneyOwed(container);
+            WR.ui.notifyUndo('Repayment removed.', async () => {
+              const latest = await WR.repos.moneyOwed.getById(entry.id);
+              if (!latest) await WR.repos.moneyOwed.add(entry);
+              else if (!(latest.repayments || []).some(payment => payment.id === repayment.id)) {
+                await WR.repos.moneyOwed.update({ ...latest, repayments: [...(latest.repayments || []), repayment] });
+              }
+              await renderMoneyOwed(container);
+            }, { undoSuccessMessage: 'Repayment restored.' });
           } else {
             await WR.ui.removeWithUndo({ repo: WR.repos.moneyOwed, id: button.dataset.deleteOwed, entityLabel: 'Money owed entry', afterChange: () => renderMoneyOwed(container) });
           }
@@ -7396,7 +7792,6 @@ WR.ui = WR.ui || {};
 
     container.querySelectorAll('.delete-debt').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!confirm('Delete this debt? This cannot be undone.')) return;
         await WR.ui.removeWithUndo({
           repo: WR.repos.debts,
           id: btn.dataset.id,
@@ -7454,6 +7849,7 @@ WR.ui = WR.ui || {};
   WR.ui.calculateMoneyOwed = calculateMoneyOwed;
   WR.ui.setDebtPaymentStatus = setDebtPaymentStatus;
   WR.ui.renderDebts = renderDebts;
+  Object.assign(WR.ui, { sortRecords, recordSortHeader, bindRecordTableControls });
 })();
 // Assets and Investments views. Both inline-editable, matching the pattern
 // used across Transactions and Debts: edits flash to confirm
@@ -7518,7 +7914,7 @@ WR.ui = WR.ui || {};
     const assetSearch = WR.ui._assetsTableSearch || '';
     const { total: totalValue, unconvertedNames } = sumInBaseCurrency(assets, 'currentValue', exchangeRates, profile.baseCurrency);
     const assetSortFields = ['name', 'type', 'currentValue', 'currency', 'liquidity'];
-    const sortedAssets = sortRecords(assets, assetSort, assetSortFields);
+    const sortedAssets = WR.ui.sortRecords(assets, assetSort, assetSortFields);
     const rows = sortedAssets
       .map(
         (a) => `
@@ -7542,7 +7938,7 @@ WR.ui = WR.ui || {};
       ${unconvertedNames.length > 0 ? `<p class="warning">Missing or invalid exchange rate for: ${unconvertedNames.map(name => WR.ui.escapeText(name)).join(', ')} - excluded from this total.</p>` : ''}
       <div class="table-filter"><label>Filter assets<input type="search" data-record-search aria-label="Filter assets" placeholder="Name, type, currency" value="${WR.ui.escapeText(assetSearch)}"></label><p data-search-count aria-live="polite"></p><p data-search-empty hidden>No matching assets.</p></div>
       <table class="data-table">
-        <thead><tr>${recordSortHeader('Name', 'name', assetSort)}${recordSortHeader('Type', 'type', assetSort)}${recordSortHeader('Value', 'currentValue', assetSort)}${recordSortHeader('Currency', 'currency', assetSort)}${recordSortHeader('Liquidity', 'liquidity', assetSort)}<th></th></tr></thead>
+        <thead><tr>${WR.ui.recordSortHeader('Name', 'name', assetSort)}${WR.ui.recordSortHeader('Type', 'type', assetSort)}${WR.ui.recordSortHeader('Value', 'currentValue', assetSort)}${WR.ui.recordSortHeader('Currency', 'currency', assetSort)}${WR.ui.recordSortHeader('Liquidity', 'liquidity', assetSort)}<th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="6" class="empty">No assets recorded.</td></tr>'}</tbody>
       </table>
 
@@ -7561,7 +7957,7 @@ WR.ui = WR.ui || {};
       </form>
     `);
 
-    bindRecordTableControls(container, '_assetsTableSearch', '_assetsTableSort', renderAssets);
+    WR.ui.bindRecordTableControls(container, '_assetsTableSearch', '_assetsTableSort', renderAssets);
     container.querySelectorAll('tbody tr').forEach((tr) => {
       const id = tr.dataset.id;
       tr.querySelectorAll('.cell').forEach((input) => {
@@ -7584,7 +7980,6 @@ WR.ui = WR.ui || {};
 
     container.querySelectorAll('.delete-asset').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!confirm('Delete this asset? This cannot be undone.')) return;
         await WR.ui.removeWithUndo({
           repo: WR.repos.assets,
           id: btn.dataset.id,
@@ -7664,7 +8059,7 @@ WR.ui = WR.ui || {};
     const suggestions = computeInvestmentSuggestions(investments, totalValue, totalContributions, gainPct);
 
     const investmentSortFields = ['name', 'type', 'currentValue', 'totalContributions', 'currency', 'riskCategory'];
-    const sortedInvestments = sortRecords(investments, investmentSort, investmentSortFields);
+    const sortedInvestments = WR.ui.sortRecords(investments, investmentSort, investmentSortFields);
     const rows = sortedInvestments
       .map(
         (inv) => `
@@ -7696,7 +8091,7 @@ WR.ui = WR.ui || {};
       </div>` : ''}
       <div class="table-filter"><label>Filter investments<input type="search" data-record-search aria-label="Filter investments" placeholder="Name, type, currency" value="${WR.ui.escapeText(investmentSearch)}"></label><p data-search-count aria-live="polite"></p><p data-search-empty hidden>No matching investments.</p></div>
       <table class="data-table">
-        <thead><tr>${recordSortHeader('Name', 'name', investmentSort)}${recordSortHeader('Type', 'type', investmentSort)}${recordSortHeader('Current value', 'currentValue', investmentSort)}${recordSortHeader('Contributions', 'totalContributions', investmentSort)}${recordSortHeader('Currency', 'currency', investmentSort)}${recordSortHeader('Risk', 'riskCategory', investmentSort)}<th></th></tr></thead>
+        <thead><tr>${WR.ui.recordSortHeader('Name', 'name', investmentSort)}${WR.ui.recordSortHeader('Type', 'type', investmentSort)}${WR.ui.recordSortHeader('Current value', 'currentValue', investmentSort)}${WR.ui.recordSortHeader('Contributions', 'totalContributions', investmentSort)}${WR.ui.recordSortHeader('Currency', 'currency', investmentSort)}${WR.ui.recordSortHeader('Risk', 'riskCategory', investmentSort)}<th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="7" class="empty">No investments recorded.</td></tr>'}</tbody>
       </table>
 
@@ -7716,7 +8111,7 @@ WR.ui = WR.ui || {};
       </form>
     `);
 
-    bindRecordTableControls(container, '_investmentsTableSearch', '_investmentsTableSort', renderInvestments);
+    WR.ui.bindRecordTableControls(container, '_investmentsTableSearch', '_investmentsTableSort', renderInvestments);
     container.querySelectorAll('tbody tr').forEach((tr) => {
       const id = tr.dataset.id;
       tr.querySelectorAll('.cell').forEach((input) => {
@@ -7739,7 +8134,6 @@ WR.ui = WR.ui || {};
 
     container.querySelectorAll('.delete-investment').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!confirm('Delete this investment? This cannot be undone.')) return;
         await WR.ui.removeWithUndo({
           repo: WR.repos.investments,
           id: btn.dataset.id,
@@ -8125,7 +8519,7 @@ window.WR = window.WR || {};
 WR.ui = WR.ui || {};
 
 (function () {
-  const APP_VERSION = '3.0.0';
+  const APP_VERSION = '3.1.0';
 
   function hardConfirm(actionLabel) {
     return new Promise((resolve) => {
@@ -8374,6 +8768,9 @@ WR.ui = WR.ui || {};
         <details class="settings-details">
           <summary>Release notes</summary>
           <ul>
+            <li>Version 3.1: Import CSV statements with editable review, duplicate detection, transfer warnings, spend-only imports, and whole-import Undo. Direct bank feeds are not connected.</li>
+            <li>Possible recurring charges and budget-cycle reviews are suggestions only; they never change budgets automatically.</li>
+            <li>Assets and Investments now use the shared sortable, filterable tables and render correctly.</li>
             <li>Version 3.0: redesigned balance card, compact annual overview, and dashboard shortcuts for Transactions, Budget, Savings, and Goals.</li>
             <li>Income has editable Advance and Savings taken amounts and a separate Buffer section. Savings pots are managed manually.</li>
             <li>Hide or show dashboard balances, charts, and financial recommendation details with one privacy control. This device remembers the choice per account.</li>
@@ -8425,7 +8822,6 @@ WR.ui = WR.ui || {};
         : '<p class="empty settings-empty">No categories yet \u2014 add one below.</p>');
       container.querySelectorAll('.delete-category').forEach((btn) =>
         btn.addEventListener('click', async () => {
-          if (!confirm('Delete this category? Transactions already tagged with it keep their tag, but it will no longer appear in the picker.')) return;
           await WR.ui.removeWithUndo({
             repo: WR.repos.expenseCategories,
             id: btn.dataset.id,
@@ -8463,7 +8859,6 @@ WR.ui = WR.ui || {};
         : '<p class="empty settings-empty">No exchange rates yet.</p>');
       container.querySelectorAll('.delete-rate').forEach((btn) =>
         btn.addEventListener('click', async () => {
-          if (!confirm('Delete this exchange rate?')) return;
           await WR.ui.removeWithUndo({
             repo: WR.repos.exchangeRates,
             id: btn.dataset.id,
@@ -9040,11 +9435,16 @@ WR.ui = WR.ui || {};
       'auth/popup-blocked': 'Allow the sign-in popup in your browser and try again.',
       'auth/popup-closed-by-user': 'Sign-in was cancelled. Try again when ready.',
       'auth/operation-not-allowed': 'Sign-up is temporarily unavailable. Please try again later.',
+      'auth/unauthorized-domain': 'This preview address is not authorized for sign-in. Add its hostname in Firebase Authentication settings.',
+      'auth/invalid-api-key': 'The Firebase app configuration is invalid in this build. Contact support.',
+      'auth/app-not-authorized': 'This app address is not authorized by Firebase. Contact support.',
+      'auth/internal-error': 'Firebase returned an internal error. Check your connection and try once more.',
       'permission-denied': 'Account setup could not finish. Please try again later.',
       'account/setup-failed': 'Account setup could not finish. Your email may be registered; try logging in or report the issue.',
     };
     if (messages[error?.code]) return messages[error.code];
     if (!error?.code && /^Username must be|^That username is already taken\.$/.test(error?.message || '')) return error.message;
+    if (error?.code) return `${isSignup ? 'Account creation' : 'Login'} failed (${error.code}). Share this code with support.`;
     return isSignup ? 'Account creation failed. Please try again.' : 'Could not log in. Please try again.';
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "wealth-route",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "scripts": {
     "build": "node scripts/check-app.js --prepare",
     "test": "node scripts/check-app.js",
@@ -12,6 +12,7 @@
     "dompurify": "^3.4.16",
     "firebase": "^10.14.1",
     "firebase-tools": "^15.33.0",
+    "papaparse": "^5.7.0",
     "wrangler": "^4.135.0"
   }
 }
