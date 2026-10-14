@@ -1522,6 +1522,8 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
 
 /* iOS auto-zooms on focus when a field's font-size is under 16px. */
 @media (hover: none) and (pointer: coarse) {
+  html, body { scrollbar-width: none; -ms-overflow-style: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; height: 0; }
   input, select, textarea { font-size: 16px !important; }
   .inline-form input:not([type="checkbox"]):not([type="radio"]), .inline-form select,
   .stacked-form input:not([type="checkbox"]):not([type="radio"]), .stacked-form select,
