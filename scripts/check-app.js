@@ -86,6 +86,14 @@ const cashflow = context.calculateCashFlowSummary([{ type: 'income', actualAmoun
 assert.equal(cashflow.income - cashflow.totalExpenses, 5500);
 assert.equal(cashflow.availableSurplus, 5000);
 assert.equal(cashflow.monthlySurplus, 5500);
+vm.runInContext(functions.get('calculateBudgetSpending'), context);
+assert.equal(context.calculateBudgetSpending(1000, 1250).percentage, 125);
+assert.equal(context.calculateBudgetSpending(1000, 1250).barPercentage, 100);
+assert.equal(context.calculateBudgetSpending(1000, 1250).overBudget, 250);
+assert.equal(context.calculateBudgetSpending(1000, 500).percentage, 50);
+assert.equal(context.calculateBudgetSpending(0, 250).percentage, null);
+assert.equal(context.calculateBudgetSpending(0, 250).overBudget, 250);
+assert.equal(context.calculateBudgetSpending(1000, -100).percentage, 0);
 const rates = [{ fromCurrency: 'USD', toCurrency: 'ZAR', rate: 20, date: '2026-10-06' }];
 const debts = [{ currency: 'USD', currentBalance: 2000, minPayment: 100 }, { currency: 'ZAR', currentBalance: 0, minPayment: 500 }];
 assert.equal(context.calculateTotalMinPayments(debts, rates, 'ZAR'), 2000);
@@ -116,7 +124,11 @@ assert.ok(Math.abs(context.calculateWeightedAverageInterestRate([{ currency: 'US
 assert.ok(functions.get('buildSnapshot').includes("annualSummary.totalWealth = F.sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency).total"));
 assert.ok(functions.get('refreshWealthSummary').includes("sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency)"));
 assert.ok(functions.get('renderDashboard').includes('${fmt(s.annualSummary.totalWealth)}</span>'));
-assert.ok(functions.get('renderDashboard').includes('>Total Wealth</span>'));
+assert.ok(functions.get('renderDashboard').includes('>Assets &amp; investments</span>'));
+assert.ok(functions.get('renderDashboard').includes('aria-label="Year-to-date totals"'));
+assert.ok(functions.get('renderDashboard').includes('aria-label="Current balances"'));
+assert.ok(functions.get('renderDashboard').indexOf('class="dashboard-actions"') < functions.get('renderDashboard').indexOf('class="dashboard-card annual-card"'));
+assert.ok(functions.get('renderDashboard').indexOf('class="dashboard-card bills-card"') < functions.get('renderDashboard').indexOf('class="dashboard-card annual-card"'));
 assert.ok(!functions.get('renderDashboard').includes('>Total Investments</span>'));
 console.log('Production scripts, safe HTML boundaries, escaping, lending balances, and surplus checks passed.');
 
@@ -959,7 +971,7 @@ async function checkPaydayBudget() {
   await paydayContext.saveIncomeBudget(month);
   assert.equal(documents.get(base + 'payCycles/' + month).debtAmount, 600);
   assert.ok(!functions.get('renderDashboard').includes('since last recorded snapshot'));
-  assert.ok(functions.get('renderDashboard').includes('Current balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0'));
+  assert.ok(functions.get('renderDashboard').includes('Left to spend</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0'));
   assert.ok(functions.get('renderDashboard').includes('${fmt(s.dayToDaySummary.currentBalance)}</span>'));
   let paydayMarkup = '';
   paydayContext.WR.repos = Object.fromEntries(['payCycles', 'payAdvances', 'savingsPots', 'dayToDayTransactions'].map(store => [store, { getAll: async () => store === 'payCycles' ? [{ month: '2026-10', advanceAmount: 2000 }] : [] }]));

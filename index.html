@@ -614,9 +614,10 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .position-summary-grid {
   display: grid;
   grid-template-columns: 1.2fr 0.9fr;
+  grid-template-areas: "position annual" "actions annual" "insights insights";
   gap: 1rem;
   margin: 0.3rem 0 1rem;
-  align-items: stretch;
+  align-items: start;
 }
 .dashboard-card {
   position: relative;
@@ -638,7 +639,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .dashboard-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin: 0.25rem 0 1rem; }
 .dashboard-heading h1 { margin: 0.25rem 0 0; font-size: 1.6rem; }
 .dashboard-heading .month-label { margin: 0; font-size: 0.85rem; }
-.position-card { background: var(--panel); border-top: 2px solid var(--accent); border-radius: 8px; color: var(--text); }
+.position-card { grid-area: position; background: var(--panel); border-top: 2px solid var(--accent); border-radius: 8px; color: var(--text); }
 .position-card .stat-label { color: var(--muted); }
 .balance-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 .visibility-toggle { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-alt); color: var(--text); }
@@ -651,24 +652,23 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .password-field .visibility-toggle { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; }
 .balance-masked { color: inherit !important; }
 [data-private-detail].balance-masked { min-height: 2.5rem; display: flex; align-items: center; color: var(--muted) !important; font-size: 0.85rem; }
-.dashboard-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin: 0.85rem 0 1.1rem; }
+.dashboard-actions { grid-area: actions; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin: 0; }
 .dashboard-actions a { display: flex; align-items: center; justify-content: center; gap: 0.55rem; min-height: 52px; min-width: 0; padding: 0.65rem; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: var(--panel); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
 .dashboard-actions a:hover { border-color: var(--accent); color: var(--accent); }
 .dashboard-actions svg { flex-shrink: 0; width: 20px; height: 20px; }
-.annual-card { border-radius: 8px; }
+.annual-card { grid-area: annual; border-radius: 8px; }
 .annual-card h2 { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.annual-card h2::after {
-  content: "Year to date";
-  font-family: var(--font-sans);
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--gold);
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-  white-space: nowrap;
-  background: transparent;
-}
+.annual-card h3 { margin: 1rem 0 0.35rem; font-size: 0.9rem; }
+.annual-card .overview-period { margin: 0; color: var(--muted); font-size: 0.85rem; line-height: 1.45; }
+.annual-card .current-balances { padding-top: 0.85rem; border-top: 1px solid var(--border); }
+.budget-period { margin: 0.75rem 0 0; color: var(--muted); font-size: 0.85rem; }
+.budget-spending { margin-top: 0.75rem; padding-top: 0.85rem; border-top: 1px solid var(--border); }
+.budget-spending-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; font-size: 0.88rem; color: var(--muted); }
+.budget-spending-head strong { color: var(--text); font-weight: 600; }
+.budget-spending p { margin: 0.65rem 0 0; font-size: 0.88rem; line-height: 1.45; }
+.budget-spending[data-state="over"] p, .budget-spending[data-state="over"] strong { color: var(--danger); }
+.budget-spending[data-state="over"] .day-category-meter span { background: var(--danger); }
+.budget-spending[data-state="near"] .day-category-meter span { background: var(--gold); }
 .hero-headline {
   padding: 0 0 1rem;
   margin: 0 0 0.3rem;
@@ -712,7 +712,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .dashboard-card.position-card .stat-value, .dashboard-card.annual-card .stat-value { min-width: 0; margin: 0; text-align: right; font-family: var(--font-sans); font-size: 1.05rem; line-height: 1.35; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dashboard-card.position-card .stat.wide-amount, .dashboard-card.annual-card .stat.wide-amount { grid-template-columns: minmax(0, 1fr); gap: 0.35rem; }
 .dashboard-card.position-card .wide-amount .stat-value, .dashboard-card.annual-card .wide-amount .stat-value { text-align: left; }
-.position-card .stat-label, .annual-card .stat-label { line-height: 1.45; }
+.position-card .stat-label, .annual-card .stat-label { font-size: 0.88rem; line-height: 1.45; }
 .dashboard-card .stat::after {
   content: none;
 }
@@ -1447,7 +1447,7 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
 .update-banner .update-banner-close { background: none; border: 0; color: var(--muted); font-size: 1.2rem; padding: 0 0.3rem; cursor: pointer; }
 
 /* ---------- Dashboard: debt-free + bills ---------- */
-.dashboard-insights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1rem; margin: 1.25rem 0; }
+.dashboard-insights-grid { grid-area: insights; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1rem; margin: 0; }
 .debt-free-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
 .debt-free-head strong { font-size: 1.6rem; }
 .debt-free-head span { color: var(--muted); font-size: 0.88rem; }
@@ -1569,11 +1569,11 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .mobile-nav a.active, .mobile-nav button[aria-expanded="true"] { border-radius: 4px; }
   .mobile-nav a:hover, .mobile-nav button:hover { background: var(--panel-alt); }
   .mobile-nav .nav-icon { width: 1.35rem; height: 1.35rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .mobile-nav small { font-size: 0.67rem; line-height: 1; }
+  .mobile-nav small { font-size: 0.75rem; line-height: 1.15; }
   .mobile-nav a:focus-visible, .mobile-nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .toast-stack { bottom: calc(5rem + env(safe-area-inset-bottom)); }
   .update-banner { bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
-  .position-summary-grid { grid-template-columns: 1fr; }
+  .position-summary-grid { grid-template-columns: 1fr; grid-template-areas: "position" "actions" "insights" "annual"; }
   .dashboard-card { padding: 1rem; }
   .dashboard-card .stat { min-height: 5rem; }
   .hero-headline { padding: 0 0 0.9rem; }
@@ -1612,7 +1612,7 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .dashboard-card, .health-score, .chart-block, .pie-card { padding: 0.95rem; }
   .dashboard-heading { align-items: flex-start; flex-direction: column; gap: 0.35rem; }
   .dashboard-actions { gap: 0.4rem; }
-  .dashboard-actions a { flex-direction: column; gap: 0.4rem; font-size: 0.75rem; padding: 0.6rem 0.25rem; }
+  .dashboard-actions a { flex-direction: column; gap: 0.4rem; font-size: 0.82rem; padding: 0.6rem 0.25rem; }
   .ef-summary { flex-direction: column; align-items: stretch; padding: 1.1rem; }
   .ef-summary-side { gap: 1rem; }
   .data-table th, .data-table td { padding: 0.48rem 0.55rem; font-size: 0.82rem; }
@@ -3668,6 +3668,15 @@ WR.ui = WR.ui || {};
     return budget > 0 ? Math.max(0, Math.min(100, remaining / budget * 100)) : 0;
   }
 
+  function calculateBudgetSpending(budget, spent) {
+    const available = Number.isFinite(Number(budget)) ? Math.max(0, Number(budget)) : 0;
+    const used = Number.isFinite(Number(spent)) ? Math.max(0, Number(spent)) : 0;
+    const percentage = available > 0 ? used / available * 100 : null;
+    const overBudget = Math.round(Math.max(0, used - available) * 100) / 100;
+    return { percentage, barPercentage: percentage === null ? (used > 0 ? 100 : 0) : Math.min(100, percentage), overBudget };
+  }
+  WR.ui.calculateBudgetSpending = calculateBudgetSpending;
+
   function calculatePayCycleBudget(accounts, transactions, cycles, advances, month, payday = 25, today = new Date().toISOString().slice(0, 10), budgetAmount) {
     const dates = payCycleDates(month, payday);
     const confirmed = cycles.filter(cycle => cycle.confirmed && cycle.payDate <= today);
@@ -4902,7 +4911,14 @@ WR.ui = WR.ui || {};
     const paidBills = billOccurrences.filter((bill) => bill.paid);
     const monthlySurplus = s.paydayFunding.budget;
     const budgetSpent = Math.round((monthlySurplus - s.dayToDaySummary.currentBalance) * 100) / 100;
-    const spentPct = WR.ui.calculateBudgetRemainingPercentage(monthlySurplus, budgetSpent);
+    const spending = WR.ui.calculateBudgetSpending(monthlySurplus, budgetSpent);
+    const spendingState = spending.overBudget > 0 ? 'over' : spending.percentage >= 85 ? 'near' : 'normal';
+    const periodFormatter = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
+    const periodStart = new Date(`${s.payCycleBudget.start}T12:00:00`);
+    const periodEnd = new Date(`${s.payCycleBudget.endExclusive}T12:00:00`);
+    periodEnd.setDate(periodEnd.getDate() - 1);
+    const budgetPeriod = `${periodFormatter.format(periodStart)} - ${periodFormatter.format(periodEnd)}`;
+    const balancesAsOf = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
 
     function billRow(bill) {
       const index = billOccurrences.indexOf(bill);
@@ -5008,35 +5024,34 @@ WR.ui = WR.ui || {};
             <span class="hero-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span>
           </div>
 
+          <p class="budget-period">Budget period: ${escapeText(budgetPeriod)}</p>
           <div class="stat-grid">
-            <div class="stat"><span class="stat-label">Monthly budget</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
-            <div class="stat"><span class="stat-label">Current balance</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
+            <div class="stat"><span class="stat-label">Spending budget</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
+            <div class="stat"><span class="stat-label">Left to spend</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
             <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
             <div class="stat"><span class="stat-label">Savings</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
           </div>
-          <div data-private-detail><p class="fine-print">${currency} ${fmt(budgetSpent)} spent · ${Math.round(spentPct)}%</p><div class="day-category-meter" role="progressbar" aria-label="Budget spent" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(spentPct)}"><span style="--share: ${spentPct}%"></span></div></div>
-        </div>
-
-        <div class="dashboard-card annual-card">
-          <h2>${s.selectedYear} overview</h2>
-          <p class="fine-print">${s.annualStartMonth ? `Income counted from ${WR.ui.monthName(Number(s.annualStartMonth.slice(5)))} through ${WR.ui.monthName(Number(s.month.slice(5)))} ${s.selectedYear}.` : 'No income months recorded yet.'} Savings and wealth show current balances.</p>
-          <div class="stat-grid">
-            <div class="stat"><span class="stat-label">Total Income</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
-            <div class="stat"><span class="stat-label">Savings Pots Total</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSavedAndInvested)}</span></div>
-            <div class="stat"><span class="stat-label" title="Current assets and investments before subtracting debts">Total Wealth</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalWealth)}</span></div>
-            <div class="stat"><span class="stat-label">Total Debt Payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
+          <div class="budget-spending" data-state="${spendingState}" data-private-detail>
+            <div class="budget-spending-head"><span>${currency} ${fmt(budgetSpent)} spent</span><strong>${spending.percentage === null ? 'No budget set' : `${Math.round(spending.percentage)}% used`}</strong></div>
+            <div class="day-category-meter" role="progressbar" aria-label="Budget spent" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(spending.barPercentage)}" aria-valuetext="${spending.percentage === null ? 'No spending budget set' : `${Math.round(spending.percentage)}% of budget spent`}"><span style="--share: ${spending.barPercentage}%"></span></div>
+            ${spending.overBudget > 0 ? `<p data-budget-over>${currency} ${fmt(spending.overBudget)} over budget</p>` : ''}
           </div>
         </div>
-      </section>
 
       <nav class="dashboard-actions" aria-label="Money shortcuts">
-        <a href="#/transactions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16M16 3l4 4-4 4M20 17H4m4-4-4 4 4 4"/></svg>Transactions</a>
+        <a href="#/transactions" aria-label="Transactions" title="Transactions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16M16 3l4 4-4 4M20 17H4m4-4-4 4 4 4"/></svg>Activity</a>
         <a href="#/variable-expenses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>Budget</a>
         <a href="#/savings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 8h18v12H3zM3 8l3-4h12l3 4M9 12h6"/></svg>Savings</a>
         <a href="#/goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>Goals</a>
       </nav>
 
       <section class="dashboard-insights-grid">
+        <article class="dashboard-card bills-card">
+          <h2>Upcoming bills</h2>
+          ${bills.length ? `<ul class="bill-list">${bills.map(billRow).join('')}</ul>`
+            : `<p class="fine-print">${hasDueDays ? 'No unpaid bills overdue or due in the next 7 days.' : 'Add a due day to your fixed expenses or debts to get reminders here.'}</p>`}
+          ${paidBills.length ? `<details class="bill-paid"><summary>Paid bills (${paidBills.length})</summary><ul class="bill-list">${paidBills.map(billRow).join('')}</ul></details>` : ''}
+        </article>
         ${debtProgress ? `
         <article class="dashboard-card debt-free-card">
           <h2>Road to debt-free</h2>
@@ -5048,12 +5063,23 @@ WR.ui = WR.ui || {};
           <p class="fine-print" data-private-detail>${debtProgress.paidPct.toFixed(0)}% paid off · ${currency} ${fmt(debtProgress.paid)} paid, ${currency} ${fmt(debtProgress.remaining)} to go. Based on your ${debtProgress.strategy} plan on the Debts page.</p>
           <a class="link-btn" href="#/debts">View payoff plan</a>
         </article>` : ''}
-        <article class="dashboard-card bills-card">
-          <h2>Upcoming bills</h2>
-          ${bills.length ? `<ul class="bill-list">${bills.map(billRow).join('')}</ul>`
-            : `<p class="fine-print">${hasDueDays ? 'No unpaid bills overdue or due in the next 7 days.' : 'Add a due day to your fixed expenses or debts to get reminders here.'}</p>`}
-          ${paidBills.length ? `<details class="bill-paid"><summary>Paid bills (${paidBills.length})</summary><ul class="bill-list">${paidBills.map(billRow).join('')}</ul></details>` : ''}
-        </article>
+      </section>
+
+        <aside class="dashboard-card annual-card" aria-label="Annual totals and current balances">
+          <h2>${s.selectedYear} overview</h2>
+          <h3>Year to date</h3>
+          <p class="overview-period">${Number(s.month.slice(5)) === 1 ? WR.ui.monthName(1) : `${WR.ui.monthName(1)} to ${WR.ui.monthName(Number(s.month.slice(5)))}`} ${s.selectedYear}</p>
+          <div class="stat-grid" aria-label="Year-to-date totals">
+            <div class="stat"><span class="stat-label">Income received</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
+            <div class="stat"><span class="stat-label">Debt payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
+          </div>
+          <h3 class="current-balances">Current balances</h3>
+          <p class="overview-period">As of ${escapeText(balancesAsOf)}</p>
+          <div class="stat-grid" aria-label="Current balances">
+            <div class="stat"><span class="stat-label">Savings pots</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSavedAndInvested)}</span></div>
+            <div class="stat"><span class="stat-label" title="Current assets and investments before subtracting debts">Assets &amp; investments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalWealth)}</span></div>
+          </div>
+        </aside>
       </section>
 
       <section class="health-score">
