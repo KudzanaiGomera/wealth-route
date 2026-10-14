@@ -1251,6 +1251,13 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .data-table th { background: var(--panel-alt); font-weight: 600; color: var(--muted); font-size: 0.8rem; }
 .data-table th.sortable { cursor: pointer; user-select: none; }
 .data-table th.sortable:hover { color: var(--accent); }
+.table-sort { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 600; text-align: left; }
+.table-sort:hover { color: var(--accent); filter: none; }
+.table-filter { display: flex; align-items: end; gap: 0.75rem; margin: 0.75rem 0; }
+.table-filter label { display: grid; gap: 0.3rem; color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+.table-filter input { width: min(100%, 22rem); min-height: 2.5rem; }
+.table-filter [data-search-count] { margin: 0; color: var(--muted); font-size: 0.82rem; }
+@media (max-width: 520px) { .table-filter { align-items: stretch; flex-direction: column; gap: 0.4rem; } .table-filter input { width: 100%; } }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .data-table .empty { color: var(--muted); text-align: center; padding: 1.25rem; }
@@ -1889,9 +1896,10 @@ window.WR = window.WR || {};
         const { api } = requireContext();
         await WR.saves.trackSave(() => api.deleteDoc(docRef(id)));
       },
-      async clear() {
+      async clear({ fresh = false } = {}) {
         const { api } = requireContext();
-        const snap = await api.getDocs(collectionRef());
+        const ref = collectionRef();
+        const snap = fresh ? await api.getDocsFromServer(ref) : await api.getDocs(ref);
         await WR.saves.trackSave(() => Promise.all(snap.docs.map((d) => api.deleteDoc(d.ref))));
       },
     };
@@ -7139,6 +7147,60 @@ WR.ui = WR.ui || {};
     });
   }
 
+  function sortRecords(records, sort, fields) {
+    const activeSort = sort && fields.includes(sort.field) ? sort : { field: fields[0], dir: 'asc' };
+    return [...records].sort((left, right) => {
+      const a = left[activeSort.field] ?? '';
+      const b = right[activeSort.field] ?? '';
+      const comparison = typeof a === 'number' || typeof b === 'number'
+        ? (Number(a) || 0) - (Number(b) || 0)
+        : String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+      return activeSort.dir === 'desc' ? -comparison : comparison;
+    });
+  }
+
+  function recordSortHeader(label, field, sort) {
+    const active = sort.field === field;
+    const direction = active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+    const indicator = active ? (sort.dir === 'asc' ? '\u2191' : '\u2193') : '\u2195';
+    return `<th aria-sort="${direction}"><button type="button" class="table-sort" data-sort-field="${field}" aria-label="Sort by ${WR.ui.escapeText(label)}${active ? `, currently ${direction}` : ''}">${WR.ui.escapeText(label)} <span aria-hidden="true">${indicator}</span></button></th>`;
+  }
+
+  function bindRecordTableControls(container, searchStateKey, sortStateKey, render) {
+    const search = container.querySelector('[data-record-search]');
+    if (search) {
+      const rows = [...container.querySelectorAll('tr[data-search-text]')];
+      const count = container.querySelector('[data-search-count]');
+      const empty = container.querySelector('[data-search-empty]');
+      const updateSearch = () => {
+        const query = search.value.trim().toLocaleLowerCase();
+        WR.ui[searchStateKey] = search.value;
+        let visible = 0;
+        rows.forEach((row) => {
+          row.hidden = query !== '' && !row.dataset.searchText.toLocaleLowerCase().includes(query);
+          if (!row.hidden) visible += 1;
+        });
+        if (count) count.textContent = `Showing ${visible} of ${rows.length} records.`;
+        if (empty) empty.hidden = rows.length === 0 || visible !== 0;
+      };
+      search.addEventListener('input', updateSearch);
+      updateSearch();
+    }
+
+    container.querySelectorAll('.table-sort').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const current = WR.ui[sortStateKey] || { field: button.dataset.sortField, dir: 'asc' };
+        WR.ui[sortStateKey] = current.field === button.dataset.sortField
+          ? { field: current.field, dir: current.dir === 'asc' ? 'desc' : 'asc' }
+          : { field: button.dataset.sortField, dir: 'asc' };
+        const field = button.dataset.sortField;
+        await render(container);
+        [...container.querySelectorAll(`.table-sort[data-sort-field="${field}"]`)]
+          .find((candidate) => !candidate.closest('[hidden]'))?.focus();
+      });
+    });
+  }
+
   async function renderDebts(container) {
     const [debts, payments, exchangeRates] = await Promise.all([
       WR.repos.debts.getAll(),
@@ -7151,6 +7213,8 @@ WR.ui = WR.ui || {};
     const calendarYear = WR.ui._debtCalendarYear || new Date().getFullYear();
     const interestPeriod = WR.ui._debtInterestPeriod || 'yearly';
     const debtTab = WR.ui._debtTab || 'owe';
+    const debtSort = WR.ui._debtsTableSort || { field: 'name', dir: 'asc' };
+    const debtSearch = WR.ui._debtsTableSearch || '';
 
     const overviewHtml = computeDebtOverviewHtml(debts, exchangeRates, profile);
     const calendarHtml = computeDebtCalendarHtml(debts, payments, profile, calendarYear);
@@ -7165,7 +7229,7 @@ WR.ui = WR.ui || {};
             .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
 
           return `
-      <tr data-id="${WR.ui.escapeText(d.id)}">
+      <tr data-id="${WR.ui.escapeText(d.id)}" data-search-text="${WR.ui.escapeText([d.name, d.currency, d.paymentFrequency, d.startDate].join(' '))}">
         <td><input class="cell" data-field="name" value="${WR.ui.escapeText(d.name)}"></td>
         <td class="debt-detail"><input class="cell num" type="number" step="0.01" min="0" data-field="originalBalance" value="${WR.ui.escapeText(d.originalBalance || d.currentBalance)}"></td>
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentBalance" value="${WR.ui.escapeText(d.currentBalance)}"></td>
@@ -7184,8 +7248,9 @@ WR.ui = WR.ui || {};
         },
       )
       .join('');
-    const ongoingDebts = debts.filter((debt) => (Number(debt.currentBalance) || 0) > 0.01);
-    const paidOffDebts = debts.filter((debt) => (Number(debt.currentBalance) || 0) <= 0.01);
+    const debtSortFields = ['name', 'currentBalance', 'currency', 'interestRate', 'minPayment', 'paymentFrequency', 'startDate', 'dueDay'];
+    const ongoingDebts = sortRecords(debts.filter((debt) => (Number(debt.currentBalance) || 0) > 0.01), debtSort, debtSortFields);
+    const paidOffDebts = sortRecords(debts.filter((debt) => (Number(debt.currentBalance) || 0) <= 0.01), debtSort, debtSortFields);
     const ongoingRows = renderDebtRows(ongoingDebts, false);
     const paidOffRows = renderDebtRows(paidOffDebts, true);
 
@@ -7198,12 +7263,13 @@ WR.ui = WR.ui || {};
       <section id="debt-owe-panel" class="debt-owe-panel ${WR.ui._debtDetails ? 'show-details' : ''}" role="tabpanel" aria-labelledby="debt-owe-tab" ${debtTab === 'owe' ? '' : 'hidden'}>
       <div class="debt-overview-wrap">${overviewHtml}</div>
       <div class="toolbar debt-toolbar"><button type="button" id="open-add-debt">Add a debt</button><label class="loan-details-switch"><input type="checkbox" role="switch" id="debt-show-details" ${WR.ui._debtDetails ? 'checked' : ''}><span class="loan-details-track" aria-hidden="true"></span><span>Show loan details</span></label></div>
+      <div class="table-filter"><label>Filter debts<input type="search" data-record-search aria-label="Filter debts" placeholder="Name, currency, frequency" value="${WR.ui.escapeText(debtSearch)}"></label><p data-search-count aria-live="polite"></p><p data-search-empty hidden>No matching debts.</p></div>
       <section class="debt-list-card">
         <h2>Ongoing Debts</h2>
         <p class="fine-print">Debts with a remaining balance.</p>
         <div class="table-wrap">
           <table class="data-table debts-table">
-            <thead><tr><th>Name</th><th class="debt-detail">Original</th><th>Current</th><th>Currency</th><th>Interest rate <select id="debt-interest-period" class="table-header-select" aria-label="Interest rate period"><option value="yearly" ${interestPeriod === 'yearly' ? 'selected' : ''}>%/yr</option><option value="monthly" ${interestPeriod === 'monthly' ? 'selected' : ''}>%/mo</option></select></th><th>Min. payment</th><th>Frequency</th><th class="debt-detail">Start date</th><th class="debt-detail">Due day</th><th class="debt-detail">Projected payoff</th><th class="debt-detail">Months left</th><th>Total paid</th><th></th></tr></thead>
+            <thead><tr>${recordSortHeader('Name', 'name', debtSort)}<th class="debt-detail">Original</th>${recordSortHeader('Current', 'currentBalance', debtSort)}${recordSortHeader('Currency', 'currency', debtSort)}<th aria-sort="${debtSort.field === 'interestRate' ? debtSort.dir + 'ending' : 'none'}">${recordSortHeader('Interest rate', 'interestRate', debtSort).replace(/^<th[^>]*>|<\/th>$/g, '')}<select id="debt-interest-period" class="table-header-select" aria-label="Interest rate period"><option value="yearly" ${interestPeriod === 'yearly' ? 'selected' : ''}>%/yr</option><option value="monthly" ${interestPeriod === 'monthly' ? 'selected' : ''}>%/mo</option></select></th>${recordSortHeader('Min. payment', 'minPayment', debtSort)}${recordSortHeader('Frequency', 'paymentFrequency', debtSort)}<th class="debt-detail">Start date</th><th class="debt-detail">Due day</th><th class="debt-detail">Projected payoff</th><th class="debt-detail">Months left</th><th>Total paid</th><th></th></tr></thead>
             <tbody>${ongoingRows || '<tr><td colspan="13" class="empty">No ongoing debts.</td></tr>'}</tbody>
           </table>
         </div>
@@ -7214,7 +7280,7 @@ WR.ui = WR.ui || {};
         <p class="fine-print">Debts with a zero balance, including the date they were paid off.</p>
         <div class="table-wrap">
           <table class="data-table debts-table">
-            <thead><tr><th>Name</th><th class="debt-detail">Original</th><th>Current</th><th>Currency</th><th>Interest rate (${interestPeriod === 'monthly' ? '%/mo' : '%/yr'})</th><th>Min. payment</th><th>Frequency</th><th class="debt-detail">Start date</th><th class="debt-detail">Due day</th><th>Paid off date</th><th class="debt-detail">Projected payoff</th><th class="debt-detail">Months left</th><th>Total paid</th><th></th></tr></thead>
+            <thead><tr>${recordSortHeader('Name', 'name', debtSort)}<th class="debt-detail">Original</th>${recordSortHeader('Current', 'currentBalance', debtSort)}${recordSortHeader('Currency', 'currency', debtSort)}${recordSortHeader(`Interest rate (${interestPeriod === 'monthly' ? '%/mo' : '%/yr'})`, 'interestRate', debtSort)}${recordSortHeader('Min. payment', 'minPayment', debtSort)}${recordSortHeader('Frequency', 'paymentFrequency', debtSort)}<th class="debt-detail">Start date</th><th class="debt-detail">Due day</th><th>Paid off date</th><th class="debt-detail">Projected payoff</th><th class="debt-detail">Months left</th><th>Total paid</th><th></th></tr></thead>
             <tbody>${paidOffRows || '<tr><td colspan="14" class="empty">No paid-off debts.</td></tr>'}</tbody>
           </table>
         </div>
@@ -7279,6 +7345,7 @@ WR.ui = WR.ui || {};
         next.focus();
       });
     });
+    bindRecordTableControls(container, '_debtsTableSearch', '_debtsTableSort', renderDebts);
     container.querySelectorAll('.debt-disclosure[data-state]').forEach((details) => details.addEventListener('toggle', () => {
       if (details.isConnected) WR.ui[details.dataset.state] = details.open;
     }));
@@ -7447,11 +7514,15 @@ WR.ui = WR.ui || {};
       WR.repos.exchangeRates.getAll(),
       WR.ui.getOrCreateProfile(),
     ]);
+    const assetSort = WR.ui._assetsTableSort || { field: 'name', dir: 'asc' };
+    const assetSearch = WR.ui._assetsTableSearch || '';
     const { total: totalValue, unconvertedNames } = sumInBaseCurrency(assets, 'currentValue', exchangeRates, profile.baseCurrency);
-    const rows = assets
+    const assetSortFields = ['name', 'type', 'currentValue', 'currency', 'liquidity'];
+    const sortedAssets = sortRecords(assets, assetSort, assetSortFields);
+    const rows = sortedAssets
       .map(
         (a) => `
-      <tr data-id="${WR.ui.escapeText(a.id)}">
+      <tr data-id="${WR.ui.escapeText(a.id)}" data-search-text="${WR.ui.escapeText([a.name, a.type, a.currency, a.liquidity].join(' '))}">
         <td><input class="cell" data-field="name" value="${WR.ui.escapeText(a.name)}"></td>
         <td><input class="cell" data-field="type" value="${WR.ui.escapeText(a.type)}"></td>
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentValue" value="${WR.ui.escapeText(a.currentValue)}"></td>
@@ -7469,8 +7540,9 @@ WR.ui = WR.ui || {};
         <div class="stat"><span class="stat-label">Total Asset Value</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalValue)}</span></div>
       </div>
       ${unconvertedNames.length > 0 ? `<p class="warning">Missing or invalid exchange rate for: ${unconvertedNames.map(name => WR.ui.escapeText(name)).join(', ')} - excluded from this total.</p>` : ''}
+      <div class="table-filter"><label>Filter assets<input type="search" data-record-search aria-label="Filter assets" placeholder="Name, type, currency" value="${WR.ui.escapeText(assetSearch)}"></label><p data-search-count aria-live="polite"></p><p data-search-empty hidden>No matching assets.</p></div>
       <table class="data-table">
-        <thead><tr><th>Name</th><th>Type</th><th>Value</th><th>Currency</th><th>Liquidity</th><th></th></tr></thead>
+        <thead><tr>${recordSortHeader('Name', 'name', assetSort)}${recordSortHeader('Type', 'type', assetSort)}${recordSortHeader('Value', 'currentValue', assetSort)}${recordSortHeader('Currency', 'currency', assetSort)}${recordSortHeader('Liquidity', 'liquidity', assetSort)}<th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="6" class="empty">No assets recorded.</td></tr>'}</tbody>
       </table>
 
@@ -7489,6 +7561,7 @@ WR.ui = WR.ui || {};
       </form>
     `);
 
+    bindRecordTableControls(container, '_assetsTableSearch', '_assetsTableSort', renderAssets);
     container.querySelectorAll('tbody tr').forEach((tr) => {
       const id = tr.dataset.id;
       tr.querySelectorAll('.cell').forEach((input) => {
@@ -7582,16 +7655,20 @@ WR.ui = WR.ui || {};
       WR.repos.exchangeRates.getAll(),
       WR.ui.getOrCreateProfile(),
     ]);
+    const investmentSort = WR.ui._investmentsTableSort || { field: 'name', dir: 'asc' };
+    const investmentSearch = WR.ui._investmentsTableSearch || '';
     const { total: totalValue, unconvertedNames } = sumInBaseCurrency(investments, 'currentValue', exchangeRates, profile.baseCurrency);
     const { total: totalContributions } = sumInBaseCurrency(investments, 'totalContributions', exchangeRates, profile.baseCurrency);
     const totalGain = totalValue - totalContributions;
     const gainPct = totalContributions > 0 ? (totalGain / totalContributions) * 100 : 0;
     const suggestions = computeInvestmentSuggestions(investments, totalValue, totalContributions, gainPct);
 
-    const rows = investments
+    const investmentSortFields = ['name', 'type', 'currentValue', 'totalContributions', 'currency', 'riskCategory'];
+    const sortedInvestments = sortRecords(investments, investmentSort, investmentSortFields);
+    const rows = sortedInvestments
       .map(
         (inv) => `
-      <tr data-id="${WR.ui.escapeText(inv.id)}">
+      <tr data-id="${WR.ui.escapeText(inv.id)}" data-search-text="${WR.ui.escapeText([inv.name, inv.type, inv.currency, inv.riskCategory].join(' '))}">
         <td><input class="cell" data-field="name" value="${WR.ui.escapeText(inv.name)}"></td>
         <td><input class="cell" data-field="type" value="${WR.ui.escapeText(inv.type)}"></td>
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentValue" value="${WR.ui.escapeText(inv.currentValue)}"></td>
@@ -7617,8 +7694,9 @@ WR.ui = WR.ui || {};
         <h3>Suggestions</h3>
         <ul>${suggestions.map((s) => `<li>${s}</li>`).join('')}</ul>
       </div>` : ''}
+      <div class="table-filter"><label>Filter investments<input type="search" data-record-search aria-label="Filter investments" placeholder="Name, type, currency" value="${WR.ui.escapeText(investmentSearch)}"></label><p data-search-count aria-live="polite"></p><p data-search-empty hidden>No matching investments.</p></div>
       <table class="data-table">
-        <thead><tr><th>Name</th><th>Type</th><th>Current value</th><th>Contributions</th><th>Currency</th><th>Risk</th><th></th></tr></thead>
+        <thead><tr>${recordSortHeader('Name', 'name', investmentSort)}${recordSortHeader('Type', 'type', investmentSort)}${recordSortHeader('Current value', 'currentValue', investmentSort)}${recordSortHeader('Contributions', 'totalContributions', investmentSort)}${recordSortHeader('Currency', 'currency', investmentSort)}${recordSortHeader('Risk', 'riskCategory', investmentSort)}<th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="7" class="empty">No investments recorded.</td></tr>'}</tbody>
       </table>
 
@@ -7638,6 +7716,7 @@ WR.ui = WR.ui || {};
       </form>
     `);
 
+    bindRecordTableControls(container, '_investmentsTableSearch', '_investmentsTableSort', renderInvestments);
     container.querySelectorAll('tbody tr').forEach((tr) => {
       const id = tr.dataset.id;
       tr.querySelectorAll('.cell').forEach((input) => {
@@ -8177,6 +8256,13 @@ WR.ui = WR.ui || {};
             </div>
             <p id="reset-password-result" class="fine-print settings-result"></p>
           </div>
+          <form id="delete-account-form" class="danger-zone">
+            <div><strong>Delete account</strong><span>Export a backup first. This permanently deletes your sign-in and all WealthRoute data.</span></div>
+            ${WR.account.usesPasswordProvider() ? '<label>Current password<input name="accountPassword" type="password" autocomplete="current-password" required></label>' : '<span>Google will ask you to confirm your identity.</span>'}
+            <label>Type DELETE to confirm<input name="confirmation" autocomplete="off" required></label>
+            <button type="submit" class="danger">Delete account</button>
+            <p id="delete-account-result" class="fine-print settings-result span-2" role="status" aria-live="polite"></p>
+          </form>
           <p class="fine-print">Your data is saved to your account automatically as you work \u2014 there\u2019s nothing to sync manually.</p>
         ` : `
           <p class="fine-print">You're not signed in.</p>
@@ -8500,6 +8586,32 @@ WR.ui = WR.ui || {};
     });
 
     if (WR.account.isConfigured()) {
+      const deleteAccountForm = document.getElementById('delete-account-form');
+      if (deleteAccountForm) {
+        deleteAccountForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const form = event.currentTarget;
+          if (form.elements.confirmation.value.trim() !== 'DELETE') {
+            document.getElementById('delete-account-result').textContent = 'Type DELETE exactly to confirm.';
+            return;
+          }
+          if (!(await hardConfirm('permanently delete your account and all associated financial data'))) return;
+          const button = form.querySelector('button[type="submit"]');
+          const result = document.getElementById('delete-account-result');
+          button.disabled = true;
+          result.textContent = 'Re-authenticating and deleting account data...';
+          try {
+            await WR.account.deleteAccount(form.elements.accountPassword?.value || '');
+          } catch (error) {
+            result.textContent = 'Deletion did not finish. Some records may already have been removed. Sign in again and retry, or contact support.';
+            WR.ui.notify(error.message || 'Account deletion failed.', 'error');
+            button.disabled = false;
+          } finally {
+            const password = form.elements.accountPassword;
+            if (password) password.value = '';
+          }
+        });
+      }
       const resetPasswordBtn = document.getElementById('reset-password-btn');
       if (resetPasswordBtn) {
         resetPasswordBtn.addEventListener('click', async () => {
@@ -8848,6 +8960,46 @@ WR.account = {};
     window.location.reload();
   }
 
+  async function deleteAccount(password) {
+    await ensureInit();
+    const user = currentUser;
+    if (!user) throw new Error('Sign in again before deleting your account.');
+    const providers = user.providerData.map((provider) => provider.providerId);
+    if (providers.includes('password')) {
+      if (!password) throw new Error('Enter your current password to continue.');
+      const credential = authApi.EmailAuthProvider.credential(user.email, password);
+      await authApi.reauthenticateWithCredential(user, credential);
+    } else if (providers.includes('google.com')) {
+      await authApi.reauthenticateWithPopup(user, new authApi.GoogleAuthProvider());
+    } else {
+      throw new Error('This sign-in method cannot re-authenticate account deletion. Contact support.');
+    }
+
+    const userRef = firestoreApi.doc(db, 'users', user.uid);
+    const userSnapshot = await firestoreApi.getDocFromServer(userRef);
+    const usernameLower = userSnapshot.exists() ? userSnapshot.data().usernameLower : null;
+    await Promise.all(Object.values(WR.repos).map((repo) => repo.clear({ fresh: true })));
+    await firestoreApi.runTransaction(db, async (transaction) => {
+      const usernameRef = usernameLower ? firestoreApi.doc(db, 'usernames', usernameLower) : null;
+      const usernameSnapshot = usernameRef ? await transaction.get(usernameRef) : null;
+      if (usernameSnapshot?.exists() && usernameSnapshot.data().uid !== user.uid) {
+        throw new Error('Username ownership could not be verified; account was not deleted.');
+      }
+      transaction.delete(userRef);
+      if (usernameSnapshot?.exists()) transaction.delete(usernameRef);
+    });
+    await authApi.deleteUser(user);
+    cachedUsername = null;
+    try { localStorage.removeItem(`wr_hide_balances_${user.uid}`); } catch (_) {}
+    try {
+      await firestoreApi.terminate(db);
+      await firestoreApi.clearIndexedDbPersistence(db);
+    } catch (error) {
+      console.warn('Could not clear the deleted account offline cache', error);
+    }
+    window.location.reload();
+  }
+
   WR.account.isConfigured = isConfigured;
   WR.account.ensureInit = ensureInit;
   WR.account.waitForFirstUser = waitForFirstUser;
@@ -8864,6 +9016,7 @@ WR.account = {};
   WR.account.signIn = signIn;
   WR.account.signInWithGoogle = signInWithGoogle;
   WR.account.signOut = signOutUser;
+  WR.account.deleteAccount = deleteAccount;
 })();
 // Full-screen sign in / sign up gate. Rendered instead of the app shell
 // whenever WR.account.isConfigured() is true and no one is signed in \u2014 no

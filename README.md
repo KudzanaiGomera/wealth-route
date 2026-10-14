@@ -217,6 +217,11 @@ username (must be unique, 3\u201320 characters, letters/numbers/underscores),
 and \u2014 for email/password accounts \u2014 send yourself a password reset email.
 Google accounts manage their password through Google instead.
 
+Settings > Account also offers permanent account deletion. Export a JSON
+backup first. Email/password accounts must re-enter their password; Google
+accounts must complete Google's sign-in prompt. If deletion is interrupted,
+sign in again and retry. Some records may already have been removed.
+
 Each account's financial records live under `users/{uid}/...` in Firestore,
 scoped entirely to that account by security rules
 (`request.auth.uid == uid`) \u2014 not just hidden by the UI. Nobody else who
@@ -238,11 +243,8 @@ any device needs a network connection, but after that Firestore's built-in
 offline cache lets you keep reading and editing while offline \u2014 writes queue
 up and sync automatically once you're back online.
 
-**One remaining caveat:** login only controls what's *shown*. If more than
-one person signs into different accounts on the *same physical browser
-profile*, they will not see each other's Firestore data (that's enforced
-server-side), but there is currently no separate "profile switcher" for
-purely local, no-account use on a shared device.
+On a shared browser, sign out when finished. Sign-out clears Firestore's
+offline cache; account data remains isolated by the published Firestore rules.
 
 ## This pass: editing, Excel fix, and a professionalism pass
 
@@ -377,6 +379,10 @@ use two disposable accounts to confirm each can access its own financial
 records but cannot read or write the other's, and cannot modify the other's
 username claim. Local UI fixtures cannot certify the deployed rules.
 
+The rules emulator suite is available with `npm run test:rules`. It requires
+Java on `PATH`; it tests the checked-in rules, not the rules currently
+published in Firebase Console.
+
 ### Mobile release checklist
 
 Automated checks cover save failure/retry, pending writes, duplicate-submit
@@ -388,6 +394,8 @@ check the installed app and browser versions on an actual iPhone and Android:
 - Switch device themes, manually override, then return to Device theme.
 - Go offline during a save; confirm the pending indicator and later acknowledgement.
 - Check slow connectivity, larger accessibility text, and both orientations.
+- Check keyboard-only navigation and screen-reader names for forms, tables,
+  navigation, and progress indicators.
 - Check login, password reset, and session restoration after several days.
 
 Desktop browser emulation cannot certify native keyboards, iOS home-screen
@@ -586,57 +594,18 @@ Flagging what's still open rather than letting it be a surprise:
   the Reports charts were carried over unchanged and re-verified only by
   code review, not by clicking through them post-migration.
 
-## Roadmap: Phase 1, 2, 3 (no demo data)
+## Next Improvements
 
-This roadmap keeps WealthRoute lightweight and dependency-light (still no
-build step) while improving professionalism for sharing with a small group
-now and wider individual use later. As of 2.0, "local-first" has been
-superseded by accounts + Firestore (see "Accounts, data, and privacy"
-above) \u2014 items below predate that change where they still say otherwise.
-
-### Phase 1 — Friend-ready polish (current distribution)
-
-- [x] Add a first-run setup flow: base currency, country, emergency target,
-  recurring income, and first debt.
-- [x] Add guided setup cues on the Dashboard and Settings so users know what to do next.
-- [x] Add stronger confirmation and safety UX for destructive actions
-  (restore/import/reset/delete).
-- [x] Add an audit trail panel for important events (imports, resets, snapshots,
-  debt payment edits).
-- [x] Add runtime validation messages for common data issues (invalid dates,
-  start/end month mismatches, payment over balance).
-- [x] Run browser click-through QA across all routes and fix UX defects
-  (verified live via automated browser testing during the 2.0 migration:
-  sign-up/login/logout, Dashboard, Debts, Settings/Profile, nav, and PWA
-  install assets all confirmed working end-to-end against a live Firebase
-  project).
-- [x] Update tests.html schema/repository coverage to match index.html
-  (fully rebuilt against Firestore in 2.0, using the same repository code
-  and an anonymous test account — no longer a separate IndexedDB mock).
-
-### Phase 2 — Market-quality foundation
-
-- Split the single-file app into maintainable modules for storage,
-  calculations, and UI while preserving local-first behavior.
-- Create a dedicated, fully tested financial-core module for formulas.
-- Add integrity checks on app startup with non-blocking warnings.
-- Add import/export hardening: row-level failure report and stronger schema
-  migration checks.
-- Improve responsive behavior and mobile ergonomics across table-heavy views.
-- Add product-grade help content: methodology, assumptions, and limitations.
-
-### Phase 3 — Lightweight public release readiness
-
-- [x] Package as a lightweight installable PWA (real icons + manifest fixed
-  in 2.0).
-- [x] Add secure sync architecture (Firebase Auth + Firestore, per-account
-  data isolation, in 2.0 \u2014 superseded the original "keep local-first as
-  default" framing).
-- [x] Add release versioning (this README's version header + in-app Release
-  Notes in Settings) and a user-facing changelog ("What's new in 2.0" above).
-- [x] Publish clear privacy and data ownership messaging ("Accounts, data,
-  and privacy" above).
-- [ ] Add onboarding docs for first-time users and account recovery docs
-  beyond the built-in password reset email.
+- [x] Add explicit account deletion with provider re-authentication and
+  confirmation.
+- [ ] Run `npm run test:rules` in an environment with Java installed, then
+  verify the published Firebase rules using two disposable accounts.
+- [ ] Complete the release checklist on physical iPhone and Android devices,
+  including offline writes, accessibility, and session restoration.
+- [ ] Add first-time-user account recovery and deletion guidance.
+- [ ] Split `index.html` into storage, financial-core, and UI modules in
+  behavior-preserving steps, keeping the no-bundler deployment model.
+- [ ] Revisit CSV statement import when manual-entry friction justifies it;
+  include review-before-save, duplicate detection, and undo.
 - [ ] Add a simple feedback loop for early users to report UX and calculation
   issues.
