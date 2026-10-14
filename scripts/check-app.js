@@ -700,6 +700,50 @@ function checkMobileNavigation() {
 }
 checkMobileNavigation();
 
+async function checkPullRefresh() {
+  let user = { uid: 'refresh-user' };
+  let reads = 0;
+  let renders = 0;
+  let duringRead = () => {};
+  const refreshContext = {
+    navigator: { onLine: true }, window: { location: { hash: '#/dashboard' } },
+    WR: {
+      account: { getCurrentUser: () => user },
+      saves: { state: { pending: 0 } },
+      repos: { sample: { getAll: async options => { assert.equal(options.fresh, true); reads++; duringRead(); return []; } } },
+      ui: { reRenderCurrentRoute: async () => { renders++; } },
+    },
+  };
+  vm.createContext(refreshContext);
+  vm.runInContext(functions.get('refreshCurrentPage'), refreshContext);
+  await refreshContext.refreshCurrentPage();
+  assert.equal(reads, 1);
+  assert.equal(renders, 1);
+  refreshContext.WR.saves.state.pending = 1;
+  await refreshContext.refreshCurrentPage();
+  assert.equal(reads, 1);
+  refreshContext.WR.saves.state.pending = 0;
+  user = null;
+  await refreshContext.refreshCurrentPage();
+  assert.equal(reads, 1);
+  user = { uid: 'refresh-user' };
+  refreshContext.navigator.onLine = false;
+  await assert.rejects(refreshContext.refreshCurrentPage(), /offline/);
+  assert.equal(reads, 1);
+  refreshContext.navigator.onLine = true;
+  duringRead = () => { refreshContext.window.location.hash = '#/settings'; };
+  await refreshContext.refreshCurrentPage();
+  assert.equal(renders, 1);
+  duringRead = () => { user = { uid: 'different-user' }; };
+  await refreshContext.refreshCurrentPage();
+  assert.equal(renders, 1);
+  duringRead = () => { throw new Error('Refresh failed'); };
+  await assert.rejects(refreshContext.refreshCurrentPage(), /Refresh failed/);
+  assert.equal(renders, 1);
+  console.log('Pull refresh requests fresh data, skips pending saves, and handles offline errors and account/route changes.');
+}
+checkPullRefresh().catch(error => { console.error(error); process.exitCode = 1; });
+
 async function checkPaydayBudget() {
   const documents = new Map();
   const copy = value => JSON.parse(JSON.stringify(value));
