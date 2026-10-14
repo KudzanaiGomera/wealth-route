@@ -80,6 +80,7 @@ body {
   max-width: 100%;
   overflow-x: clip;
   font-family: var(--font-sans);
+  background: var(--bg);
   background:
     radial-gradient(circle at 8% 10%, color-mix(in srgb, var(--accent) 12%, transparent) 0, transparent 35%),
     radial-gradient(circle at 90% 0%, color-mix(in srgb, var(--gold) 12%, transparent) 0, transparent 28%),
@@ -289,6 +290,7 @@ button, a, input, select, textarea {
 /* ---------- Top bar ---------- */
 
 .topbar {
+  background: var(--panel);
   background: color-mix(in srgb, var(--panel) 94%, transparent);
   border-bottom: 1px solid var(--border);
   /* env(safe-area-inset-*) keeps controls clear of notches/status bars when
@@ -640,7 +642,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .dashboard-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin: 0.4rem 0 1.25rem; }
 .dashboard-heading h1 { margin: 0.25rem 0 0; font-size: 1.6rem; }
 .dashboard-heading .month-label { margin: 0; font-size: 0.85rem; }
-.position-card { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 6%, var(--panel)), var(--panel)); border-color: var(--border); color: var(--text); }
+.position-card { background: var(--panel); border-top: 3px solid var(--accent); border-radius: 8px; color: var(--text); }
 .position-card .stat-label { color: var(--muted); }
 .balance-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 .visibility-toggle { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-alt); color: var(--text); }
@@ -657,7 +659,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
 .dashboard-actions a { display: flex; align-items: center; justify-content: center; gap: 0.55rem; min-height: 52px; min-width: 0; padding: 0.65rem; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: var(--panel); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
 .dashboard-actions a:hover { border-color: var(--accent); color: var(--accent); }
 .dashboard-actions svg { flex-shrink: 0; width: 20px; height: 20px; }
-.annual-card { border-left: 4px solid var(--gold); }
+.annual-card { border-top: 3px solid var(--gold); border-radius: 8px; }
 .annual-card h2 { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .annual-card h2::after {
   content: "Year to date";
@@ -708,10 +710,12 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
   min-height: 5.7rem;
   box-shadow: none;
 }
-.position-card .stat-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); margin-bottom: 0; }
-.position-card .stat { border: 0; background: transparent; border-radius: 0; padding: 0.5rem 0; min-height: 4.4rem; }
+.position-card .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0; }
+.position-card .stat { border: 1px solid var(--border); border-left: 3px solid var(--accent); background: var(--panel-alt); border-radius: 6px; padding: 0.85rem; min-height: 5.5rem; gap: 0.5rem; }
+.position-card .stat:nth-child(3) { border-left-color: var(--gold); }
+.position-card .stat:nth-child(4) { border-left-color: var(--success); }
 .annual-card .stat-grid { grid-template-columns: 1fr; margin-bottom: 0; }
-.annual-card .stat { border: 0; border-top: 1px solid var(--border); background: transparent; border-radius: 0; padding: 0.75rem 0; min-height: 0; gap: 0.25rem; }
+.annual-card .stat { border: 1px solid var(--border); border-left: 3px solid var(--gold); background: var(--panel-alt); border-radius: 6px; padding: 0.85rem; min-height: 0; gap: 0.35rem; }
 .dashboard-card .stat::after {
   content: none;
 }
@@ -1489,6 +1493,20 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
 [role="tabpanel"][hidden] { display: none !important; }
 #auth-reset-status:empty { display: none; }
 
+.nav-backdrop { display: none; }
+body.nav-scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: hidden; }
+
+@supports not (background: color-mix(in srgb, white, black)) {
+  body, .app-splash, .auth-screen { background: var(--bg); }
+  .topbar { background: var(--panel); }
+  .app-splash-card, .ef-summary, .savings-total-card, .account-summary,
+  .day-suggestion-card, .copy-budget-card, .payoff-results { background: var(--panel); }
+  .ef-form-card.borrow, .ef-form-card.transfer, .day-date-filter,
+  .savings-summary .stat, .danger-zone { background: var(--panel-alt); }
+  .annual-card h2::after { background: var(--panel-alt); border-color: var(--gold); }
+  .goal-meter span, .splash-progress span { background: var(--accent); }
+}
+
 /* ---------- Copy budget / EF account management ---------- */
 .copy-budget-card { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin: 0.75rem 0; }
 .ef-account-manage { list-style: none; margin: 0 0 0.75rem; padding: 0; display: grid; gap: 0.45rem; }
@@ -1509,15 +1527,30 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
   .topbar { padding: calc(0.7rem + env(safe-area-inset-top)) calc(1rem + env(safe-area-inset-right)) 0.7rem calc(1rem + env(safe-area-inset-left)); gap: 0.85rem; background: var(--panel); backdrop-filter: none; }
   .nav-jump { display: none; }
   #nav {
-    right: 0.7rem;
-    left: 0.7rem;
+    right: 0;
+    left: 0;
     top: auto;
     position: fixed;
-    bottom: calc(5.35rem + env(safe-area-inset-bottom));
+    bottom: 0;
+    z-index: 26;
     min-width: 0;
-    max-height: calc(100vh - 90px);
+    height: 50vh;
+    height: 50dvh;
+    max-height: 50vh;
+    max-height: 50dvh;
+    border-radius: 8px 8px 0 0;
+    padding: 0.75rem 1rem calc(5rem + env(safe-area-inset-bottom));
     overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    visibility: hidden;
+    transform: translateY(100%);
   }
+  #nav a, #nav .nav-action-item { min-height: 44px; display: flex; align-items: center; flex-shrink: 0; }
+  #nav a.in-mobile-nav { display: none; }
+  .topbar.nav-open { z-index: 40; }
+  .topbar.nav-open #nav { visibility: visible; }
+  .topbar.nav-open .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(0, 0, 0, 0.5); touch-action: none; }
   #content { padding: 1.1rem 1rem calc(6.5rem + env(safe-area-inset-bottom)); min-width: 0; }
   .topbar .nav-controls { display: none; }
   .topbar .theme-toggle { margin-left: auto; }
@@ -1526,6 +1559,7 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
   :root[data-editing="true"] .mobile-nav { display: none; }
   .mobile-nav a, .mobile-nav button { display: grid; justify-items: center; align-content: center; gap: 0.2rem; height: 3.55rem; min-width: 0; color: var(--muted); background: transparent; border: 0; text-decoration: none; font: inherit; border-radius: 12px; cursor: pointer; }
   .mobile-nav a.active, .mobile-nav button[aria-expanded="true"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 11%, var(--panel)); font-weight: 600; }
+  .mobile-nav a.active, .mobile-nav button[aria-expanded="true"] { border-radius: 4px; }
   .mobile-nav a:hover, .mobile-nav button:hover { background: var(--panel-alt); }
   .mobile-nav .nav-icon { width: 1.35rem; height: 1.35rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .mobile-nav small { font-size: 0.67rem; line-height: 1; }
@@ -4396,6 +4430,45 @@ WR.ui = WR.ui || {};
     renderNavInstall();
   });
 
+  function setNavigationOpen(isOpen, restoreFocus = false) {
+    const topbar = document.querySelector('.topbar');
+    if (!topbar) return;
+    const mobile = window.matchMedia('(max-width: 900px)').matches;
+    topbar.classList.toggle('nav-open', isOpen);
+    document.querySelectorAll('#nav-toggle-btn, #mobile-more-btn').forEach(control => control.setAttribute('aria-expanded', String(isOpen)));
+    const nav = document.getElementById('nav');
+    nav.setAttribute('aria-hidden', String(!isOpen));
+    nav.toggleAttribute('inert', !isOpen);
+    nav.querySelectorAll('a, button').forEach(control => {
+      if (isOpen) control.removeAttribute('tabindex');
+      else control.setAttribute('tabindex', '-1');
+    });
+    if (isOpen && mobile && !WR.ui._navScrollLock) {
+      WR.ui._navScrollLock = { scrollY: window.scrollY, top: document.body.style.top };
+      document.body.style.top = `-${window.scrollY}px`;
+      document.body.classList.add('nav-scroll-locked');
+      document.getElementById('content')?.setAttribute('inert', '');
+    } else if ((!isOpen || !mobile) && WR.ui._navScrollLock) {
+      const locked = WR.ui._navScrollLock;
+      WR.ui._navScrollLock = null;
+      document.body.classList.remove('nav-scroll-locked');
+      document.body.style.top = locked.top;
+      document.getElementById('content')?.removeAttribute('inert');
+      window.scrollTo(0, locked.scrollY);
+    }
+    if (isOpen) {
+      nav.scrollTop = 0;
+      [...nav.querySelectorAll('a, button')].find(control => control.getClientRects().length)?.focus({ preventScroll: true });
+    } else if (restoreFocus) {
+      document.getElementById(mobile ? 'mobile-more-btn' : 'nav-toggle-btn')?.focus({ preventScroll: true });
+    }
+  }
+  WR.ui.closeNavigation = () => setNavigationOpen(false);
+  window.addEventListener('hashchange', () => setNavigationOpen(false));
+  window.addEventListener('resize', () => {
+    if (WR.ui._navScrollLock && !window.matchMedia('(max-width: 900px)').matches) setNavigationOpen(false);
+  });
+
   function updateNavigationLayout(topbar) {
     if (!topbar?.isConnected) return;
     let fits = false;
@@ -4426,6 +4499,7 @@ WR.ui = WR.ui || {};
   WR.ui.updateNavigationLayout = updateNavigationLayout;
 
   function renderShell() {
+    setNavigationOpen(false);
     WR.ui._navResizeObserver?.disconnect();
     const wideNavItems = HORIZONTAL_NAV_ITEMS.filter(item => item.hash !== '#/settings').concat(NAV_ITEMS.filter(item => !HORIZONTAL_NAV_HASHES.includes(item.hash)), NAV_ITEMS.filter(item => item.hash === '#/settings'));
     const horizontalNavLinks = wideNavItems.map((i) => `<a href="${i.hash}" data-hash="${i.hash}"${HORIZONTAL_NAV_HASHES.includes(i.hash) ? '' : ' class="nav-expanded-link"'}>${WR.ui.escapeText(i.label)}</a>`).join('');
@@ -4461,18 +4535,19 @@ WR.ui = WR.ui || {};
           <span class="brand-text">WealthRoute</span>
         </a>
         <nav class="nav-horizontal" aria-label="Primary">${horizontalNavLinks}</nav>
-        <nav id="nav" aria-label="All sections">${nav}</nav>
+        <div class="nav-backdrop" aria-hidden="true"></div>
+        <nav id="nav" aria-label="All sections" aria-hidden="true" inert>${nav}</nav>
         <nav class="mobile-nav" aria-label="Mobile navigation">
           <a href="#/dashboard" data-hash="#/dashboard" aria-label="Home" title="Home"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h14V9M9 21v-7h6v7"/></svg><small>Home</small></a>
           <a href="#/transactions" data-hash="#/transactions" aria-label="Transactions" title="Transactions"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M16 3l4 4-4 4M20 17H4m4-4-4 4 4 4"/></svg><small>Activity</small></a>
           <a href="#/debts" data-hash="#/debts" aria-label="Debts" title="Debts"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M16 14h2"/></svg><small>Debts</small></a>
           <a href="#/savings" data-hash="#/savings" aria-label="Savings" title="Savings"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9.5A7 7 0 0 1 18.5 8H21v6h-2.5a7 7 0 0 1-13.5-4.5Z"/><path d="M5 10H3v4h4M10 7h.01M14 7h.01M9 15c1.5 1 3.5 1 5 0"/></svg><small>Savings</small></a>
-          <button id="mobile-more-btn" type="button" aria-label="More navigation" aria-expanded="false" title="More navigation"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg><small>More</small></button>
+          <button id="mobile-more-btn" type="button" aria-label="More navigation" aria-controls="nav" aria-expanded="false" title="More navigation"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg><small>More</small></button>
         </nav>
         <div id="nav-account" class="nav-account"></div>
         <div class="nav-wide-actions"><span id="nav-wide-support"></span><div id="nav-install-wide"></div>${WR.account.isConfigured() && WR.account.getCurrentUser() ? '<button type="button" id="nav-logout-wide" class="secondary">Log out</button>' : ''}</div>
         <div class="nav-controls">
-          <button id="nav-toggle-btn" class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation">
+          <button id="nav-toggle-btn" class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav" aria-label="Open navigation">
             <span class="nav-toggle-bars"><span></span><span></span><span></span></span>
           </button>
         </div>
@@ -4487,12 +4562,28 @@ WR.ui = WR.ui || {};
     document.getElementById('theme-toggle-btn').addEventListener('click', WR.ui.toggleTheme);
     renderSaveStatus();
     const toggleNavigation = () => {
-      const topbar = document.querySelector('.topbar');
-      const isOpen = topbar.classList.toggle('nav-open');
-      document.querySelectorAll('#nav-toggle-btn, #mobile-more-btn').forEach(control => control.setAttribute('aria-expanded', String(isOpen)));
+      setNavigationOpen(!document.querySelector('.topbar').classList.contains('nav-open'), true);
     };
+    setNavigationOpen(false);
     document.getElementById('nav-toggle-btn').addEventListener('click', toggleNavigation);
     document.getElementById('mobile-more-btn').addEventListener('click', toggleNavigation);
+    document.querySelector('.nav-backdrop').addEventListener('click', () => setNavigationOpen(false, true));
+    document.querySelector('.topbar').addEventListener('click', event => {
+      if (event.target.closest('a, #nav-logout-btn, #nav-logout-wide')) setNavigationOpen(false);
+    });
+    document.querySelector('.topbar').addEventListener('keydown', event => {
+      if (!document.querySelector('.topbar').classList.contains('nav-open')) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setNavigationOpen(false, true);
+      } else if (event.key === 'Tab' && WR.ui._navScrollLock) {
+        const controls = [...document.querySelectorAll('#nav a, #nav button, #mobile-more-btn')].filter(control => control.getClientRects().length && !control.disabled);
+        const current = controls.indexOf(document.activeElement);
+        const next = (current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+        event.preventDefault();
+        controls[next]?.focus({ preventScroll: true });
+      }
+    });
     document.querySelectorAll('#nav-logout-btn, #nav-logout-wide').forEach(logoutBtn => {
       logoutBtn.addEventListener('click', async () => {
         logoutBtn.disabled = true;
@@ -4531,11 +4622,7 @@ WR.ui = WR.ui || {};
       else a.removeAttribute('aria-current');
     });
     const topbar = document.querySelector('.topbar');
-    const toggle = document.getElementById('nav-toggle-btn');
-    if (topbar) topbar.classList.remove('nav-open');
-    if (toggle) toggle.setAttribute('aria-expanded', 'false');
-    const mobileMore = document.getElementById('mobile-more-btn');
-    if (mobileMore) mobileMore.setAttribute('aria-expanded', 'false');
+    setNavigationOpen(false);
     if (topbar) updateNavigationLayout(topbar);
   }
 
@@ -8654,6 +8741,7 @@ WR.ui = WR.ui || {};
   }
 
   function renderAuthScreen() {
+    WR.ui.closeNavigation();
     let mode = 'login';
 
     function googleIcon() {

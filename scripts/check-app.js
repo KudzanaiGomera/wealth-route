@@ -642,6 +642,64 @@ function checkNavigationLayout() {
 }
 checkNavigationLayout();
 
+function checkMobileNavigation() {
+  const makeElement = () => {
+    const classes = new Set();
+    const attributes = new Map();
+    return {
+      style: { top: '' }, classes, attributes,
+      classList: { add: value => classes.add(value), remove: value => classes.delete(value), contains: value => classes.has(value), toggle: (value, enabled) => enabled ? classes.add(value) : classes.delete(value) },
+      setAttribute: (name, value) => attributes.set(name, value),
+      removeAttribute: name => attributes.delete(name),
+      toggleAttribute: (name, enabled) => enabled ? attributes.set(name, '') : attributes.delete(name),
+      getClientRects: () => [1], focus() { this.focused = true; },
+    };
+  };
+  const body = makeElement();
+  const topbar = makeElement();
+  const content = makeElement();
+  const more = makeElement();
+  const link = makeElement();
+  const nav = makeElement();
+  nav.querySelectorAll = () => [link];
+  let mobile = true;
+  const ui = {};
+  const browser = { scrollY: 240, matchMedia: () => ({ matches: mobile }), scrollTo: (_horizontal, vertical) => { browser.scrollY = vertical; } };
+  const navContext = {
+    WR: { ui }, window: browser,
+    document: { body, querySelector: () => topbar, querySelectorAll: () => [more], getElementById: id => ({ nav, content, 'mobile-more-btn': more, 'nav-toggle-btn': more })[id] },
+  };
+  vm.createContext(navContext);
+  vm.runInContext(functions.get('setNavigationOpen'), navContext);
+  navContext.setNavigationOpen(true);
+  assert.equal(body.classes.has('nav-scroll-locked'), true);
+  assert.equal(body.style.top, '-240px');
+  assert.equal(content.attributes.has('inert'), true);
+  assert.equal(nav.attributes.get('aria-hidden'), 'false');
+  assert.equal(more.attributes.get('aria-expanded'), 'true');
+  browser.scrollY = 0;
+  navContext.setNavigationOpen(true);
+  assert.equal(ui._navScrollLock.scrollY, 240);
+  navContext.setNavigationOpen(false, true);
+  assert.equal(body.classes.has('nav-scroll-locked'), false);
+  assert.equal(body.style.top, '');
+  assert.equal(browser.scrollY, 240);
+  assert.equal(content.attributes.has('inert'), false);
+  assert.equal(nav.attributes.get('aria-hidden'), 'true');
+  assert.equal(link.attributes.get('tabindex'), '-1');
+  assert.equal(more.focused, true);
+  navContext.setNavigationOpen(true);
+  mobile = false;
+  navContext.setNavigationOpen(false);
+  assert.equal(body.classes.has('nav-scroll-locked'), false);
+  navContext.setNavigationOpen(true);
+  assert.equal(body.classes.has('nav-scroll-locked'), false);
+  assert.ok(functions.get('renderShell').includes("event.target.closest('a, #nav-logout-btn, #nav-logout-wide')"));
+  assert.ok(html.includes('body, .app-splash, .auth-screen { background: var(--bg); }'));
+  console.log('Mobile menu locks and restores page scrolling, hides closed links, and leaves desktop scrolling unlocked.');
+}
+checkMobileNavigation();
+
 async function checkPaydayBudget() {
   const documents = new Map();
   const copy = value => JSON.parse(JSON.stringify(value));
