@@ -67,7 +67,40 @@ for (const match of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].
   }
 }
 if (process.argv.includes('--migrate-html') || process.argv.includes('--escape-values')) fs.writeFileSync(htmlPath, html);
-acorn.parse(fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8'), { ecmaVersion: 'latest' });
+const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+acorn.parse(serviceWorkerSource, { ecmaVersion: 'latest' });
+async function checkServiceWorkerFallbacks() {
+  const handlers = {};
+  const cachedResponses = new Map();
+  const origin = 'https://example.com';
+  const workerContext = {
+    URL, Response,
+    self: { location: { origin }, addEventListener: (type, handler) => { handlers[type] = handler; } },
+    caches: { match: async request => cachedResponses.get(typeof request === 'string' ? request : request.url) },
+    fetch: async () => { throw new Error('Network unavailable'); },
+  };
+  vm.runInNewContext(serviceWorkerSource, workerContext);
+  const shell = new Response('<html>App shell</html>', { headers: { 'Content-Type': 'text/html' } });
+  cachedResponses.set('./index.html', shell);
+  function dispatch(url, mode, destination) {
+    let response;
+    handlers.fetch({ request: { url, method: 'GET', mode, destination }, respondWith: value => { response = value; } });
+    return response;
+  }
+  assert.equal(dispatch('https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js', 'cors', 'script'), undefined, 'External modules must bypass the app-shell worker');
+  assert.equal((await dispatch(`${origin}/vendor/missing.js`, 'cors', 'script')).type, 'error', 'Failed scripts must never receive HTML');
+  assert.equal(await dispatch(`${origin}/wealth-route/`, 'navigate', 'document'), shell, 'Offline navigations should still receive the app shell');
+  cachedResponses.delete('./index.html');
+  cachedResponses.set('./', shell);
+  assert.equal(await dispatch(`${origin}/wealth-route/`, 'navigate', 'document'), shell, 'Navigation fallback must await the index lookup before trying the root');
+  const script = new Response('window.cached = true;', { headers: { 'Content-Type': 'text/javascript' } });
+  cachedResponses.set(`${origin}/vendor/cached.js`, script);
+  assert.equal(await dispatch(`${origin}/vendor/cached.js`, 'cors', 'script'), script, 'Cached local scripts must remain available offline');
+  cachedResponses.clear();
+  assert.equal((await dispatch(`${origin}/wealth-route/`, 'navigate', 'document')).type, 'error');
+  console.log('Service-worker script MIME safety and offline navigation checks passed.');
+}
+checkServiceWorkerFallbacks().catch(error => { console.error(error); process.exitCode = 1; });
 assert.ok(!/<(?:input|select|textarea)\b[^>]*\bname="(?:name|target)"/i.test(html), 'Form field names must survive DOM-clobbering sanitization');
 for (const match of fs.readFileSync(path.join(root, 'tests.html'), 'utf8').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
   acorn.parse(match[1], { ecmaVersion: 'latest' });

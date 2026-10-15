@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wealthroute-shell-v123';
+const CACHE_NAME = 'wealthroute-shell-v124';
 const APP_SHELL = [
   './',
   './index.html',
@@ -35,6 +35,7 @@ self.addEventListener('fetch', (event) => {
   // other schemes throw on Cache.put and must be passed straight through.
   const url = new URL(event.request.url);
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+  if (url.origin !== self.location.origin) return;
 
   const isNavigation = event.request.mode === 'navigate' || event.request.destination === 'document';
 
@@ -49,7 +50,7 @@ self.addEventListener('fetch', (event) => {
           }
           return caches.match(event.request).then((cached) => cached || response);
         })
-        .catch(() => caches.match('./index.html') || caches.match('./'))
+        .catch(async () => (await caches.match('./index.html')) || (await caches.match('./')) || Response.error())
     );
     return;
   }
@@ -63,7 +64,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           return response;
         })
-        .catch(() => cached || caches.match('./index.html'));
+        .catch(() => cached || Response.error());
 
       return cached || networkFetch;
     })
