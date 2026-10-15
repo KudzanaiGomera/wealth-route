@@ -22,6 +22,14 @@ this means for offline use.
 - **Recurring-spend review:** stable monthly charges are suggested after repeated history; nothing is added to budgets automatically.
 - **Budget-cycle reconciliation:** Financial Insights compares spending, balance left, top category, and prior-cycle change for the 25th-to-24th cycle.
 - **Wealth tables:** Assets and Investments render their shared sortable and filterable table controls.
+- **Total wealth and net worth:** Wealth automatically totals assets, investments,
+  active savings pots, and emergency fund balances. Dashboard net worth subtracts
+  outstanding debts from that same total. Archived savings pots are excluded;
+  returned emergency-fund borrowing no longer reduces the emergency balance.
+  For an asset already tracked in a savings pot or emergency fund, set its
+  **Counted in** source on Wealth to prevent counting the manual asset value twice.
+  Existing asset sources are not guessed or changed automatically. Historical
+  net-worth snapshots remain as recorded; past reserve balances are not reconstructed.
 - **Version 3.1.0** is used in package metadata, Settings, and exported backups; the PWA shell cache is refreshed.
 
 ## 3.0 Highlights

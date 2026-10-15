@@ -106,7 +106,7 @@ for (const match of fs.readFileSync(path.join(root, 'tests.html'), 'utf8').match
   acorn.parse(match[1], { ecmaVersion: 'latest' });
 }
 
-const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'authErrorMessage', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'calculateWeightedAverageInterestRate', 'calculateLiquidAssets', 'convertCurrency', 'calculateNetWorth', 'calculateTotalInvestments', 'sumInBaseCurrency', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus', 'parseAmount', 'normalizeTransactionImportDate', 'transactionImportDuplicateKey', 'prepareTransactionImportRows', 'findRecurringSpendPatterns', 'summarizeTransactionPeriod'];
+const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'authErrorMessage', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'calculateWeightedAverageInterestRate', 'calculateLiquidAssets', 'convertCurrency', 'calculateWealth', 'calculateNetWorth', 'calculateTotalInvestments', 'sumInBaseCurrency', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus', 'parseAmount', 'normalizeTransactionImportDate', 'transactionImportDuplicateKey', 'prepareTransactionImportRows', 'findRecurringSpendPatterns', 'summarizeTransactionPeriod'];
 const context = { WR: { financial: {} } };
 vm.createContext(context);
 vm.runInContext(names.filter(name => functions.has(name)).map(name => functions.get(name)).join('\n'), context);
@@ -201,16 +201,35 @@ for (const rate of [0, -2, Infinity, NaN]) {
 }
 assert.equal(context.convertCurrency(1e308, 'USD', 'ZAR', rates).converted, false);
 assert.equal(context.calculateNetWorth(wealthItems, [], [{ currency: 'EUR', currentBalance: 500 }], [], 'ZAR').netWorth, 10500);
+const savingsBalances = [{ currentAmount: 179.23 }, { currentAmount: 999, archived: true }];
+const emergencyBalances = [{ amount: 300 }, { amount: -58.47 }, { amount: -80, returned: true }];
+const completeWorth = context.calculateNetWorth([{ currentValue: 144.97, currency: 'ZAR' }], [], [{ currentBalance: 7041 }], [], 'ZAR', savingsBalances, emergencyBalances);
+assert.ok(Math.abs(completeWorth.totalAssets - 565.73) < 0.000001);
+assert.ok(Math.abs(completeWorth.netWorth - (-6475.27)) < 0.000001);
+assert.equal(completeWorth.wealth.savingsTotal, 179.23);
+assert.equal(completeWorth.wealth.emergencyFundTotal, 241.53);
+assert.equal(context.calculateWealth([{ currentValue: 179.23, wealthSource: 'savings' }, { currentValue: 241.53, wealthSource: 'emergency' }], [], savingsBalances, emergencyBalances, [], 'ZAR').assetsTotal, 0);
+assert.equal(context.calculateWealth([], [], [{ currentAmount: 10, currency: 'USD' }], [{ amount: 5, currency: 'USD' }], rates, 'ZAR').totalWealth, 300);
+assert.equal(context.calculateWealth([], [], [{ currentAmount: 10, currency: 'EUR' }], [], [], 'ZAR').unconvertedItems.length, 1);
+assert.equal(context.calculateWealth([], [], [{ currentAmount: -10 }], [{ amount: -5 }], [], 'ZAR').totalWealth, -15);
+assert.equal(context.calculateWealth([], [], [], [], [], 'ZAR').totalWealth, 0);
+assert.ok(functions.get('renderAssets').includes('wealthSource: form.elements.wealthSource.value'));
+assert.ok(functions.get('renderAssets').includes('data-field="wealthSource"'));
+assert.ok(functions.get('ensureMonthlyNetWorthSnapshot').includes('s.activePotBalance || s.emergencyFundBalance'));
 assert.equal(context.calculateLiquidAssets([{ currency: 'USD', currentValue: 100, liquidity: 'high' }, { currency: 'ZAR', currentValue: 500, liquidity: 'high' }], rates, 'ZAR'), 2500);
 assert.equal(context.calculateLiquidAssets([{ currency: 'USD', currentValue: 100, liquidity: 'high' }], [], 'ZAR'), 0);
 assert.ok(Math.abs(context.calculateWeightedAverageInterestRate([{ currency: 'USD', currentBalance: 100, interestRate: 0.1 }, { currency: 'ZAR', currentBalance: 1000, interestRate: 0.2 }], rates, 'ZAR') - 0.13333333333333333) < 1e-10);
-assert.ok(functions.get('buildSnapshot').includes("annualSummary.totalWealth = F.sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency).total"));
-assert.ok(functions.get('refreshWealthSummary').includes("sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency)"));
+assert.ok(functions.get('buildSnapshot').includes('annualSummary.totalWealth = netWorth.totalAssets'));
+assert.ok(functions.get('buildSnapshot').includes('F.calculateNetWorth(assets, investments, debts, exchangeRates, profile.baseCurrency, savingsPots, emergencyFundContributions)'));
+assert.ok(functions.get('refreshWealthSummary').includes('WR.financial.calculateWealth(assets, investments, savingsPots, emergencyFundContributions, exchangeRates, profile.baseCurrency)'));
 assert.ok(!functions.get('renderDashboard').includes('${fmt(s.annualSummary.totalWealth)}</span>'));
 assert.ok(!functions.get('renderDashboard').includes('${fmt(s.annualSummary.totalSavedAndInvested)}</span>'));
-assert.ok(functions.get('renderDashboard').includes('>Assets &amp; investments</span>'));
+assert.ok(functions.get('renderDashboard').includes('>Total wealth</span>'));
 assert.ok(functions.get('renderDashboard').includes('aria-label="Year-to-date totals"'));
 assert.ok(functions.get('renderDashboard').includes('aria-label="Year-to-date overview"'));
+assert.ok(functions.get('renderDashboard').includes('class="annual-heading"'));
+assert.ok(functions.get('renderDashboard').includes('class="stat annual-income"'));
+assert.ok(functions.get('renderDashboard').includes('class="stat annual-debt"'));
 assert.ok(!functions.get('renderDashboard').includes('aria-label="Current balances"'));
 assert.ok(functions.get('renderDashboard').indexOf('class="dashboard-actions"') < functions.get('renderDashboard').indexOf('class="dashboard-card annual-card"'));
 assert.ok(functions.get('renderDashboard').indexOf('class="dashboard-card bills-card"') < functions.get('renderDashboard').indexOf('class="dashboard-card annual-card"'));
@@ -1104,7 +1123,7 @@ async function checkPaydayBudget() {
   assert.ok(functions.get('renderDashboard').includes('<dl class="budget-spending-head" aria-label="Spending summary">'));
   assert.ok(functions.get('renderDashboard').includes('<dt>Spent</dt><dd class="budget-spent-value">${currency} ${fmt(budgetSpent)}</dd>'));
   assert.ok(functions.get('renderDashboard').includes("<dt>Budget</dt><dd>${spending.percentage === null ? 'Not set'"));
-  assert.ok(functions.get('renderDashboard').includes('Tracked separately from net worth'));
+  assert.ok(functions.get('renderDashboard').includes('Included in total wealth and net worth'));
   assert.ok(functions.get('renderDashboard').includes('class="dashboard-card reserve-card emergency-card" aria-label="Emergency fund balance"'));
   assert.ok(functions.get('renderDashboard').includes('class="dashboard-card reserve-card savings-card" aria-label="Savings balance"'));
   assert.ok(functions.get('renderDashboard').includes('${fmt(s.dayToDaySummary.currentBalance)}</span>'));

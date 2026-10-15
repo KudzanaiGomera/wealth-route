@@ -656,9 +656,11 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .dashboard-actions a { display: flex; align-items: center; justify-content: center; gap: 0.55rem; min-height: 52px; min-width: 0; padding: 0.65rem; border: 1px solid var(--border); border-radius: 6px; color: var(--text); background: var(--panel); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
 .dashboard-actions a:hover { border-color: var(--accent); color: var(--accent); }
 .dashboard-actions svg { flex-shrink: 0; width: 20px; height: 20px; }
-.annual-card { grid-area: annual; border-radius: 8px; }
+.annual-card { grid-area: annual; border-radius: 8px; border-top: 2px solid var(--gold); background: linear-gradient(145deg, rgba(180, 143, 54, 0.12), transparent 65%), var(--panel); }
 .annual-card h2 { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.annual-card h3 { margin: 1rem 0 0.35rem; font-size: 0.9rem; }
+.annual-heading { margin-bottom: 1.6rem; }
+.annual-heading h2 { margin: 0.35rem 0 0.5rem; font-size: 1.45rem; }
+.annual-eyebrow { margin: 0; color: var(--gold); font-size: 0.78rem; font-weight: 600; }
 .annual-card .overview-period { margin: 0; color: var(--muted); font-size: 0.85rem; line-height: 1.45; }
 .budget-period { margin: 0.75rem 0 0; color: var(--muted); font-size: 0.85rem; }
 .budget-spending { margin-top: 0.75rem; padding-top: 0.85rem; border-top: 1px solid var(--border); }
@@ -724,6 +726,14 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .delta.negative { color: var(--danger); }
 .delta.neutral { color: var(--muted); font-weight: 500; }
 .hero-headline .delta { font-size: 0.85rem; margin-top: 0.35rem; }
+
+.annual-card .stat-grid { gap: 1.65rem; margin: 0.25rem 0 0.5rem; }
+.dashboard-card.annual-card .stat { display: flex; align-items: flex-start; gap: 0.45rem; padding: 0; border: 0; min-height: 0; }
+.annual-card .stat-label { display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; }
+.annual-card .stat-label::before { content: ''; width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: var(--accent); }
+.annual-card .annual-debt .stat-label::before { background: var(--gold); }
+.dashboard-card.annual-card .stat-value { text-align: left; font: 500 1.85rem/1.25 var(--font-serif); white-space: normal; overflow-wrap: anywhere; color: var(--accent); }
+.dashboard-card.annual-card .annual-debt .stat-value { font-size: 1.6rem; color: var(--gold); }
 
 .dashboard-overview { grid-area: position; display: grid; gap: 1rem; min-width: 0; }
 .dashboard-overview .position-card { grid-area: auto; }
@@ -2537,32 +2547,28 @@ WR.financial = WR.financial || {};
    * @param {Array} exchangeRates
    * @param {string} baseCurrency
    */
-  function calculateNetWorth(assets, investments, debts, exchangeRates, baseCurrency) {
-    let totalAssets = 0;
-    let totalLiabilities = 0;
+  function calculateWealth(assets, investments, savingsPots, emergencyFundContributions, exchangeRates, baseCurrency) {
     const unconvertedItems = [];
+    function totalFor(items, valueOf) {
+      return items.reduce((total, item) => {
+        const { value, converted } = convertCurrency(valueOf(item), item.currency || baseCurrency, baseCurrency, exchangeRates);
+        if (!converted) unconvertedItems.push({ name: item.name || item.account || 'Balance', currency: item.currency });
+        return total + value;
+      }, 0);
+    }
+    const assetsTotal = totalFor(assets.filter(asset => !['savings', 'emergency'].includes(asset.wealthSource)), asset => asset.currentValue);
+    const investmentsTotal = totalFor(investments, investment => investment.currentValue);
+    const savingsTotal = totalFor(savingsPots.filter(pot => !pot.archived), pot => Number(pot.currentAmount) || 0);
+    const emergencyFundTotal = totalFor(emergencyFundContributions, item => item.returned && Number(item.amount) < 0 ? 0 : Number(item.amount) || 0);
+    const totalWealth = assetsTotal + investmentsTotal + savingsTotal + emergencyFundTotal;
+    return { assetsTotal, investmentsTotal, savingsTotal, emergencyFundTotal, totalWealth, unconvertedItems };
+  }
 
-    assets.forEach((asset) => {
-      const { value, converted } = convertCurrency(
-        asset.currentValue,
-        asset.currency,
-        baseCurrency,
-        exchangeRates,
-      );
-      totalAssets += value;
-      if (!converted) unconvertedItems.push({ name: asset.name, currency: asset.currency });
-    });
-
-    investments.forEach((inv) => {
-      const { value, converted } = convertCurrency(
-        inv.currentValue,
-        inv.currency,
-        baseCurrency,
-        exchangeRates,
-      );
-      totalAssets += value;
-      if (!converted) unconvertedItems.push({ name: inv.name, currency: inv.currency });
-    });
+  function calculateNetWorth(assets, investments, debts, exchangeRates, baseCurrency, savingsPots = [], emergencyFundContributions = []) {
+    const wealth = calculateWealth(assets, investments, savingsPots, emergencyFundContributions, exchangeRates, baseCurrency);
+    const totalAssets = wealth.totalWealth;
+    let totalLiabilities = 0;
+    const unconvertedItems = [...wealth.unconvertedItems];
 
     debts.forEach((debt) => {
       // Older records created before debts carried a currency field fall
@@ -2584,6 +2590,7 @@ WR.financial = WR.financial || {};
       netWorth: totalAssets - totalLiabilities,
       currency: baseCurrency,
       unconvertedItems,
+      wealth,
     };
   }
 
@@ -2594,7 +2601,7 @@ WR.financial = WR.financial || {};
     }, 0);
   }
 
-  Object.assign(WR.financial, { convertCurrency, calculateNetWorth, calculateTotalInvestments });
+  Object.assign(WR.financial, { convertCurrency, calculateWealth, calculateNetWorth, calculateTotalInvestments });
 })();
 // Emergency fund coverage: how many months of essential expenses the
 // user's liquid assets would cover.
@@ -3993,7 +4000,7 @@ WR.ui = WR.ui || {};
     const essentialMonthlyExpenses = split.essential > 0 ? split.essential : cashflow.fixedExpenses;
     const emergencyFundMonths = F.calculateEmergencyFundMonths(liquidAssets, essentialMonthlyExpenses);
 
-    const netWorth = F.calculateNetWorth(assets, investments, debts, exchangeRates, profile.baseCurrency);
+    const netWorth = F.calculateNetWorth(assets, investments, debts, exchangeRates, profile.baseCurrency, savingsPots, emergencyFundContributions);
     const missingCurrencies = new Set(netWorth.unconvertedItems.map((item) => item.currency));
     debtPayments.forEach((payment) => {
       const paymentCurrency = payment.currency || debts.find((debt) => debt.id === payment.debtId)?.currency || profile.baseCurrency;
@@ -4080,16 +4087,10 @@ WR.ui = WR.ui || {};
       availableSurplus: 0,
     });
     annualSummary.totalInvested = F.calculateTotalInvestments(investments, exchangeRates, profile.baseCurrency);
-    annualSummary.totalWealth = F.sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency).total;
+    annualSummary.totalWealth = netWorth.totalAssets;
 
-    // Match the Emergency Fund page: a borrowed (negative) entry marked
-    // "returned" no longer counts against the balance once repaid.
-    const emergencyFundBalance = emergencyFundContributions.reduce((sum, item) => {
-      const amount = Number(item.amount) || 0;
-      return sum + (item.returned && amount < 0 ? 0 : amount);
-    }, 0);
-    const activePotBalance = savingsPots.filter((pot) => !pot.archived)
-      .reduce((sum, pot) => sum + (Number(pot.currentAmount) || 0), 0);
+    const emergencyFundBalance = netWorth.wealth.emergencyFundTotal;
+    const activePotBalance = netWorth.wealth.savingsTotal;
     annualSummary.totalSavedAndInvested = activePotBalance;
     annualSummary.totalDebtPaid = debtPayments.filter((payment) => String(payment.month).startsWith(String(selectedYear)))
       .reduce((sum, payment) => {
@@ -4901,7 +4902,7 @@ WR.ui = WR.ui || {};
   async function ensureMonthlyNetWorthSnapshot(s) {
     const today = new Date().toISOString().slice(0, 10);
     const thisMonth = today.slice(0, 7);
-    const hasWealthData = s.assets.length || s.investments.length || s.debts.length;
+    const hasWealthData = s.assets.length || s.investments.length || s.debts.length || s.activePotBalance || s.emergencyFundBalance;
     if (!hasWealthData || s.netWorthHistory.some((h) => String(h.date).startsWith(thisMonth))) return;
     const snap = {
       id: `auto-${thisMonth}`,
@@ -5149,7 +5150,7 @@ WR.ui = WR.ui || {};
             <span class="hero-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span>
           </div>
           <div class="networth-breakdown">
-            <div><span class="stat-label">Assets &amp; investments</span><span class="stat-value">${currency} ${fmt(s.netWorth.totalAssets)}</span></div>
+            <div><span class="stat-label">Total wealth</span><span class="stat-value">${currency} ${fmt(s.netWorth.totalAssets)}</span></div>
             <div><span class="stat-label">Debts</span><span class="stat-value">${currency} ${fmt(s.netWorth.totalLiabilities)}</span></div>
           </div>
           <p class="networth-date">As of ${escapeText(balancesAsOf)}</p>
@@ -5183,7 +5184,7 @@ WR.ui = WR.ui || {};
             <span class="stat-value ${s.activePotBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.activePotBalance)}</span>
             <p>Active savings pots</p>
           </article>
-          <small>Tracked separately from net worth</small>
+          <small>Included in total wealth and net worth</small>
         </div>
         </div>
 
@@ -5222,12 +5223,14 @@ WR.ui = WR.ui || {};
       </section>
 
         <aside class="dashboard-card annual-card" aria-label="Year-to-date overview">
-          <h2>${s.selectedYear} overview</h2>
-          <h3>Year to date</h3>
-          <p class="overview-period">${Number(s.month.slice(5)) === 1 ? WR.ui.monthName(1) : `${WR.ui.monthName(1)} to ${WR.ui.monthName(Number(s.month.slice(5)))}`} ${s.selectedYear}</p>
+          <header class="annual-heading">
+            <p class="annual-eyebrow">Year to date</p>
+            <h2>${s.selectedYear} overview</h2>
+            <p class="overview-period">${Number(s.month.slice(5)) === 1 ? WR.ui.monthName(1) : `${WR.ui.monthName(1)} to ${WR.ui.monthName(Number(s.month.slice(5)))}`} ${s.selectedYear}</p>
+          </header>
           <div class="stat-grid" aria-label="Year-to-date totals">
-            <div class="stat"><span class="stat-label">Income received</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
-            <div class="stat"><span class="stat-label">Debt payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
+            <div class="stat annual-income"><span class="stat-label">Income received</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
+            <div class="stat annual-debt"><span class="stat-label">Debt payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
           </div>
         </aside>
       </section>
@@ -7960,18 +7963,25 @@ WR.ui = WR.ui || {};
   async function refreshWealthSummary(container) {
     const summary = container.closest('#content')?.querySelector('#wealth-summary');
     if (!summary) return;
-    const [assets, investments, exchangeRates, profile] = await Promise.all([
+    const [assets, investments, savingsPots, emergencyFundContributions, exchangeRates, profile] = await Promise.all([
       WR.repos.assets.getAll(),
       WR.repos.investments.getAll(),
+      WR.repos.savingsPots.getAll(),
+      WR.repos.emergencyFundContributions.getAll(),
       WR.repos.exchangeRates.getAll(),
       WR.ui.getOrCreateProfile(),
     ]);
-    const { total, unconvertedNames } = sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency);
+    const wealth = WR.financial.calculateWealth(assets, investments, savingsPots, emergencyFundContributions, exchangeRates, profile.baseCurrency);
+    const currency = WR.ui.escapeText(profile.baseCurrency);
     WR.ui.setHTML(summary, `
       <div class="stat-grid">
-        <div class="stat"><span class="stat-label">Total wealth</span><span class="stat-value">${WR.ui.escapeText(profile.baseCurrency)} ${WR.ui.fmt(total)}</span></div>
+        <div class="stat"><span class="stat-label">Total wealth</span><span class="stat-value">${currency} ${WR.ui.fmt(wealth.totalWealth)}</span></div>
       </div>
-      ${unconvertedNames.length > 0 ? `<p class="warning">Missing or invalid exchange rate for: ${unconvertedNames.map(name => WR.ui.escapeText(name)).join(', ')} &mdash; excluded from this total.</p>` : ''}
+      <div class="stat-grid" aria-label="Total wealth breakdown">
+        ${[['Assets', wealth.assetsTotal], ['Investments', wealth.investmentsTotal], ['Savings pots', wealth.savingsTotal], ['Emergency Fund', wealth.emergencyFundTotal]].map(([label, value]) => `<div class="stat"><span class="stat-label">${label}</span><span class="stat-value">${currency} ${WR.ui.fmt(value)}</span></div>`).join('')}
+      </div>
+      <p class="fine-print">Total wealth includes assets, investments, active savings pots, and emergency funds. Net worth subtracts outstanding debts.</p>
+      ${wealth.unconvertedItems.length > 0 ? `<p class="warning">Missing or invalid exchange rate for: ${wealth.unconvertedItems.map(item => WR.ui.escapeText(item.name)).join(', ')} &mdash; excluded from this total.</p>` : ''}
     `);
   }
 
@@ -7983,7 +7993,9 @@ WR.ui = WR.ui || {};
     ]);
     const assetSort = WR.ui._assetsTableSort || { field: 'name', dir: 'asc' };
     const assetSearch = WR.ui._assetsTableSearch || '';
-    const { total: totalValue, unconvertedNames } = sumInBaseCurrency(assets, 'currentValue', exchangeRates, profile.baseCurrency);
+    const assetWealth = WR.financial.calculateWealth(assets, [], [], [], exchangeRates, profile.baseCurrency);
+    const totalValue = assetWealth.assetsTotal;
+    const unconvertedNames = assetWealth.unconvertedItems.map(item => item.name);
     const assetSortFields = ['name', 'type', 'currentValue', 'currency', 'liquidity'];
     const sortedAssets = WR.ui.sortRecords(assets, assetSort, assetSortFields);
     const rows = sortedAssets
@@ -7995,6 +8007,7 @@ WR.ui = WR.ui || {};
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="currentValue" value="${WR.ui.escapeText(a.currentValue)}"></td>
         <td><select class="cell" data-field="currency">${optionsFor(CURRENCIES, a.currency)}</select></td>
         <td><select class="cell" data-field="liquidity">${optionsFor(LIQUIDITY_LEVELS, a.liquidity || 'medium')}</select></td>
+        <td><select class="cell" data-field="wealthSource" aria-label="Counted in for ${WR.ui.escapeText(a.name)}"><option value="asset" ${!['savings', 'emergency'].includes(a.wealthSource) ? 'selected' : ''}>Assets</option><option value="savings" ${a.wealthSource === 'savings' ? 'selected' : ''}>Savings pots</option><option value="emergency" ${a.wealthSource === 'emergency' ? 'selected' : ''}>Emergency Fund</option></select></td>
         <td><button class="link-btn delete-asset" data-id="${WR.ui.escapeText(a.id)}">Delete</button></td>
       </tr>`,
       )
@@ -8003,14 +8016,15 @@ WR.ui = WR.ui || {};
     WR.ui.setHTML(container, `
       ${container.id === 'wealth-assets' ? '<h2>Assets</h2>' : '<h1>Assets</h1>'}
       <p class="fine-print">Edit any cell \u2014 changes save immediately. "High" liquidity counts toward your emergency fund calculation.</p>
+      <p class="fine-print">For money already recorded in savings pots or emergency funds, set "Counted in" to that source. Its balance will come from that source instead of this asset entry.</p>
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Total Asset Value</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalValue)}</span></div>
       </div>
       ${unconvertedNames.length > 0 ? `<p class="warning">Missing or invalid exchange rate for: ${unconvertedNames.map(name => WR.ui.escapeText(name)).join(', ')} - excluded from this total.</p>` : ''}
       <div class="table-filter"><label>Filter assets<input type="search" data-record-search aria-label="Filter assets" placeholder="Name, type, currency" value="${WR.ui.escapeText(assetSearch)}"></label><p data-search-count aria-live="polite"></p><p data-search-empty hidden>No matching assets.</p></div>
       <table class="data-table">
-        <thead><tr>${WR.ui.recordSortHeader('Name', 'name', assetSort)}${WR.ui.recordSortHeader('Type', 'type', assetSort)}${WR.ui.recordSortHeader('Value', 'currentValue', assetSort)}${WR.ui.recordSortHeader('Currency', 'currency', assetSort)}${WR.ui.recordSortHeader('Liquidity', 'liquidity', assetSort)}<th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="6" class="empty">No assets recorded.</td></tr>'}</tbody>
+        <thead><tr>${WR.ui.recordSortHeader('Name', 'name', assetSort)}${WR.ui.recordSortHeader('Type', 'type', assetSort)}${WR.ui.recordSortHeader('Value', 'currentValue', assetSort)}${WR.ui.recordSortHeader('Currency', 'currency', assetSort)}${WR.ui.recordSortHeader('Liquidity', 'liquidity', assetSort)}<th>Counted in</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" class="empty">No assets recorded.</td></tr>'}</tbody>
       </table>
 
       <h3>Add an asset</h3>
@@ -8024,6 +8038,7 @@ WR.ui = WR.ui || {};
           <option value="medium">Medium liquidity</option>
           <option value="low">Low liquidity</option>
         </select>
+        <label>Counted in<select name="wealthSource"><option value="asset">Assets</option><option value="savings">Savings pots</option><option value="emergency">Emergency Fund</option></select></label>
         <button type="submit">Add</button>
       </form>
     `);
@@ -8043,6 +8058,10 @@ WR.ui = WR.ui || {};
             asset[field] = input.value;
           }
           await WR.repos.assets.update(asset);
+          if (field === 'wealthSource') {
+            await renderAssets(container);
+            return;
+          }
           WR.ui.flashSaved(input);
           await refreshWealthSummary(container);
         });
@@ -8069,6 +8088,7 @@ WR.ui = WR.ui || {};
         currentValue: Math.max(0, parseFloat(form.currentValue.value) || 0),
         currency: form.currency.value,
         liquidity: form.liquidity.value,
+        wealthSource: form.elements.wealthSource.value,
       });
       await WR.repos.assets.add(asset);
       renderAssets(container);
