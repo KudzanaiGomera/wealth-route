@@ -610,7 +610,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 /* ---------- Dashboard hero ---------- */
 
 .hero { margin-bottom: 0.5rem; }
-.greeting { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.2rem; }
+.greeting { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.5rem; }
 .position-summary-grid {
   display: grid;
   grid-template-columns: 1.2fr 0.9fr;
@@ -637,7 +637,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 }
 .dashboard-card h1, .dashboard-card h2 { letter-spacing: 0; }
 .dashboard-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin: 0.25rem 0 1rem; }
-.dashboard-heading h1 { margin: 0.25rem 0 0; font-size: 1.6rem; }
+.dashboard-heading h1 { margin: 0; font-size: 1.6rem; }
 .dashboard-heading .month-label { margin: 0; font-size: 0.85rem; }
 .position-card { grid-area: position; background: var(--panel); border-top: 2px solid var(--accent); border-radius: 8px; color: var(--text); }
 .position-card .stat-label { color: var(--muted); }
@@ -759,7 +759,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .budget-card[data-state="over"] { --budget-color: var(--danger); }
 .budget-card h2 { font: 600 0.9rem/1.4 var(--font-sans); margin: 0; }
 .budget-card .budget-period { margin: 0.3rem 0 1.25rem; font-size: 0.8rem; }
-.budget-card-body { display: grid; grid-template-columns: minmax(0, 1fr) 84px; align-items: center; gap: 0.85rem; }
+  .budget-card-body { display: grid; grid-template-columns: minmax(0, 1fr) 84px; align-items: center; gap: 0.85rem; }
 .budget-card .hero-value { display: block; font: 500 2rem/1.2 var(--font-serif); margin-top: 0.3rem; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .budget-card .hero-value.negative { color: var(--danger); }
 .budget-ring { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: conic-gradient(var(--budget-color) var(--spent), var(--border) 0); }
@@ -767,8 +767,8 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .budget-ring-label { grid-area: 1 / 1; z-index: 1; text-align: center; }
 .budget-ring-label strong { display: block; font-size: 0.95rem; color: var(--budget-color); }
 .budget-ring-label small { display: block; margin-top: 0.15rem; font-size: 0.7rem; color: var(--muted); }
-.budget-card .budget-spending { border: 0; margin-top: 1.2rem; padding-top: 0; }
-.budget-card .budget-spending-head { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 0; line-height: 1.45; }
+  .budget-card .budget-spending { border: 0; margin-top: 1.2rem; padding-top: 0; }
+  .budget-card .budget-spending-head { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 0; line-height: 1.45; }
 .budget-spending-head > div { min-width: 0; }
 .budget-spending-head > div:last-child { text-align: right; }
 .budget-spending-head dt { color: var(--muted); font-size: 0.78rem; font-weight: 400; }
@@ -1726,7 +1726,7 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .nav-controls { gap: 0.35rem; }
   .brand { font-size: 1.2rem; gap: 0.6rem; }
   .dashboard-card, .health-score, .chart-block, .pie-card { padding: 0.95rem; }
-  .dashboard-heading { align-items: flex-start; flex-direction: column; gap: 0.35rem; }
+  .dashboard-heading { align-items: flex-start; flex-direction: column; gap: 0.65rem; }
   .dashboard-actions { gap: 0.4rem; }
   .dashboard-actions a { flex-direction: column; gap: 0.4rem; font-size: 0.82rem; padding: 0.6rem 0.25rem; }
   .ef-summary { flex-direction: column; align-items: stretch; padding: 1.1rem; }
