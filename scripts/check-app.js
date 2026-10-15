@@ -206,10 +206,12 @@ assert.equal(context.calculateLiquidAssets([{ currency: 'USD', currentValue: 100
 assert.ok(Math.abs(context.calculateWeightedAverageInterestRate([{ currency: 'USD', currentBalance: 100, interestRate: 0.1 }, { currency: 'ZAR', currentBalance: 1000, interestRate: 0.2 }], rates, 'ZAR') - 0.13333333333333333) < 1e-10);
 assert.ok(functions.get('buildSnapshot').includes("annualSummary.totalWealth = F.sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency).total"));
 assert.ok(functions.get('refreshWealthSummary').includes("sumInBaseCurrency([...assets, ...investments], 'currentValue', exchangeRates, profile.baseCurrency)"));
-assert.ok(functions.get('renderDashboard').includes('${fmt(s.annualSummary.totalWealth)}</span>'));
+assert.ok(!functions.get('renderDashboard').includes('${fmt(s.annualSummary.totalWealth)}</span>'));
+assert.ok(!functions.get('renderDashboard').includes('${fmt(s.annualSummary.totalSavedAndInvested)}</span>'));
 assert.ok(functions.get('renderDashboard').includes('>Assets &amp; investments</span>'));
 assert.ok(functions.get('renderDashboard').includes('aria-label="Year-to-date totals"'));
-assert.ok(functions.get('renderDashboard').includes('aria-label="Current balances"'));
+assert.ok(functions.get('renderDashboard').includes('aria-label="Year-to-date overview"'));
+assert.ok(!functions.get('renderDashboard').includes('aria-label="Current balances"'));
 assert.ok(functions.get('renderDashboard').indexOf('class="dashboard-actions"') < functions.get('renderDashboard').indexOf('class="dashboard-card annual-card"'));
 assert.ok(functions.get('renderDashboard').indexOf('class="dashboard-card bills-card"') < functions.get('renderDashboard').indexOf('class="dashboard-card annual-card"'));
 assert.ok(!functions.get('renderDashboard').includes('>Total Investments</span>'));

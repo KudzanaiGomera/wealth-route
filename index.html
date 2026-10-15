@@ -660,7 +660,6 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .annual-card h2 { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .annual-card h3 { margin: 1rem 0 0.35rem; font-size: 0.9rem; }
 .annual-card .overview-period { margin: 0; color: var(--muted); font-size: 0.85rem; line-height: 1.45; }
-.annual-card .current-balances { padding-top: 0.85rem; border-top: 1px solid var(--border); }
 .budget-period { margin: 0.75rem 0 0; color: var(--muted); font-size: 0.85rem; }
 .budget-spending { margin-top: 0.75rem; padding-top: 0.85rem; border-top: 1px solid var(--border); }
 .budget-spending-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; font-size: 0.88rem; color: var(--muted); }
@@ -5222,19 +5221,13 @@ WR.ui = WR.ui || {};
         </article>` : ''}
       </section>
 
-        <aside class="dashboard-card annual-card" aria-label="Annual totals and current balances">
+        <aside class="dashboard-card annual-card" aria-label="Year-to-date overview">
           <h2>${s.selectedYear} overview</h2>
           <h3>Year to date</h3>
           <p class="overview-period">${Number(s.month.slice(5)) === 1 ? WR.ui.monthName(1) : `${WR.ui.monthName(1)} to ${WR.ui.monthName(Number(s.month.slice(5)))}`} ${s.selectedYear}</p>
           <div class="stat-grid" aria-label="Year-to-date totals">
             <div class="stat"><span class="stat-label">Income received</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalIncome)}</span></div>
             <div class="stat"><span class="stat-label">Debt payments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalDebtPaid)}</span></div>
-          </div>
-          <h3 class="current-balances">Current balances</h3>
-          <p class="overview-period">As of ${escapeText(balancesAsOf)}</p>
-          <div class="stat-grid" aria-label="Current balances">
-            <div class="stat"><span class="stat-label">Savings pots</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalSavedAndInvested)}</span></div>
-            <div class="stat"><span class="stat-label" title="Current assets and investments before subtracting debts">Assets &amp; investments</span><span class="stat-value">${currency} ${fmt(s.annualSummary.totalWealth)}</span></div>
           </div>
         </aside>
       </section>
