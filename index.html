@@ -726,6 +726,48 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .delta.neutral { color: var(--muted); font-weight: 500; }
 .hero-headline .delta { font-size: 0.85rem; margin-top: 0.35rem; }
 
+.dashboard-overview { grid-area: position; display: grid; gap: 1rem; min-width: 0; }
+.dashboard-overview .position-card { grid-area: auto; }
+.dashboard-overview .position-card { background: linear-gradient(145deg, rgba(24, 143, 113, 0.09), transparent 75%), var(--panel); }
+.dashboard-overview .hero-headline { border: 0; padding: 0; margin: 0 0 1.25rem; }
+.dashboard-overview .hero-value { font-size: 2.35rem; }
+.networth-breakdown { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.networth-breakdown > div { min-width: 0; padding-left: 0.75rem; border-left: 3px solid var(--accent); }
+.networth-breakdown > div:last-child { border-color: var(--danger); }
+.networth-breakdown .stat-value, .reserve-balances .stat-value { font: 600 1rem/1.5 var(--font-sans); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dashboard-overview .networth-breakdown .stat-value { white-space: normal; text-align: left; }
+.networth-date { margin: 1rem 0 0; font-size: 0.78rem; color: var(--muted); }
+.reserve-balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; padding: 0.25rem 0.2rem; }
+.reserve-balances > div { min-width: 0; }
+.reserve-balances .stat-label { font-size: 0.85rem; }
+.reserve-balances small { display: block; grid-column: 1 / -1; color: var(--muted); font-size: 0.75rem; }
+.budget-card { --budget-color: var(--accent); background: var(--panel-alt); }
+.budget-card[data-state="near"] { --budget-color: var(--gold); }
+.budget-card[data-state="over"] { --budget-color: var(--danger); }
+.budget-card h2 { font: 600 0.9rem/1.4 var(--font-sans); margin: 0; }
+.budget-card .budget-period { margin: 0.3rem 0 1.25rem; font-size: 0.8rem; }
+.budget-card-body { display: grid; grid-template-columns: minmax(0, 1fr) 84px; align-items: center; gap: 0.85rem; }
+.budget-card .hero-value { display: block; font: 500 2rem/1.2 var(--font-serif); margin-top: 0.3rem; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.budget-card .hero-value.negative { color: var(--danger); }
+.budget-ring { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: conic-gradient(var(--budget-color) var(--spent), var(--border) 0); }
+.budget-ring::before { content: ''; grid-area: 1 / 1; width: 68px; height: 68px; border-radius: 50%; background: var(--panel-alt); }
+.budget-ring-label { grid-area: 1 / 1; z-index: 1; text-align: center; }
+.budget-ring-label strong { display: block; font-size: 0.95rem; color: var(--budget-color); }
+.budget-ring-label small { display: block; margin-top: 0.15rem; font-size: 0.7rem; color: var(--muted); }
+.budget-card .budget-spending { border: 0; margin-top: 1.2rem; padding-top: 0; }
+.budget-card .budget-spending-head { display: block; font-size: 0.82rem; line-height: 1.7; }
+.budget-card .budget-spending-head strong { display: block; }
+.budget-card .day-category-meter { height: 6px; margin-top: 0.6rem; }
+@media (min-width: 1200px) {
+  .position-summary-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .dashboard-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reserve-balances { grid-column: 1 / -1; }
+}
+@media (min-width: 681px) and (max-width: 900px) {
+  .dashboard-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reserve-balances { grid-column: 1 / -1; }
+}
+
 .day-category-list { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; margin: 1rem 0 1.75rem; overflow: hidden; }
 .day-category-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 1fr) minmax(120px, auto) 3rem; gap: 1rem; align-items: center; padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--border); }
 .day-category-row:last-child { border-bottom: 0; }
@@ -4389,6 +4431,7 @@ WR.ui = WR.ui || {};
   function fitDashboardAmounts(container) {
     container.querySelectorAll('.position-card .stat-value, .annual-card .stat-value').forEach(amount => {
       const row = amount.closest('.stat');
+      if (!row) return;
       row.classList.remove('wide-amount');
       amount.style.fontSize = '';
       if (!amount.clientWidth || amount.classList.contains('balance-masked')) return;
@@ -5090,24 +5133,38 @@ WR.ui = WR.ui || {};
         <p class="month-label">${s.monthLabel}</p>
       </header>
       <section class="position-summary-grid">
-        <div class="dashboard-card position-card">
+        <div class="dashboard-overview">
+        <article class="dashboard-card position-card" aria-label="Net worth summary">
           <div class="hero-headline">
             <div class="balance-heading"><span class="stat-label">Net Worth</span><button type="button" class="visibility-toggle" data-balance-toggle aria-label="Hide dashboard balances" aria-pressed="false" title="Hide dashboard balances">${WR.ui.visibilityIcon(false)}</button></div>
             <span class="hero-value ${s.netWorth.netWorth < 0 ? 'negative' : ''}">${currency} ${fmt(s.netWorth.netWorth)}</span>
           </div>
-
-          <p class="budget-period">Budget period: ${escapeText(budgetPeriod)}</p>
-          <div class="stat-grid">
-            <div class="stat"><span class="stat-label">Spending budget</span><span class="stat-value ${monthlySurplus < 0 ? 'negative' : ''}">${currency} ${fmt(monthlySurplus)}</span></div>
-            <div class="stat"><span class="stat-label">Left to spend</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
-            <div class="stat"><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
-            <div class="stat"><span class="stat-label">Savings</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
+          <div class="networth-breakdown">
+            <div><span class="stat-label">Assets &amp; investments</span><span class="stat-value">${currency} ${fmt(s.netWorth.totalAssets)}</span></div>
+            <div><span class="stat-label">Debts</span><span class="stat-value">${currency} ${fmt(s.netWorth.totalLiabilities)}</span></div>
+          </div>
+          <p class="networth-date">As of ${escapeText(balancesAsOf)}</p>
+        </article>
+        <article class="dashboard-card budget-card" data-state="${spendingState}" aria-label="Current budget period">
+          <h2>This budget period</h2>
+          <p class="budget-period">${escapeText(budgetPeriod)}</p>
+          <div class="budget-card-body">
+            <div><span class="stat-label">Left to spend</span><span class="hero-value ${s.dayToDaySummary.currentBalance < 0 ? 'negative' : ''}">${currency} ${fmt(s.dayToDaySummary.currentBalance)}</span></div>
+            <div data-private-detail>
+              <div class="budget-ring" style="--spent: ${spending.barPercentage}%" aria-hidden="true"><span class="budget-ring-label"><strong>${spending.percentage === null ? '--' : `${Math.round(spending.percentage)}%`}</strong><small>used</small></span></div>
+            </div>
           </div>
           <div class="budget-spending" data-state="${spendingState}" data-private-detail>
-            <div class="budget-spending-head"><span>${currency} ${fmt(budgetSpent)} spent</span><strong>${spending.percentage === null ? 'No budget set' : `${Math.round(spending.percentage)}% used`}</strong></div>
+            <div class="budget-spending-head"><span>${currency} ${fmt(budgetSpent)} spent</span><strong>${spending.percentage === null ? 'No spending budget set' : `of ${currency} ${fmt(monthlySurplus)} budget`}</strong></div>
             <div class="day-category-meter" role="progressbar" aria-label="Budget spent" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(spending.barPercentage)}" aria-valuetext="${spending.percentage === null ? 'No spending budget set' : `${Math.round(spending.percentage)}% of budget spent`}"><span style="--share: ${spending.barPercentage}%"></span></div>
             ${spending.overBudget > 0 ? `<p data-budget-over>${currency} ${fmt(spending.overBudget)} over budget</p>` : ''}
           </div>
+        </article>
+        <div class="reserve-balances" aria-label="Separately tracked balances">
+          <div><span class="stat-label">Emergency Fund</span><span class="stat-value">${currency} ${fmt(s.emergencyFundBalance)}</span></div>
+          <div><span class="stat-label">Savings</span><span class="stat-value">${currency} ${fmt(s.activePotBalance)}</span></div>
+          <small>Tracked separately from net worth</small>
+        </div>
         </div>
 
       <nav class="dashboard-actions" aria-label="Money shortcuts">

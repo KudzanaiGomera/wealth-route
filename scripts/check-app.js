@@ -1094,7 +1094,12 @@ async function checkPaydayBudget() {
   await paydayContext.saveIncomeBudget(month);
   assert.equal(documents.get(base + 'payCycles/' + month).debtAmount, 600);
   assert.ok(!functions.get('renderDashboard').includes('since last recorded snapshot'));
-  assert.ok(functions.get('renderDashboard').includes('Left to spend</span><span class="stat-value ${s.dayToDaySummary.currentBalance < 0'));
+  assert.ok(functions.get('renderDashboard').includes('Left to spend</span><span class="hero-value ${s.dayToDaySummary.currentBalance < 0'));
+  assert.ok(functions.get('renderDashboard').includes('aria-label="Net worth summary"'));
+  assert.ok(functions.get('renderDashboard').includes('${fmt(s.netWorth.totalAssets)}</span>'));
+  assert.ok(functions.get('renderDashboard').includes('${fmt(s.netWorth.totalLiabilities)}</span>'));
+  assert.ok(functions.get('renderDashboard').includes('aria-label="Current budget period"'));
+  assert.ok(functions.get('renderDashboard').includes('Tracked separately from net worth'));
   assert.ok(functions.get('renderDashboard').includes('${fmt(s.dayToDaySummary.currentBalance)}</span>'));
   let paydayMarkup = '';
   paydayContext.WR.repos = Object.fromEntries(['payCycles', 'payAdvances', 'savingsPots', 'dayToDayTransactions'].map(store => [store, { getAll: async () => store === 'payCycles' ? [{ month: '2026-10', advanceAmount: 2000 }] : [] }]));
