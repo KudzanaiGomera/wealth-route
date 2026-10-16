@@ -111,6 +111,8 @@ const context = { WR: { financial: {} } };
 vm.createContext(context);
 vm.runInContext(functions.get('calculateEmergencyBorrowing'), context);
 context.WR.financial.calculateEmergencyBorrowing = context.calculateEmergencyBorrowing;
+vm.runInContext(functions.get('calculateEmergencyAccountSummary'), context);
+context.WR.financial.calculateEmergencyAccountSummary = context.calculateEmergencyAccountSummary;
 vm.runInContext(names.filter(name => functions.has(name)).map(name => functions.get(name)).join('\n'), context);
 context.WR.financial.convertCurrency = context.convertCurrency;
 const importContext = { WR: { excel: { parseAmount: context.parseAmount } } };
@@ -227,6 +229,16 @@ assert.equal(reserveBorrowing.emergency, 50.25);
 assert.equal(reserveBorrowing.total, 210.45);
 assert.equal(context.calculateReserveBorrowing([], [], [], 'ZAR').total, 0);
 const partialEmergency = { amount: -200.3, repayments: [{ amount: 50.1, date: '2026-10-10' }] };
+const accountEntries = [
+  { account: 'fnb', amount: 551 }, { account: 'fnb', amount: -100 }, { account: 'moneyclub', amount: -140.53 },
+];
+const fnbSummary = context.calculateEmergencyAccountSummary(accountEntries, 'fnb', 'moneyclub');
+assert.equal(fnbSummary.total, 451);
+assert.equal(fnbSummary.outstanding, 100);
+assert.equal(context.calculateEmergencyAccountSummary(accountEntries, 'moneyclub', 'moneyclub').total, -140.53);
+assert.equal(context.calculateEmergencyAccountSummary([{ account: 'fnb', ...partialEmergency }, { account: 'fnb', amount: 500 }], 'fnb', 'moneyclub').total, 349.8);
+assert.equal(context.calculateEmergencyAccountSummary([{ account: 'fnb', amount: -100, returned: true }], 'fnb', 'moneyclub').total, 0);
+assert.equal(context.calculateEmergencyAccountSummary([{ account: 'fnb', amount: -100, transferId: 'move' }], 'fnb', 'moneyclub').outstanding, 0);
 assert.equal(context.calculateEmergencyBorrowing(partialEmergency).remaining, 150.2);
 assert.equal(context.calculateReserveBorrowing([], [partialEmergency], [], 'ZAR').emergency, 150.2);
 assert.equal(Math.round(context.calculateWealth([], [], [], [{ amount: 500 }, partialEmergency], [], 'ZAR').emergencyFundTotal * 100), 34980);
@@ -893,7 +905,7 @@ async function checkSavingsActivity() {
     escapeEf: context.escapeText,
     getEmergencyFundAccounts: profile => profile.emergencyFundAccounts,
     WR: {
-      financial: { calculateEmergencyBorrowing: context.calculateEmergencyBorrowing },
+      financial: { calculateEmergencyBorrowing: context.calculateEmergencyBorrowing, calculateEmergencyAccountSummary: context.calculateEmergencyAccountSummary },
       ui: {
         getOrCreateProfile: async () => ({ baseCurrency: 'ZAR', emergencyFundAccounts: [{ id: 'main', label: 'Emergency savings' }] }),
         currentMonthKey: () => '2026-10', escapeText: context.escapeText,
@@ -943,6 +955,8 @@ function checkCombinedBorrowingSources() {
   assert.ok(functions.get('renderReserveBorrowing').includes('<details class="borrowing-row">'));
   assert.ok(!functions.get('renderReserveBorrowing').includes('class="goal-card pot-card"'));
   assert.ok(functions.get('renderReserveBorrowing').includes('class="reserve-repayment card-edit-form"'));
+  assert.ok(functions.get('renderReserveBorrowing').includes('class="reserve-borrowing-edit card-edit-form"'));
+  assert.ok(functions.get('renderReserveBorrowing').includes('Confirm delete'));
   const combinedContext = { WR: { financial: { calculateEmergencyBorrowing: context.calculateEmergencyBorrowing } } };
   vm.createContext(combinedContext);
   vm.runInContext(['calculateSavingsLoan', 'collectReserveBorrowings', 'filterReserveBorrowings'].map(name => functions.get(name)).join('\n'), combinedContext);
@@ -1010,6 +1024,72 @@ async function checkUnifiedEmergencyBorrowing() {
   console.log('Unified emergency borrowing validates the selected account and dates, includes repayments in availability, and avoids duplicate records.');
 }
 checkUnifiedEmergencyBorrowing().catch(error => { console.error(error); process.exitCode = 1; });
+
+async function checkBorrowingCorrections() {
+  const records = new Map();
+  const potKey = 'users/test/savingsPots/pot';
+  const emergencyKey = 'users/test/emergencyFundContributions/loan';
+  const depositKey = 'users/test/emergencyFundContributions/deposit';
+  const copy = value => JSON.parse(JSON.stringify(value));
+  let rejectCommit = false;
+  const api = {
+    doc: (_db, ...parts) => parts.join('/'),
+    async runTransaction(_db, operation) {
+      const writes = [];
+      await operation({
+        get: async key => ({ exists: () => records.has(key), data: () => copy(records.get(key)) }),
+        update: (key, fields) => writes.push(() => records.set(key, { ...records.get(key), ...copy(fields) })),
+        delete: key => writes.push(() => records.delete(key)),
+      });
+      if (rejectCommit) throw Error('Rejected commit');
+      writes.forEach(write => write());
+    },
+  };
+  const correctionContext = { WR: {
+    account: { getCurrentUser: () => ({ uid: 'test' }), getFirestoreApi: () => api, getDb: () => ({}) },
+    ui: { getOrCreateProfile: async () => ({}), getEmergencyFundAccounts: () => [{ id: 'main' }] },
+    financial: { calculateEmergencyAccountSummary: context.calculateEmergencyAccountSummary },
+    repos: { emergencyFundContributions: { getAll: async () => [...records.entries()].filter(([key]) => key.includes('/emergencyFundContributions/')).map(([, value]) => copy(value)) } },
+  } };
+  vm.createContext(correctionContext);
+  vm.runInContext(functions.get('updateReserveBorrowing'), correctionContext);
+  const fields = { amount: 120, date: '2026-01-01', note: 'Corrected' };
+  records.set(potKey, { id: 'pot', currentAmount: 850, borrowings: [{ id: 'loan', amount: 200, date: '2026-01-01', repayments: [{ amount: 50, date: '2026-01-02' }] }] });
+  const changePot = (next, remove) => correctionContext.updateReserveBorrowing('savings', 'pot', 'loan', next, remove);
+  rejectCommit = true;
+  await assert.rejects(changePot(fields), /Rejected/);
+  assert.equal(records.get(potKey).currentAmount, 850);
+  rejectCommit = false;
+  await assert.rejects(changePot({ ...fields, amount: 49 }), /repayments/);
+  await assert.rejects(changePot({ ...fields, date: '2026-01-03' }), /after/);
+  await assert.rejects(changePot({ ...fields, amount: 2000 }), /Insufficient/);
+  await changePot(fields);
+  assert.equal(records.get(potKey).currentAmount, 930);
+  assert.equal(records.get(potKey).borrowings[0].repayments.length, 1);
+  await changePot({}, true);
+  assert.equal(records.get(potKey).currentAmount, 1000);
+  assert.equal(records.get(potKey).borrowings.length, 0);
+  records.set(depositKey, { id: 'deposit', account: 'main', amount: 500 });
+  records.set(emergencyKey, { id: 'loan', account: 'main', amount: -200, date: '2026-01-01', repayments: [{ amount: 50, date: '2026-01-02' }] });
+  const changeEmergency = (next, remove) => correctionContext.updateReserveBorrowing('emergency', 'main', 'loan', next, remove);
+  await assert.rejects(changeEmergency({ ...fields, amount: 600 }), /Insufficient/);
+  await changeEmergency(fields);
+  assert.equal(records.get(emergencyKey).amount, -120);
+  assert.equal(records.get(emergencyKey).repayments.length, 1);
+  await changeEmergency({ ...fields, amount: 50 });
+  assert.equal(records.get(emergencyKey).returned, true);
+  await changeEmergency({}, true);
+  assert.equal(records.has(emergencyKey), false);
+  assert.equal(records.get(depositKey).amount, 500);
+  records.set(emergencyKey, { id: 'loan', account: 'main', amount: -100, date: '2026-01-01', returned: true });
+  await assert.rejects(changeEmergency(fields), /previously returned/);
+  await changeEmergency({ ...fields, amount: 100 });
+  assert.equal(records.get(emergencyKey).returned, true);
+  await changeEmergency({}, true);
+  assert.equal(records.has(emergencyKey), false);
+  console.log('Borrowing edits/deletes preserve repayments, reverse only outstanding savings, reject invalid corrections and commit atomically.');
+}
+checkBorrowingCorrections().catch(error => { console.error(error); process.exitCode = 1; });
 
 function checkNavigationLayout() {
   const classes = new Set();
