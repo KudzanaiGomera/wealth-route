@@ -2548,6 +2548,13 @@ WR.financial = WR.financial || {};
    * @param {Array} exchangeRates
    * @param {string} baseCurrency
    */
+  function calculateEmergencyBorrowing(entry) {
+    const borrowed = entry.transferId ? 0 : Math.max(0, -Math.round((Number(entry.amount) || 0) * 100));
+    const paid = (entry.repayments || []).reduce((sum, payment) => sum + Math.round((Number(payment.amount) || 0) * 100), 0);
+    const repaid = entry.returned ? borrowed : Math.min(borrowed, Math.max(0, paid));
+    return { borrowed: borrowed / 100, repaid: repaid / 100, remaining: (borrowed - repaid) / 100 };
+  }
+
   function calculateWealth(assets, investments, savingsPots, emergencyFundContributions, exchangeRates, baseCurrency) {
     const unconvertedItems = [];
     function totalFor(items, valueOf) {
@@ -2560,7 +2567,7 @@ WR.financial = WR.financial || {};
     const assetsTotal = totalFor(assets.filter(asset => !['savings', 'emergency'].includes(asset.wealthSource)), asset => asset.currentValue);
     const investmentsTotal = totalFor(investments, investment => investment.currentValue);
     const savingsTotal = totalFor(savingsPots.filter(pot => !pot.archived), pot => Number(pot.currentAmount) || 0);
-    const emergencyFundTotal = totalFor(emergencyFundContributions, item => item.returned && Number(item.amount) < 0 ? 0 : Number(item.amount) || 0);
+    const emergencyFundTotal = totalFor(emergencyFundContributions, item => (Number(item.amount) || 0) + calculateEmergencyBorrowing(item).repaid);
     const totalWealth = assetsTotal + investmentsTotal + savingsTotal + emergencyFundTotal;
     return { assetsTotal, investmentsTotal, savingsTotal, emergencyFundTotal, totalWealth, unconvertedItems };
   }
@@ -2602,7 +2609,7 @@ WR.financial = WR.financial || {};
     }, 0);
   }
 
-  Object.assign(WR.financial, { convertCurrency, calculateWealth, calculateNetWorth, calculateTotalInvestments });
+  Object.assign(WR.financial, { convertCurrency, calculateEmergencyBorrowing, calculateWealth, calculateNetWorth, calculateTotalInvestments });
 })();
 // Emergency fund coverage: how many months of essential expenses the
 // user's liquid assets would cover.
@@ -3882,8 +3889,7 @@ WR.ui = WR.ui || {};
       return subtotal + convertedAmount(remaining, pot.currency);
     }, 0), 0) / 100;
     const emergency = emergencyFundContributions.reduce((sum, entry) => {
-      if (entry.transferId || entry.returned || Number(entry.amount) >= 0) return sum;
-      return sum + convertedAmount(Math.abs(Number(entry.amount) || 0), entry.currency);
+      return sum + convertedAmount(WR.financial.calculateEmergencyBorrowing(entry).remaining, entry.currency);
     }, 0) / 100;
     return { savings, emergency, total: Math.round((savings + emergency) * 100) / 100 };
   }
@@ -6270,6 +6276,29 @@ WR.ui = WR.ui || {};
   ];
   const escapeEf = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+  function getEmergencyFundAccounts(profile) {
+    return Array.isArray(profile.emergencyFundAccounts) && profile.emergencyFundAccounts.length
+      ? profile.emergencyFundAccounts : DEFAULT_EMERGENCY_FUND_ACCOUNTS;
+  }
+
+  async function saveEmergencyBorrowing(account, entry) {
+    const cents = Math.round(Number(entry.amount) * 100);
+    const date = String(entry.date || '');
+    const parsed = new Date(`${date}T12:00:00Z`);
+    if (!entry.id || !Number.isSafeInteger(cents) || cents <= 0) throw new Error('Enter an amount greater than zero.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date || date > new Date().toISOString().slice(0, 10)) throw new Error('Choose a valid date that is not in the future.');
+    const [profile, entries] = await Promise.all([WR.ui.getOrCreateProfile(), WR.repos.emergencyFundContributions.getAll()]);
+    if (entries.some(item => item.id === entry.id)) return;
+    const accounts = getEmergencyFundAccounts(profile);
+    if (!accounts.some(item => item.id === account)) throw new Error('Choose an emergency fund account.');
+    const balance = entries.filter(item => (item.account || accounts[0].id) === account)
+      .reduce((sum, item) => sum + Math.round(((Number(item.amount) || 0) + WR.financial.calculateEmergencyBorrowing(item).repaid) * 100), 0);
+    if (cents > balance) throw new Error('Insufficient savings in this emergency fund account.');
+    await saveEmergencyFundEntries([{ id: entry.id, account, date, amount: -cents / 100, note: String(entry.note || '').trim(), returned: false, repayments: [] }]);
+  }
+
+  Object.assign(WR.ui, { getEmergencyFundAccounts, saveEmergencyBorrowing });
+
   async function saveEmergencyFundEntries(entries) {
     const user = WR.account.getCurrentUser();
     if (!user) throw new Error('Not signed in.');
@@ -6281,14 +6310,41 @@ WR.ui = WR.ui || {};
     });
   }
 
+  async function saveEmergencyRepayment(loanId, payment) {
+    const cents = Math.round(Number(payment.amount) * 100);
+    const date = String(payment.date || '');
+    const parsed = new Date(`${date}T12:00:00Z`);
+    if (!payment.id || !Number.isSafeInteger(cents) || cents <= 0) throw new Error('Enter an amount greater than zero.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date || date > new Date().toISOString().slice(0, 10)) throw new Error('Choose a valid date that is not in the future.');
+    const uid = WR.account.getCurrentUser()?.uid;
+    if (!uid) throw new Error('Not signed in.');
+    const api = WR.account.getFirestoreApi();
+    const db = WR.account.getDb();
+    const ref = api.doc(db, 'users', uid, 'emergencyFundContributions', loanId);
+    await api.runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists()) throw new Error('This borrowing record no longer exists.');
+      const loan = snapshot.data();
+      if (loan.transferId || Number(loan.amount) >= 0) throw new Error('Choose an emergency fund borrowing record.');
+      if ((loan.repayments || []).some(entry => entry.id === payment.id)) return;
+      if (date < loan.date) throw new Error('Repayment date cannot be before the borrowing date.');
+      const remaining = Math.round(WR.financial.calculateEmergencyBorrowing(loan).remaining * 100);
+      if (cents > remaining) throw new Error('Repayment exceeds the outstanding amount.');
+      transaction.update(ref, {
+        repayments: [...(loan.repayments || []), { id: payment.id, amount: cents / 100, date }],
+        returned: cents === remaining,
+      });
+    });
+  }
+
+  WR.ui.saveEmergencyRepayment = saveEmergencyRepayment;
+
   async function renderEmergencyFund(container) {
     const [profile, contributions] = await Promise.all([
       WR.ui.getOrCreateProfile(),
       WR.repos.emergencyFundContributions.getAll(),
     ]);
-    const EMERGENCY_FUND_ACCOUNTS = Array.isArray(profile.emergencyFundAccounts) && profile.emergencyFundAccounts.length
-      ? profile.emergencyFundAccounts
-      : DEFAULT_EMERGENCY_FUND_ACCOUNTS;
+    const EMERGENCY_FUND_ACCOUNTS = getEmergencyFundAccounts(profile);
     const emergencyFundAccountLabel = (accountId) =>
       (EMERGENCY_FUND_ACCOUNTS.find((a) => a.id === accountId) || EMERGENCY_FUND_ACCOUNTS[0]).label;
     const emergencyFundAccountOptions = (selected) => EMERGENCY_FUND_ACCOUNTS.map((a) =>
@@ -6298,7 +6354,7 @@ WR.ui = WR.ui || {};
     const sorted = contributions.sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const countedAmount = (item) => {
       const amount = Number(item.amount) || 0;
-      return item.returned && amount < 0 ? 0 : amount;
+      return amount + WR.financial.calculateEmergencyBorrowing(item).repaid;
     };
     const accountOf = (item) => item.account || EMERGENCY_FUND_ACCOUNTS[0].id;
     const total = sorted.reduce((sum, item) => sum + countedAmount(item), 0);
@@ -6307,23 +6363,27 @@ WR.ui = WR.ui || {};
       total: sorted.filter((item) => accountOf(item) === a.id).reduce((sum, item) => sum + countedAmount(item), 0),
     }));
     const monthContributions = sorted.filter((item) => String(item.date || '').slice(0, 7) === month);
-    const monthNet = monthContributions.reduce((sum, item) => sum + countedAmount(item), 0);
+    const monthNet = sorted.reduce((sum, item) => {
+      const original = String(item.date || '').slice(0, 7) === month
+        ? (item.repayments?.length ? Number(item.amount) || 0 : countedAmount(item)) : 0;
+      const repayments = (item.repayments || []).filter(payment => payment.date.slice(0, 7) === month)
+        .reduce((paid, payment) => paid + Number(payment.amount), 0);
+      return sum + original + repayments;
+    }, 0);
+    const outstanding = sorted.reduce((sum, loan) => sum + WR.financial.calculateEmergencyBorrowing(loan).remaining, 0);
     const shareOf = (accountTotal) => (total > 0 ? Math.max(0, Math.min(100, (accountTotal / total) * 100)) : 0);
     const snapshot = await WR.ui.buildSnapshot();
     const estimatedTarget = (snapshot.essentialVsDiscretionary.essential || snapshot.cashflow.fixedExpenses) * snapshot.emergencyFundTargetMonths;
     const target = Number(profile.emergencyFundTargetAmount) > 0 ? Number(profile.emergencyFundTargetAmount) : estimatedTarget;
     const targetProgress = target > 0 ? Math.min(100, Math.round(total / target * 100)) : 0;
 
-    const rows = monthContributions.map((item) => {
-      const isBorrowed = (Number(item.amount) || 0) < 0 && !item.transferId;
-      const returned = Boolean(item.returned);
+    const rows = monthContributions.filter(item => Number(item.amount) >= 0 || item.transferId).map((item) => {
       return `
       <tr data-id="${WR.ui.escapeText(item.id)}">
         <td><input class="cell" data-field="date" type="date" value="${WR.ui.escapeText(item.date)}"></td>
         <td><select class="cell" data-field="account">${emergencyFundAccountOptions(accountOf(item))}</select></td>
         <td><input class="cell" data-field="amount" type="number" step="0.01" value="${WR.ui.escapeText(item.amount)}"></td>
         <td><input class="cell" data-field="note" value="${WR.ui.escapeText(item.note || '')}"></td>
-        <td>${isBorrowed ? `<span>${returned ? 'Paid back' : 'Outstanding'}</span><br><button class="link-btn toggle-emergency-return" data-id="${WR.ui.escapeText(item.id)}">${returned ? 'Unmark returned' : 'Mark returned'}</button>` : ''}</td>
         <td><button class="link-btn delete-emergency" data-id="${WR.ui.escapeText(item.id)}">Delete</button></td>
       </tr>`;
     }).join('');
@@ -6340,6 +6400,7 @@ WR.ui = WR.ui || {};
         <div class="ef-summary-side">
           <div><span class="stat-label">Selected month net change</span><span class="stat-value ${monthNet < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(monthNet)}</span></div>
           <div><span class="stat-label">Entries this month</span><span class="stat-value">${monthContributions.length}</span></div>
+          <div><span class="stat-label">Borrowed, not yet repaid</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(outstanding)}</span></div>
         </div>
       </div>
 
@@ -6361,11 +6422,11 @@ WR.ui = WR.ui || {};
       </div>
 
       <div class="ef-activity-card">
-        <h3>Contribution, borrowing &amp; repayment history</h3>
+        <h3>Contributions &amp; transfers</h3>
         <div class="toolbar"><label>Month: <input id="emergency-fund-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
         <table class="data-table">
-          <thead><tr><th>Date</th><th>Account</th><th>Contribution (${profile.baseCurrency})</th><th>Note</th><th>Returned</th><th></th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="6" class="empty">No emergency fund activity for this month.</td></tr>'}</tbody>
+          <thead><tr><th>Date</th><th>Account</th><th>Contribution (${profile.baseCurrency})</th><th>Note</th><th></th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="5" class="empty">No contributions or transfers for this month.</td></tr>'}</tbody>
         </table>
       </div>
 
@@ -6378,17 +6439,6 @@ WR.ui = WR.ui || {};
             <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
             <input name="note" placeholder="Optional note">
             <button type="submit">Add</button>
-          </form>
-        </div>
-
-        <div class="ef-form-card borrow">
-          <h3>Borrow from emergency fund</h3>
-          <form id="emergency-borrow-form" class="inline-form">
-            <input name="date" type="date" value="${WR.ui.escapeText(new Date().toISOString().slice(0, 10))}" required>
-            <select name="account" required>${emergencyFundAccountOptions()}</select>
-            <input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount borrowed" required>
-            <input name="note" placeholder="Reason (optional)">
-            <button type="submit" class="secondary">Record borrowed amount</button>
           </form>
         </div>
 
@@ -6425,10 +6475,15 @@ WR.ui = WR.ui || {};
       </div>
     `);
 
+    const refreshEmergencyFund = async () => {
+      await WR.ui.refreshIntegrityNotice();
+      if (container.id === 'emergency-savings') await WR.ui.renderSavingsPage(container.closest('#content'));
+      else await renderEmergencyFund(container);
+    };
     const saveAccounts = async (accounts) => {
       profile.emergencyFundAccounts = accounts;
       await WR.repos.userProfile.update(profile);
-      await renderEmergencyFund(container);
+      await refreshEmergencyFund();
     };
     container.querySelectorAll('.ef-account-rename').forEach((input) => {
       input.addEventListener('change', async () => {
@@ -6450,7 +6505,7 @@ WR.ui = WR.ui || {};
           if (!accounts.some(item => item.id === account.id)) {
             await WR.repos.userProfile.update({ ...latest, emergencyFundAccounts: [...accounts, account] });
           }
-          await renderEmergencyFund(container);
+          await refreshEmergencyFund();
         }, { undoSuccessMessage: 'Emergency fund account restored.' });
       });
     });
@@ -6465,7 +6520,7 @@ WR.ui = WR.ui || {};
       event.preventDefault();
       profile.emergencyFundTargetAmount = Number(event.currentTarget.elements.targetAmount.value);
       await WR.repos.userProfile.update(profile);
-      renderEmergencyFund(container);
+      await refreshEmergencyFund();
     });
 
     container.querySelector('#emergency-fund-month')?.addEventListener('change', (event) => {
@@ -6484,20 +6539,8 @@ WR.ui = WR.ui || {};
           if (field === 'amount' && row.amount >= 0) row.returned = false;
           await WR.repos.emergencyFundContributions.update(row);
           WR.ui.flashSaved(input);
-          WR.ui.refreshIntegrityNotice();
-          if (field === 'amount') renderEmergencyFund(container);
+          await refreshEmergencyFund();
         });
-      });
-    });
-
-    container.querySelectorAll('.toggle-emergency-return').forEach((button) => {
-      button.addEventListener('click', async () => {
-        const row = await WR.repos.emergencyFundContributions.getById(button.dataset.id);
-        if (!row) return;
-        row.returned = !row.returned;
-        await WR.repos.emergencyFundContributions.update(row);
-        await WR.ui.refreshIntegrityNotice();
-        renderEmergencyFund(container);
       });
     });
 
@@ -6507,15 +6550,11 @@ WR.ui = WR.ui || {};
           repo: WR.repos.emergencyFundContributions,
           id: button.dataset.id,
           entityLabel: 'Emergency contribution',
-          afterChange: async () => {
-            await WR.ui.refreshIntegrityNotice();
-            await renderEmergencyFund(container);
-          },
+          afterChange: refreshEmergencyFund,
         });
       });
     });
 
-    const refreshEmergencyFund = async () => { await WR.ui.refreshIntegrityNotice(); await renderEmergencyFund(container); };
     WR.ui.bindReliableForm(container.querySelector('#emergency-add-form'), async (form) => {
       await WR.repos.emergencyFundContributions.add(WR.models.createEmergencyFundContribution({
         date: form.date.value,
@@ -6524,29 +6563,6 @@ WR.ui = WR.ui || {};
         note: form.note.value.trim() || undefined,
       }));
     }, refreshEmergencyFund);
-
-    WR.ui.bindReliableForm(container.querySelector('#emergency-borrow-form'), async (form) => {
-      const amount = Math.max(0, parseFloat(form.amount.value) || 0);
-      if (!amount) throw new Error('Enter an amount greater than zero.');
-      const account = form.account.value;
-      const accountTotal = (totalsByAccount.find((a) => a.id === account) || { total: 0 }).total;
-      if (amount > accountTotal) {
-        throw new Error(`You can borrow up to ${profile.baseCurrency} ${WR.ui.fmt(accountTotal)} from ${emergencyFundAccountLabel(account)}.`);
-      }
-      const date = form.date.value;
-      const note = form.note.value.trim();
-      const entry = WR.models.createEmergencyFundContribution({
-        date,
-        account,
-        amount: -amount,
-        note: note ? `Borrowed: ${note}` : 'Borrowed from emergency fund',
-        returned: false,
-      });
-      await saveEmergencyFundEntries([entry]);
-    }, async () => {
-      WR.ui.notify('Emergency fund borrowing recorded.', 'success');
-      await refreshEmergencyFund();
-    });
 
     WR.ui.bindReliableForm(container.querySelector('#emergency-transfer-form'), async (form) => {
       const fromAccount = form.fromAccount.value;
@@ -9963,27 +9979,102 @@ WR.ui = WR.ui || {};
 
   WR.ui.saveSavingsBorrowing = saveSavingsBorrowing;
 
+  function collectReserveBorrowings(pots, contributions, accounts, baseCurrency) {
+    const savings = pots.flatMap(pot => (pot.borrowings || []).map(loan => ({
+      ...loan, ...calculateSavingsLoan(loan), sourceKey: `savings:${pot.id}`, sourceId: pot.id,
+      kind: 'savings', sourceName: pot.name, currency: pot.currency || baseCurrency,
+    })));
+    const emergency = contributions.filter(loan => Number(loan.amount) < 0 && !loan.transferId).map(loan => {
+      const account = loan.account || accounts[0].id;
+      const balance = WR.financial.calculateEmergencyBorrowing(loan);
+      return { ...loan, amount: balance.borrowed, repaid: balance.repaid, remaining: balance.remaining,
+        sourceKey: `emergency:${account}`, sourceId: account, kind: 'emergency',
+        sourceName: accounts.find(item => item.id === account)?.label || 'Emergency fund (removed account)',
+        currency: loan.currency || baseCurrency, legacyReturned: loan.returned && !(loan.repayments || []).length };
+    });
+    return [...savings, ...emergency].sort((left, right) => String(right.date).localeCompare(String(left.date)));
+  }
+
+  async function renderReserveBorrowing(container) {
+    const [pots, contributions, profile, rates] = await Promise.all([
+      WR.repos.savingsPots.getAll(), WR.repos.emergencyFundContributions.getAll(), WR.ui.getOrCreateProfile(), WR.repos.exchangeRates.getAll(),
+    ]);
+    const accounts = WR.ui.getEmergencyFundAccounts(profile);
+    const currency = profile.baseCurrency;
+    const today = new Date().toISOString().slice(0, 10);
+    const loans = collectReserveBorrowings(pots, contributions, accounts, currency);
+    const totals = WR.ui.calculateReserveBorrowing(pots, contributions, rates, currency);
+    const sources = [
+      ...pots.filter(pot => !pot.archived).map(pot => ({ key: `savings:${pot.id}`, id: pot.id, kind: 'savings', label: pot.name, currency: pot.currency || currency, available: amount(pot.currentAmount) })),
+      ...accounts.map(account => ({ key: `emergency:${account.id}`, id: account.id, kind: 'emergency', label: account.label, currency,
+        available: Math.round(contributions.filter(entry => (entry.account || accounts[0].id) === account.id).reduce((sum, entry) => sum + (Number(entry.amount) || 0) + WR.financial.calculateEmergencyBorrowing(entry).repaid, 0) * 100) / 100 })),
+    ];
+    const options = kind => sources.filter(source => source.kind === kind && source.available > 0)
+      .map(source => `<option value="${escape(source.key)}">${escape(source.label)}: ${escape(source.currency)} ${WR.ui.fmt(source.available)}</option>`).join('');
+    WR.ui.setHTML(container, `<h2>Borrowing &amp; Repayments</h2>
+      <div class="savings-overview">
+        <div><span>Still to repay</span><strong>${escape(currency)} ${WR.ui.fmt(totals.total)}</strong></div>
+        <div><span>From savings pots</span><strong>${escape(currency)} ${WR.ui.fmt(totals.savings)}</strong></div>
+        <div><span>From emergency fund</span><strong>${escape(currency)} ${WR.ui.fmt(totals.emergency)}</strong></div>
+      </div>
+      <div class="form-panel"><h3>Record borrowing</h3><form id="borrow-reserves" class="form-panel-grid">
+        <label>Borrow from<select name="source" required><option value="">Choose a source</option>
+          <optgroup label="Savings pots">${options('savings')}</optgroup><optgroup label="Emergency fund accounts">${options('emergency')}</optgroup></select></label>
+        <label>Amount<input name="amount" type="number" min="0.01" step="0.01" required></label>
+        <label>Date borrowed<input name="date" type="date" max="${today}" value="${today}" required></label>
+        <label>Reason (optional)<input name="note" maxlength="300"></label>
+        <div class="form-panel-actions"><button type="submit">Record borrowing</button></div></form></div>
+      <h3>Borrowing history</h3><div class="goal-grid">${loans.map((loan, index) => `<article class="goal-card pot-card">
+        <div class="goal-card-header"><h3>${escape(loan.sourceName)}</h3><span class="pct-badge">${loan.remaining > 0 ? 'Outstanding' : 'Paid back'}</span></div>
+        <p class="pot-link-note">${loan.kind === 'savings' ? 'Savings pot' : 'Emergency fund'}</p>
+        <dl><div><dt>Borrowed on ${escape(loan.date)}</dt><dd>${escape(loan.currency)} ${WR.ui.fmt(loan.amount)}</dd></div>
+        <div><dt>Paid back</dt><dd>${escape(loan.currency)} ${WR.ui.fmt(loan.repaid)}</dd></div>
+        <div><dt>Still owed</dt><dd>${escape(loan.currency)} ${WR.ui.fmt(loan.remaining)}</dd></div></dl>
+        ${loan.note ? `<p>${escape(loan.note)}</p>` : ''}
+        ${(loan.repayments || []).length ? `<details class="card-edit"><summary>Repayment history</summary><ul>${loan.repayments.map(payment => `<li>${escape(payment.date)}: ${escape(loan.currency)} ${WR.ui.fmt(payment.amount)}</li>`).join('')}</ul></details>` : loan.legacyReturned ? '<p class="fine-print">Previously marked returned; repayment date not recorded.</p>' : ''}
+        ${loan.remaining > 0 ? `<form class="reserve-repayment card-edit-form" data-id="${escape(`${loan.sourceKey}:${loan.id}`)}" data-loan-index="${index}" data-source-key="${escape(loan.sourceKey)}" data-loan-id="${escape(loan.id)}">
+          <label>Amount<input name="amount" type="number" min="0.01" max="${loan.remaining}" step="0.01" value="${loan.remaining}" required></label>
+          <label>Date paid back<input name="date" type="date" min="${escape(loan.date)}" max="${today}" value="${today}" required></label>
+          <div class="card-edit-actions span-2"><button type="submit">Record repayment</button></div></form>` : ''}</article>`).join('') || '<p class="empty">No borrowing recorded.</p>'}</div>`);
+    const refresh = async () => { await WR.ui.refreshIntegrityNotice(); await renderSavingsPage(container.closest('#content')); };
+    const borrowingForm = container.querySelector('#borrow-reserves');
+    const syncSource = () => {
+      const source = sources.find(item => item.key === borrowingForm.elements.source.value);
+      if (source) borrowingForm.elements.amount.max = source.available;
+      else borrowingForm.elements.amount.removeAttribute('max');
+    };
+    borrowingForm.elements.source.addEventListener('change', syncSource);
+    let borrowingId = WR.models.newId();
+    WR.ui.bindReliableForm(borrowingForm, async form => {
+      const source = sources.find(item => item.key === form.elements.source.value);
+      if (!source) throw new Error('Choose a borrowing source.');
+      const entry = { id: borrowingId, amount: form.elements.amount.value, date: form.elements.date.value, note: form.elements.note.value };
+      if (source.kind === 'savings') await saveSavingsBorrowing(source.id, entry);
+      else await WR.ui.saveEmergencyBorrowing(source.id, entry);
+      borrowingId = WR.models.newId();
+    }, refresh);
+    syncSource();
+    container.querySelectorAll('.reserve-repayment').forEach(form => {
+      const loan = loans[Number(form.dataset.loanIndex)];
+      let paymentId = WR.models.newId();
+      WR.ui.bindReliableForm(form, async () => {
+        const payment = { id: paymentId, amount: form.elements.amount.value, date: form.elements.date.value };
+        if (loan.kind === 'savings') await saveSavingsBorrowing(loan.sourceId, payment, loan.id);
+        else await WR.ui.saveEmergencyRepayment(loan.id, payment);
+        paymentId = WR.models.newId();
+      }, refresh);
+    });
+  }
+
   async function renderSavingsPots(container) {
     const [pots, profile] = await Promise.all([WR.repos.savingsPots.getAll(), WR.ui.getOrCreateProfile()]);
     const month = WR.ui._savingsMonth || WR.ui.currentMonthKey();
     const active = pots.filter((pot) => !pot.archived);
     const activeBalance = active.reduce((sum, pot) => sum + amount(pot.currentAmount), 0);
     const currency = profile.baseCurrency;
-    const today = new Date().toISOString().slice(0, 10);
     const loans = pots.flatMap(pot => (pot.borrowings || []).map(loan => ({ pot, loan, ...calculateSavingsLoan(loan) })))
       .sort((left, right) => right.loan.date.localeCompare(left.loan.date));
     const outstanding = loans.reduce((sum, item) => sum + item.remaining, 0);
-    const borrowingHistory = loans.map(({ pot, loan, repaid, remaining }) => `<article class="goal-card pot-card">
-      <div class="goal-card-header"><h3>${escape(pot.name)}</h3><span class="pct-badge">${remaining > 0 ? 'Outstanding' : 'Paid back'}</span></div>
-      <dl><div><dt>Borrowed on ${escape(loan.date)}</dt><dd>${escape(currency)} ${WR.ui.fmt(loan.amount)}</dd></div>
-      <div><dt>Paid back</dt><dd>${escape(currency)} ${WR.ui.fmt(repaid)}</dd></div>
-      <div><dt>Still owed</dt><dd>${escape(currency)} ${WR.ui.fmt(remaining)}</dd></div></dl>
-      ${loan.note ? `<p>${escape(loan.note)}</p>` : ''}
-      ${(loan.repayments || []).length ? `<details class="card-edit"><summary>Repayment history</summary><ul>${loan.repayments.map(payment => `<li>${escape(payment.date)}: ${escape(currency)} ${WR.ui.fmt(payment.amount)}</li>`).join('')}</ul></details>` : ''}
-      ${remaining > 0 ? `<form class="savings-repayment card-edit-form" data-pot-id="${escape(pot.id)}" data-loan-id="${escape(loan.id)}">
-        <label>Amount<input name="amount" type="number" min="0.01" max="${remaining}" step="0.01" value="${remaining}" required></label>
-        <label>Date paid back<input name="date" type="date" min="${escape(loan.date)}" max="${today}" value="${today}" required></label>
-        <div class="card-edit-actions span-2"><button type="submit">Record repayment</button></div></form>` : ''}</article>`).join('');
     const potCard = (pot, archived) => {
       const saved = amount(pot.currentAmount);
       const target = amount(pot.targetAmount);
@@ -10016,41 +10107,22 @@ WR.ui = WR.ui || {};
           <label class="span-2">Amount<input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
           <div class="form-panel-actions"><button>Transfer</button></div></form></div>
       </div>
-      <div class="form-panel"><h3>Borrow from savings</h3><form id="borrow-savings" class="form-panel-grid">
-        <label>Savings pot<select name="potId" required><option value="">Choose a pot</option>${active.filter(pot => amount(pot.currentAmount) > 0).map(pot => `<option value="${escape(pot.id)}">${escape(pot.name)}: ${escape(currency)} ${WR.ui.fmt(pot.currentAmount)}</option>`).join('')}</select></label>
-        <label>Amount<input name="amount" type="number" min="0.01" step="0.01" required></label>
-        <label>Date borrowed<input name="date" type="date" max="${today}" value="${today}" required></label>
-        <label>Reason (optional)<input name="note" maxlength="300"></label>
-        <div class="form-panel-actions"><button type="submit">Record borrowing</button></div></form></div>
-      <h3>Borrowing &amp; repayment history</h3><div class="goal-grid">${borrowingHistory || '<p class="empty">No savings borrowing recorded.</p>'}</div>
       <details class="archived-pots"><summary>Archived pots (${pots.length - active.length})</summary><div class="goal-grid">${pots.filter((pot) => pot.archived).map((pot) => potCard(pot, true)).join('') || '<p class="empty">No archived pots.</p>'}</div></details>`);
-    container.querySelectorAll('#borrow-savings, .savings-repayment').forEach(form => {
-      let entryId = WR.models.newId();
-      WR.ui.bindReliableForm(form, async () => {
-        await saveSavingsBorrowing(form.dataset.potId || form.elements.potId.value, {
-          id: entryId, amount: form.elements.amount.value, date: form.elements.date.value, note: form.elements.note?.value || '',
-        }, form.dataset.loanId || '');
-        entryId = WR.models.newId();
-      }, async () => {
-        WR.ui.notify(form.dataset.loanId ? 'Repayment recorded.' : 'Savings borrowing recorded.', 'success');
-        await renderSavingsPots(container);
-      });
-    });
     WR.ui.bindReliableForm(container.querySelector('#create-pot'), async (form) => {
       await WR.repos.savingsPots.add({ id: WR.models.newId(), name: form.elements.recordName.value.trim(), targetAmount: amount(form.elements.targetAmount.value), currentAmount: amount(form.elements.current.value), archived: false });
-    }, () => renderSavingsPots(container));
+    }, () => renderSavingsPage(container.closest('#content')));
     container.querySelectorAll('.pot-edit').forEach((form) => WR.ui.bindReliableForm(form, async () => {
       const pot = await WR.repos.savingsPots.getById(form.dataset.id);
       if (!pot) throw new Error('This savings pot no longer exists.');
       Object.assign(pot, { name: form.elements.recordName.value.trim(), targetAmount: amount(form.elements.targetAmount.value), currentAmount: amount(form.elements.current.value) });
       await WR.repos.savingsPots.update(pot);
-    }, () => renderSavingsPots(container)));
+    }, () => renderSavingsPage(container.closest('#content'))));
     container.querySelectorAll('.archive-pot, .restore-pot').forEach((button) => button.addEventListener('click', async () => {
       const pot = await WR.repos.savingsPots.getById(button.dataset.id);
       if (!pot) return;
       pot.archived = button.classList.contains('archive-pot');
       await WR.repos.savingsPots.update(pot);
-      renderSavingsPots(container);
+      await renderSavingsPage(container.closest('#content'));
     }));
     WR.ui.bindReliableForm(container.querySelector('#transfer-pot'), async (form) => {
       if (form.elements.source.value === form.elements.destination.value) throw new Error('Choose different pots.');
@@ -10062,8 +10134,9 @@ WR.ui = WR.ui || {};
   }
 
   async function renderSavingsPage(container) {
-    WR.ui.setHTML(container, '<h1>Savings</h1><p class="fine-print">Only active savings pots are included in the savings total. Emergency funds are shown separately.</p><section class="feature-section" id="savings-pots"></section><section class="feature-section" id="emergency-savings"></section>');
+    WR.ui.setHTML(container, '<h1>Savings</h1><p class="fine-print">Only active savings pots are included in the savings total. Emergency funds are shown separately.</p><section class="feature-section" id="savings-pots"></section><section class="feature-section" id="reserve-borrowing"></section><section class="feature-section" id="emergency-savings"></section>');
     await renderSavingsPots(container.querySelector('#savings-pots'));
+    await renderReserveBorrowing(container.querySelector('#reserve-borrowing'));
     await WR.ui.renderEmergencyFund(container.querySelector('#emergency-savings'));
   }
 

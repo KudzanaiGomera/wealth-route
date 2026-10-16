@@ -109,6 +109,8 @@ for (const match of fs.readFileSync(path.join(root, 'tests.html'), 'utf8').match
 const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'authErrorMessage', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'calculateWeightedAverageInterestRate', 'calculateLiquidAssets', 'convertCurrency', 'calculateWealth', 'calculateNetWorth', 'calculateTotalInvestments', 'sumInBaseCurrency', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus', 'parseAmount', 'normalizeTransactionImportDate', 'transactionImportDuplicateKey', 'prepareTransactionImportRows', 'findRecurringSpendPatterns', 'summarizeTransactionPeriod'];
 const context = { WR: { financial: {} } };
 vm.createContext(context);
+vm.runInContext(functions.get('calculateEmergencyBorrowing'), context);
+context.WR.financial.calculateEmergencyBorrowing = context.calculateEmergencyBorrowing;
 vm.runInContext(names.filter(name => functions.has(name)).map(name => functions.get(name)).join('\n'), context);
 context.WR.financial.convertCurrency = context.convertCurrency;
 const importContext = { WR: { excel: { parseAmount: context.parseAmount } } };
@@ -224,6 +226,13 @@ assert.equal(reserveBorrowing.savings, 160.2);
 assert.equal(reserveBorrowing.emergency, 50.25);
 assert.equal(reserveBorrowing.total, 210.45);
 assert.equal(context.calculateReserveBorrowing([], [], [], 'ZAR').total, 0);
+const partialEmergency = { amount: -200.3, repayments: [{ amount: 50.1, date: '2026-10-10' }] };
+assert.equal(context.calculateEmergencyBorrowing(partialEmergency).remaining, 150.2);
+assert.equal(context.calculateReserveBorrowing([], [partialEmergency], [], 'ZAR').emergency, 150.2);
+assert.equal(Math.round(context.calculateWealth([], [], [], [{ amount: 500 }, partialEmergency], [], 'ZAR').emergencyFundTotal * 100), 34980);
+assert.equal(context.calculateEmergencyBorrowing({ ...partialEmergency, returned: true }).remaining, 0);
+assert.equal(context.calculateEmergencyBorrowing({ amount: -0.3, repayments: [{ amount: 0.1 }, { amount: 0.2 }] }).remaining, 0);
+assert.equal(context.calculateEmergencyBorrowing({ ...partialEmergency, transferId: 'transfer' }).repaid, 0);
 assert.equal(context.calculateReserveBorrowing([{ currency: 'USD', borrowings: [{ amount: 10 }] }], [{ currency: 'USD', amount: -5 }], rates, 'ZAR').total, 300);
 assert.equal(context.calculateReserveBorrowing([{ borrowings: [{ amount: 0.3, repayments: [{ amount: 0.1 }, { amount: 0.2 }] }] }], [], [], 'ZAR').total, 0);
 assert.ok(functions.get('buildSnapshot').includes('reserveBorrowing: calculateReserveBorrowing('));
@@ -586,6 +595,63 @@ async function checkSavingsBorrowing() {
 }
 checkSavingsBorrowing().catch(error => { console.error(error); process.exitCode = 1; });
 
+async function checkEmergencyRepayments() {
+  let loan = { id: 'loan', amount: -200.3, account: 'main', date: '2026-01-01', returned: false };
+  let rejectCommit = false;
+  const copy = value => JSON.parse(JSON.stringify(value));
+  const api = {
+    doc: (_db, ...parts) => parts.join('/'),
+    async runTransaction(_db, operation) {
+      let pending;
+      await operation({
+        get: async ref => {
+          assert.equal(ref, 'users/test/emergencyFundContributions/loan');
+          return { exists: () => Boolean(loan), data: () => copy(loan) };
+        },
+        update: (_ref, fields) => { pending = copy(fields); },
+      });
+      if (rejectCommit) throw Error('Rejected commit');
+      if (pending) loan = { ...loan, ...pending };
+    },
+  };
+  const emergencyContext = { WR: { financial: { calculateEmergencyBorrowing: context.calculateEmergencyBorrowing }, account: { getCurrentUser: () => ({ uid: 'test' }), getFirestoreApi: () => api, getDb: () => ({}) } } };
+  vm.createContext(emergencyContext);
+  vm.runInContext(functions.get('saveEmergencyRepayment'), emergencyContext);
+  const save = payment => emergencyContext.saveEmergencyRepayment('loan', payment);
+  const payment = { id: 'partial', amount: 50.1, date: '2026-01-02' };
+  const original = JSON.stringify(loan);
+  rejectCommit = true;
+  await assert.rejects(save(payment), /Rejected commit/);
+  assert.equal(JSON.stringify(loan), original);
+  rejectCommit = false;
+  for (const amount of [0, -1, NaN, Infinity, 0.001, 201]) await assert.rejects(save({ ...payment, amount }));
+  for (const date of ['2025-12-31', '2026-02-30', 'bad-date', '2999-01-01']) await assert.rejects(save({ ...payment, date }));
+  assert.equal(JSON.stringify(loan), original);
+  await save(payment);
+  assert.equal(loan.returned, false);
+  assert.equal(loan.amount, -200.3);
+  assert.equal(context.calculateEmergencyBorrowing(loan).remaining, 150.2);
+  await save(payment);
+  assert.equal(loan.repayments.length, 1);
+  await save({ id: 'final', amount: 150.2, date: '2026-02-01' });
+  assert.equal(loan.returned, true);
+  assert.equal(context.calculateEmergencyBorrowing(loan).remaining, 0);
+  assert.deepEqual(loan.repayments.map(entry => entry.date), ['2026-01-02', '2026-02-01']);
+  assert.equal(Math.round(context.calculateWealth([], [], [], [{ amount: 500 }, loan], [], 'ZAR').emergencyFundTotal * 100), 50000);
+  assert.equal(context.calculateReserveBorrowing([], [loan], [], 'ZAR').total, 0);
+  await assert.rejects(save({ id: 'extra', amount: 0.01, date: '2026-02-02' }), /outstanding/);
+  loan = { id: 'loan', amount: -100, returned: true, date: '2026-01-01' };
+  await assert.rejects(save(payment), /outstanding/);
+  loan = { id: 'loan', amount: -100, transferId: 'transfer', date: '2026-01-01' };
+  await assert.rejects(save(payment), /borrowing record/);
+  loan = { id: 'loan', amount: 100, date: '2026-01-01' };
+  await assert.rejects(save(payment), /borrowing record/);
+  loan = null;
+  await assert.rejects(save(payment), /no longer exists/);
+  console.log('Emergency partial/full repayments, dated history, duplicate guards, rejected commits, legacy returns, balance restoration and dashboard totals passed.');
+}
+checkEmergencyRepayments().catch(error => { console.error(error); process.exitCode = 1; });
+
 async function checkRouteRaces() {
   let current;
   let headingFocused = false;
@@ -825,7 +891,9 @@ checkTransactionLayout().catch(error => { console.error(error); process.exitCode
 async function checkSavingsActivity() {
   const savingsContext = {
     escapeEf: context.escapeText,
+    getEmergencyFundAccounts: profile => profile.emergencyFundAccounts,
     WR: {
+      financial: { calculateEmergencyBorrowing: context.calculateEmergencyBorrowing },
       ui: {
         getOrCreateProfile: async () => ({ baseCurrency: 'ZAR', emergencyFundAccounts: [{ id: 'main', label: 'Emergency savings' }] }),
         currentMonthKey: () => '2026-10', escapeText: context.escapeText,
@@ -839,6 +907,7 @@ async function checkSavingsActivity() {
         { id: 'borrowed', date: '2026-10-08', account: 'main', amount: -9.47, note: 'Borrowed: repair' },
         { id: 'repaid', date: '2026-10-09', account: 'main', amount: -20, returned: true },
         { id: 'older-borrowing', date: '2026-09-09', account: 'main', amount: -5, returned: true },
+        { id: 'older-contribution', date: '2026-09-01', account: 'main', amount: 0 },
       ] } },
     },
   };
@@ -849,12 +918,12 @@ async function checkSavingsActivity() {
   await savingsContext.renderEmergencyFund(savings);
   assert.ok(savings.markup.includes('ef-activity-card'));
   assert.ok(savings.markup.includes('id="emergency-fund-month"'));
-  assert.ok(savings.markup.includes('Contribution, borrowing &amp; repayment history'));
-  assert.ok(savings.markup.includes('Borrowed: repair'));
-  assert.ok(savings.markup.includes('Outstanding'));
-  assert.ok(savings.markup.includes('Paid back'));
-  assert.ok(savings.markup.includes('Mark returned'));
-  assert.ok(savings.markup.includes('Unmark returned'));
+  assert.ok(savings.markup.includes('Contributions &amp; transfers'));
+  assert.ok(!savings.markup.includes('Borrowed: repair'));
+  assert.ok(!savings.markup.includes('class="emergency-repayment card-edit-form"'));
+  assert.ok(!savings.markup.includes('emergency-borrow-form'));
+  assert.ok(!functions.get('renderSavingsPots').includes('borrow-savings'));
+  assert.ok(!savings.markup.includes('toggle-emergency-return'));
   assert.ok(!savings.markup.includes('data-id="older-borrowing"'));
   assert.ok(savings.markup.includes('ZAR 90.53'));
   assert.ok(savings.markup.includes('id="emergency-add-form"'));
@@ -864,11 +933,72 @@ async function checkSavingsActivity() {
   assert.ok(standalone.markup.includes('id="emergency-fund-month"'));
   savingsContext.WR.ui._emergencyFundMonth = '2026-09';
   await savingsContext.renderEmergencyFund(savings);
-  assert.ok(savings.markup.includes('data-id="older-borrowing"'));
+  assert.ok(savings.markup.includes('data-id="older-contribution"'));
   assert.ok(!savings.markup.includes('data-id="borrowed"'));
-  console.log('Savings shows emergency contribution and borrowing history, repayment status/actions, and month filtering without changing balances.');
+  console.log('Emergency ledger keeps contributions/transfers and month filtering without duplicating combined borrowing controls or changing balances.');
 }
 checkSavingsActivity().catch(error => { console.error(error); process.exitCode = 1; });
+
+function checkCombinedBorrowingSources() {
+  const combinedContext = { WR: { financial: { calculateEmergencyBorrowing: context.calculateEmergencyBorrowing } } };
+  vm.createContext(combinedContext);
+  vm.runInContext(['calculateSavingsLoan', 'collectReserveBorrowings'].map(name => functions.get(name)).join('\n'), combinedContext);
+  const accounts = [{ id: 'shared', label: 'Emergency account' }];
+  const loans = combinedContext.collectReserveBorrowings([
+    { id: 'shared', name: 'Savings pot', archived: true, borrowings: [{ id: 'same-id', amount: 100, date: '2026-10-01', repayments: [{ amount: 20 }] }] },
+  ], [
+    { id: 'same-id', amount: -50, date: '2026-10-02', repayments: [{ amount: 10 }] },
+    { id: 'legacy', amount: -25, date: '2026-09-01', returned: true },
+    { id: 'transfer', amount: -500, date: '2026-10-03', transferId: 'move' },
+    { id: 'deposit', amount: 1000, date: '2026-10-03' },
+  ], accounts, 'ZAR');
+  assert.equal(loans.length, 3);
+  assert.equal(loans[0].sourceKey, 'emergency:shared');
+  assert.equal(loans[0].remaining, 40);
+  assert.equal(loans[1].sourceKey, 'savings:shared');
+  assert.equal(loans[1].remaining, 80);
+  assert.equal(loans[2].remaining, 0);
+  assert.equal(loans[2].legacyReturned, true);
+  assert.equal(loans[0].sourceName, 'Emergency account');
+  assert.equal(loans[1].sourceName, 'Savings pot');
+  assert.equal(combinedContext.collectReserveBorrowings([], [], accounts, 'ZAR').length, 0);
+  console.log('Combined borrowing preserves source identity, partial balances, archived loans and legacy returns without including transfers.');
+}
+checkCombinedBorrowingSources();
+
+async function checkUnifiedEmergencyBorrowing() {
+  const entries = [
+    { id: 'main-deposit', account: 'main', amount: 500 },
+    { id: 'other-deposit', account: 'other', amount: 100 },
+    { id: 'old-loan', account: 'other', amount: -50, repayments: [{ amount: 20 }] },
+  ];
+  const unifiedContext = {
+    getEmergencyFundAccounts: profile => profile.emergencyFundAccounts,
+    saveEmergencyFundEntries: async rows => { entries.push(...rows); },
+    WR: {
+      ui: { getOrCreateProfile: async () => ({ emergencyFundAccounts: [{ id: 'main' }, { id: 'other' }] }) },
+      financial: { calculateEmergencyBorrowing: context.calculateEmergencyBorrowing },
+      repos: { emergencyFundContributions: { getAll: async () => entries } },
+    },
+  };
+  vm.createContext(unifiedContext);
+  vm.runInContext(functions.get('saveEmergencyBorrowing'), unifiedContext);
+  const entry = { id: 'new-loan', amount: 70, date: '2026-01-01', note: 'Repair' };
+  await assert.rejects(unifiedContext.saveEmergencyBorrowing('other', { ...entry, amount: 70.01 }), /Insufficient/);
+  await assert.rejects(unifiedContext.saveEmergencyBorrowing('missing', entry), /Choose/);
+  for (const amount of [0, -1, NaN, Infinity]) await assert.rejects(unifiedContext.saveEmergencyBorrowing('other', { ...entry, amount }));
+  for (const date of ['2026-02-30', 'bad-date', '2999-01-01']) await assert.rejects(unifiedContext.saveEmergencyBorrowing('other', { ...entry, date }));
+  assert.equal(entries.length, 3);
+  await unifiedContext.saveEmergencyBorrowing('other', entry);
+  assert.equal(entries.length, 4);
+  assert.equal(entries[3].account, 'other');
+  assert.equal(entries[3].amount, -70);
+  assert.equal(entries[3].note, 'Repair');
+  await unifiedContext.saveEmergencyBorrowing('other', entry);
+  assert.equal(entries.length, 4);
+  console.log('Unified emergency borrowing validates the selected account and dates, includes repayments in availability, and avoids duplicate records.');
+}
+checkUnifiedEmergencyBorrowing().catch(error => { console.error(error); process.exitCode = 1; });
 
 function checkNavigationLayout() {
   const classes = new Set();
