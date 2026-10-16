@@ -9908,12 +9908,70 @@ WR.ui = WR.ui || {};
     });
   }
 
+  function calculateSavingsLoan(loan) {
+    const borrowed = Math.round(Number(loan.amount) * 100);
+    const repaid = (loan.repayments || []).reduce((sum, payment) => sum + Math.round(Number(payment.amount) * 100), 0);
+    return { repaid: repaid / 100, remaining: (borrowed - repaid) / 100 };
+  }
+
+  async function saveSavingsBorrowing(potId, entry, loanId = '') {
+    const cents = Math.round(Number(entry.amount) * 100);
+    const date = String(entry.date || '');
+    const parsed = new Date(`${date}T12:00:00Z`);
+    if (!Number.isSafeInteger(cents) || cents <= 0) throw new Error('Enter an amount greater than zero.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date || date > new Date().toISOString().slice(0, 10)) throw new Error('Choose a valid date that is not in the future.');
+    const api = WR.account.getFirestoreApi();
+    const uid = WR.account.getCurrentUser()?.uid;
+    if (!uid) throw new Error('Not signed in.');
+    const db = WR.account.getDb();
+    const ref = api.doc(db, 'users', uid, 'savingsPots', potId);
+    await api.runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists()) throw new Error('This savings pot no longer exists.');
+      const pot = snapshot.data();
+      const borrowings = [...(pot.borrowings || [])];
+      const balance = Math.round((Number(pot.currentAmount) || 0) * 100);
+      if (loanId) {
+        const index = borrowings.findIndex(loan => loan.id === loanId);
+        if (index < 0) throw new Error('This borrowing record no longer exists.');
+        const loan = borrowings[index];
+        if ((loan.repayments || []).some(payment => payment.id === entry.id)) return;
+        if (date < loan.date) throw new Error('Repayment date cannot be before the borrowing date.');
+        if (cents > Math.round(calculateSavingsLoan(loan).remaining * 100)) throw new Error('Repayment exceeds the outstanding amount.');
+        borrowings[index] = { ...loan, repayments: [...(loan.repayments || []), { id: entry.id, date, amount: cents / 100 }] };
+      } else {
+        if (borrowings.some(loan => loan.id === entry.id)) return;
+        if (pot.archived) throw new Error('Choose an active savings pot.');
+        if (cents > balance) throw new Error('Insufficient savings in this pot.');
+        borrowings.push({ id: entry.id, date, amount: cents / 100, note: String(entry.note || '').trim(), repayments: [] });
+      }
+      transaction.update(ref, { currentAmount: (balance + (loanId ? cents : -cents)) / 100, borrowings });
+    });
+  }
+
+  WR.ui.saveSavingsBorrowing = saveSavingsBorrowing;
+
   async function renderSavingsPots(container) {
     const [pots, profile] = await Promise.all([WR.repos.savingsPots.getAll(), WR.ui.getOrCreateProfile()]);
     const month = WR.ui._savingsMonth || WR.ui.currentMonthKey();
     const active = pots.filter((pot) => !pot.archived);
     const activeBalance = active.reduce((sum, pot) => sum + amount(pot.currentAmount), 0);
     const currency = profile.baseCurrency;
+    const today = new Date().toISOString().slice(0, 10);
+    const loans = pots.flatMap(pot => (pot.borrowings || []).map(loan => ({ pot, loan, ...calculateSavingsLoan(loan) })))
+      .sort((left, right) => right.loan.date.localeCompare(left.loan.date));
+    const outstanding = loans.reduce((sum, item) => sum + item.remaining, 0);
+    const borrowingHistory = loans.map(({ pot, loan, repaid, remaining }) => `<article class="goal-card pot-card">
+      <div class="goal-card-header"><h3>${escape(pot.name)}</h3><span class="pct-badge">${remaining > 0 ? 'Outstanding' : 'Paid back'}</span></div>
+      <dl><div><dt>Borrowed on ${escape(loan.date)}</dt><dd>${escape(currency)} ${WR.ui.fmt(loan.amount)}</dd></div>
+      <div><dt>Paid back</dt><dd>${escape(currency)} ${WR.ui.fmt(repaid)}</dd></div>
+      <div><dt>Still owed</dt><dd>${escape(currency)} ${WR.ui.fmt(remaining)}</dd></div></dl>
+      ${loan.note ? `<p>${escape(loan.note)}</p>` : ''}
+      ${(loan.repayments || []).length ? `<details class="card-edit"><summary>Repayment history</summary><ul>${loan.repayments.map(payment => `<li>${escape(payment.date)}: ${escape(currency)} ${WR.ui.fmt(payment.amount)}</li>`).join('')}</ul></details>` : ''}
+      ${remaining > 0 ? `<form class="savings-repayment card-edit-form" data-pot-id="${escape(pot.id)}" data-loan-id="${escape(loan.id)}">
+        <label>Amount<input name="amount" type="number" min="0.01" max="${remaining}" step="0.01" value="${remaining}" required></label>
+        <label>Date paid back<input name="date" type="date" min="${escape(loan.date)}" max="${today}" value="${today}" required></label>
+        <div class="card-edit-actions span-2"><button type="submit">Record repayment</button></div></form>` : ''}</article>`).join('');
     const potCard = (pot, archived) => {
       const saved = amount(pot.currentAmount);
       const target = amount(pot.targetAmount);
@@ -9930,7 +9988,8 @@ WR.ui = WR.ui || {};
         </details>`}</article>`;
     };
     WR.ui.setHTML(container, `<h2>Savings Pots</h2><div class="savings-overview">
-      <div><span>Active savings pots</span><strong>${currency} ${WR.ui.fmt(activeBalance)}</strong></div></div>
+      <div><span>Active savings pots</span><strong>${currency} ${WR.ui.fmt(activeBalance)}</strong></div>
+      <div><span>Borrowed, not yet repaid</span><strong>${currency} ${WR.ui.fmt(outstanding)}</strong></div></div>
       <div class="goal-grid">${active.map((pot) => potCard(pot, false)).join('') || '<p class="empty">No active savings pots. Create one below to start tracking money you will not touch.</p>'}</div>
       <div class="form-panels">
         <div class="form-panel"><h3>Create a pot</h3><form id="create-pot" class="form-panel-grid">
@@ -9945,7 +10004,26 @@ WR.ui = WR.ui || {};
           <label class="span-2">Amount<input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></label>
           <div class="form-panel-actions"><button>Transfer</button></div></form></div>
       </div>
+      <div class="form-panel"><h3>Borrow from savings</h3><form id="borrow-savings" class="form-panel-grid">
+        <label>Savings pot<select name="potId" required><option value="">Choose a pot</option>${active.filter(pot => amount(pot.currentAmount) > 0).map(pot => `<option value="${escape(pot.id)}">${escape(pot.name)}: ${escape(currency)} ${WR.ui.fmt(pot.currentAmount)}</option>`).join('')}</select></label>
+        <label>Amount<input name="amount" type="number" min="0.01" step="0.01" required></label>
+        <label>Date borrowed<input name="date" type="date" max="${today}" value="${today}" required></label>
+        <label>Reason (optional)<input name="note" maxlength="300"></label>
+        <div class="form-panel-actions"><button type="submit">Record borrowing</button></div></form></div>
+      <h3>Borrowing &amp; repayment history</h3><div class="goal-grid">${borrowingHistory || '<p class="empty">No savings borrowing recorded.</p>'}</div>
       <details class="archived-pots"><summary>Archived pots (${pots.length - active.length})</summary><div class="goal-grid">${pots.filter((pot) => pot.archived).map((pot) => potCard(pot, true)).join('') || '<p class="empty">No archived pots.</p>'}</div></details>`);
+    container.querySelectorAll('#borrow-savings, .savings-repayment').forEach(form => {
+      let entryId = WR.models.newId();
+      WR.ui.bindReliableForm(form, async () => {
+        await saveSavingsBorrowing(form.dataset.potId || form.elements.potId.value, {
+          id: entryId, amount: form.elements.amount.value, date: form.elements.date.value, note: form.elements.note?.value || '',
+        }, form.dataset.loanId || '');
+        entryId = WR.models.newId();
+      }, async () => {
+        WR.ui.notify(form.dataset.loanId ? 'Repayment recorded.' : 'Savings borrowing recorded.', 'success');
+        await renderSavingsPots(container);
+      });
+    });
     WR.ui.bindReliableForm(container.querySelector('#create-pot'), async (form) => {
       await WR.repos.savingsPots.add({ id: WR.models.newId(), name: form.elements.recordName.value.trim(), targetAmount: amount(form.elements.targetAmount.value), currentAmount: amount(form.elements.current.value), archived: false });
     }, () => renderSavingsPots(container));

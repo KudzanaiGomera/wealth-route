@@ -498,6 +498,73 @@ async function checkEmergencyAtomicWrites() {
 }
 checkEmergencyAtomicWrites().catch(error => { console.error(error); process.exitCode = 1; });
 
+async function checkSavingsBorrowing() {
+  let pot = { id: 'holiday', currentAmount: 500, archived: false };
+  let rejectCommit = false;
+  const copy = value => JSON.parse(JSON.stringify(value));
+  const api = {
+    doc: (_db, ...parts) => parts.join('/'),
+    async runTransaction(_db, operation) {
+      let pending;
+      await operation({
+        get: async ref => {
+          assert.equal(ref, 'users/test/savingsPots/holiday');
+          return { exists: () => Boolean(pot), data: () => copy(pot) };
+        },
+        update: (_ref, fields) => { pending = copy(fields); },
+      });
+      if (rejectCommit) throw new Error('Rejected commit');
+      if (pending) pot = { ...pot, ...pending };
+    },
+  };
+  const savingsContext = { WR: { account: { getCurrentUser: () => ({ uid: 'test' }), getFirestoreApi: () => api, getDb: () => ({}) } } };
+  vm.createContext(savingsContext);
+  vm.runInContext(['calculateSavingsLoan', 'saveSavingsBorrowing'].map(name => functions.get(name)).join('\n'), savingsContext);
+  const save = (entry, loanId) => savingsContext.saveSavingsBorrowing('holiday', entry, loanId);
+  const borrow = { id: 'loan', amount: 200.3, date: '2026-01-01', note: 'Car repair' };
+  rejectCommit = true;
+  await assert.rejects(save(borrow), /Rejected commit/);
+  assert.equal(pot.currentAmount, 500);
+  assert.equal(pot.borrowings, undefined);
+  rejectCommit = false;
+  await save(borrow);
+  assert.equal(pot.currentAmount, 299.7);
+  assert.equal(pot.borrowings[0].note, 'Car repair');
+  await save(borrow);
+  assert.equal(pot.currentAmount, 299.7);
+  assert.equal(pot.borrowings.length, 1);
+  const unchanged = JSON.stringify(pot);
+  await assert.rejects(save({ ...borrow, id: 'too-large', amount: 300 }), /Insufficient/);
+  for (const invalid of [0, -1, NaN, Infinity, 0.001]) await assert.rejects(save({ ...borrow, amount: invalid }));
+  for (const date of ['2026-02-30', 'bad-date', '2999-01-01']) await assert.rejects(save({ ...borrow, date }));
+  await assert.rejects(save({ id: 'payment', amount: 10, date: '2025-12-31' }, 'loan'), /before/);
+  await assert.rejects(save({ id: 'payment', amount: 201, date: '2026-01-02' }, 'loan'), /outstanding/);
+  await assert.rejects(save({ id: 'payment', amount: 10, date: '2026-01-02' }, 'missing'), /no longer exists/);
+  assert.equal(JSON.stringify(pot), unchanged);
+  const payment = { id: 'payment', amount: 50.1, date: '2026-01-02' };
+  rejectCommit = true;
+  await assert.rejects(save(payment, 'loan'));
+  assert.equal(JSON.stringify(pot), unchanged);
+  rejectCommit = false;
+  await save(payment, 'loan');
+  assert.equal(pot.currentAmount, 349.8);
+  assert.equal(savingsContext.calculateSavingsLoan(pot.borrowings[0]).remaining, 150.2);
+  await save(payment, 'loan');
+  assert.equal(pot.currentAmount, 349.8);
+  assert.equal(pot.borrowings[0].repayments.length, 1);
+  pot.archived = true;
+  await assert.rejects(save({ ...borrow, id: 'archived' }), /active/);
+  await save({ id: 'final', amount: 150.2, date: '2026-01-03' }, 'loan');
+  assert.equal(pot.currentAmount, 500);
+  assert.equal(savingsContext.calculateSavingsLoan(pot.borrowings[0]).remaining, 0);
+  assert.deepEqual(pot.borrowings[0].repayments.map(item => item.date), ['2026-01-02', '2026-01-03']);
+  await assert.rejects(save({ id: 'extra', amount: 0.01, date: '2026-01-04' }, 'loan'), /outstanding/);
+  pot = null;
+  await assert.rejects(save(borrow), /no longer exists/);
+  console.log('Savings borrowing, partial/full repayment history, cent precision, duplicate guards, archived repayment, and atomic failure checks passed.');
+}
+checkSavingsBorrowing().catch(error => { console.error(error); process.exitCode = 1; });
+
 async function checkRouteRaces() {
   let current;
   let headingFocused = false;
