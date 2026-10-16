@@ -1268,10 +1268,6 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .borrowing-row-body .borrowing-edit, .borrowing-row-body .borrowing-delete { margin-top: 0.75rem; }
 .borrowing-delete button { min-height: 44px; color: var(--danger); background: transparent; border: 1px solid var(--danger); }
 .borrowing-mobile-amounts { display: none; }
-.ef-account-breakdown { margin: 0.75rem 0 0; font-size: 0.8rem; }
-.ef-account-breakdown > div { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.3rem 0; }
-.ef-account-breakdown dt { color: var(--muted); }
-.ef-account-breakdown dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .ef-account-card .balance-label { display: block; margin: 0.55rem 0 0.2rem; color: var(--muted); font-size: 0.8rem; }
 @media (min-width: 681px) and (max-width: 1000px) {
   .borrowing-row-body { grid-template-columns: minmax(0, 1fr); }
@@ -2602,24 +2598,25 @@ WR.financial = WR.financial || {};
    * @param {string} baseCurrency
    */
   function calculateEmergencyBorrowing(entry) {
-    const borrowed = entry.transferId ? 0 : Math.max(0, -Math.round((Number(entry.amount) || 0) * 100));
+    const borrowed = entry.transferId || entry.balanceAdjustment ? 0 : Math.max(0, -Math.round((Number(entry.amount) || 0) * 100));
     const paid = (entry.repayments || []).reduce((sum, payment) => sum + Math.round((Number(payment.amount) || 0) * 100), 0);
     const repaid = entry.returned ? borrowed : Math.min(borrowed, Math.max(0, paid));
     return { borrowed: borrowed / 100, repaid: repaid / 100, remaining: (borrowed - repaid) / 100 };
   }
 
   function calculateEmergencyAccountSummary(entries, accountId, defaultAccountId) {
-    const totals = { contributions: 0, transfers: 0, borrowed: 0, repaid: 0 };
+    const totals = { contributions: 0, transfers: 0, adjustments: 0, borrowed: 0, repaid: 0 };
     entries.filter(entry => (entry.account || defaultAccountId) === accountId).forEach(entry => {
       const cents = Math.round((Number(entry.amount) || 0) * 100);
-      if (entry.transferId) totals.transfers += cents;
+      if (entry.balanceAdjustment) totals.adjustments += cents;
+      else if (entry.transferId) totals.transfers += cents;
       else if (cents >= 0) totals.contributions += cents;
       else {
         totals.borrowed -= cents;
         totals.repaid += Math.round(calculateEmergencyBorrowing(entry).repaid * 100);
       }
     });
-    const total = (totals.contributions + totals.transfers - totals.borrowed + totals.repaid) / 100;
+    const total = (totals.contributions + totals.transfers + totals.adjustments - totals.borrowed + totals.repaid) / 100;
     const outstanding = (totals.borrowed - totals.repaid) / 100;
     return { ...Object.fromEntries(Object.entries(totals).map(([key, value]) => [key, value / 100])), total, outstanding };
   }
@@ -6394,7 +6391,7 @@ WR.ui = WR.ui || {};
       const snapshot = await transaction.get(ref);
       if (!snapshot.exists()) throw new Error('This borrowing record no longer exists.');
       const loan = snapshot.data();
-      if (loan.transferId || Number(loan.amount) >= 0) throw new Error('Choose an emergency fund borrowing record.');
+      if (loan.transferId || loan.balanceAdjustment || Number(loan.amount) >= 0) throw new Error('Choose an emergency fund borrowing record.');
       if ((loan.repayments || []).some(entry => entry.id === payment.id)) return;
       if (date < loan.date) throw new Error('Repayment date cannot be before the borrowing date.');
       const remaining = Math.round(WR.financial.calculateEmergencyBorrowing(loan).remaining * 100);
@@ -6447,7 +6444,7 @@ WR.ui = WR.ui || {};
     const targetProgress = rawProgress > 0 && rawProgress < 1 ? Number(rawProgress.toFixed(1)) : Math.round(rawProgress);
 
     const visibleContributions = WR.ui._emergencyFundShowAll ? sorted : monthContributions;
-    const rows = visibleContributions.filter(item => Number(item.amount) >= 0 || item.transferId).map((item) => {
+    const rows = visibleContributions.filter(item => Number(item.amount) >= 0 || item.transferId || item.balanceAdjustment).map((item) => {
       return `
       <tr data-id="${WR.ui.escapeText(item.id)}">
         <td><input class="cell" data-field="date" type="date" value="${WR.ui.escapeText(item.date)}"></td>
@@ -6487,18 +6484,11 @@ WR.ui = WR.ui || {};
           <h3>${escapeEf(a.label)}</h3>
           <span class="balance-label">Available balance</span>
           <span class="amount ${a.total < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(a.total)}</span>
-          <dl class="ef-account-breakdown">
-            <div><dt>Contributions</dt><dd>${profile.baseCurrency} ${WR.ui.fmt(a.contributions)}</dd></div>
-            ${a.transfers ? `<div><dt>Net transfers</dt><dd>${profile.baseCurrency} ${WR.ui.fmt(a.transfers)}</dd></div>` : ''}
-            <div><dt>Borrowed</dt><dd>${profile.baseCurrency} ${WR.ui.fmt(-a.borrowed)}</dd></div>
-            <div><dt>Paid back</dt><dd>${profile.baseCurrency} ${WR.ui.fmt(a.repaid)}</dd></div>
-            <div><dt>Owed back to this account</dt><dd class="${a.outstanding > 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(-a.outstanding)}</dd></div>
-          </dl>
         </div>`).join('')}
       </div>
 
       <div class="ef-activity-card">
-        <h3>Contributions &amp; transfers</h3>
+        <h3>Account activity</h3>
         <div class="toolbar"><label>Month: <input id="emergency-fund-month" type="month" value="${WR.ui.escapeText(month)}" ${WR.ui._emergencyFundShowAll ? 'disabled' : ''}></label>
           <label><input id="emergency-fund-show-all" type="checkbox" ${WR.ui._emergencyFundShowAll ? 'checked' : ''}> All months</label></div>
         <table class="data-table">
@@ -10080,7 +10070,7 @@ WR.ui = WR.ui || {};
       if (!snapshot.exists()) throw new Error('This borrowing record no longer exists.');
       const record = snapshot.data();
       const loan = kind === 'savings' ? (record.borrowings || []).find(item => item.id === loanId) : record;
-      if (!loan || (kind === 'emergency' && (loan.transferId || Number(loan.amount) >= 0 || (loan.account || defaultAccount) !== sourceId))) throw new Error('This borrowing record no longer exists.');
+      if (!loan || (kind === 'emergency' && (loan.transferId || loan.balanceAdjustment || Number(loan.amount) >= 0 || (loan.account || defaultAccount) !== sourceId))) throw new Error('This borrowing record no longer exists.');
       const original = Math.round(Math.abs(Number(loan.amount)) * 100);
       const legacyReturned = kind === 'emergency' && loan.returned && !(loan.repayments || []).length;
       const paid = legacyReturned ? original : (loan.repayments || []).reduce((sum, payment) => sum + Math.round(Number(payment.amount) * 100), 0);
@@ -10113,7 +10103,7 @@ WR.ui = WR.ui || {};
       ...loan, ...calculateSavingsLoan(loan), sourceKey: `savings:${pot.id}`, sourceId: pot.id,
       kind: 'savings', sourceName: pot.name, currency: pot.currency || baseCurrency,
     })));
-    const emergency = contributions.filter(loan => Number(loan.amount) < 0 && !loan.transferId).map(loan => {
+    const emergency = contributions.filter(loan => Number(loan.amount) < 0 && !loan.transferId && !loan.balanceAdjustment).map(loan => {
       const account = loan.account || accounts[0].id;
       const balance = WR.financial.calculateEmergencyBorrowing(loan);
       return { ...loan, amount: balance.borrowed, repaid: balance.repaid, remaining: balance.remaining,

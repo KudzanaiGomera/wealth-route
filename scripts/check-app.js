@@ -235,6 +235,15 @@ const accountEntries = [
 const fnbSummary = context.calculateEmergencyAccountSummary(accountEntries, 'fnb', 'moneyclub');
 assert.equal(fnbSummary.total, 451);
 assert.equal(fnbSummary.outstanding, 100);
+const correctedAccountEntries = [...accountEntries,
+  { account: 'fnb', amount: -450, balanceAdjustment: true },
+  { account: 'moneyclub', amount: 140.53, balanceAdjustment: true },
+];
+assert.equal(context.calculateEmergencyAccountSummary(correctedAccountEntries, 'fnb', 'moneyclub').total, 1);
+assert.equal(context.calculateEmergencyAccountSummary(correctedAccountEntries, 'moneyclub', 'moneyclub').total, 0);
+assert.equal(context.calculateEmergencyBorrowing(correctedAccountEntries[3]).remaining, 0);
+assert.equal(context.calculateReserveBorrowing([], correctedAccountEntries, [], 'ZAR').emergency, 240.53);
+assert.equal(Math.round(context.calculateWealth([], [], [], correctedAccountEntries, [], 'ZAR').emergencyFundTotal * 100), 100);
 assert.equal(context.calculateEmergencyAccountSummary(accountEntries, 'moneyclub', 'moneyclub').total, -140.53);
 assert.equal(context.calculateEmergencyAccountSummary([{ account: 'fnb', ...partialEmergency }, { account: 'fnb', amount: 500 }], 'fnb', 'moneyclub').total, 349.8);
 assert.equal(context.calculateEmergencyAccountSummary([{ account: 'fnb', amount: -100, returned: true }], 'fnb', 'moneyclub').total, 0);
@@ -930,7 +939,7 @@ async function checkSavingsActivity() {
   await savingsContext.renderEmergencyFund(savings);
   assert.ok(savings.markup.includes('ef-activity-card'));
   assert.ok(savings.markup.includes('id="emergency-fund-month"'));
-  assert.ok(savings.markup.includes('Contributions &amp; transfers'));
+  assert.ok(savings.markup.includes('Account activity'));
   assert.ok(!savings.markup.includes('Borrowed: repair'));
   assert.ok(!savings.markup.includes('class="emergency-repayment card-edit-form"'));
   assert.ok(!savings.markup.includes('emergency-borrow-form'));
@@ -938,6 +947,9 @@ async function checkSavingsActivity() {
   assert.ok(!savings.markup.includes('toggle-emergency-return'));
   assert.ok(!savings.markup.includes('data-id="older-borrowing"'));
   assert.ok(savings.markup.includes('ZAR 90.53'));
+  assert.ok(savings.markup.includes('Available balance'));
+  assert.ok(!savings.markup.includes('ef-account-breakdown'));
+  assert.ok(!savings.markup.includes('Owed back to this account'));
   assert.ok(savings.markup.includes('id="emergency-add-form"'));
   const standalone = host('content');
   await savingsContext.renderEmergencyFund(standalone);
@@ -968,6 +980,7 @@ function checkCombinedBorrowingSources() {
     { id: 'legacy', amount: -25, date: '2026-09-01', returned: true },
     { id: 'transfer', amount: -500, date: '2026-10-03', transferId: 'move' },
     { id: 'deposit', amount: 1000, date: '2026-10-03' },
+    { id: 'correction', amount: -450, date: '2026-10-04', balanceAdjustment: true },
   ], accounts, 'ZAR');
   assert.equal(loans.length, 3);
   assert.equal(loans[0].sourceKey, 'emergency:shared');
