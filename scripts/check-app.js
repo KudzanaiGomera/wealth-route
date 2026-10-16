@@ -940,6 +940,9 @@ async function checkSavingsActivity() {
 checkSavingsActivity().catch(error => { console.error(error); process.exitCode = 1; });
 
 function checkCombinedBorrowingSources() {
+  assert.ok(functions.get('renderReserveBorrowing').includes('<details class="borrowing-row">'));
+  assert.ok(!functions.get('renderReserveBorrowing').includes('class="goal-card pot-card"'));
+  assert.ok(functions.get('renderReserveBorrowing').includes('class="reserve-repayment card-edit-form"'));
   const combinedContext = { WR: { financial: { calculateEmergencyBorrowing: context.calculateEmergencyBorrowing } } };
   vm.createContext(combinedContext);
   vm.runInContext(['calculateSavingsLoan', 'collectReserveBorrowings'].map(name => functions.get(name)).join('\n'), combinedContext);
