@@ -213,6 +213,26 @@ assert.equal(context.calculateWealth([], [], [{ currentAmount: 10, currency: 'US
 assert.equal(context.calculateWealth([], [], [{ currentAmount: 10, currency: 'EUR' }], [], [], 'ZAR').unconvertedItems.length, 1);
 assert.equal(context.calculateWealth([], [], [{ currentAmount: -10 }], [{ amount: -5 }], [], 'ZAR').totalWealth, -15);
 assert.equal(context.calculateWealth([], [], [], [], [], 'ZAR').totalWealth, 0);
+vm.runInContext(functions.get('calculateReserveBorrowing'), context);
+const reserveLoans = [
+  { borrowings: [{ amount: 200.3, repayments: [{ amount: 50.1 }] }, { amount: 100, repayments: [{ amount: 100 }] }] },
+  { archived: true, borrowings: [{ amount: 10, repayments: [] }] },
+];
+const reserveEmergency = [{ amount: 1000 }, { amount: -50.25 }, { amount: -80, returned: true }, { amount: -100, transferId: 'transfer' }];
+const reserveBorrowing = context.calculateReserveBorrowing(reserveLoans, reserveEmergency, [], 'ZAR');
+assert.equal(reserveBorrowing.savings, 160.2);
+assert.equal(reserveBorrowing.emergency, 50.25);
+assert.equal(reserveBorrowing.total, 210.45);
+assert.equal(context.calculateReserveBorrowing([], [], [], 'ZAR').total, 0);
+assert.equal(context.calculateReserveBorrowing([{ currency: 'USD', borrowings: [{ amount: 10 }] }], [{ currency: 'USD', amount: -5 }], rates, 'ZAR').total, 300);
+assert.equal(context.calculateReserveBorrowing([{ borrowings: [{ amount: 0.3, repayments: [{ amount: 0.1 }, { amount: 0.2 }] }] }], [], [], 'ZAR').total, 0);
+assert.ok(functions.get('buildSnapshot').includes('reserveBorrowing: calculateReserveBorrowing('));
+assert.ok(functions.get('renderDashboard').includes('Borrowed from Reserves'));
+assert.ok(functions.get('renderDashboard').includes('fmt(s.reserveBorrowing.total)'));
+assert.ok(!functions.get('renderTransactions').includes('data-field="categoryId"'));
+assert.ok(!functions.get('renderTransactions').includes('name="categoryId"'));
+assert.ok(!functions.get('renderTransactions').includes('form.categoryId'));
+assert.ok(!functions.get('renderEmergencyFund').includes('createBudgetLine'));
 assert.ok(functions.get('renderAssets').includes('wealthSource: form.elements.wealthSource.value'));
 assert.ok(functions.get('renderAssets').includes('data-field="wealthSource"'));
 assert.ok(functions.get('ensureMonthlyNetWorthSnapshot').includes('s.activePotBalance || s.emergencyFundBalance'));
@@ -491,10 +511,11 @@ async function checkEmergencyAtomicWrites() {
   assert.equal(records.get('users/test/emergencyFundContributions/out').amount, -100);
   assert.ok(!Object.hasOwn(records.get('users/test/emergencyFundContributions/out'), 'note'));
   records.clear();
-  await emergencyContext.saveEmergencyFundEntries([entries[0]], { id: 'borrow-budget', actualAmount: 100 });
-  assert.equal(records.size, 2);
-  assert.equal(records.get('users/test/budgetLines/borrow-budget').actualAmount, 100);
-  console.log('Emergency transfers and linked borrowing commit together or leave no partial records.');
+  await emergencyContext.saveEmergencyFundEntries([entries[0]]);
+  assert.equal(records.size, 1);
+  assert.equal(records.get('users/test/emergencyFundContributions/out').amount, -100);
+  assert.ok([...records.keys()].every(key => key.includes('/emergencyFundContributions/')));
+  console.log('Emergency transfers remain atomic; borrowing records only fund activity, with no variable expense.');
 }
 checkEmergencyAtomicWrites().catch(error => { console.error(error); process.exitCode = 1; });
 
@@ -813,23 +834,39 @@ async function checkSavingsActivity() {
         buildSnapshot: async () => ({ essentialVsDiscretionary: { essential: 1000 }, cashflow: { fixedExpenses: 1000 }, emergencyFundTargetMonths: 3 }),
         setHTML: (container, markup) => { container.markup = markup; },
       },
-      repos: { emergencyFundContributions: { getAll: async () => [{ id: 'contribution', date: '2026-10-07', account: 'main', amount: 90.53 }] } },
+      repos: { emergencyFundContributions: { getAll: async () => [
+        { id: 'contribution', date: '2026-10-07', account: 'main', amount: 100 },
+        { id: 'borrowed', date: '2026-10-08', account: 'main', amount: -9.47, note: 'Borrowed: repair' },
+        { id: 'repaid', date: '2026-10-09', account: 'main', amount: -20, returned: true },
+        { id: 'older-borrowing', date: '2026-09-09', account: 'main', amount: -5, returned: true },
+      ] } },
     },
   };
   vm.createContext(savingsContext);
   vm.runInContext(functions.get('renderEmergencyFund'), savingsContext);
-  const host = id => ({ id, querySelectorAll: () => [], querySelector: selector => selector === '#emergency-fund-month' && id === 'emergency-savings' ? null : { addEventListener() {} } });
+  const host = id => ({ id, querySelectorAll: () => [], querySelector: () => ({ addEventListener() {} }) });
   const savings = host('emergency-savings');
   await savingsContext.renderEmergencyFund(savings);
-  assert.ok(!savings.markup.includes('ef-activity-card'));
-  assert.ok(!savings.markup.includes('id="emergency-fund-month"'));
+  assert.ok(savings.markup.includes('ef-activity-card'));
+  assert.ok(savings.markup.includes('id="emergency-fund-month"'));
+  assert.ok(savings.markup.includes('Contribution, borrowing &amp; repayment history'));
+  assert.ok(savings.markup.includes('Borrowed: repair'));
+  assert.ok(savings.markup.includes('Outstanding'));
+  assert.ok(savings.markup.includes('Paid back'));
+  assert.ok(savings.markup.includes('Mark returned'));
+  assert.ok(savings.markup.includes('Unmark returned'));
+  assert.ok(!savings.markup.includes('data-id="older-borrowing"'));
   assert.ok(savings.markup.includes('ZAR 90.53'));
   assert.ok(savings.markup.includes('id="emergency-add-form"'));
   const standalone = host('content');
   await savingsContext.renderEmergencyFund(standalone);
   assert.ok(standalone.markup.includes('ef-activity-card'));
   assert.ok(standalone.markup.includes('id="emergency-fund-month"'));
-  console.log('Savings hides emergency activity while preserving balances, contribution controls, and standalone history.');
+  savingsContext.WR.ui._emergencyFundMonth = '2026-09';
+  await savingsContext.renderEmergencyFund(savings);
+  assert.ok(savings.markup.includes('data-id="older-borrowing"'));
+  assert.ok(!savings.markup.includes('data-id="borrowed"'));
+  console.log('Savings shows emergency contribution and borrowing history, repayment status/actions, and month filtering without changing balances.');
 }
 checkSavingsActivity().catch(error => { console.error(error); process.exitCode = 1; });
 

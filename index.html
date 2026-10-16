@@ -750,6 +750,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .reserve-card { display: flex; flex-direction: column; justify-content: space-between; gap: 0.65rem; min-width: 0; min-height: 150px; }
 .reserve-card.emergency-card { background: linear-gradient(145deg, rgba(24, 143, 113, 0.08), transparent 85%), var(--panel); }
 .reserve-card.savings-card { background: linear-gradient(145deg, rgba(180, 143, 54, 0.10), transparent 85%), var(--panel); }
+.reserve-card.borrowing-card { grid-column: 1 / -1; border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
 .reserve-card h2.stat-label { margin: 0; font: 600 0.9rem/1.4 var(--font-sans); color: var(--text); }
 .reserve-card .stat-value { font: 500 1.8rem/1.25 var(--font-serif); margin: 0; }
 .reserve-card p { margin: 0; color: var(--muted); font-size: 0.8rem; }
@@ -3870,6 +3871,23 @@ WR.ui = WR.ui || {};
   /**
    * @param {string} [monthKey] - 'YYYY-MM', defaults to the current month
    */
+  function calculateReserveBorrowing(savingsPots, emergencyFundContributions, exchangeRates, baseCurrency) {
+    const convertedAmount = (value, currency) => {
+      const result = WR.financial.convertCurrency(value, currency || baseCurrency, baseCurrency, exchangeRates);
+      return result.converted ? Math.round(result.value * 100) : 0;
+    };
+    const savings = savingsPots.reduce((sum, pot) => sum + (pot.borrowings || []).reduce((subtotal, loan) => {
+      const repaid = (loan.repayments || []).reduce((paid, payment) => paid + Math.round((Number(payment.amount) || 0) * 100), 0);
+      const remaining = Math.max(0, Math.round((Number(loan.amount) || 0) * 100) - repaid) / 100;
+      return subtotal + convertedAmount(remaining, pot.currency);
+    }, 0), 0) / 100;
+    const emergency = emergencyFundContributions.reduce((sum, entry) => {
+      if (entry.transferId || entry.returned || Number(entry.amount) >= 0) return sum;
+      return sum + convertedAmount(Math.abs(Number(entry.amount) || 0), entry.currency);
+    }, 0) / 100;
+    return { savings, emergency, total: Math.round((savings + emergency) * 100) / 100 };
+  }
+
   async function buildSnapshot(monthKey) {
     const month = monthKey || currentMonthKey();
     const prevMonth = previousMonthKey(month);
@@ -4132,6 +4150,7 @@ WR.ui = WR.ui || {};
       annualMonths: annualRows,
       emergencyFundBalance,
       activePotBalance,
+      reserveBorrowing: calculateReserveBorrowing(savingsPots, emergencyFundContributions, exchangeRates, profile.baseCurrency),
       emergencyFundContributions,
       incomeSources,
       fixedExpenses,
@@ -4171,7 +4190,7 @@ WR.ui = WR.ui || {};
     return day >= 1 && day <= 31 ? day : undefined;
   };
   WR.ui.calculateDayToDayMonthBalance = calculateDayToDayMonthBalance;
-  Object.assign(WR.ui, { payCycleDates, currentBudgetMonth, syncBudgetMonth, calculatePayCycleFunding, calculatePayCycleBudget, calculateBudgetRemainingPercentage, ensurePaydayRollover });
+  Object.assign(WR.ui, { payCycleDates, currentBudgetMonth, syncBudgetMonth, calculatePayCycleFunding, calculatePayCycleBudget, calculateBudgetRemainingPercentage, ensurePaydayRollover, calculateReserveBorrowing });
   WR.ui.buildSnapshot = buildSnapshot;
 })();
 // UI layer, part 1: layout shell, DOM helpers, and the Dashboard view.
@@ -5186,6 +5205,16 @@ WR.ui = WR.ui || {};
           </article>
           <small>Included in total wealth and net worth</small>
         </div>
+        <article class="dashboard-card reserve-card borrowing-card" aria-label="Outstanding reserve borrowing">
+          <h2 class="stat-label">Borrowed from Reserves</h2>
+          <span class="stat-value">${currency} ${fmt(s.reserveBorrowing.total)}</span>
+          <p>Still to repay</p>
+          <div class="networth-breakdown" data-private-detail>
+            <div><span class="stat-label">From savings</span><span class="stat-value">${currency} ${fmt(s.reserveBorrowing.savings)}</span></div>
+            <div><span class="stat-label">From emergency fund</span><span class="stat-value">${currency} ${fmt(s.reserveBorrowing.emergency)}</span></div>
+          </div>
+          <a href="#/savings">View borrowing history</a>
+        </article>
         </div>
 
       <nav class="dashboard-actions" aria-label="Money shortcuts">
@@ -5371,7 +5400,6 @@ WR.ui = WR.ui || {};
 (function () {
   const SORTABLE_COLUMNS = [
     { field: 'name', label: 'Name' },
-    { field: 'categoryName', label: 'Category' },
     { field: 'budgetAmount', label: 'Budget' },
     { field: 'actualAmount', label: 'Actual' },
     { field: 'diff', label: 'Diff' },
@@ -5403,21 +5431,18 @@ WR.ui = WR.ui || {};
     const month = WR.ui._transactionsMonth || WR.ui.currentBudgetMonth();
     WR.ui._transactionsMonth = month;
     const dates = WR.ui.payCycleDates(month);
-    const sort = WR.ui._transactionsSort || { field: 'type', dir: 'asc' };
+    const sort = WR.ui._transactionsSort || { field: 'name', dir: 'asc' };
+    if (!SORTABLE_COLUMNS.some(column => column.field === sort.field)) sort.field = 'name';
     WR.ui._transactionsSort = sort;
 
-    const [lines, profile, categories, prevLines] = await Promise.all([
+    const [lines, profile, prevLines] = await Promise.all([
       WR.queries.getBudgetLinesByMonth(month),
       WR.ui.getOrCreateProfile(),
-      WR.repos.expenseCategories.getAll(),
       WR.queries.getBudgetLinesByMonth(WR.ui.previousMonthKey(month)),
     ]);
     // Borrowed-from-emergency-fund lines are one-off events, not part of a recurring budget.
     const prevVariableLines = prevLines.filter((line) => line.type === 'variable' && line.name !== 'Emergency Fund Borrowed');
-    const variableCategories = categories.filter((category) => category.type === 'variable');
-    const categoriesById = Object.fromEntries(variableCategories.map((c) => [c.id, c]));
-
-    const sortedLines = sortLines(lines.filter((line) => line.type === 'variable'), categoriesById, sort);
+    const sortedLines = sortLines(lines.filter((line) => line.type === 'variable'), {}, sort);
     const totalBudget = sortedLines.reduce((sum, l) => sum + l.budgetAmount, 0);
     const totalActual = sortedLines.reduce((sum, l) => sum + l.actualAmount, 0);
 
@@ -5431,7 +5456,6 @@ WR.ui = WR.ui || {};
         (l) => `
       <tr data-id="${WR.ui.escapeText(l.id)}">
         <td><input class="cell" data-field="name" value="${WR.ui.escapeText(l.name)}"></td>
-        <td><select class="cell" data-field="categoryId">${categoryOptions(variableCategories, l.categoryId)}</select></td>
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="budgetAmount" value="${WR.ui.escapeText(l.budgetAmount)}"></td>
         <td><input class="cell num" type="number" step="0.01" min="0" data-field="actualAmount" value="${WR.ui.escapeText(l.actualAmount)}"></td>
         <td class="num diff-cell">${WR.ui.fmt(l.diff)}</td>
@@ -5462,13 +5486,12 @@ WR.ui = WR.ui || {};
 
       <table class="data-table">
         <thead><tr>${headerCells}<th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="6" class="empty">No variable expenses yet for this month \u2014 add one below.</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="5" class="empty">No variable expenses yet for this month \u2014 add one below.</td></tr>'}</tbody>
       </table>
 
       <h3>Add a line</h3>
       <form id="add-line-form" class="inline-form">
         <input name="recordName" placeholder="Name (e.g. Groceries)" required>
-        <select name="categoryId">${categoryOptions(variableCategories)}</select>
         <input name="budgetAmount" type="number" step="0.01" min="0" placeholder="Budget" required>
         <input name="actualAmount" type="number" step="0.01" min="0" placeholder="Actual" required>
         <button type="submit">Add</button>
@@ -5549,7 +5572,6 @@ WR.ui = WR.ui || {};
         month,
         type: 'variable',
         name: form.elements.recordName.value,
-        categoryId: form.categoryId.value || undefined,
         budgetAmount: Math.max(0, parseFloat(form.budgetAmount.value) || 0),
         actualAmount: Math.max(0, parseFloat(form.actualAmount.value) || 0),
         currency: profile.baseCurrency,
@@ -6248,7 +6270,7 @@ WR.ui = WR.ui || {};
   ];
   const escapeEf = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-  async function saveEmergencyFundEntries(entries, budgetLine) {
+  async function saveEmergencyFundEntries(entries) {
     const user = WR.account.getCurrentUser();
     if (!user) throw new Error('Not signed in.');
     const api = WR.account.getFirestoreApi();
@@ -6256,7 +6278,6 @@ WR.ui = WR.ui || {};
     const clean = item => Object.fromEntries(Object.entries(item).filter(([, value]) => value !== undefined));
     await api.runTransaction(db, async transaction => {
       entries.forEach(entry => transaction.set(api.doc(db, 'users', user.uid, 'emergencyFundContributions', entry.id), clean(entry)));
-      if (budgetLine) transaction.set(api.doc(db, 'users', user.uid, 'budgetLines', budgetLine.id), clean(budgetLine));
     });
   }
 
@@ -6302,7 +6323,7 @@ WR.ui = WR.ui || {};
         <td><select class="cell" data-field="account">${emergencyFundAccountOptions(accountOf(item))}</select></td>
         <td><input class="cell" data-field="amount" type="number" step="0.01" value="${WR.ui.escapeText(item.amount)}"></td>
         <td><input class="cell" data-field="note" value="${WR.ui.escapeText(item.note || '')}"></td>
-        <td>${isBorrowed ? `<button class="link-btn toggle-emergency-return" data-id="${WR.ui.escapeText(item.id)}">${returned ? 'Unmark returned' : 'Mark returned'}</button>` : ''}</td>
+        <td>${isBorrowed ? `<span>${returned ? 'Paid back' : 'Outstanding'}</span><br><button class="link-btn toggle-emergency-return" data-id="${WR.ui.escapeText(item.id)}">${returned ? 'Unmark returned' : 'Mark returned'}</button>` : ''}</td>
         <td><button class="link-btn delete-emergency" data-id="${WR.ui.escapeText(item.id)}">Delete</button></td>
       </tr>`;
     }).join('');
@@ -6339,14 +6360,14 @@ WR.ui = WR.ui || {};
         </div>`).join('')}
       </div>
 
-      ${container.id !== 'emergency-savings' ? `<div class="ef-activity-card">
-        <h3>Activity</h3>
+      <div class="ef-activity-card">
+        <h3>Contribution, borrowing &amp; repayment history</h3>
         <div class="toolbar"><label>Month: <input id="emergency-fund-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
         <table class="data-table">
           <thead><tr><th>Date</th><th>Account</th><th>Contribution (${profile.baseCurrency})</th><th>Note</th><th>Returned</th><th></th></tr></thead>
           <tbody>${rows || '<tr><td colspan="6" class="empty">No emergency fund activity for this month.</td></tr>'}</tbody>
         </table>
-      </div>` : ''}
+      </div>
 
       <div class="ef-forms-grid">
         <div class="ef-form-card">
@@ -6362,7 +6383,6 @@ WR.ui = WR.ui || {};
 
         <div class="ef-form-card borrow">
           <h3>Borrow from emergency fund</h3>
-          <p class="fine-print">This reduces the selected account's balance and records the same amount as a variable expense named “Emergency Fund Borrowed” for the selected month.</p>
           <form id="emergency-borrow-form" class="inline-form">
             <input name="date" type="date" value="${WR.ui.escapeText(new Date().toISOString().slice(0, 10))}" required>
             <select name="account" required>${emergencyFundAccountOptions()}</select>
@@ -6522,17 +6542,9 @@ WR.ui = WR.ui || {};
         note: note ? `Borrowed: ${note}` : 'Borrowed from emergency fund',
         returned: false,
       });
-      const budgetLine = WR.models.createBudgetLine({
-        month: date.slice(0, 7),
-        type: 'variable',
-        name: 'Emergency Fund Borrowed',
-        budgetAmount: amount,
-        actualAmount: amount,
-        currency: profile.baseCurrency,
-      });
-      await saveEmergencyFundEntries([entry], budgetLine);
+      await saveEmergencyFundEntries([entry]);
     }, async () => {
-      WR.ui.notify('Borrowed amount recorded and added to variable expenses.', 'success');
+      WR.ui.notify('Emergency fund borrowing recorded.', 'success');
       await refreshEmergencyFund();
     });
 
