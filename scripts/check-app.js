@@ -945,7 +945,7 @@ function checkCombinedBorrowingSources() {
   assert.ok(functions.get('renderReserveBorrowing').includes('class="reserve-repayment card-edit-form"'));
   const combinedContext = { WR: { financial: { calculateEmergencyBorrowing: context.calculateEmergencyBorrowing } } };
   vm.createContext(combinedContext);
-  vm.runInContext(['calculateSavingsLoan', 'collectReserveBorrowings'].map(name => functions.get(name)).join('\n'), combinedContext);
+  vm.runInContext(['calculateSavingsLoan', 'collectReserveBorrowings', 'filterReserveBorrowings'].map(name => functions.get(name)).join('\n'), combinedContext);
   const accounts = [{ id: 'shared', label: 'Emergency account' }];
   const loans = combinedContext.collectReserveBorrowings([
     { id: 'shared', name: 'Savings pot', archived: true, borrowings: [{ id: 'same-id', amount: 100, date: '2026-10-01', repayments: [{ amount: 20 }] }] },
@@ -964,6 +964,14 @@ function checkCombinedBorrowingSources() {
   assert.equal(loans[2].legacyReturned, true);
   assert.equal(loans[0].sourceName, 'Emergency account');
   assert.equal(loans[1].sourceName, 'Savings pot');
+  assert.equal(combinedContext.filterReserveBorrowings(loans, '2026-10').length, 2);
+  assert.equal(combinedContext.filterReserveBorrowings(loans, '2026-09')[0].id, 'legacy');
+  assert.equal(combinedContext.filterReserveBorrowings(loans, '2025-10').length, 0);
+  assert.equal(combinedContext.filterReserveBorrowings(loans, '2026-12').length, 0);
+  assert.equal(combinedContext.filterReserveBorrowings(loans, 'all').length, 3);
+  assert.equal(combinedContext.filterReserveBorrowings(loans, '2026-10')[0].sourceKey, 'emergency:shared');
+  assert.ok(functions.get('renderReserveBorrowing').includes('id="borrowing-history-month"'));
+  assert.ok(functions.get('renderReserveBorrowing').includes('WR.ui._borrowingHistoryMonth || today.slice(0, 7)'));
   assert.equal(combinedContext.collectReserveBorrowings([], [], accounts, 'ZAR').length, 0);
   console.log('Combined borrowing preserves source identity, partial balances, archived loans and legacy returns without including transfers.');
 }

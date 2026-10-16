@@ -10031,6 +10031,10 @@ WR.ui = WR.ui || {};
     return [...savings, ...emergency].sort((left, right) => String(right.date).localeCompare(String(left.date)));
   }
 
+  function filterReserveBorrowings(loans, month) {
+    return month === 'all' ? loans : loans.filter(loan => String(loan.date || '').slice(0, 7) === month);
+  }
+
   async function renderReserveBorrowing(container) {
     const [pots, contributions, profile, rates] = await Promise.all([
       WR.repos.savingsPots.getAll(), WR.repos.emergencyFundContributions.getAll(), WR.ui.getOrCreateProfile(), WR.repos.exchangeRates.getAll(),
@@ -10038,7 +10042,12 @@ WR.ui = WR.ui || {};
     const accounts = WR.ui.getEmergencyFundAccounts(profile);
     const currency = profile.baseCurrency;
     const today = new Date().toISOString().slice(0, 10);
-    const loans = collectReserveBorrowings(pots, contributions, accounts, currency);
+    const allLoans = collectReserveBorrowings(pots, contributions, accounts, currency);
+    const selectedMonth = WR.ui._borrowingHistoryMonth || today.slice(0, 7);
+    const loans = filterReserveBorrowings(allLoans, selectedMonth);
+    const months = [...new Set([today.slice(0, 7), selectedMonth, ...allLoans.map(loan => String(loan.date || '').slice(0, 7))])]
+      .filter(month => /^\d{4}-(0[1-9]|1[0-2])$/.test(month)).sort().reverse();
+    const monthFormatter = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
     const totals = WR.ui.calculateReserveBorrowing(pots, contributions, rates, currency);
     const sources = [
       ...pots.filter(pot => !pot.archived).map(pot => ({ key: `savings:${pot.id}`, id: pot.id, kind: 'savings', label: pot.name, currency: pot.currency || currency, available: amount(pot.currentAmount) })),
@@ -10060,7 +10069,11 @@ WR.ui = WR.ui || {};
         <label>Date borrowed<input name="date" type="date" max="${today}" value="${today}" required></label>
         <label>Reason (optional)<input name="note" maxlength="300"></label>
         <div class="form-panel-actions"><button type="submit">Record borrowing</button></div></form></div>
-      <h3>Borrowing history</h3><div class="borrowing-list">
+      <h3>Borrowing history</h3>
+      <div class="toolbar"><label>Borrowed in
+        <select id="borrowing-history-month"><option value="all" ${selectedMonth === 'all' ? 'selected' : ''}>All months</option>${months.map(month => `<option value="${escape(month)}" ${month === selectedMonth ? 'selected' : ''}>${escape(monthFormatter.format(new Date(`${month}-01T12:00:00`)))}</option>`).join('')}</select>
+      </label></div>
+      <div class="borrowing-list">
       ${loans.length ? '<div class="borrowing-list-head" aria-hidden="true"><span>Source / Date</span><span>Borrowed</span><span>Paid back</span><span>Still owed</span><span>Status</span><span></span></div>' : ''}
       ${loans.map((loan, index) => `<details class="borrowing-row">
         <summary>
@@ -10077,7 +10090,12 @@ WR.ui = WR.ui || {};
         ${loan.remaining > 0 ? `<form class="reserve-repayment card-edit-form" data-id="${escape(`${loan.sourceKey}:${loan.id}`)}" data-loan-index="${index}" data-source-key="${escape(loan.sourceKey)}" data-loan-id="${escape(loan.id)}">
           <label>Amount<input name="amount" type="number" min="0.01" max="${loan.remaining}" step="0.01" value="${loan.remaining}" required></label>
           <label>Date paid back<input name="date" type="date" min="${escape(loan.date)}" max="${today}" value="${today}" required></label>
-          <div class="card-edit-actions"><button type="submit">Record repayment</button></div></form>` : ''}</div></details>`).join('') || '<p class="empty">No borrowing recorded.</p>'}</div>`);
+          <div class="card-edit-actions"><button type="submit">Record repayment</button></div></form>` : ''}</div></details>`).join('') || `<p class="empty">${selectedMonth === 'all' ? 'No borrowing recorded.' : 'No borrowing recorded for this month.'}</p>`}</div>`);
+    container.querySelector('#borrowing-history-month').addEventListener('change', async event => {
+      WR.ui._borrowingHistoryMonth = event.target.value;
+      WR.ui.captureFormDrafts(container);
+      await renderReserveBorrowing(container);
+    });
     const refresh = async () => { await WR.ui.refreshIntegrityNotice(); await renderSavingsPage(container.closest('#content')); };
     const borrowingForm = container.querySelector('#borrow-reserves');
     const syncSource = () => {
