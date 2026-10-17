@@ -31,6 +31,7 @@ this means for offline use.
   Existing asset sources are not guessed or changed automatically. Historical
   net-worth snapshots remain as recorded; past reserve balances are not reconstructed.
 - **Version 3.1.0** is used in package metadata, Settings, and exported backups; the PWA shell cache is refreshed.
+- **Passkey-first fresh launches:** Firebase sign-in is memory-only, so each new page launch starts at login. Passkey is shown first, with email/password and Google available as recovery. Briefly switching apps does not itself sign the user out.
 
 ## 3.0 Highlights
 

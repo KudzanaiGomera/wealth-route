@@ -83,6 +83,10 @@ assert.match(passkeyMigration, /CREATE TABLE passkey_challenges/);
 assert.match(html, /PASSKEY_WORKER_URL/);
 assert.match(html, /wr_passkey_lock_pending/);
 assert.match(html, /auth-passkey-btn/);
+assert.match(html, /setPersistence\(auth, authModule\.inMemoryPersistence\)/);
+assert.match(html, /await authModule\.signOut\(auth\)/);
+assert.ok(html.indexOf('id="auth-passkey-btn"') < html.indexOf('id="auth-google-btn"'), 'Passkey sign-in must appear before Google and email/password recovery.');
+assert.match(html, /id="auth-form"/);
 async function checkServiceWorkerFallbacks() {
   const handlers = {};
   const cachedResponses = new Map();

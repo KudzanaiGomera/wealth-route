@@ -9421,6 +9421,8 @@ WR.account = {};
         authApi = authModule;
         firestoreApi = firestoreModule;
         auth = authModule.getAuth(app);
+        await authModule.setPersistence(auth, authModule.inMemoryPersistence);
+        await authModule.signOut(auth);
         // persistentLocalCache turns on Firestore's own offline cache (backed by
         // its own private IndexedDB, invisible to app code) so reads work
         // instantly from cache and writes queue automatically while offline,
@@ -9440,9 +9442,7 @@ WR.account = {};
             resolveFirstUser(user);
           }
           if (onChangeCallback && !signupInProgress && !keepScreen) onChangeCallback(user);
-          // Username isn't in the Firebase Auth user object itself, so a
-          // restored session (page reload) needs a follow-up fetch + re-notify
-          // once it arrives, e.g. so the Dashboard greeting can show it.
+          // The username and passkey-only account email live in the profile doc.
           if (user && !signupInProgress) loadProfile().then(() => { if (onChangeCallback) onChangeCallback(user); });
         });
       })();
@@ -9450,9 +9450,7 @@ WR.account = {};
     return initPromise;
   }
 
-  /** Resolves once with whatever user Firebase restores from a previous
-   * session (or null) — use this once at boot to decide whether to show the
-   * app or the auth screen, before subscribing to further changes. */
+  /** Resolves with the initial auth state after startup clears any old session. */
   function waitForFirstUser() {
     return firstUserPromise;
   }
