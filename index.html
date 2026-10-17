@@ -180,6 +180,7 @@ button, a, input, select, textarea {
 }
 .auth-screen {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -187,12 +188,12 @@ button, a, input, select, textarea {
 }
 .auth-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: var(--shadow);
-  padding: 2rem 1.75rem;
+  padding: 1.75rem 1.5rem;
 }
 .auth-brand {
   display: flex;
@@ -201,14 +202,15 @@ button, a, input, select, textarea {
   font-family: var(--font-serif);
   font-size: 1.15rem;
   color: var(--text);
-  margin-bottom: 1.4rem;
+  margin-bottom: 1.05rem;
 }
 .auth-brand .brand-mark path { stroke: var(--accent); }
 .auth-brand .brand-mark circle { fill: var(--accent); }
 .auth-card h1 { margin: 0 0 0.35rem; font-size: 1.5rem; }
-.auth-subtitle { margin: 0 0 1.3rem; color: var(--muted); font-size: 0.9rem; line-height: 1.4; }
+.auth-subtitle { margin: 0 0 0.95rem; color: var(--muted); font-size: 0.9rem; line-height: 1.4; }
 .auth-google-btn {
   width: 100%;
+  min-height: 3rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -224,11 +226,15 @@ button, a, input, select, textarea {
 }
 .auth-google-btn:hover { background: var(--panel-alt); }
 .auth-google-btn:disabled { opacity: 0.6; }
+.auth-passkey-btn,
+.auth-passkey-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
+.auth-passkey-btn { min-height: 3.25rem; }
+.auth-passkey-btn:hover { filter: brightness(1.06); }
 .auth-divider {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin: 1.1rem 0;
+  margin: 0.8rem 0;
   color: var(--muted);
   font-size: 0.78rem;
 }
@@ -247,7 +253,7 @@ button, a, input, select, textarea {
   color: var(--muted);
 }
 .auth-form input {
-  height: 2.5rem;
+  height: 3rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--panel-alt);
@@ -258,7 +264,7 @@ button, a, input, select, textarea {
 }
 .auth-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .auth-form button[type="submit"] {
-  height: 2.6rem;
+  height: 3rem;
   border: none;
   border-radius: 9px;
   background: var(--accent);
@@ -276,12 +282,34 @@ button, a, input, select, textarea {
   font-size: 0.83rem;
 }
 .auth-switch {
-  margin: 1.3rem 0 0;
+  margin: 1rem 0 0;
   text-align: center;
   font-size: 0.86rem;
   color: var(--muted);
 }
 .auth-switch .link-btn { font-weight: 600; }
+.auth-email-recovery { margin-top: 0.65rem; border-top: 1px solid var(--border); padding-top: 0.35rem; }
+.auth-email-recovery summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  list-style: none;
+}
+.auth-email-recovery summary::-webkit-details-marker { display: none; }
+.auth-email-recovery summary::after { content: "+"; margin-left: auto; font-size: 1.1rem; }
+.auth-email-recovery[open] summary::after { content: "-"; }
+.auth-email-recovery[open] summary { margin-bottom: 0.75rem; }
+@media (max-width: 480px) {
+  .auth-screen { padding: calc(0.8rem + env(safe-area-inset-top)) calc(0.75rem + env(safe-area-inset-right)) calc(0.8rem + env(safe-area-inset-bottom)) calc(0.75rem + env(safe-area-inset-left)); }
+  .auth-card { max-width: 420px; padding: 1.25rem 1.1rem; }
+  .auth-brand { margin-bottom: 0.8rem; }
+  .auth-card h1 { font-size: 1.4rem; }
+  .auth-subtitle { margin-bottom: 0.8rem; }
+}
 
 /* ---------- Top bar ---------- */
 
@@ -9872,6 +9900,7 @@ WR.ui = WR.ui || {};
       const isSignup = mode === 'signup';
       const isReset = mode === 'reset';
       const isPasskeyLocked = !isSignup && !isReset && localStorage.getItem('wr_passkey_lock_pending') === '1';
+      const showPasskey = !isSignup && !isReset && WR.account.passkeysAvailable();
       WR.ui.setHTML(document.getElementById('app'), `
         <div class="auth-screen">
           <div class="auth-card">
@@ -9884,11 +9913,13 @@ WR.ui = WR.ui || {};
             </div>
             <h1>${isReset ? 'Reset password' : isSignup ? 'Create your account' : isPasskeyLocked ? 'App locked' : 'Log in'}</h1>
             ${isPasskeyLocked ? '<p class="fine-print">Your session was signed out. Sign in online to unlock this device.</p>' : ''}
-            <p class="auth-subtitle">${isReset ? 'Request a secure reset link for your account.' : isSignup ? 'Track your money, debts, and net worth \u2014 synced to every device you use.' : 'Welcome back \u2014 log in to see your dashboard.'}</p>
+            <p class="auth-subtitle">${isReset ? 'Request a secure reset link for your account.' : isSignup ? 'Track your money, debts, and net worth - synced to every device you use.' : 'Welcome back - log in to see your dashboard.'}</p>
 
-            ${!isSignup && !isReset && WR.account.passkeysAvailable() ? `<button type="button" id="auth-passkey-btn" class="auth-google-btn">${isPasskeyLocked ? 'Unlock with a passkey' : 'Use a passkey'}</button><div class="auth-divider"><span>or</span></div>` : ''}
-            ${isReset ? '' : `<button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button>
-            <div class="auth-divider"><span>or</span></div>`}
+            ${showPasskey ? `<button type="button" id="auth-passkey-btn" class="auth-google-btn auth-passkey-btn">${isPasskeyLocked ? 'Unlock with a passkey' : 'Use a passkey'}</button><div class="auth-divider"><span>or continue with</span></div>` : ''}
+            ${isReset ? '' : `<button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button>`}
+            ${isSignup ? '<div class="auth-divider"><span>or sign up with email</span></div>' : ''}
+              <p id="auth-error" class="auth-error" role="alert"></p>
+              ${!isSignup && !isReset ? '<details class="auth-email-recovery"><summary>Use email instead</summary>' : ''}
 
             <form id="auth-form" class="auth-form" novalidate>
               ${isSignup ? `
@@ -9904,11 +9935,10 @@ WR.ui = WR.ui || {};
                 <input type="password" id="auth-password-input" autocomplete="${isSignup ? 'new-password' : 'current-password'}" minlength="6" required>
                 <button type="button" id="auth-password-toggle" class="visibility-toggle" aria-controls="auth-password-input" aria-label="Show password" title="Show password">${WR.ui.visibilityIcon(true)}</button>
               </div>`}
-              <p id="auth-error" class="auth-error" role="alert"></p>
               <p id="auth-reset-status" class="fine-print" role="status"></p>
               <button type="submit" id="auth-submit-btn">${isReset ? 'Send reset link' : isSignup ? 'Sign up' : 'Log in'}</button>
             </form>
-            ${!isSignup && !isReset ? '<button type="button" id="auth-forgot-btn" class="link-btn">Forgot password?</button>' : ''}
+            ${!isSignup && !isReset ? '<button type="button" id="auth-forgot-btn" class="link-btn">Forgot password?</button></details>' : ''}
 
             <p class="auth-switch">
               ${isReset ? '' : isSignup ? 'Already have an account?' : "Don't have an account?"}
