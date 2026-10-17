@@ -281,6 +281,7 @@ button, a, input, select, textarea {
   color: var(--danger);
   font-size: 0.83rem;
 }
+.auth-error.auth-notice { color: var(--muted); }
 .auth-switch {
   margin: 1rem 0 0;
   text-align: center;
@@ -9315,7 +9316,7 @@ WR.ui = WR.ui || {};
             await renderPasskeyList();
             WR.ui.schedulePasskeyLock?.();
           } catch (error) {
-            status.textContent = error.message;
+            status.textContent = WR.account.passkeyErrorMessage(error, 'registration');
           } finally {
             button.disabled = false;
           }
@@ -9603,6 +9604,20 @@ WR.account = {};
     };
   }
 
+  function isPasskeyPromptCancellation(error) {
+    return error?.name === 'NotAllowedError' || error?.name === 'AbortError'
+      || /timed out or was not allowed|not allowed by the user agent or the platform|user denied permission/i.test(error?.message || '');
+  }
+
+  function passkeyErrorMessage(error, action = 'sign-in') {
+    if (isPasskeyPromptCancellation(error)) {
+      return action === 'registration'
+        ? 'No problem. No passkey was added; you can try again.'
+        : 'Passkey sign-in was canceled. Try again or choose another sign-in method.';
+    }
+    return error?.message || 'The passkey request could not be completed.';
+  }
+
   async function registerPasskey() {
     if (!passkeysAvailable()) throw new Error('This browser or device does not support passkeys, or the passkey Worker URL is not configured.');
     if (!currentUser) throw new Error('Sign in before adding a passkey.');
@@ -9840,6 +9855,8 @@ WR.account = {};
   WR.account.setPasskeyLockEnabled = setPasskeyLockEnabled;
   WR.account.registerPasskey = registerPasskey;
   WR.account.signInWithPasskey = signInWithPasskey;
+  WR.account.isPasskeyPromptCancellation = isPasskeyPromptCancellation;
+  WR.account.passkeyErrorMessage = passkeyErrorMessage;
   WR.account.listPasskeys = listPasskeys;
   WR.account.removePasskey = removePasskey;
   WR.account.updateUsername = updateUsername;
@@ -9954,6 +9971,7 @@ WR.ui = WR.ui || {};
       WR.ui.bindPasswordVisibility(document.getElementById('auth-password-input'), document.getElementById('auth-password-toggle'));
 
       function showError(err) {
+        errorEl.classList.remove('auth-notice');
         errorEl.textContent = isReset ? 'Unable to send the reset link. Please try again shortly.' : authErrorMessage(err, isSignup);
       }
 
@@ -9998,13 +10016,20 @@ WR.ui = WR.ui || {};
 
       document.getElementById('auth-passkey-btn')?.addEventListener('click', async (event) => {
         const button = event.currentTarget;
+        errorEl.classList.remove('auth-notice');
         errorEl.textContent = '';
         button.disabled = true;
         button.textContent = 'Waiting for passkey...';
         try {
           await WR.account.signInWithPasskey();
         } catch (error) {
-          errorEl.textContent = error.message || 'Passkey sign-in failed. Use email or Google instead.';
+          if (WR.account.isPasskeyPromptCancellation(error)) {
+            errorEl.classList.add('auth-notice');
+            errorEl.textContent = 'Passkey sign-in was canceled. Choose Google or email below, or try again.';
+            document.querySelector('.auth-email-recovery')?.setAttribute('open', '');
+          } else {
+            errorEl.textContent = WR.account.passkeyErrorMessage(error);
+          }
           button.disabled = false;
           button.textContent = isPasskeyLocked ? 'Unlock with a passkey' : 'Use a passkey';
         }
