@@ -523,6 +523,49 @@ Cloudflare secret, never a browser setting or repository file.
 4. Copy the deployed `https://...workers.dev` URL into Settings > Live
   Updates & Wealth Assistant.
 
+### Passkey sign-in and automatic device lock
+
+The same Worker can verify passkeys and issue Firebase sign-in tokens. This
+does not use AI credits. Cloudflare Worker and D1 usage has separate free-tier
+limits. Email and Google sign-in remain available as recovery methods.
+
+1. In Cloudflare, open **Storage & Databases > D1** and create a database named
+  `wealthroute-passkeys`. Copy its database ID into the `database_id` field in
+  `wrangler.toml`, replacing the placeholder.
+2. From this repository, apply the schema to the remote database:
+  ```bash
+  npx wrangler d1 migrations apply PASSKEY_DB --remote
+  ```
+3. In Firebase Console, open **Project settings > Service accounts > Firebase
+  Admin SDK**, generate a private key, and download the JSON file.
+4. Add that JSON to Cloudflare as a secret:
+  ```bash
+  npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON
+  ```
+  Paste the JSON into the terminal prompt. Never add it to this repository or
+  share it in chat.
+5. Deploy the updated Worker:
+  ```bash
+  npx wrangler deploy
+  ```
+  The existing `wrangler.toml` already sets the Firebase project, app origin,
+  and passkey relying-party domain. Keep those values aligned with the website
+  domain.
+6. Copy the deployed Worker URL into `PASSKEY_WORKER_URL` near the Firebase
+  account module in `index.html`, then publish the updated app to GitHub Pages.
+  This compiled URL makes passkey sign-in available on new devices. The
+  existing Settings endpoint remains a per-browser override.
+7. Sign in normally, open **Settings > Account**, and choose **Add passkey**.
+  The device will offer Face ID, fingerprint, Windows Hello, or its screen
+  passcode where supported. Automatic lock is enabled for that device after
+  the first passkey is added; **Lock now** is also available there.
+
+Automatic lock signs out and clears Firestore's local cache. Signing in again
+requires an internet connection; email and Google remain available if a
+passkey is unavailable. Passkeys are tied to the configured app domain, so
+changing the website domain later requires updating the relying-party settings
+and registering passkeys for that domain.
+
 For a second free option, Groq offers a rate-limited developer API and can
 replace the Gemini request in `worker.js`. Do not put either provider key in
 `index.html`, local storage, or `wrangler.toml`. Configure Cloudflare rate

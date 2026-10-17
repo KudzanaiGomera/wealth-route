@@ -8780,7 +8780,7 @@ WR.ui = WR.ui || {};
 
   async function renderSettings(container) {
     const profile = await WR.ui.getOrCreateProfile();
-    const workerUrl = localStorage.getItem('wr_worker_url') || '';
+    const workerUrl = WR.account.getPasskeyWorkerUrl();
     await WR.account.ensureInit();
     const accountUser = WR.account.isConfigured() ? WR.account.getCurrentUser() : null;
 
@@ -8802,7 +8802,7 @@ WR.ui = WR.ui || {};
       code: '<path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/>',
     };
     const username = WR.account.getUsername();
-    const displayIdentity = username || (accountUser && accountUser.email) || '';
+    const displayIdentity = username || WR.account.getEmail() || '';
 
     WR.ui.setHTML(container, `
       <div class="settings-header">
@@ -8823,9 +8823,23 @@ WR.ui = WR.ui || {};
             <div class="account-avatar">${esc(displayIdentity.charAt(0).toUpperCase() || '?')}</div>
             <div class="account-identity">
               <strong>${username ? `@${esc(username)}` : 'No username yet'}</strong>
-              <span>${esc(accountUser.email)}</span>
+              <span>${esc(WR.account.getEmail() || '')}</span>
             </div>
             <button id="account-logout-btn" class="danger">Log out</button>
+          </div>
+          <div class="settings-rows">
+            <div class="settings-row">
+              <div class="settings-row-text"><strong>Passkeys</strong><span>Sign in with your device screen lock and re-lock this device when you step away.</span></div>
+              ${WR.account.passkeysAvailable() ? '<div class="settings-row-control"><button type="button" id="add-passkey-btn" class="secondary">Add passkey</button><button type="button" id="lock-passkey-now-btn" class="secondary" disabled>Lock now</button></div>' : '<span class="fine-print">Configure the deployed Worker URL under Advanced below to enable passkeys on this device.</span>'}
+            </div>
+            ${WR.account.passkeysAvailable() ? `
+              <label class="settings-row" for="passkey-auto-lock">
+                <span class="settings-row-text"><strong>Automatic device lock</strong><span>After five minutes idle, sign out and clear offline data; internet is needed to sign back in.</span></span>
+                <input id="passkey-auto-lock" type="checkbox" disabled ${WR.account.passkeyLockEnabled(accountUser.uid) ? 'checked' : ''}>
+              </label>
+              <div id="passkey-list" aria-live="polite"></div>
+              <p id="passkey-result" class="fine-print settings-result" role="status" aria-live="polite"></p>
+            ` : ''}
           </div>
           <form id="display-name-form" class="settings-row-control display-name-form">
             <label>Display name <small>Optional \u2014 shown in your dashboard greeting</small>
@@ -8975,10 +8989,9 @@ WR.ui = WR.ui || {};
           </ul>
         </details>
         <details class="settings-details">
-          <summary>Advanced: Wealth Assistant endpoint</summary>
+          <summary>Advanced: Cloudflare Worker endpoint</summary>
           <p class="fine-print">
-            Optional. Add a deployed Cloudflare Worker URL to enable the assistant and route live-rate requests through it. The browser sends no API key \u2014
-            the Worker holds the Gemini key as a Cloudflare secret. Responses are general educational information, not personalised financial advice.
+            Add the deployed Worker URL to enable the assistant and live rates. Passkey sign-in also uses this Worker. The browser sends no API keys; the Worker holds provider and Firebase signing keys as Cloudflare secrets.
           </p>
           <form id="worker-url-form" class="settings-row-control worker-form">
             <input type="url" id="worker-url-input" placeholder="https://your-worker.workers.dev" value="${esc(workerUrl)}" aria-label="Worker URL">
@@ -9223,6 +9236,65 @@ WR.ui = WR.ui || {};
           }
         });
       }
+      const passkeyList = document.getElementById('passkey-list');
+      if (passkeyList) {
+        const status = document.getElementById('passkey-result');
+        const lockNowButton = document.getElementById('lock-passkey-now-btn');
+        const autoLock = document.getElementById('passkey-auto-lock');
+        autoLock.addEventListener('change', () => {
+          WR.account.setPasskeyLockEnabled(autoLock.checked);
+          WR.ui.schedulePasskeyLock?.();
+        });
+
+        const renderPasskeyList = async () => {
+          try {
+            const passkeys = await WR.account.listPasskeys();
+            if (!container.isConnected) return;
+            lockNowButton.disabled = passkeys.length === 0;
+            autoLock.disabled = passkeys.length === 0;
+            if (!passkeys.length) WR.account.setPasskeyLockEnabled(false);
+            autoLock.checked = WR.account.passkeyLockEnabled();
+            WR.ui.setHTML(passkeyList, passkeys.length
+              ? `<ul class="category-list">${passkeys.map((passkey, index) => `<li class="category-item"><span class="category-name">Passkey ${index + 1} <small>Added ${new Date(passkey.created_at * 1000).toLocaleDateString()}</small></span><button type="button" class="link-btn remove-passkey" data-id="${WR.ui.escapeText(passkey.credential_id)}">Remove</button></li>`).join('')}</ul>`
+              : '<p class="empty settings-empty">No passkeys registered for this account.</p>');
+            passkeyList.querySelectorAll('.remove-passkey').forEach((button) => button.addEventListener('click', async () => {
+              if (!(await hardConfirm('remove this passkey'))) return;
+              button.disabled = true;
+              try {
+                await WR.account.removePasskey(button.dataset.id);
+                status.textContent = 'Passkey removed.';
+                await renderPasskeyList();
+              } catch (error) {
+                status.textContent = error.message;
+                button.disabled = false;
+              }
+            }));
+          } catch (error) {
+            autoLock.disabled = true;
+            WR.account.setPasskeyLockEnabled(false);
+            status.textContent = error.message;
+          }
+        };
+
+        document.getElementById('add-passkey-btn').addEventListener('click', async (event) => {
+          const button = event.currentTarget;
+          button.disabled = true;
+          status.textContent = 'Follow the prompt from your device to create a passkey.';
+          try {
+            await WR.account.registerPasskey();
+            status.textContent = 'Passkey added. This device will sign out after five minutes of inactivity.';
+            autoLock.checked = true;
+            await renderPasskeyList();
+            WR.ui.schedulePasskeyLock?.();
+          } catch (error) {
+            status.textContent = error.message;
+          } finally {
+            button.disabled = false;
+          }
+        });
+        lockNowButton.addEventListener('click', () => WR.ui.lockForPasskey?.());
+        renderPasskeyList();
+      }
     }
 
     document.getElementById('export-backup-btn').addEventListener('click', exportBackup);
@@ -9315,6 +9387,7 @@ WR.account = {};
     appId: '1:978392756825:web:5ae08cc9d3f859c0ca3748',
   };
   const SDK_VERSION = '13.0.0';
+  const PASSKEY_WORKER_URL = 'https://wealth-route.kudzanai-gomera.workers.dev';
 
   let auth = null;
   let db = null;
@@ -9327,6 +9400,7 @@ WR.account = {};
   let resolveFirstUser;
   const firstUserPromise = new Promise((resolve) => { resolveFirstUser = resolve; });
   let cachedUsername = null;
+  let cachedEmail = null;
   let signupInProgress = false;
   let preserveSignupScreen = false;
 
@@ -9358,7 +9432,7 @@ WR.account = {};
         });
         authModule.onAuthStateChanged(auth, (user) => {
           currentUser = user;
-          if (!user) cachedUsername = null;
+          if (!user) { cachedUsername = null; cachedEmail = null; }
           const keepScreen = preserveSignupScreen && !user;
           if (!user) preserveSignupScreen = false;
           if (!firstUserResolved) {
@@ -9409,6 +9483,141 @@ WR.account = {};
     return cachedUsername;
   }
 
+  function getEmail() {
+    return cachedEmail || currentUser?.email || null;
+  }
+
+  function getPasskeyWorkerUrl() {
+    return (localStorage.getItem('wr_worker_url') || PASSKEY_WORKER_URL || '').replace(/\/$/, '');
+  }
+
+  function passkeysAvailable() {
+    return !!getPasskeyWorkerUrl() && !!window.isSecureContext && !!window.PublicKeyCredential && !!navigator.credentials;
+  }
+
+  function passkeyLockEnabled(uid = currentUser?.uid) {
+    try { return !!uid && localStorage.getItem(`wr_passkey_lock_${uid}`) === '1'; } catch (_) { return false; }
+  }
+
+  function setPasskeyLockEnabled(enabled, uid = currentUser?.uid) {
+    if (!uid) return;
+    try {
+      if (enabled) localStorage.setItem(`wr_passkey_lock_${uid}`, '1');
+      else localStorage.removeItem(`wr_passkey_lock_${uid}`);
+    } catch (_) {}
+  }
+
+  function clearPasskeyLockPending() {
+    try { localStorage.removeItem('wr_passkey_lock_pending'); } catch (_) {}
+  }
+
+  function decodeBase64Url(value) {
+    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(base64 + '='.repeat((4 - base64.length % 4) % 4));
+    return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  }
+
+  function encodeBase64Url(buffer) {
+    let binary = '';
+    for (const byte of new Uint8Array(buffer)) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  }
+
+  async function passkeyApi(path, { method = 'POST', body, token } = {}) {
+    const workerUrl = getPasskeyWorkerUrl();
+    if (!workerUrl) throw new Error('Passkeys are not configured on this app yet.');
+    const headers = {};
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(`${workerUrl}${path}`, {
+      method,
+      headers,
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Passkey service is unavailable.');
+    return result;
+  }
+
+  function serializeCredential(credential) {
+    const response = credential.response;
+    const result = {
+      id: credential.id,
+      rawId: encodeBase64Url(credential.rawId),
+      type: credential.type,
+      authenticatorAttachment: credential.authenticatorAttachment,
+      clientExtensionResults: credential.getClientExtensionResults(),
+      response: { clientDataJSON: encodeBase64Url(response.clientDataJSON) },
+    };
+    if (response.attestationObject) {
+      result.response.attestationObject = encodeBase64Url(response.attestationObject);
+      result.response.transports = response.getTransports?.() || [];
+    } else {
+      result.response.authenticatorData = encodeBase64Url(response.authenticatorData);
+      result.response.signature = encodeBase64Url(response.signature);
+      result.response.userHandle = response.userHandle ? encodeBase64Url(response.userHandle) : null;
+    }
+    return result;
+  }
+
+  function creationOptions(options) {
+    return {
+      ...options,
+      challenge: decodeBase64Url(options.challenge),
+      user: { ...options.user, id: decodeBase64Url(options.user.id) },
+      excludeCredentials: (options.excludeCredentials || []).map((item) => ({ ...item, id: decodeBase64Url(item.id) })),
+    };
+  }
+
+  function requestOptions(options) {
+    return {
+      ...options,
+      challenge: decodeBase64Url(options.challenge),
+      allowCredentials: options.allowCredentials?.map((item) => ({ ...item, id: decodeBase64Url(item.id) })),
+    };
+  }
+
+  async function registerPasskey() {
+    if (!passkeysAvailable()) throw new Error('This browser or device does not support passkeys, or the passkey Worker URL is not configured.');
+    if (!currentUser) throw new Error('Sign in before adding a passkey.');
+    const token = await currentUser.getIdToken();
+    const { challengeId, options } = await passkeyApi('/passkeys/register/options', { token });
+    const credential = await navigator.credentials.create({ publicKey: creationOptions(options) });
+    if (!credential) throw new Error('Passkey registration was canceled.');
+    await passkeyApi('/passkeys/register/verify', { token, body: { challengeId, credential: serializeCredential(credential) } });
+    setPasskeyLockEnabled(true);
+  }
+
+  async function signInWithPasskey() {
+    if (!passkeysAvailable()) throw new Error('Passkeys are not configured on this device.');
+    await ensureInit();
+    const { challengeId, options } = await passkeyApi('/passkeys/auth/options', { body: { purpose: 'login' } });
+    const credential = await navigator.credentials.get({ publicKey: requestOptions(options) });
+    if (!credential) throw new Error('Passkey sign-in was canceled.');
+    const result = await passkeyApi('/passkeys/auth/verify', {
+      body: { challengeId, purpose: 'login', credential: serializeCredential(credential) },
+    });
+    const signedIn = await authApi.signInWithCustomToken(auth, result.customToken);
+    currentUser = signedIn.user;
+    cachedEmail = signedIn.user.email || null;
+    clearPasskeyLockPending();
+    await loadProfile();
+    return signedIn.user;
+  }
+
+  async function listPasskeys() {
+    if (!currentUser || !passkeysAvailable()) return [];
+    const token = await currentUser.getIdToken();
+    const result = await passkeyApi('/passkeys', { method: 'GET', token });
+    return result.passkeys || [];
+  }
+
+  async function removePasskey(credentialId) {
+    if (!currentUser || !passkeysAvailable()) throw new Error('Passkey management is unavailable.');
+    const token = await currentUser.getIdToken();
+    await passkeyApi(`/passkeys/${encodeURIComponent(credentialId)}`, { method: 'DELETE', token });
+  }
+
   /** Loads (or refreshes) the cached username for the current user from the
    * users/{uid} profile doc. Safe to call even if no profile exists yet. */
   async function loadProfile() {
@@ -9418,6 +9627,7 @@ WR.account = {};
       const snap = await firestoreApi.getDoc(firestoreApi.doc(db, 'users', uid));
       if (currentUser?.uid !== uid) return null;
       cachedUsername = snap.exists() ? snap.data().username || null : null;
+      cachedEmail = (snap.exists() && snap.data().email) || currentUser.email || null;
     } catch (err) {
       console.warn('Loading profile failed', err);
     }
@@ -9457,17 +9667,18 @@ WR.account = {};
       tx.set(userRef, { username: display, usernameLower: lower, email: email || null }, { merge: true });
     });
     if (currentUser?.uid === uid) cachedUsername = display;
+    if (currentUser?.uid === uid) cachedEmail = email || currentUser.email || null;
     return display;
   }
 
   /** For the Settings/Profile page: change the signed-in user's username. */
   async function updateUsername(username) {
     if (!currentUser) throw new Error('Not signed in.');
-    return claimUsername(currentUser.uid, username, currentUser.email);
+    return claimUsername(currentUser.uid, username, currentUser.email || getEmail());
   }
 
   async function sendPasswordReset(email) {
-    const destination = String(email || currentUser?.email || '').trim();
+    const destination = String(email || getEmail() || '').trim();
     if (!destination) throw new Error('Enter your email address.');
     await ensureInit();
     try {
@@ -9509,6 +9720,7 @@ WR.account = {};
       signupInProgress = false;
     }
     currentUser = createdUser;
+    clearPasskeyLockPending();
     if (onChangeCallback) onChangeCallback(createdUser);
     return createdUser;
   }
@@ -9517,6 +9729,7 @@ WR.account = {};
     await ensureInit();
     preserveSignupScreen = false;
     const cred = await authApi.signInWithEmailAndPassword(auth, email, password);
+    clearPasskeyLockPending();
     await loadProfile();
     return cred.user;
   }
@@ -9525,6 +9738,7 @@ WR.account = {};
     await ensureInit();
     const provider = new authApi.GoogleAuthProvider();
     const cred = await authApi.signInWithPopup(auth, provider);
+    clearPasskeyLockPending();
     await loadProfile();
     if (!cachedUsername) {
       WR.ui.notify('Welcome! Choose a username in Settings \u2192 Profile to finish setting up your account.', 'error');
@@ -9552,7 +9766,7 @@ WR.account = {};
     const providers = user.providerData.map((provider) => provider.providerId);
     if (providers.includes('password')) {
       if (!password) throw new Error('Enter your current password to continue.');
-      const credential = authApi.EmailAuthProvider.credential(user.email, password);
+      const credential = authApi.EmailAuthProvider.credential(user.email || getEmail(), password);
       await authApi.reauthenticateWithCredential(user, credential);
     } else if (providers.includes('google.com')) {
       await authApi.reauthenticateWithPopup(user, new authApi.GoogleAuthProvider());
@@ -9593,6 +9807,15 @@ WR.account = {};
   WR.account.getDb = getDb;
   WR.account.getFirestoreApi = getFirestoreApi;
   WR.account.getUsername = getUsername;
+  WR.account.getEmail = getEmail;
+  WR.account.getPasskeyWorkerUrl = getPasskeyWorkerUrl;
+  WR.account.passkeysAvailable = passkeysAvailable;
+  WR.account.passkeyLockEnabled = passkeyLockEnabled;
+  WR.account.setPasskeyLockEnabled = setPasskeyLockEnabled;
+  WR.account.registerPasskey = registerPasskey;
+  WR.account.signInWithPasskey = signInWithPasskey;
+  WR.account.listPasskeys = listPasskeys;
+  WR.account.removePasskey = removePasskey;
   WR.account.updateUsername = updateUsername;
   WR.account.isUsernameAvailable = isUsernameAvailable;
   WR.account.sendPasswordReset = sendPasswordReset;
@@ -9650,6 +9873,7 @@ WR.ui = WR.ui || {};
     function render() {
       const isSignup = mode === 'signup';
       const isReset = mode === 'reset';
+      const isPasskeyLocked = !isSignup && !isReset && localStorage.getItem('wr_passkey_lock_pending') === '1';
       WR.ui.setHTML(document.getElementById('app'), `
         <div class="auth-screen">
           <div class="auth-card">
@@ -9660,9 +9884,11 @@ WR.ui = WR.ui || {};
               </svg>
               WealthRoute
             </div>
-            <h1>${isReset ? 'Reset password' : isSignup ? 'Create your account' : 'Log in'}</h1>
+            <h1>${isReset ? 'Reset password' : isSignup ? 'Create your account' : isPasskeyLocked ? 'App locked' : 'Log in'}</h1>
+            ${isPasskeyLocked ? '<p class="fine-print">Your session was signed out. Sign in online to unlock this device.</p>' : ''}
             <p class="auth-subtitle">${isReset ? 'Request a secure reset link for your account.' : isSignup ? 'Track your money, debts, and net worth \u2014 synced to every device you use.' : 'Welcome back \u2014 log in to see your dashboard.'}</p>
 
+            ${!isSignup && !isReset && WR.account.passkeysAvailable() ? `<button type="button" id="auth-passkey-btn" class="auth-google-btn">${isPasskeyLocked ? 'Unlock with a passkey' : 'Use a passkey'}</button><div class="auth-divider"><span>or</span></div>` : ''}
             ${isReset ? '' : `<button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button>
             <div class="auth-divider"><span>or</span></div>`}
 
@@ -9739,6 +9965,20 @@ WR.ui = WR.ui || {};
         } catch (err) {
           showError(err);
           googleBtn.disabled = false;
+        }
+      });
+
+      document.getElementById('auth-passkey-btn')?.addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        errorEl.textContent = '';
+        button.disabled = true;
+        button.textContent = 'Waiting for passkey...';
+        try {
+          await WR.account.signInWithPasskey();
+        } catch (error) {
+          errorEl.textContent = error.message || 'Passkey sign-in failed. Use email or Google instead.';
+          button.disabled = false;
+          button.textContent = isPasskeyLocked ? 'Unlock with a passkey' : 'Use a passkey';
         }
       });
 
@@ -10444,6 +10684,29 @@ function resetViewportZoom() {
   window.scrollTo(0, 0);
 }
 
+let passkeyLockTimer = null;
+
+function schedulePasskeyLock() {
+  clearTimeout(passkeyLockTimer);
+  const user = WR.account.getCurrentUser();
+  if (!user || !WR.account.passkeyLockEnabled(user.uid)) return;
+  passkeyLockTimer = setTimeout(() => WR.ui.lockForPasskey(), 5 * 60 * 1000);
+}
+
+function lockForPasskey() {
+  clearTimeout(passkeyLockTimer);
+  const user = WR.account.getCurrentUser();
+  if (!user || !WR.account.passkeyLockEnabled(user.uid)) return;
+  try { localStorage.setItem('wr_passkey_lock_pending', '1'); } catch (_) {}
+  WR.account.signOut().catch((error) => {
+    console.warn('Passkey lock sign-out failed', error);
+    window.location.reload();
+  });
+}
+
+WR.ui.schedulePasskeyLock = schedulePasskeyLock;
+WR.ui.lockForPasskey = lockForPasskey;
+
 function bootApp() {
   if (!window.location.hash || window.location.hash === '#') {
     window.location.hash = '#/dashboard';
@@ -10451,6 +10714,7 @@ function bootApp() {
   resetViewportZoom();
   WR.ui.renderShell();
   WR.ui.initRouter();
+  schedulePasskeyLock();
   if (!WR.ui._paydayWatcher) {
     const refreshPayday = () => {
       if (!WR.account.getCurrentUser() || document.visibilityState !== 'visible') return;
@@ -10566,8 +10830,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const remaining = 260 - elapsed;
   if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
   hideSplashScreen();
-  if (initialUser) bootApp();
+  if (initialUser && WR.account.passkeyLockEnabled(initialUser.uid)) {
+    try { localStorage.setItem('wr_passkey_lock_pending', '1'); } catch (_) {}
+    await WR.account.signOut();
+    return;
+  } else if (initialUser) bootApp();
   else WR.ui.renderAuthScreen();
+
+  document.addEventListener('pointerdown', schedulePasskeyLock, true);
+  document.addEventListener('keydown', schedulePasskeyLock, true);
+  document.addEventListener('touchstart', schedulePasskeyLock, { capture: true, passive: true });
 
   // Single global listener from here on: flips the whole app between the
   // auth screen and the real shell as sign-in state changes, and keeps the

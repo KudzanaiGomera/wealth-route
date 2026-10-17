@@ -69,6 +69,20 @@ for (const match of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].
 if (process.argv.includes('--migrate-html') || process.argv.includes('--escape-values')) fs.writeFileSync(htmlPath, html);
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 acorn.parse(serviceWorkerSource, { ecmaVersion: 'latest' });
+const passkeyWorkerSource = fs.readFileSync(path.join(root, 'worker.js'), 'utf8');
+acorn.parse(passkeyWorkerSource, { ecmaVersion: 'latest', sourceType: 'module' });
+const passkeyMigration = fs.readFileSync(path.join(root, 'migrations/0001_passkeys.sql'), 'utf8');
+assert.match(passkeyWorkerSource, /securetoken\.google\.com\/\$\{env\.FIREBASE_PROJECT_ID\}/);
+assert.match(passkeyWorkerSource, /DELETE FROM passkey_challenges WHERE challenge_id = \? AND purpose = \? AND expires_at > \? RETURNING/);
+assert.match(passkeyWorkerSource, /requireUserVerification: true/);
+assert.match(passkeyWorkerSource, /\/passkeys\/register\/options/);
+assert.match(passkeyWorkerSource, /\/passkeys\/auth\/verify/);
+assert.match(passkeyWorkerSource, /private_key_id/);
+assert.match(passkeyMigration, /CREATE TABLE passkeys/);
+assert.match(passkeyMigration, /CREATE TABLE passkey_challenges/);
+assert.match(html, /PASSKEY_WORKER_URL/);
+assert.match(html, /wr_passkey_lock_pending/);
+assert.match(html, /auth-passkey-btn/);
 async function checkServiceWorkerFallbacks() {
   const handlers = {};
   const cachedResponses = new Map();

@@ -6,6 +6,10 @@
     "test": "node scripts/check-app.js",
     "test:rules": "firebase emulators:exec --project demo-wealthroute --only firestore \"node scripts/test-firestore-rules.js\""
   },
+  "dependencies": {
+    "@simplewebauthn/server": "^13.2.2",
+    "jose": "^6.1.0"
+  },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",
     "acorn": "^8.19.0",
