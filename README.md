@@ -20,7 +20,7 @@ this means for offline use.
 
 - **Reviewed CSV transaction imports:** map statement columns and date/sign formats, edit rows, flag exact duplicates and likely transfers, import only spending, and undo the complete atomic import. There is no direct bank connection.
 - **Recurring-spend review:** stable monthly charges are suggested after repeated history; nothing is added to budgets automatically.
-- **Budget-cycle reconciliation:** Financial Insights compares spending, balance left, top category, and prior-cycle change for the 25th-to-24th cycle.
+- **Budget-cycle reconciliation:** Financial Insights compares spending, balance left, top category, and prior-cycle change using your payday cycle.
 - **Wealth tables:** Assets and Investments render their shared sortable and filterable table controls.
 - **Total wealth and net worth:** Wealth automatically totals assets, investments,
   active savings pots, and emergency fund balances. Dashboard net worth subtracts
@@ -61,12 +61,25 @@ this means for offline use.
 
 ### Payday Budgeting
 
-Payday is the **25th**. The budget named October runs from **25 September
-through 24 October**; November begins on 25 October. Dashboard, Variable
+Set your payday under **Settings > Payday**: choose a day of the month or
+**Last day of the month**, with an optional previous-Friday rule for weekends.
+The default is the **25th**. With that default, the budget named October runs
+from **25 September through 24 October**; November begins on 25 October. Dashboard, Variable
 Expenses, and the payday-enabled Transactions view use these same date
 boundaries. Variable Expenses lets you record an expense as an Actual or in
 Transactions; do not record the same expense in both, since both reduce the
 cycle balance.
+
+For early or irregular full salary payments, open **I've been paid** in the
+dashboard budget panel. Confirm the cycle, actual pay date and amount received
+after advances. For example, confirming November's pay on 23 October ends the
+old cycle on 22 October and starts November's budget on the 23rd. It will not
+fund or reset again on the usual payday. The regular schedule stays unchanged;
+past recorded cycle dates are preserved when settings change. Weekend adjustment
+does not include public holidays; use the same manual action for those exceptions.
+Pay received is recorded separately from automatic scheduled rollover. Repeated
+confirmation cannot add the same salary twice, and does not add a transaction or
+move money into savings pots. Partial salary advances remain separate.
 
 On Income, select a month. The table has Source, Amount, Frequency, Start
 month, End month, Advance, and Savings taken. Amount is income before
@@ -118,7 +131,7 @@ Borrowed funds should also be recorded as a debt manually; its monthly minimum
 payment is included in the budget calculation. Adding funds does not create a
 debt or change savings pots automatically.
 
-On the 25th, the previous cycle's remaining money plus any unused reserve
+On your payday, the previous cycle's remaining money plus any unused reserve
 becomes Available buffer. The opening amount is saved once per cycle, so
 refreshing or reopening on another device cannot credit it again. Later edits
 to historical spending do not silently rewrite a captured opening buffer.
@@ -130,8 +143,8 @@ current allocation editable; it does not remove an amount already allocated.
 Overspending becomes a shortfall and reduces the next budget automatically,
 even with auto-use off. It is deducted once, not hidden or reset to zero.
 The first rollover for a cycle requires an online connection to read fresh
-records and commit the opening amount atomically. If the app is closed on the
-25th, rollover runs when that cycle is next opened. An open app checks the
+records and commit the opening amount atomically. If the app is closed on
+payday, rollover runs when that cycle is next opened. An open app checks the
 payday boundary every minute and when brought back into view; historic month
 selections are preserved. Previous unused reserves remain available too.
 

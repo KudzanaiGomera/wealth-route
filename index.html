@@ -793,6 +793,19 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .budget-card[data-state="over"] { --budget-color: var(--danger); }
 .budget-card h2 { font: 600 0.9rem/1.4 var(--font-sans); margin: 0; }
 .budget-card .budget-period { margin: 0.3rem 0 1.25rem; font-size: 0.8rem; }
+.payday-control { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.85rem; }
+.payday-control summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 44px; cursor: pointer; color: var(--accent); font-size: 0.85rem; font-weight: 600; list-style: none; }
+.payday-control summary::-webkit-details-marker { display: none; }
+.payday-control summary::after { content: '+'; font-size: 1.1rem; }
+.payday-control[open] summary::after { content: '-'; }
+.payday-control summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.payday-receipt { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; padding-top: 0.75rem; }
+.payday-receipt label { display: grid; gap: 0.35rem; min-width: 0; font-size: 0.8rem; color: var(--muted); }
+.payday-receipt input, .payday-receipt select { width: 100%; min-width: 0; box-sizing: border-box; }
+.payday-receipt button, .payday-receipt .payday-preview { grid-column: 1 / -1; }
+.payday-preview { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+.payday-status { margin: 1rem 0 0; font-size: 0.8rem; color: var(--muted); }
+@media (max-width: 420px) { .payday-receipt { grid-template-columns: minmax(0, 1fr); } }
   .budget-card-body { display: grid; grid-template-columns: minmax(0, 1fr) 84px; align-items: center; gap: 0.85rem; }
 .budget-card .hero-value { display: block; font: 500 2rem/1.2 var(--font-serif); margin-top: 0.3rem; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .budget-card .hero-value.negative { color: var(--danger); }
@@ -3780,7 +3793,10 @@ WR.ui = WR.ui || {};
 
   async function getOrCreateProfile() {
     const profiles = await WR.repos.userProfile.getAll();
-    if (profiles.length > 0) return profiles[0];
+    if (profiles.length > 0) {
+      WR.ui._paydayProfile = profiles[0];
+      return profiles[0];
+    }
     const profile = WR.models.createUserProfile({
       baseCurrency: 'ZAR',
       country: 'South Africa',
@@ -3788,6 +3804,7 @@ WR.ui = WR.ui || {};
       riskProfile: 'moderate',
     });
     await WR.repos.userProfile.add(profile);
+    WR.ui._paydayProfile = profile;
     return profile;
   }
 
@@ -3858,22 +3875,28 @@ WR.ui = WR.ui || {};
     };
   }
 
-  function payCycleDates(month, payday = 25) {
+  function payCycleDates(month, payday = WR.ui._paydayProfile || 25, cycles = WR.ui._paydayCycles || []) {
     const [year, monthNumber] = month.split('-').map(Number);
-    const day = Math.min(31, Math.max(1, Number(payday) || 25));
+    const settings = typeof payday === 'object' ? payday : { paydayDay: payday };
+    const day = settings.paydayDay === 'last' ? 31 : Math.min(31, Math.max(1, Number(settings.paydayDay) || 25));
     const dateFor = (offset) => {
       const date = new Date(year, monthNumber - 1 + offset, 1);
       const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
       date.setDate(Math.min(day, lastDay));
+      if (settings.paydayPreviousFriday) {
+        if (date.getDay() === 6) date.setDate(date.getDate() - 1);
+        else if (date.getDay() === 0) date.setDate(date.getDate() - 2);
+      }
       return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     };
-    return { start: dateFor(-1), endExclusive: dateFor(0) };
+    const nextMonth = currentMonthKey(new Date(year, monthNumber, 1));
+    return { start: cycles.find(cycle => cycle.month === month)?.payDate || dateFor(-1), endExclusive: cycles.find(cycle => cycle.month === nextMonth)?.payDate || dateFor(0) };
   }
 
-  function currentBudgetMonth(date = new Date(), payday = 25) {
-    const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-    const offset = date.getDate() >= Math.min(Number(payday) || 25, lastDay) ? 1 : 0;
-    return currentMonthKey(new Date(date.getFullYear(), date.getMonth() + offset, 1));
+  function currentBudgetMonth(date = new Date(), payday = WR.ui._paydayProfile || 25, cycles = WR.ui._paydayCycles || []) {
+    const today = currentMonthKey(date) + '-' + String(date.getDate()).padStart(2, '0');
+    const candidates = [-1, 0, 1, 2].map(offset => currentMonthKey(new Date(date.getFullYear(), date.getMonth() + offset, 1)));
+    return candidates.reverse().find(month => today >= payCycleDates(month, payday, cycles).start) || currentMonthKey(date);
   }
 
   function syncBudgetMonth(date = new Date()) {
@@ -3910,8 +3933,8 @@ WR.ui = WR.ui || {};
   }
   WR.ui.calculateBudgetSpending = calculateBudgetSpending;
 
-  function calculatePayCycleBudget(accounts, transactions, cycles, advances, month, payday = 25, today = new Date().toISOString().slice(0, 10), budgetAmount) {
-    const dates = payCycleDates(month, payday);
+  function calculatePayCycleBudget(accounts, transactions, cycles, advances, month, payday = WR.ui._paydayProfile || 25, today = new Date().toISOString().slice(0, 10), budgetAmount) {
+    const dates = payCycleDates(month, payday, cycles);
     const confirmed = cycles.filter(cycle => cycle.confirmed && cycle.payDate <= today);
     const events = transactions.map(item => ({ date: item.date, amount: (item.kind === 'add' ? 1 : -1) * (Number(item.amount) || 0), kind: item.kind === 'add' ? 'add' : 'spend' }));
     confirmed.forEach(cycle => events.push({ date: cycle.payDate, amount: calculatePayCycleFunding(cycle).budget - (Number(cycle.bufferAmount) || 0) + (Number(cycle.shortfallAmount) || 0), kind: 'funding' }));
@@ -3932,11 +3955,12 @@ WR.ui = WR.ui || {};
     return { ...dates, enabled: !!enabledFrom, confirmed: !!cycle, carryOver, funding, added, spent, available, remaining, remainingPct: calculateBudgetRemainingPercentage(funding, remaining) };
   }
 
-  async function ensurePaydayRollover(data, month, today = new Date().toISOString().slice(0, 10)) {
+  async function ensurePaydayRollover(data, month, today = new Date().toISOString().slice(0, 10), receipt = null) {
     const existing = data.cycles.find(cycle => cycle.month === month);
-    if (existing?.rolloverApplied || month !== WR.ui.currentBudgetMonth(new Date(`${today}T12:00:00`))) return existing;
-    const payDate = WR.ui.payCycleDates(month).start;
-    const carryOver = WR.ui.calculatePayCycleBudget(data.accounts, data.transactions, data.cycles, data.advances, month, 25, today).carryOver;
+    if (!receipt && (existing?.rolloverApplied || month !== WR.ui.currentBudgetMonth(new Date(`${today}T12:00:00`), data.profile, data.cycles))) return existing;
+    const payDate = receipt?.date || WR.ui.payCycleDates(month, data.profile, data.cycles).start;
+    const boundaryCycles = receipt ? data.cycles.filter(cycle => cycle.month !== month).concat({ ...existing, month, payDate }) : data.cycles;
+    const carryOver = WR.ui.calculatePayCycleBudget(data.accounts, data.transactions, boundaryCycles, data.advances, month, data.profile, today).carryOver;
     const year = Number(month.slice(0, 4));
     const defaults = {
       id: month, month, payDate, mode: 'income-table', allocations: [],
@@ -3945,7 +3969,7 @@ WR.ui = WR.ui || {};
       variableAmount: data.budgetLines.filter(line => line.month === month && line.type === 'variable').reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0),
       debtAmount: WR.financial.calculateTotalMinPayments(data.debts, data.exchangeRates, data.profile.baseCurrency),
     };
-    if (!existing && defaults.expectedIncome <= 0 && carryOver === 0) return existing;
+    if (!receipt && !existing && defaults.expectedIncome <= 0 && carryOver === 0) return existing;
     const uid = WR.account.getCurrentUser()?.uid;
     if (!uid || !data.profile.id) return existing;
     const api = WR.account.getFirestoreApi();
@@ -3955,20 +3979,60 @@ WR.ui = WR.ui || {};
     return api.runTransaction(db, async transaction => {
       const cycleSnapshot = await transaction.get(cycleRef);
       const old = cycleSnapshot.exists() ? cycleSnapshot.data() : {};
-      if (old.rolloverApplied) return old;
+      if (receipt && old.receivedDate) {
+        if (old.receivedDate === receipt.date && old.receivedAmount === receipt.amount) return old;
+        throw new Error('Pay has already been recorded for this cycle. Refresh to see the saved details.');
+      }
+      if (old.rolloverApplied && !receipt) return old;
+      if (receipt && old.rolloverApplied && old.payDate !== payDate && (old.bufferCorrected || Object.keys(old.bufferDeposits || {}).length)) throw new Error('This cycle has buffer adjustments. Keep its existing start date when confirming pay.');
       const profileSnapshot = await transaction.get(profileRef);
       const profile = profileSnapshot.exists() ? profileSnapshot.data() : data.profile;
       const next = {
         ...defaults, ...old, confirmed: true, rolloverApplied: true,
+        receivedDate: old.receivedDate || '',
         rolloverAvailable: Math.round(carryOver * 100) / 100,
         rolloverSourceMonth: WR.ui.previousMonthKey(month),
         bufferAmount: profile.autoUseBuffer ? Math.max(0, carryOver) : Math.min(Number(old.bufferAmount) || 0, Math.max(0, carryOver)),
         shortfallAmount: Math.max(0, -carryOver),
       };
+      if (receipt) Object.assign(next, {
+        payDate, receivedDate: payDate, receivedAmount: receipt.amount,
+        scheduledPayDate: old.scheduledPayDate || WR.ui.payCycleDates(month, profile, []).start,
+        expectedIncome: Math.round((receipt.amount + (Number(old.advanceAmount) || 0)) * 100) / 100,
+      });
+      if (receipt && WR.ui.calculatePayCycleFunding(next).savings > WR.ui.calculatePayCycleFunding(next).salary) throw new Error('Recorded savings exceed the salary received. Correct the savings allocation first.');
       transaction.set(cycleRef, next);
       return next;
     });
   }
+
+  async function confirmPayday(month, date, amount) {
+    if (!WR.account.getCurrentUser()?.uid) throw new Error('Sign in before confirming payday.');
+    const today = new Date();
+    const todayKey = currentMonthKey(today) + '-' + String(today.getDate()).padStart(2, '0');
+    const parsed = new Date(`${date}T12:00:00`);
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsed.getTime()) || currentMonthKey(parsed) + '-' + String(parsed.getDate()).padStart(2, '0') !== date || date > todayKey) throw new Error('Choose a valid pay date, today or earlier.');
+    if (!Number.isFinite(Number(amount)) || Math.round(Number(amount) * 100) < 1) throw new Error('Enter the salary amount received.');
+    const stores = ['userProfile', 'incomeSources', 'fixedExpenses', 'budgetLines', 'debts', 'exchangeRates', 'dayToDayAccounts', 'dayToDayTransactions', 'payCycles', 'payAdvances'];
+    const records = await Promise.all(stores.map(store => WR.repos[store].getAll({ fresh: true })));
+    const [profiles, incomeSources, fixedExpenses, budgetLines, debts, exchangeRates, accounts, transactions, cycles, advances] = records;
+    const profile = profiles[0];
+    if (!profile?.id) throw new Error('Save your profile before confirming payday.');
+    const activeMonth = currentBudgetMonth(today, profile, cycles);
+    const [year, number] = activeMonth.split('-').map(Number);
+    const nextMonth = currentMonthKey(new Date(year, number, 1));
+    const existing = cycles.find(cycle => cycle.month === month);
+    const dates = payCycleDates(month, profile, []);
+    const previous = payCycleDates(previousMonthKey(month), profile, cycles);
+    if (![activeMonth, nextMonth].includes(month) || date <= previous.start || date >= dates.endExclusive || (month === nextMonth && date < payCycleDates(activeMonth, profile, cycles).start)) throw new Error('Choose a pay date within the current or upcoming pay cycle.');
+    if (existing?.receivedDate && (existing.receivedDate !== date || existing.receivedAmount !== Math.round(Number(amount) * 100) / 100)) throw new Error('Pay has already been recorded for this cycle.');
+    const result = await ensurePaydayRollover({ profile, incomeSources, fixedExpenses, budgetLines, debts, exchangeRates, accounts, transactions, cycles, advances }, month, todayKey, { date, amount: Math.round(Number(amount) * 100) / 100 });
+    WR.ui._paydayProfile = profile;
+    WR.ui._paydayCycles = cycles.filter(cycle => cycle.month !== month).concat(result);
+    WR.ui.syncBudgetMonth();
+    return result;
+  }
+  WR.ui.confirmPayday = confirmPayday;
 
   /**
    * @param {string} [monthKey] - 'YYYY-MM', defaults to the current month
@@ -4016,6 +4080,8 @@ WR.ui = WR.ui || {};
         WR.repos.payAdvances.getAll(),
       ]);
 
+    WR.ui._paydayProfile = profile;
+    WR.ui._paydayCycles = payCycles;
     if (month === currentBudgetMonth() && profile.id && !payCycles.find(cycle => cycle.month === month)?.rolloverApplied && (payCycles.length || dayToDayAccounts.length || incomeSources.some(source => Number(source.year || selectedYear) === selectedYear && isActiveForMonth(source, month)))) {
       const records = await Promise.all(['budgetLines', 'debts', 'exchangeRates', 'incomeSources', 'fixedExpenses', 'dayToDayAccounts', 'dayToDayTransactions', 'payCycles', 'payAdvances', 'userProfile'].map(store => WR.repos[store].getAll({ fresh: true })));
       [allBudgetLines, debts, exchangeRates, incomeSources, fixedExpenses, dayToDayAccounts, dayToDayTransactions, payCycles, payAdvances] = records;
@@ -4219,7 +4285,7 @@ WR.ui = WR.ui || {};
       }, 0);
     const dayToDayAccount = getDayToDayOpeningAccount(dayToDayAccounts, selectedYear);
     const dayToDaySummary = calculateDayToDaySummary(dayToDayAccounts, dayToDayTransactions, month);
-    const payCycleBudget = calculatePayCycleBudget(dayToDayAccounts, dayToDayTransactions, effectivePayCycles, payAdvances, month, 25, undefined, paydayFunding.budget);
+    const payCycleBudget = calculatePayCycleBudget(dayToDayAccounts, dayToDayTransactions, effectivePayCycles, payAdvances, month, profile, undefined, paydayFunding.budget);
     dayToDaySummary.currentBalance = payCycleBudget.remaining;
     payCycleBudget.remainingPct = calculateBudgetRemainingPercentage(paydayFunding.budget, dayToDaySummary.currentBalance);
 
@@ -5137,6 +5203,10 @@ WR.ui = WR.ui || {};
   }
 
   async function renderDashboard(container) {
+    const [paydayProfile, paydayCycles] = await Promise.all([WR.ui.getOrCreateProfile(), WR.repos.payCycles.getAll()]);
+    WR.ui.assertActiveView(container);
+    WR.ui._paydayProfile = paydayProfile;
+    WR.ui._paydayCycles = paydayCycles;
     const s = await WR.ui.buildSnapshot(WR.ui.currentBudgetMonth());
     WR.ui.assertActiveView(container);
     const currency = s.profile.baseCurrency;
@@ -5164,6 +5234,17 @@ WR.ui = WR.ui || {};
     periodEnd.setDate(periodEnd.getDate() - 1);
     const budgetPeriod = `${periodFormatter.format(periodStart)} - ${periodFormatter.format(periodEnd)}`;
     const balancesAsOf = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
+    const todayKey = WR.ui.currentMonthKey(new Date()) + '-' + String(new Date().getDate()).padStart(2, '0');
+    const nextCycleMonth = WR.ui.currentMonthKey(new Date(Number(s.month.slice(0, 4)), Number(s.month.slice(5, 7)), 1));
+    const nextPayDate = new Date(`${WR.ui.payCycleDates(nextCycleMonth).start}T12:00:00`);
+    const nextPaySoon = nextPayDate.getTime() - new Date(`${todayKey}T12:00:00`).getTime() <= 7 * 86400000;
+    const receiptMonth = s.paydayRecord?.receivedDate || nextPaySoon ? nextCycleMonth : s.month;
+    const receiptDates = WR.ui.payCycleDates(receiptMonth);
+    const expectedReceipt = month => {
+      const cycle = s.payCycles.find(item => item.month === month);
+      return cycle ? WR.ui.calculatePayCycleFunding(cycle).salary : s.incomeSources.filter(source => Number(source.year || month.slice(0, 4)) === Number(month.slice(0, 4)) && WR.ui.isActiveForMonth(source, month)).reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0);
+    };
+    const receiptAmount = expectedReceipt(receiptMonth);
 
     function billRow(bill) {
       const index = billOccurrences.indexOf(bill);
@@ -5292,6 +5373,17 @@ WR.ui = WR.ui || {};
             <div class="day-category-meter" role="progressbar" aria-label="Budget spent" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(spending.barPercentage)}" aria-valuetext="${spending.percentage === null ? 'No spending budget set' : `${Math.round(spending.percentage)}% of budget spent`}"><span style="--share: ${spending.barPercentage}%"></span></div>
             ${spending.overBudget > 0 ? `<p data-budget-over>${currency} ${fmt(spending.overBudget)} over budget</p>` : ''}
           </div>
+          <p class="payday-status">${s.paydayRecord?.receivedDate ? `Pay received ${escapeText(periodFormatter.format(new Date(`${s.paydayRecord.receivedDate}T12:00:00`)))}` : `Scheduled payday ${escapeText(periodFormatter.format(periodStart))}`}</p>
+          <details class="payday-control">
+            <summary>I've been paid</summary>
+            <form id="payday-receipt-form" class="payday-receipt">
+              <label class="span-2">Budget cycle<select name="cycleMonth">${[s.month, nextCycleMonth].filter(month => !s.payCycles.find(cycle => cycle.month === month)?.receivedDate).map(month => `<option value="${month}" ${month === receiptMonth ? 'selected' : ''}>${escapeText(new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date(`${month}-01T12:00:00`)))}${month === nextCycleMonth ? ' - upcoming cycle' : ' - current cycle'}</option>`).join('')}</select></label>
+              <label>Pay received on<input name="receivedDate" type="date" value="${todayKey}" max="${todayKey}" required></label>
+              <label>Amount received (${escapeText(currency)})<input name="receivedAmount" type="number" min="0.01" step="0.01" value="${receiptAmount > 0 ? receiptAmount.toFixed(2) : ''}" required></label>
+              <p class="payday-preview" id="payday-receipt-preview" aria-live="polite">${escapeText(todayKey)} to ${escapeText(receiptDates.endExclusive)} (next payday excluded)</p>
+              <button type="submit">Confirm pay received</button>
+            </form>
+          </details>
         </article>
         <div class="reserve-balances" aria-label="Separately tracked balances">
           <article class="dashboard-card reserve-card emergency-card" aria-label="Emergency fund balance">
@@ -5428,6 +5520,27 @@ WR.ui = WR.ui || {};
     `);
 
     WR.ui.bindFinancialVisibility(container);
+    const receiptForm = container.querySelector('#payday-receipt-form');
+    const updateReceiptPreview = () => {
+      const month = receiptForm.elements.cycleMonth.value;
+      const dates = WR.ui.payCycleDates(month);
+      const formatter = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      const start = new Date(`${receiptForm.elements.receivedDate.value || todayKey}T12:00:00`);
+      const end = new Date(`${dates.endExclusive}T12:00:00`);
+      end.setDate(end.getDate() - 1);
+      container.querySelector('#payday-receipt-preview').textContent = `${formatter.format(start)} - ${formatter.format(end)}`;
+    };
+    receiptForm.addEventListener('input', updateReceiptPreview);
+    receiptForm.elements.cycleMonth.addEventListener('change', () => {
+      const amount = expectedReceipt(receiptForm.elements.cycleMonth.value);
+      receiptForm.elements.receivedAmount.value = amount > 0 ? amount.toFixed(2) : '';
+    });
+    WR.ui.bindReliableForm(receiptForm, form => WR.ui.confirmPayday(form.elements.cycleMonth.value, form.elements.receivedDate.value, form.elements.receivedAmount.value), async () => {
+      WR.ui.notify('Pay received. Your budget cycle is ready.', 'success');
+      await renderDashboard(container);
+      WR.ui.enhanceResponsiveContent(container);
+    });
+    updateReceiptPreview();
     container.querySelectorAll('[data-bill-status]').forEach((button) => {
       button.addEventListener('click', async () => {
         const bill = billOccurrences[Number(button.dataset.billIndex)];
@@ -5835,8 +5948,6 @@ WR.ui = WR.ui || {};
       if (!Number.isFinite(number) || number < 0) throw new Error('Amounts must be zero or greater.');
       return Math.round(number * 100) / 100;
     };
-    const payDate = WR.ui.payCycleDates(month).start;
-    if (fields.confirmed && payDate > new Date().toISOString().slice(0, 10)) throw new Error('A future payday can only be saved as a plan.');
     let allocations = (fields.allocations || []).map(item => ({ potId: String(item.potId || ''), amount: value(item.amount) }));
     if (allocations.some(item => !item.potId || item.amount <= 0)) throw new Error('Choose a pot and a positive amount for each savings allocation.');
     const api = WR.account.getFirestoreApi();
@@ -5847,6 +5958,8 @@ WR.ui = WR.ui || {};
     await api.runTransaction(db, async transaction => {
       const previous = await transaction.get(cycleRef);
       const old = previous.exists() ? previous.data() : {};
+      const payDate = old.payDate || WR.ui.payCycleDates(month).start;
+      if (fields.confirmed && payDate > new Date().toISOString().slice(0, 10)) throw new Error('A future payday can only be saved as a plan.');
       let incomeChange;
       let profileChange;
       if (fields.incomeTable) {
@@ -5958,7 +6071,7 @@ WR.ui = WR.ui || {};
       const parsed = new Date(`${input}T12:00:00Z`);
       return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === input;
     };
-    if (!remove && (!validDate(fields.receivedDate) || !validDate(fields.payDate) || fields.payDate.slice(-2) !== '25' || fields.receivedDate >= fields.payDate || fields.receivedDate > new Date().toISOString().slice(0, 10) || !Number.isFinite(Number(fields.amount)) || Number(fields.amount) <= 0)) throw new Error('Enter a positive advance received before its future payday on the 25th.');
+    if (!remove && (!validDate(fields.receivedDate) || !validDate(fields.payDate) || fields.receivedDate >= fields.payDate || fields.receivedDate > new Date().toISOString().slice(0, 10) || !Number.isFinite(Number(fields.amount)) || Number(fields.amount) <= 0)) throw new Error('Enter a positive advance received before its future payday.');
     const api = WR.account.getFirestoreApi();
     const db = WR.account.getDb();
     const uid = WR.account.getCurrentUser()?.uid;
@@ -5970,7 +6083,8 @@ WR.ui = WR.ui || {};
       if (remove && !snapshot.exists()) return;
       const record = remove ? snapshot.data() : { id, amount: Math.round(Number(fields.amount) * 100) / 100, receivedDate: fields.receivedDate, payDate: fields.payDate, transactionId: fields.transactionId || '' };
       const payday = new Date(`${record.payDate}T12:00:00`);
-      const month = WR.ui.currentBudgetMonth(payday);
+      const month = currentMonthKey(new Date(payday.getFullYear(), payday.getMonth() + 1, 1));
+      if (!remove && WR.ui.payCycleDates(month, WR.ui._paydayProfile || 25, []).start !== record.payDate) throw new Error('Choose the scheduled payday for this advance.');
       const cycleRef = api.doc(db, 'users', uid, 'payCycles', month);
       const cycleSnapshot = await transaction.get(cycleRef);
       const cycle = cycleSnapshot.exists() ? cycleSnapshot.data() : { id: month, month, payDate: record.payDate, allocations: [], confirmed: false };
@@ -6003,7 +6117,8 @@ WR.ui = WR.ui || {};
     const escape = WR.ui.escapeText;
     const today = new Date().toISOString().slice(0, 10);
     const now = new Date();
-    const upcomingMonth = WR.ui.currentMonthKey(new Date(now.getFullYear(), now.getMonth() + (now.getDate() >= 25 ? 2 : 1), 1));
+    const activeMonth = WR.ui.currentBudgetMonth(now);
+    const upcomingMonth = WR.ui.currentMonthKey(new Date(Number(activeMonth.slice(0, 4)), Number(activeMonth.slice(5, 7)), 1));
     const nextPayday = WR.ui.payCycleDates(upcomingMonth).start;
     const options = selected => `<option value="">Choose a pot</option>${pots.filter(pot => !pot.archived || pot.id === selected).map(pot => `<option value="${escape(pot.id)}" ${pot.id === selected ? 'selected' : ''}>${escape(pot.name)}${pot.archived ? ' (archived)' : ''}</option>`).join('')}`;
     WR.ui.setHTML(container, `
@@ -6846,7 +6961,7 @@ WR.ui = WR.ui || {};
     const dateFrom = WR.ui._dayDateFrom || '';
     const dateTo = WR.ui._dayDateTo || '';
     const visibleTransactions = monthTx.filter((item) => (!dateFrom || item.date >= dateFrom) && (!dateTo || item.date <= dateTo));
-    const payBudget = WR.ui.calculatePayCycleBudget(accounts, transactions, payCycles, payAdvances, month, 25, undefined, budgetSnapshot.paydayFunding.budget);
+    const payBudget = WR.ui.calculatePayCycleBudget(accounts, transactions, payCycles, payAdvances, month, budgetSnapshot.profile, undefined, budgetSnapshot.paydayFunding.budget);
     const spent = payBudget.spent;
     const balanceBeforeMonth = budgetSnapshot.paydayFunding.budget;
     const current = payBudget.remaining;
@@ -8838,7 +8953,7 @@ WR.ui = WR.ui || {};
         <h1>Settings</h1>
         <p class="fine-print">Manage your account, preferences and data.</p>
         <div class="settings-jump" role="navigation" aria-label="Settings sections">
-          ${[['settings-account', 'Account'], ['settings-preferences', 'Preferences'], ['settings-rates', 'Exchange rates'], ['settings-categories', 'Categories'], ['settings-data', 'Data'], ['settings-about', 'About']]
+          ${[['settings-account', 'Account'], ['settings-preferences', 'Preferences'], ['settings-payday', 'Payday'], ['settings-rates', 'Exchange rates'], ['settings-categories', 'Categories'], ['settings-data', 'Data'], ['settings-about', 'About']]
             .map(([id, label]) => `<button type="button" class="settings-chip" data-target="${id}">${label}</button>`).join('')}
         </div>
       </div>
@@ -8921,6 +9036,15 @@ WR.ui = WR.ui || {};
         </form>
       </section>
 
+      <section id="settings-payday" class="settings-card">
+        ${cardHead(ICONS.sliders, 'Payday & budget cycle', 'Your regular monthly pay schedule.')}
+        <form id="payday-settings-form" class="settings-form-grid">
+          <label>Usual payday<select name="paydayDay">${Array.from({ length: 31 }, (_, index) => String(index + 1)).concat('last').map(day => `<option value="${day}" ${String(profile.paydayDay || 25) === day ? 'selected' : ''}>${day === 'last' ? 'Last day of the month' : `Day ${day}`}</option>`).join('')}</select></label>
+          <label>When payday is on a weekend<select name="paydayPreviousFriday"><option value="no" ${!profile.paydayPreviousFriday ? 'selected' : ''}>Keep the scheduled date</option><option value="yes" ${profile.paydayPreviousFriday ? 'selected' : ''}>Previous Friday</option></select></label>
+          <div class="settings-actions span-2"><button type="submit">Save payday</button></div>
+        </form>
+      </section>
+
       <section id="settings-rates" class="settings-card">
         ${cardHead(ICONS.currency, 'Exchange rates', 'Used to convert foreign-currency debts, assets and investments.', '<button type="button" id="refresh-rates-btn" class="secondary settings-head-action">Refresh saved rates</button>')}
         <div id="rates-list"></div>
@@ -8984,7 +9108,7 @@ WR.ui = WR.ui || {};
           <summary>How the numbers are calculated</summary>
           <p class="fine-print">WealthRoute is deterministic: formulas calculate outcomes and the assistant explains existing numbers only.</p>
           <ul>
-            <li>Pay cycles run from the 25th to the day before the next payday. October's budget is funded on 25 September.</li>
+            <li>Budget cycles follow your payday schedule. Recorded early pay changes only that cycle; previous budget history is kept.</li>
             <li>Total income = income sources - advances - savings taken + added buffer.</li>
             <li>Budgeted for the month = total income - fixed expenses - actual variable expenses - monthly debt minimums.</li>
             <li>Remaining money includes carry-over once, less everyday spending. Savings taken only reduces income; pot balances are updated manually.</li>
@@ -9176,13 +9300,13 @@ WR.ui = WR.ui || {};
     });
 
     WR.ui.bindReliableForm(document.getElementById('display-name-form'), async (form) => {
-      await WR.repos.userProfile.update({ ...profile, displayName: form.elements.displayName.value.trim() });
+      await WR.repos.userProfile.update({ ...await WR.ui.getOrCreateProfile(), displayName: form.elements.displayName.value.trim() });
       WR.ui.notify('Display name saved.', 'success');
     });
 
     WR.ui.bindReliableForm(document.getElementById('profile-form'), async (form) => {
       const updated = {
-        ...profile,
+        ...await WR.ui.getOrCreateProfile(),
         baseCurrency: form.baseCurrency.value,
         country: form.country.value,
         emergencyFundTargetMonths: parseFloat(form.emergencyFundTargetMonths.value) || 3,
@@ -9191,6 +9315,15 @@ WR.ui = WR.ui || {};
       };
       await WR.repos.userProfile.update(updated);
       WR.ui.notify('Profile saved.', 'success');
+    });
+
+    WR.ui.bindReliableForm(container.querySelector('#payday-settings-form'), async form => {
+      const current = await WR.ui.getOrCreateProfile();
+      const updated = { ...current, paydayDay: form.elements.paydayDay.value, paydayPreviousFriday: form.elements.paydayPreviousFriday.value === 'yes' };
+      await WR.repos.userProfile.update(updated);
+      WR.ui._paydayProfile = updated;
+      WR.ui.syncBudgetMonth();
+      WR.ui.notify('Payday saved. Recorded budget cycles are unchanged.', 'success');
     });
 
     WR.ui.bindReliableForm(document.getElementById('rate-form'), async (form) => {
@@ -10676,6 +10809,13 @@ WR.ui = WR.ui || {};
     if (hash !== lastRoutedHash || !content.children.length) WR.ui.setHTML(content, SKELETON_HTML);
     lastRoutedHash = hash;
     try {
+      if (WR.repos?.payCycles && WR.ui.getOrCreateProfile) {
+        const [profile, cycles] = await Promise.all([WR.ui.getOrCreateProfile(), WR.repos.payCycles.getAll()]);
+        if (requestId !== navigationId || !content.isConnected) return;
+        WR.ui._paydayProfile = profile;
+        WR.ui._paydayCycles = cycles;
+        WR.ui.syncBudgetMonth();
+      }
       await WR.ui[renderFnName](content);
       if (requestId !== navigationId || !content.isConnected) return;
       if (WR.ui.enhanceResponsiveContent) WR.ui.enhanceResponsiveContent(content);
@@ -10900,7 +11040,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   // username that finishes loading a moment after sign-in resolves).
   let draftAccountUid = initialUser?.uid || null;
   WR.account.onAuthChange((user) => {
-    if ((user?.uid || null) !== draftAccountUid) WR.ui.clearFormDrafts?.();
+    if ((user?.uid || null) !== draftAccountUid) {
+      WR.ui.clearFormDrafts?.();
+      WR.ui._paydayProfile = null;
+      WR.ui._paydayCycles = [];
+      WR.ui._activeBudgetMonth = null;
+      WR.ui._dayMonth = null;
+      WR.ui._paydayMonth = null;
+      WR.ui._transactionsMonth = null;
+    }
     draftAccountUid = user?.uid || null;
     if (user) {
       if (!document.getElementById('nav')) {
