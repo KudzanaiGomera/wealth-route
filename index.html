@@ -805,6 +805,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .payday-receipt button, .payday-receipt .payday-preview { grid-column: 1 / -1; }
 .payday-preview { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
 .payday-status { margin: 1rem 0 0; font-size: 0.8rem; color: var(--muted); }
+.income-payday { max-width: 36rem; margin-bottom: 1.25rem; }
 @media (max-width: 420px) { .payday-receipt { grid-template-columns: minmax(0, 1fr); } }
   .budget-card-body { display: grid; grid-template-columns: minmax(0, 1fr) 84px; align-items: center; gap: 0.85rem; }
 .budget-card .hero-value { display: block; font: 500 2rem/1.2 var(--font-serif); margin-top: 0.3rem; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
@@ -5202,6 +5203,68 @@ WR.ui = WR.ui || {};
     return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   }
 
+  function paydayReceiptState(snapshot, date = new Date()) {
+    const todayKey = WR.ui.currentMonthKey(date) + '-' + String(date.getDate()).padStart(2, '0');
+    const activeMonth = WR.ui.currentBudgetMonth(date, snapshot.profile, snapshot.payCycles);
+    const nextMonth = WR.ui.currentMonthKey(new Date(Number(activeMonth.slice(0, 4)), Number(activeMonth.slice(5, 7)), 1));
+    const months = [activeMonth, nextMonth].filter(month => !snapshot.payCycles.find(cycle => cycle.month === month)?.receivedDate);
+    const nearMonth = months.find(month => {
+      const cycle = snapshot.payCycles.find(item => item.month === month);
+      const scheduled = cycle?.scheduledPayDate || cycle?.payDate || WR.ui.payCycleDates(month, snapshot.profile, []).start;
+      const daysUntil = (Date.parse(`${scheduled}T00:00:00Z`) - Date.parse(`${todayKey}T00:00:00Z`)) / 86400000;
+      return daysUntil >= 0 && daysUntil <= 7;
+    });
+    return { todayKey, activeMonth, months, month: nearMonth || months[0], showOnDashboard: !!nearMonth };
+  }
+
+  function expectedPaydayReceipt(snapshot, month) {
+    const cycle = snapshot.payCycles.find(item => item.month === month);
+    return cycle ? WR.ui.calculatePayCycleFunding(cycle).salary : snapshot.incomeSources.filter(source => Number(source.year || month.slice(0, 4)) === Number(month.slice(0, 4)) && WR.ui.isActiveForMonth(source, month)).reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0);
+  }
+
+  function renderPaydayReceipt(snapshot, dashboardOnly = false) {
+    const state = paydayReceiptState(snapshot);
+    if (!state.month || (dashboardOnly && !state.showOnDashboard)) return '';
+    const amount = expectedPaydayReceipt(snapshot, state.month);
+    const monthFormatter = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
+    return `<details class="payday-control">
+      <summary>I've been paid</summary>
+      <form id="payday-receipt-form" class="payday-receipt">
+        <label class="span-2">Budget cycle<select name="cycleMonth">${state.months.map(month => `<option value="${month}" ${month === state.month ? 'selected' : ''}>${escapeText(monthFormatter.format(new Date(`${month}-01T12:00:00`)))}${month === state.activeMonth ? ' - current cycle' : ' - upcoming cycle'}</option>`).join('')}</select></label>
+        <label>Pay received on<input name="receivedDate" type="date" value="${state.todayKey}" max="${state.todayKey}" required></label>
+        <label>Amount received (${escapeText(snapshot.profile.baseCurrency)})<input name="receivedAmount" type="number" min="0.01" step="0.01" value="${amount > 0 ? amount.toFixed(2) : ''}" required></label>
+        <p class="payday-preview" id="payday-receipt-preview" aria-live="polite"></p>
+        <button type="submit">Confirm pay received</button>
+      </form>
+    </details>`;
+  }
+
+  function bindPaydayReceipt(container, snapshot, afterSave) {
+    const form = container.querySelector('#payday-receipt-form');
+    if (!form) return;
+    const updatePreview = () => {
+      const dates = WR.ui.payCycleDates(form.elements.cycleMonth.value, snapshot.profile, snapshot.payCycles);
+      const formatter = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      const start = new Date(`${form.elements.receivedDate.value || form.elements.receivedDate.max}T12:00:00`);
+      const end = new Date(`${dates.endExclusive}T12:00:00`);
+      end.setDate(end.getDate() - 1);
+      container.querySelector('#payday-receipt-preview').textContent = `${formatter.format(start)} - ${formatter.format(end)}`;
+    };
+    form.addEventListener('input', updatePreview);
+    form.elements.cycleMonth.addEventListener('change', () => {
+      const amount = expectedPaydayReceipt(snapshot, form.elements.cycleMonth.value);
+      form.elements.receivedAmount.value = amount > 0 ? amount.toFixed(2) : '';
+      updatePreview();
+    });
+    WR.ui.bindReliableForm(form, form => WR.ui.confirmPayday(form.elements.cycleMonth.value, form.elements.receivedDate.value, form.elements.receivedAmount.value), async () => {
+      WR.ui.notify('Pay received. Your budget cycle is ready.', 'success');
+      await afterSave();
+      WR.ui.enhanceResponsiveContent(container);
+    });
+    updatePreview();
+  }
+  Object.assign(WR.ui, { paydayReceiptState, renderPaydayReceipt, bindPaydayReceipt });
+
   async function renderDashboard(container) {
     const [paydayProfile, paydayCycles] = await Promise.all([WR.ui.getOrCreateProfile(), WR.repos.payCycles.getAll()]);
     WR.ui.assertActiveView(container);
@@ -5234,17 +5297,6 @@ WR.ui = WR.ui || {};
     periodEnd.setDate(periodEnd.getDate() - 1);
     const budgetPeriod = `${periodFormatter.format(periodStart)} - ${periodFormatter.format(periodEnd)}`;
     const balancesAsOf = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
-    const todayKey = WR.ui.currentMonthKey(new Date()) + '-' + String(new Date().getDate()).padStart(2, '0');
-    const nextCycleMonth = WR.ui.currentMonthKey(new Date(Number(s.month.slice(0, 4)), Number(s.month.slice(5, 7)), 1));
-    const nextPayDate = new Date(`${WR.ui.payCycleDates(nextCycleMonth).start}T12:00:00`);
-    const nextPaySoon = nextPayDate.getTime() - new Date(`${todayKey}T12:00:00`).getTime() <= 7 * 86400000;
-    const receiptMonth = s.paydayRecord?.receivedDate || nextPaySoon ? nextCycleMonth : s.month;
-    const receiptDates = WR.ui.payCycleDates(receiptMonth);
-    const expectedReceipt = month => {
-      const cycle = s.payCycles.find(item => item.month === month);
-      return cycle ? WR.ui.calculatePayCycleFunding(cycle).salary : s.incomeSources.filter(source => Number(source.year || month.slice(0, 4)) === Number(month.slice(0, 4)) && WR.ui.isActiveForMonth(source, month)).reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0);
-    };
-    const receiptAmount = expectedReceipt(receiptMonth);
 
     function billRow(bill) {
       const index = billOccurrences.indexOf(bill);
@@ -5374,16 +5426,7 @@ WR.ui = WR.ui || {};
             ${spending.overBudget > 0 ? `<p data-budget-over>${currency} ${fmt(spending.overBudget)} over budget</p>` : ''}
           </div>
           <p class="payday-status">${s.paydayRecord?.receivedDate ? `Pay received ${escapeText(periodFormatter.format(new Date(`${s.paydayRecord.receivedDate}T12:00:00`)))}` : `Scheduled payday ${escapeText(periodFormatter.format(periodStart))}`}</p>
-          <details class="payday-control">
-            <summary>I've been paid</summary>
-            <form id="payday-receipt-form" class="payday-receipt">
-              <label class="span-2">Budget cycle<select name="cycleMonth">${[s.month, nextCycleMonth].filter(month => !s.payCycles.find(cycle => cycle.month === month)?.receivedDate).map(month => `<option value="${month}" ${month === receiptMonth ? 'selected' : ''}>${escapeText(new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date(`${month}-01T12:00:00`)))}${month === nextCycleMonth ? ' - upcoming cycle' : ' - current cycle'}</option>`).join('')}</select></label>
-              <label>Pay received on<input name="receivedDate" type="date" value="${todayKey}" max="${todayKey}" required></label>
-              <label>Amount received (${escapeText(currency)})<input name="receivedAmount" type="number" min="0.01" step="0.01" value="${receiptAmount > 0 ? receiptAmount.toFixed(2) : ''}" required></label>
-              <p class="payday-preview" id="payday-receipt-preview" aria-live="polite">${escapeText(todayKey)} to ${escapeText(receiptDates.endExclusive)} (next payday excluded)</p>
-              <button type="submit">Confirm pay received</button>
-            </form>
-          </details>
+          ${renderPaydayReceipt(s, true)}
         </article>
         <div class="reserve-balances" aria-label="Separately tracked balances">
           <article class="dashboard-card reserve-card emergency-card" aria-label="Emergency fund balance">
@@ -5520,27 +5563,7 @@ WR.ui = WR.ui || {};
     `);
 
     WR.ui.bindFinancialVisibility(container);
-    const receiptForm = container.querySelector('#payday-receipt-form');
-    const updateReceiptPreview = () => {
-      const month = receiptForm.elements.cycleMonth.value;
-      const dates = WR.ui.payCycleDates(month);
-      const formatter = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-      const start = new Date(`${receiptForm.elements.receivedDate.value || todayKey}T12:00:00`);
-      const end = new Date(`${dates.endExclusive}T12:00:00`);
-      end.setDate(end.getDate() - 1);
-      container.querySelector('#payday-receipt-preview').textContent = `${formatter.format(start)} - ${formatter.format(end)}`;
-    };
-    receiptForm.addEventListener('input', updateReceiptPreview);
-    receiptForm.elements.cycleMonth.addEventListener('change', () => {
-      const amount = expectedReceipt(receiptForm.elements.cycleMonth.value);
-      receiptForm.elements.receivedAmount.value = amount > 0 ? amount.toFixed(2) : '';
-    });
-    WR.ui.bindReliableForm(receiptForm, form => WR.ui.confirmPayday(form.elements.cycleMonth.value, form.elements.receivedDate.value, form.elements.receivedAmount.value), async () => {
-      WR.ui.notify('Pay received. Your budget cycle is ready.', 'success');
-      await renderDashboard(container);
-      WR.ui.enhanceResponsiveContent(container);
-    });
-    updateReceiptPreview();
+    bindPaydayReceipt(container, s, () => renderDashboard(container));
     container.querySelectorAll('[data-bill-status]').forEach((button) => {
       button.addEventListener('click', async () => {
         const bill = billOccurrences[Number(button.dataset.billIndex)];
@@ -6244,6 +6267,7 @@ WR.ui = WR.ui || {};
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Total income</span><span class="stat-value" id="income-total">${profile.baseCurrency} ${WR.ui.fmt(totalIncome)}</span></div>
       </div>
+      <div class="income-payday">${WR.ui.renderPaydayReceipt(snapshot)}</div>
       <table class="data-table income-table">
         <thead><tr><th>Source</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Start month</th><th>End month</th><th>Advance</th><th>Savings taken</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="8" class="empty">No income sources.</td></tr>'}</tbody>
@@ -6277,6 +6301,7 @@ WR.ui = WR.ui || {};
       </section>
     `);
 
+    WR.ui.bindPaydayReceipt(container, snapshot, () => renderIncome(container, true));
     document.getElementById('income-month').addEventListener('change', (event) => {
       WR.ui._paydayMonth = event.target.value;
       renderIncome(container);
@@ -10909,9 +10934,14 @@ function bootApp() {
   WR.ui.initRouter();
   schedulePasskeyLock();
   if (!WR.ui._paydayWatcher) {
+    let lastPaydayCheck = new Date().toDateString();
     const refreshPayday = () => {
       if (!WR.account.getCurrentUser() || document.visibilityState !== 'visible') return;
+      const today = new Date().toDateString();
+      const dateChanged = today !== lastPaydayCheck;
+      lastPaydayCheck = today;
       if (WR.ui.syncBudgetMonth()) WR.ui.buildSnapshot(WR.ui.currentBudgetMonth()).then(() => WR.ui.reRenderCurrentRoute()).catch(error => WR.ui.notify(error.message, 'error'));
+      else if (dateChanged && window.location.hash === '#/dashboard') WR.ui.reRenderCurrentRoute();
     };
     WR.ui.syncBudgetMonth();
     WR.ui._paydayWatcher = setInterval(refreshPayday, 60000);

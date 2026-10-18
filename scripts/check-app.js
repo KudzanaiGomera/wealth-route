@@ -1298,6 +1298,35 @@ async function checkPaydayBudget() {
   assert.equal(paydayContext.payCycleDates('2026-10', 25, [{ month: '2026-11', payDate: '2026-10-23' }]).endExclusive, '2026-10-23');
   assert.equal(paydayContext.currentBudgetMonth(new Date(2026, 1, 27), { paydayDay: 1, paydayPreviousFriday: true }), '2026-04');
   assert.equal(paydayContext.currentBudgetMonth(new Date(2026, 1, 26), { paydayDay: 1, paydayPreviousFriday: true }), '2026-03');
+  vm.runInContext(functions.get('paydayReceiptState'), paydayContext);
+  paydayContext.WR.ui.currentMonthKey = paydayContext.currentMonthKey;
+  const visibilitySnapshot = { profile: { paydayDay: 25, baseCurrency: 'ZAR' }, payCycles: [], incomeSources: [] };
+  const visibility = (date, snapshot = visibilitySnapshot) => paydayContext.paydayReceiptState(snapshot, new Date(`${date}T12:00:00`));
+  assert.equal(visibility('2026-10-17').showOnDashboard, false);
+  assert.equal(visibility('2026-10-18').showOnDashboard, true);
+  assert.equal(visibility('2026-10-24').showOnDashboard, true);
+  assert.equal(visibility('2026-10-25').showOnDashboard, true);
+  assert.equal(visibility('2026-10-26').showOnDashboard, false);
+  assert.equal(visibility('2026-10-18').month, '2026-11');
+  const paidEarly = { ...visibilitySnapshot, payCycles: [{ month: '2026-11', payDate: '2026-10-23', receivedDate: '2026-10-23', scheduledPayDate: '2026-10-25' }] };
+  assert.equal(visibility('2026-10-23', paidEarly).showOnDashboard, false);
+  assert.equal(visibility('2026-10-25', paidEarly).showOnDashboard, false);
+  const weekendPay = { ...visibilitySnapshot, profile: { paydayDay: 25, paydayPreviousFriday: true } };
+  assert.equal(visibility('2026-10-15', weekendPay).showOnDashboard, false);
+  assert.equal(visibility('2026-10-16', weekendPay).showOnDashboard, true);
+  assert.equal(visibility('2026-10-23', weekendPay).showOnDashboard, true);
+  assert.equal(visibility('2026-10-24', weekendPay).showOnDashboard, false);
+  assert.equal(visibility('2028-02-22', { ...visibilitySnapshot, profile: { paydayDay: 'last' } }).showOnDashboard, true);
+  assert.equal(visibility('2028-02-21', { ...visibilitySnapshot, profile: { paydayDay: 'last' } }).showOnDashboard, false);
+  assert.equal(visibility('2026-10-08', { ...visibilitySnapshot, profile: { paydayDay: 15 } }).showOnDashboard, true);
+  const markupContext = { WR: paydayContext.WR, escapeText: context.escapeText, Date: class extends Date { constructor(...args) { super(...(args.length ? args : ['2026-10-10T12:00:00'])); } } };
+  vm.createContext(markupContext);
+  vm.runInContext(['paydayReceiptState', 'expectedPaydayReceipt', 'renderPaydayReceipt', 'bindPaydayReceipt'].map(name => functions.get(name)).join('\n'), markupContext);
+  assert.equal(markupContext.renderPaydayReceipt(visibilitySnapshot, true), '');
+  assert.ok(markupContext.renderPaydayReceipt(visibilitySnapshot).includes('id="payday-receipt-form"'));
+  assert.doesNotThrow(() => markupContext.bindPaydayReceipt({ querySelector: () => null }, visibilitySnapshot));
+  assert.ok(functions.get('renderDashboard').includes('renderPaydayReceipt(s, true)'));
+  assert.ok(functions.get('renderIncome').includes('WR.ui.renderPaydayReceipt(snapshot)'));
   const cycles = [{ ...funding, month: '2026-10', payDate: '2026-09-25', confirmed: true }];
   const transactions = [{ date: '2026-09-26', kind: 'spend', amount: 1000 }, { date: '2026-09-27', kind: 'spend', amount: 1500, coveredByBudget: true }];
   const advances = [{ receivedDate: '2026-09-20', amount: 2000 }];
@@ -1563,6 +1592,7 @@ async function checkPaydayBudget() {
     _paydayMonth: '2026-10', getOrCreateProfile: async () => ({ baseCurrency: 'ZAR' }),
     buildSnapshot: async () => ({ payCycleBudget: { carryOver: 500 } }),
     currentMonthKey: paydayContext.currentMonthKey, escapeText: context.escapeText,
+    renderPaydayReceipt: () => '', bindPaydayReceipt: () => {},
     fmt: number => Number(number).toFixed(2), setHTML: (_container, markup) => { paydayMarkup = markup; },
   });
   paydayContext.document = { getElementById: () => ({ addEventListener() {} }) };

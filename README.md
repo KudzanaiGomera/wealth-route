@@ -70,8 +70,11 @@ boundaries. Variable Expenses lets you record an expense as an Actual or in
 Transactions; do not record the same expense in both, since both reduce the
 cycle balance.
 
-For early or irregular full salary payments, open **I've been paid** in the
-dashboard budget panel. Confirm the cycle, actual pay date and amount received
+For early or irregular full salary payments, open **I've been paid** on Income
+at any time. It also appears in the dashboard budget panel from seven days before
+your configured payday through payday itself, and disappears once that cycle's
+pay is confirmed. The window follows any previous-Friday weekend adjustment.
+Confirm the cycle, actual pay date and amount received
 after advances. For example, confirming November's pay on 23 October ends the
 old cycle on 22 October and starts November's budget on the 23rd. It will not
 fund or reset again on the usual payday. The regular schedule stays unchanged;
