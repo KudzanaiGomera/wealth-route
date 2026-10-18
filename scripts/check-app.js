@@ -142,6 +142,98 @@ assert.equal(context.isPasskeyPromptCancellation({ name: 'NetworkError', message
 assert.equal(context.passkeyErrorMessage({ name: 'NotAllowedError' }), 'Passkey sign-in was canceled. Try again or choose another sign-in method.');
 assert.equal(context.passkeyErrorMessage({ name: 'AbortError' }, 'registration'), 'No problem. No passkey was added; you can try again.');
 assert.equal(context.passkeyErrorMessage({ message: 'Worker unavailable' }), 'Worker unavailable');
+assert.match(context.passkeyErrorMessage({ name: 'TypeError', message: 'Type error' }, 'registration'), /screen lock and a passkey provider/);
+assert.match(context.passkeyErrorMessage({ name: 'NotSupportedError' }), /Google or email/);
+assert.match(context.passkeyErrorMessage({ name: 'InvalidStateError' }, 'registration'), /existing passkey/);
+assert.match(context.passkeyErrorMessage({ name: 'SecurityError' }), /secure WealthRoute/);
+const passkeyDeviceContext = { window: { isSecureContext: true, PublicKeyCredential: function () {} }, navigator: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_8 like Mac OS X)', credentials: { create() {}, get() {} } }, getPasskeyWorkerUrl: () => 'https://passkeys.example.com' };
+vm.createContext(passkeyDeviceContext);
+vm.runInContext(['passkeyDeviceMessage', 'passkeysAvailable'].map(name => functions.get(name)).join('\n'), passkeyDeviceContext);
+assert.equal(passkeyDeviceContext.passkeysAvailable(), false);
+assert.match(passkeyDeviceContext.passkeyDeviceMessage(), /iOS 16/);
+passkeyDeviceContext.navigator.userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)';
+assert.equal(passkeyDeviceContext.passkeysAvailable(), true);
+passkeyDeviceContext.navigator.userAgent = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36';
+assert.equal(passkeyDeviceContext.passkeysAvailable(), true);
+passkeyDeviceContext.window.isSecureContext = false;
+assert.equal(passkeyDeviceContext.passkeysAvailable(), false);
+assert.match(passkeyDeviceContext.passkeyDeviceMessage(), /HTTPS/);
+passkeyDeviceContext.window.isSecureContext = true;
+passkeyDeviceContext.navigator.credentials.create = undefined;
+assert.equal(passkeyDeviceContext.passkeysAvailable(), false);
+async function checkPasskeyDeviceCompatibility() {
+  const calls = [];
+  let autoLock = false;
+  const bytes = Uint8Array.from([1, 2, 3]).buffer;
+  const client = {
+    window: { isSecureContext: true, PublicKeyCredential: function () {} },
+    navigator: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_8 like Mac OS X)', credentials: { create: async () => { throw new Error('Old iPhone must not reach the credential prompt'); }, get() {} } },
+    getPasskeyWorkerUrl: () => 'https://passkeys.example.com',
+    currentUser: { uid: 'same-account', getIdToken: async () => 'fixture-id-token' },
+    setPasskeyLockEnabled: value => { autoLock = value; },
+    localStorage: { getItem: () => '1' },
+    atob: value => Buffer.from(value, 'base64').toString('binary'),
+    btoa: value => Buffer.from(value, 'binary').toString('base64'),
+    passkeyApi: async (path, request) => {
+      calls.push({ path, request });
+      if (path.endsWith('/register/options')) return { challengeId: 'registration-fixture', options: { challenge: 'AQID', user: { id: 'AQID', name: 'same-account' }, authenticatorSelection: { residentKey: 'required', userVerification: 'required' }, excludeCredentials: [{ type: 'public-key', id: 'AQID', transports: ['internal', 'hybrid'] }] } };
+      if (path.endsWith('/auth/options')) return { challengeId: 'authentication-fixture', options: { challenge: 'AQID', userVerification: 'required' } };
+      if (path.endsWith('/auth/verify')) return { customToken: 'fixture-custom-token' };
+      return { passkeys: [{ credential_id: 'other-phone-passkey' }] };
+    },
+    ensureInit: async () => {}, auth: {},
+    authApi: { signInWithCustomToken: async (_auth, token) => { assert.equal(token, 'fixture-custom-token'); return { user: { uid: 'same-account', email: 'fixture@example.test', getIdToken: async () => 'fixture-id-token' } }; } },
+    clearPasskeyLockPending() {}, loadProfile: async () => {},
+  };
+  vm.createContext(client);
+  vm.runInContext(['passkeyDeviceMessage', 'passkeysAvailable', 'passkeyManagementAvailable', 'passkeyLockEnabled', 'decodeBase64Url', 'encodeBase64Url', 'creationOptions', 'requestOptions', 'serializeCredential', 'registerPasskey', 'signInWithPasskey', 'listPasskeys', 'removePasskey'].map(name => functions.get(name)).join('\n'), client);
+  await assert.rejects(() => client.registerPasskey(), /iOS 16/);
+  await assert.rejects(() => client.signInWithPasskey(), /iOS 16/);
+  assert.equal(calls.length, 0);
+  assert.equal(client.passkeyLockEnabled('same-account'), false);
+  assert.equal((await client.listPasskeys())[0].credential_id, 'other-phone-passkey');
+  await client.removePasskey('other-phone-passkey');
+  assert.equal(calls.at(-1).request.method, 'DELETE');
+  client.navigator.userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Version/15.6 Mobile/15E148 Safari/604.1';
+  client.navigator.maxTouchPoints = 5;
+  assert.equal(client.passkeysAvailable(), false);
+  client.navigator.userAgent = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/130.0.0.0 Mobile Safari/537.36';
+  client.navigator.credentials.create = async ({ publicKey }) => {
+    assert.deepEqual([...publicKey.challenge], [1, 2, 3]);
+    assert.deepEqual([...publicKey.user.id], [1, 2, 3]);
+    assert.equal(publicKey.authenticatorSelection.residentKey, 'required');
+    assert.equal(publicKey.authenticatorSelection.userVerification, 'required');
+    assert.equal(publicKey.authenticatorSelection.authenticatorAttachment, undefined);
+    assert.deepEqual([...publicKey.excludeCredentials[0].id], [1, 2, 3]);
+    return { id: 'new-phone-passkey', rawId: bytes, type: 'public-key', authenticatorAttachment: 'platform', getClientExtensionResults: () => ({}), response: { clientDataJSON: bytes, attestationObject: bytes, getTransports: () => ['internal', 'hybrid'] } };
+  };
+  await client.registerPasskey();
+  assert.equal(autoLock, true);
+  assert.equal(calls.at(-1).request.body.credential.response.attestationObject, 'AQID');
+  assert.deepEqual(calls.at(-1).request.body.credential.response.transports, ['internal', 'hybrid']);
+  client.navigator.credentials.get = async ({ publicKey }) => {
+    assert.deepEqual([...publicKey.challenge], [1, 2, 3]);
+    assert.equal(publicKey.userVerification, 'required');
+    return { id: 'new-phone-passkey', rawId: bytes, type: 'public-key', getClientExtensionResults: () => ({}), response: { clientDataJSON: bytes, authenticatorData: bytes, signature: bytes, userHandle: bytes } };
+  };
+  assert.equal((await client.signInWithPasskey()).uid, 'same-account');
+  assert.equal(calls.at(-1).request.body.credential.response.signature, 'AQID');
+  client.navigator.userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)';
+  await client.registerPasskey();
+  assert.equal(client.passkeysAvailable(), true);
+  const requestCount = calls.length;
+  autoLock = false;
+  client.navigator.credentials.create = async () => { const error = new Error('Type error'); error.name = 'TypeError'; throw error; };
+  await assert.rejects(() => client.registerPasskey(), /Type error/);
+  assert.equal(calls.length, requestCount + 1);
+  assert.equal(autoLock, false);
+  const network = { getPasskeyWorkerUrl: client.getPasskeyWorkerUrl, fetch: async () => { throw new TypeError('Type error'); } };
+  vm.createContext(network);
+  vm.runInContext(functions.get('passkeyApi'), network);
+  await assert.rejects(() => network.passkeyApi('/passkeys'), /Cannot reach the passkey service/);
+  console.log('iOS 15 fallback, account-wide passkey management, modern iPhone/Android credential flows and network errors passed.');
+}
+checkPasskeyDeviceCompatibility().catch(error => { console.error(error); process.exitCode = 1; });
 const importContext = { WR: { excel: { parseAmount: context.parseAmount } } };
 vm.createContext(importContext);
 vm.runInContext(['normalizeTransactionImportDate', 'transactionImportDuplicateKey', 'prepareTransactionImportRows', 'findRecurringSpendPatterns'].map(name => functions.get(name)).join('\n'), importContext);

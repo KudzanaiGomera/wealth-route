@@ -8950,6 +8950,8 @@ WR.ui = WR.ui || {};
   async function renderSettings(container) {
     const profile = await WR.ui.getOrCreateProfile();
     const workerUrl = WR.account.getPasskeyWorkerUrl();
+    const canUsePasskeys = WR.account.passkeysAvailable();
+    const canManagePasskeys = WR.account.passkeyManagementAvailable();
     await WR.account.ensureInit();
     const accountUser = WR.account.isConfigured() ? WR.account.getCurrentUser() : null;
 
@@ -8999,13 +9001,16 @@ WR.ui = WR.ui || {};
           <div class="settings-rows">
             <div class="settings-row">
               <div class="settings-row-text"><strong>Passkeys</strong><span>Sign in with your device screen lock and re-lock this device when you step away.</span></div>
-              ${WR.account.passkeysAvailable() ? '<div class="settings-row-control"><button type="button" id="add-passkey-btn" class="secondary">Add passkey</button><button type="button" id="lock-passkey-now-btn" class="secondary" disabled>Lock now</button></div>' : '<span class="fine-print">Configure the deployed Worker URL under Advanced below to enable passkeys on this device.</span>'}
+              ${canUsePasskeys ? '<div class="settings-row-control"><button type="button" id="add-passkey-btn" class="secondary">Add passkey</button><button type="button" id="lock-passkey-now-btn" class="secondary" disabled>Lock now</button></div>' : `<span class="fine-print" role="status">${esc(WR.account.passkeyDeviceMessage() || 'Passkey sign-in is not configured for this app.')}</span>`}
             </div>
-            ${WR.account.passkeysAvailable() ? `
+            ${canManagePasskeys ? `
+              ${canUsePasskeys ? `
               <label class="settings-row" for="passkey-auto-lock">
                 <span class="settings-row-text"><strong>Automatic device lock</strong><span>After five minutes idle, sign out and clear offline data; internet is needed to sign back in.</span></span>
                 <input id="passkey-auto-lock" type="checkbox" disabled ${WR.account.passkeyLockEnabled(accountUser.uid) ? 'checked' : ''}>
               </label>
+              ` : ''}
+              <p class="fine-print">Passkeys below belong to this account. They may be saved on another device or synced by your password manager. Automatic lock is set separately on each device.</p>
               <div id="passkey-list" aria-live="polite"></div>
               <p id="passkey-result" class="fine-print settings-result" role="status" aria-live="polite"></p>
             ` : ''}
@@ -9428,7 +9433,7 @@ WR.ui = WR.ui || {};
         const status = document.getElementById('passkey-result');
         const lockNowButton = document.getElementById('lock-passkey-now-btn');
         const autoLock = document.getElementById('passkey-auto-lock');
-        autoLock.addEventListener('change', () => {
+        autoLock?.addEventListener('change', () => {
           WR.account.setPasskeyLockEnabled(autoLock.checked);
           WR.ui.schedulePasskeyLock?.();
         });
@@ -9437,10 +9442,10 @@ WR.ui = WR.ui || {};
           try {
             const passkeys = await WR.account.listPasskeys();
             if (!container.isConnected) return;
-            lockNowButton.disabled = passkeys.length === 0;
-            autoLock.disabled = passkeys.length === 0;
+            if (lockNowButton) lockNowButton.disabled = passkeys.length === 0;
+            if (autoLock) autoLock.disabled = passkeys.length === 0;
             if (!passkeys.length) WR.account.setPasskeyLockEnabled(false);
-            autoLock.checked = WR.account.passkeyLockEnabled();
+            if (autoLock) autoLock.checked = WR.account.passkeyLockEnabled();
             WR.ui.setHTML(passkeyList, passkeys.length
               ? `<ul class="category-list">${passkeys.map((passkey, index) => `<li class="category-item"><span class="category-name">Passkey ${index + 1} <small>Added ${new Date(passkey.created_at * 1000).toLocaleDateString()}</small></span><button type="button" class="link-btn remove-passkey" data-id="${WR.ui.escapeText(passkey.credential_id)}">Remove</button></li>`).join('')}</ul>`
               : '<p class="empty settings-empty">No passkeys registered for this account.</p>');
@@ -9457,13 +9462,13 @@ WR.ui = WR.ui || {};
               }
             }));
           } catch (error) {
-            autoLock.disabled = true;
+            if (autoLock) autoLock.disabled = true;
             WR.account.setPasskeyLockEnabled(false);
             status.textContent = error.message;
           }
         };
 
-        document.getElementById('add-passkey-btn').addEventListener('click', async (event) => {
+        document.getElementById('add-passkey-btn')?.addEventListener('click', async (event) => {
           const button = event.currentTarget;
           button.disabled = true;
           status.textContent = 'Follow the prompt from your device to create a passkey.';
@@ -9479,7 +9484,7 @@ WR.ui = WR.ui || {};
             button.disabled = false;
           }
         });
-        lockNowButton.addEventListener('click', () => WR.ui.lockForPasskey?.());
+        lockNowButton?.addEventListener('click', () => WR.ui.lockForPasskey?.());
         renderPasskeyList();
       }
     }
@@ -9676,12 +9681,26 @@ WR.account = {};
     return (localStorage.getItem('wr_worker_url') || PASSKEY_WORKER_URL || '').replace(/\/$/, '');
   }
 
+  function passkeyDeviceMessage() {
+    const userAgent = navigator.userAgent || '';
+    const iosVersion = /(?:iPhone|iPad|iPod).*?OS (\d+)[_\d]*/i.exec(userAgent)
+      || (/Macintosh/i.test(userAgent) && navigator.maxTouchPoints > 1 ? /Version\/(\d+)/i.exec(userAgent) : null);
+    if (iosVersion && Number(iosVersion[1]) < 16) return 'Built-in passkeys require iOS 16 or iPadOS 16 or later. Use Google or email and password on this device. Passkeys on your other devices are unchanged.';
+    if (!window.isSecureContext) return 'Passkeys require a secure HTTPS connection. Use Google or email and password until you open the secure app address.';
+    if (!window.PublicKeyCredential || typeof navigator.credentials?.create !== 'function' || typeof navigator.credentials?.get !== 'function') return 'This browser does not support passkeys. Use an up-to-date Safari or Chrome browser, or sign in with Google or email and password.';
+    return '';
+  }
+
   function passkeysAvailable() {
-    return !!getPasskeyWorkerUrl() && !!window.isSecureContext && !!window.PublicKeyCredential && !!navigator.credentials;
+    return !!getPasskeyWorkerUrl() && !passkeyDeviceMessage();
+  }
+
+  function passkeyManagementAvailable() {
+    return !!getPasskeyWorkerUrl() && !!window.isSecureContext;
   }
 
   function passkeyLockEnabled(uid = currentUser?.uid) {
-    try { return !!uid && localStorage.getItem(`wr_passkey_lock_${uid}`) === '1'; } catch (_) { return false; }
+    try { return !!uid && passkeysAvailable() && localStorage.getItem(`wr_passkey_lock_${uid}`) === '1'; } catch (_) { return false; }
   }
 
   function setPasskeyLockEnabled(enabled, uid = currentUser?.uid) {
@@ -9714,11 +9733,16 @@ WR.account = {};
     const headers = {};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     if (token) headers.Authorization = `Bearer ${token}`;
-    const response = await fetch(`${workerUrl}${path}`, {
-      method,
-      headers,
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-    });
+    let response;
+    try {
+      response = await fetch(`${workerUrl}${path}`, {
+        method,
+        headers,
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      });
+    } catch (_) {
+      throw new Error('Cannot reach the passkey service. Check your connection and try again, or use Google or email and password.');
+    }
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || 'Passkey service is unavailable.');
     return result;
@@ -9773,10 +9797,17 @@ WR.account = {};
         ? 'No problem. No passkey was added; you can try again.'
         : 'Passkey sign-in was canceled. Try again or choose another sign-in method.';
     }
+    if (error?.name === 'InvalidStateError') return 'A passkey for this account may already be saved in your password manager. Use the existing passkey instead of adding it again.';
+    if (error?.name === 'NotSupportedError' || error?.name === 'TypeError') return action === 'registration'
+      ? 'This device could not create a passkey. Use an up-to-date Safari or Chrome browser with a screen lock and a passkey provider enabled, or keep using Google or email and password.'
+      : 'This device could not use the passkey. Try an up-to-date Safari or Chrome browser, or sign in with Google or email and password.';
+    if (error?.name === 'SecurityError') return 'Passkeys are not available at this address. Open the secure WealthRoute website in Safari or Chrome, or use another sign-in method.';
     return error?.message || 'The passkey request could not be completed.';
   }
 
   async function registerPasskey() {
+    const deviceMessage = passkeyDeviceMessage();
+    if (deviceMessage) throw new Error(deviceMessage);
     if (!passkeysAvailable()) throw new Error('This browser or device does not support passkeys, or the passkey Worker URL is not configured.');
     if (!currentUser) throw new Error('Sign in before adding a passkey.');
     const token = await currentUser.getIdToken();
@@ -9788,6 +9819,8 @@ WR.account = {};
   }
 
   async function signInWithPasskey() {
+    const deviceMessage = passkeyDeviceMessage();
+    if (deviceMessage) throw new Error(deviceMessage);
     if (!passkeysAvailable()) throw new Error('Passkeys are not configured on this device.');
     await ensureInit();
     const { challengeId, options } = await passkeyApi('/passkeys/auth/options', { body: { purpose: 'login' } });
@@ -9805,14 +9838,14 @@ WR.account = {};
   }
 
   async function listPasskeys() {
-    if (!currentUser || !passkeysAvailable()) return [];
+    if (!currentUser || !passkeyManagementAvailable()) return [];
     const token = await currentUser.getIdToken();
     const result = await passkeyApi('/passkeys', { method: 'GET', token });
     return result.passkeys || [];
   }
 
   async function removePasskey(credentialId) {
-    if (!currentUser || !passkeysAvailable()) throw new Error('Passkey management is unavailable.');
+    if (!currentUser || !passkeyManagementAvailable()) throw new Error('Passkey management is unavailable.');
     const token = await currentUser.getIdToken();
     await passkeyApi(`/passkeys/${encodeURIComponent(credentialId)}`, { method: 'DELETE', token });
   }
@@ -10009,6 +10042,8 @@ WR.account = {};
   WR.account.getEmail = getEmail;
   WR.account.getPasskeyWorkerUrl = getPasskeyWorkerUrl;
   WR.account.passkeysAvailable = passkeysAvailable;
+  WR.account.passkeyDeviceMessage = passkeyDeviceMessage;
+  WR.account.passkeyManagementAvailable = passkeyManagementAvailable;
   WR.account.passkeyLockEnabled = passkeyLockEnabled;
   WR.account.setPasskeyLockEnabled = setPasskeyLockEnabled;
   WR.account.registerPasskey = registerPasskey;

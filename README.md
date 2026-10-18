@@ -577,6 +577,21 @@ limits. Email and Google sign-in remain available as recovery methods.
   passcode where supported. Automatic lock is enabled for that device after
   the first passkey is added; **Lock now** is also available there.
 
+Built-in Apple passkeys require iOS/iPadOS 16 or later. iPhone 7 is limited to
+iOS 15, so use Google or email/password on that phone. Settings explains this
+instead of offering an unsupported passkey prompt; the account's existing
+passkeys can still be listed and removed after signing in. Android support
+depends on the browser and passkey provider; use an up-to-date Chrome browser
+with a device screen lock and a passkey provider enabled. Unsupported browsers
+keep the Google and email/password alternatives.
+
+Passkeys are registered to the account, not to the visible list's current phone.
+iCloud Keychain or another password manager may sync an existing passkey to a
+second phone, so a separate registration is not always needed. Automatic lock
+is a per-browser/device preference and is not enabled just because a different
+phone has registered a passkey. Device-support and credential-flow regression
+tests are mocked; native Android and iPhone prompts require real-device testing.
+
 Automatic lock signs out and clears Firestore's local cache. Signing in again
 requires an internet connection; email and Google remain available if a
 passkey is unavailable. Passkeys are tied to the configured app domain, so
