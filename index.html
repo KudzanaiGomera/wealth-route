@@ -7767,7 +7767,7 @@ WR.ui = WR.ui || {};
   }
 
   function computeDebtCalendarHtml(debts, payments, profile, year) {
-    const ongoingDebts = debts.filter((debt) => (Number(debt.currentBalance) || 0) > 0.01 || payments.some((payment) => payment.debtId === debt.id && String(payment.month).startsWith(String(year))));
+    const ongoingDebts = debts.filter((debt) => (Number(debt.currentBalance) || 0) > 0.01);
     if (ongoingDebts.length === 0) return '';
     const cards = ongoingDebts
       .map((d) => {

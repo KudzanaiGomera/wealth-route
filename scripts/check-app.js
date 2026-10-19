@@ -133,6 +133,35 @@ vm.runInContext(functions.get('calculateEmergencyAccountSummary'), context);
 context.WR.financial.calculateEmergencyAccountSummary = context.calculateEmergencyAccountSummary;
 vm.runInContext(names.filter(name => functions.has(name)).map(name => functions.get(name)).join('\n'), context);
 context.WR.financial.convertCurrency = context.convertCurrency;
+function checkDebtTracker() {
+  const trackerContext = {
+    WR: { ui: { escapeText: context.escapeText, fmt: amount => Number(amount).toFixed(2), yearsAroundCurrent: () => [2025, 2026, 2027] } },
+    MONTH_ABBR: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    trackedPaymentForMonth: () => 100,
+  };
+  const render = vm.runInNewContext(`(${functions.get('computeDebtCalendarHtml')})`, trackerContext);
+  const profile = { baseCurrency: 'ZAR' };
+  const active = { id: 'active', name: 'Outstanding loan', currentBalance: 500 };
+  const settled = [
+    { id: 'settled', name: 'Settled loan', currentBalance: 0, paidOffDate: '2026-10-01' },
+    { id: 'threshold', name: 'Settled rounding remainder', currentBalance: 0.01 },
+    { id: 'credit', name: 'Overpaid loan', currentBalance: -10 },
+  ];
+  const payments = [{ debtId: 'active', month: '2026-01', amount: 100 }, ...settled.map(debt => ({ debtId: debt.id, month: '2026-10', amount: 100 }))];
+  for (const year of [2025, 2026, 2027]) {
+    const markup = render([active, ...settled], payments, profile, year);
+    assert.ok(markup.includes('Outstanding loan'));
+    settled.forEach(debt => assert.ok(!markup.includes(debt.name), 'Paid-off debts must stay hidden even with payment history'));
+    assert.equal((markup.match(/class="debt-calendar-card"/g) || []).length, 1);
+    assert.equal(render(settled, payments, profile, year), '');
+  }
+  assert.ok(render([active], payments, profile, 2026).includes('month-btn paid'));
+  assert.ok(render([{ ...settled[0], currentBalance: 0.02 }], payments, profile, 2026).includes('Settled loan'));
+  assert.equal(payments.length, 4);
+  assert.equal(settled[0].paidOffDate, '2026-10-01');
+  console.log('Monthly tracker excludes paid-off debts despite payment history, keeps active debts and retains all records.');
+}
+checkDebtTracker();
 vm.runInContext([functions.get('isPasskeyPromptCancellation'), functions.get('passkeyErrorMessage')].join('\n'), context);
 assert.equal(context.isPasskeyPromptCancellation({ name: 'NotAllowedError' }), true);
 assert.equal(context.isPasskeyPromptCancellation({ name: 'AbortError' }), true);
