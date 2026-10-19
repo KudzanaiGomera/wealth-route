@@ -6483,6 +6483,7 @@ WR.ui = WR.ui || {};
   }
 
   async function renderFixedExpenses(container) {
+    WR.ui.syncBudgetMonth();
     const parseDueDay = WR.ui.parseDueDay;
     const [profile, categories, expenses] = await Promise.all([
       WR.ui.getOrCreateProfile(),
@@ -6490,7 +6491,10 @@ WR.ui = WR.ui || {};
       WR.repos.fixedExpenses.getAll(),
     ]);
 
+    const summaryMonth = WR.ui.currentBudgetMonth();
+    const showEnded = !!WR.ui._fixedShowEnded;
     const rows = expenses
+      .filter(expense => showEnded || !expense.endMonth || expense.endMonth >= summaryMonth)
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((expense) => `
         <tr data-id="${WR.ui.escapeText(expense.id)}">
@@ -6504,20 +6508,20 @@ WR.ui = WR.ui || {};
           <td><button class="link-btn delete-fixed-expense" data-id="${WR.ui.escapeText(expense.id)}">Delete</button></td>
         </tr>`)
       .join('');
-    const summaryMonth = WR.ui.currentMonthKey();
     const totalFixedExpenses = expenses
       .filter((expense) => WR.ui.isActiveForMonth(expense, summaryMonth))
       .reduce((sum, expense) => sum + WR.ui.monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'), 0);
 
     WR.ui.setHTML(container, `
       <h1>Fixed Expenses</h1>
-      <p class="fine-print">Recurring fixed expenses are entered once and automatically applied to every applicable month.</p>
+      <p class="fine-print">End month is the last budget month charged. Ended expenses no longer count toward the current budget; their history is kept.</p>
       <div class="stat-grid">
         <div class="stat"><span class="stat-label">Monthly Fixed Expenses (${WR.ui.monthName(Number(summaryMonth.slice(5)))} ${summaryMonth.slice(0, 4)})</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(totalFixedExpenses)}</span></div>
       </div>
+      <div class="toolbar"><label><input id="fixed-show-ended" type="checkbox" ${showEnded ? 'checked' : ''}> Show ended expenses</label></div>
       <table class="data-table">
         <thead><tr><th>Name</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Category</th><th>Start month</th><th>End month</th><th>Due day</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="8" class="empty">No fixed expenses yet.</td></tr>'}</tbody>
+        <tbody>${rows || '<tr><td colspan="8" class="empty">No current or upcoming fixed expenses.</td></tr>'}</tbody>
       </table>
 
       <h3>Add fixed expense</h3>
@@ -6526,7 +6530,7 @@ WR.ui = WR.ui || {};
         <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
         <select name="frequency">${recurringFrequencyOptions('monthly')}</select>
         <select name="categoryId">${categoryOptions(categories, undefined, 'fixed')}</select>
-        <input name="startMonth" type="month" value="${WR.ui.escapeText(WR.ui.currentMonthKey())}">
+        <input name="startMonth" type="month" value="${WR.ui.escapeText(summaryMonth)}">
         <input name="endMonth" type="month">
         <input name="dueDay" type="number" min="1" max="31" step="1" placeholder="Due day (1-31)">
         <button type="submit">Add</button>
@@ -6534,7 +6538,13 @@ WR.ui = WR.ui || {};
       <p id="fixed-form-message" class="warning"></p>
     `);
 
-    container.querySelectorAll('tbody tr').forEach((tr) => {
+    container.querySelector('#fixed-show-ended').addEventListener('change', async event => {
+      WR.ui._fixedShowEnded = event.target.checked;
+      await renderFixedExpenses(container);
+      WR.ui.enhanceResponsiveContent(container);
+    });
+
+    container.querySelectorAll('tbody tr[data-id]').forEach((tr) => {
       const id = tr.dataset.id;
       tr.querySelectorAll('.cell').forEach((input) => {
         input.addEventListener('change', async () => {
@@ -6558,6 +6568,8 @@ WR.ui = WR.ui || {};
           expense.currency = profile.baseCurrency;
           await WR.repos.fixedExpenses.update(expense);
           WR.ui.flashSaved(input);
+          await renderFixedExpenses(container);
+          WR.ui.enhanceResponsiveContent(container);
         });
       });
     });
@@ -6587,7 +6599,7 @@ WR.ui = WR.ui || {};
         amount: Math.max(0, parseFloat(form.amount.value) || 0),
         frequency: form.frequency.value,
         categoryId: form.categoryId.value || undefined,
-        startMonth: form.startMonth.value || WR.ui.currentMonthKey(),
+        startMonth: form.startMonth.value || summaryMonth,
         endMonth: form.endMonth.value || undefined,
         dueDay: parseDueDay(form.dueDay.value),
         currency: profile.baseCurrency,

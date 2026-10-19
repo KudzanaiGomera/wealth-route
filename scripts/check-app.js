@@ -1045,6 +1045,61 @@ async function checkTransactionLayout() {
 }
 checkTransactionLayout().catch(error => { console.error(error); process.exitCode = 1; });
 
+async function checkFixedExpenseExpiry() {
+  let month = '2026-10';
+  let markup = '';
+  const controls = {};
+  const expenses = [
+    { id: 'ended', name: 'Ended expense', amount: 100, startMonth: '2026-01', endMonth: '2026-09' },
+    { id: 'ending', name: 'Last month expense', amount: 200, startMonth: '2026-01', endMonth: '2026-10' },
+    { id: 'future', name: 'Future expense', amount: 300, startMonth: '2026-11' },
+    { id: 'ongoing', name: 'Ongoing expense', amount: 400, startMonth: '2025-01' },
+    { id: 'old-year', name: 'Previous year expense', amount: 50, startMonth: '2025-01', endMonth: '2025-12' },
+  ];
+  const fixedContext = {
+    WR: {
+      repos: { fixedExpenses: { getAll: async () => expenses }, expenseCategories: { getAll: async () => [] } },
+      ui: {
+        syncBudgetMonth() {}, currentBudgetMonth: () => month, currentMonthKey: () => '2026-10',
+        getOrCreateProfile: async () => ({ baseCurrency: 'ZAR' }),
+        escapeText: context.escapeText, fmt: amount => Number(amount).toFixed(2), monthName: number => String(number),
+        setHTML: (_container, value) => { markup = value; }, enhanceResponsiveContent() {},
+      },
+    },
+    RECURRING_FREQUENCIES: ['monthly'],
+    document: { getElementById: () => ({ addEventListener() {} }) },
+  };
+  vm.createContext(fixedContext);
+  vm.runInContext(['isActiveForMonth', 'monthlyAmountFromFrequency', 'recurringFrequencyOptions', 'categoryOptions', 'renderFixedExpenses'].map(name => functions.get(name)).join('\n'), fixedContext);
+  Object.assign(fixedContext.WR.ui, { isActiveForMonth: fixedContext.isActiveForMonth, monthlyAmountFromFrequency: fixedContext.monthlyAmountFromFrequency });
+  const container = { querySelector: selector => ({ addEventListener: (_event, listener) => { controls[selector] = listener; } }), querySelectorAll: () => [] };
+  assert.equal(fixedContext.isActiveForMonth(expenses[1], '2026-10'), true);
+  assert.equal(fixedContext.isActiveForMonth(expenses[1], '2026-11'), false);
+  assert.equal(fixedContext.isActiveForMonth(expenses[4], '2025-12'), true);
+  assert.equal(fixedContext.isActiveForMonth(expenses[4], '2026-01'), false);
+  assert.equal(fixedContext.isActiveForMonth(expenses[3], '2027-01'), true);
+  await fixedContext.renderFixedExpenses(container);
+  assert.ok(markup.includes('ZAR 600.00'));
+  assert.ok(!markup.includes('data-id="ended"') && !markup.includes('data-id="old-year"'));
+  assert.ok(markup.includes('data-id="ending"') && markup.includes('data-id="future"'));
+  await controls['#fixed-show-ended']({ target: { checked: true } });
+  assert.ok(markup.includes('data-id="ended"') && markup.includes('data-id="old-year"'));
+  assert.ok(markup.includes('ZAR 600.00'), 'Showing history must not add ended expenses to the total');
+  await controls['#fixed-show-ended']({ target: { checked: false } });
+  month = '2026-11';
+  await fixedContext.renderFixedExpenses(container);
+  assert.ok(!markup.includes('data-id="ending"'));
+  assert.ok(markup.includes('ZAR 700.00'));
+  assert.ok(markup.includes('name="startMonth" type="month" value="2026-11"'));
+  assert.equal(expenses.length, 5, 'Expiry must preserve historical records');
+  expenses.splice(0, expenses.length, { id: 'ended-only', name: 'Ended', amount: 100, endMonth: '2026-10' });
+  await fixedContext.renderFixedExpenses(container);
+  assert.ok(markup.includes('No current or upcoming fixed expenses.'));
+  assert.ok(markup.includes('ZAR 0.00'));
+  console.log('Fixed-expense inclusive end months, automatic hiding, payday month totals, year boundaries and retained history passed.');
+}
+checkFixedExpenseExpiry().catch(error => { console.error(error); process.exitCode = 1; });
+
 async function checkSavingsActivity() {
   const savingsContext = {
     escapeEf: context.escapeText,
