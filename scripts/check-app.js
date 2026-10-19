@@ -1574,6 +1574,48 @@ async function checkPaydayBudget() {
   assert.equal(paydayContext.calculatePayCycleBudget([], [], [{ ...cycles[0], confirmed: false }], [], '2026-10', 25, '2026-10-24').funding, 0);
 
   const base = 'users/payday-test/';
+  for (const boundary of [
+    { instant: '2026-10-19T22:30:00Z', offset: 120, today: '2026-10-20', tomorrow: '2026-10-21' },
+    { instant: '2026-10-20T03:30:00Z', offset: -420, today: '2026-10-19', tomorrow: '2026-10-20' },
+    { instant: '2026-12-31T22:30:00Z', offset: 120, today: '2027-01-01', tomorrow: '2027-01-02' },
+    { instant: '2027-01-01T03:30:00Z', offset: -420, today: '2026-12-31', tomorrow: '2027-01-01' },
+  ]) {
+    class BoundaryDate extends Date {
+      constructor(...args) { super(...(args.length ? args : [boundary.instant])); }
+      getFullYear() { return new Date(this.getTime() + boundary.offset * 60000).getUTCFullYear(); }
+      getMonth() { return new Date(this.getTime() + boundary.offset * 60000).getUTCMonth(); }
+      getDate() { return new Date(this.getTime() + boundary.offset * 60000).getUTCDate(); }
+    }
+    const boundaryMonth = boundary.today.slice(0, 7);
+    const boundaryPath = `users/timezone-test/payCycles/${boundaryMonth}`;
+    const boundaryContext = {
+      Date: BoundaryDate,
+      WR: {
+        account: { ...paydayContext.WR.account, getCurrentUser: () => ({ uid: 'timezone-test' }) },
+        ui: { ...paydayContext.WR.ui, currentBudgetMonth: () => boundaryMonth },
+      },
+    };
+    vm.createContext(boundaryContext);
+    vm.runInContext(functions.get('savePayCycle'), boundaryContext);
+    const boundaryFields = { expectedIncome: 1000, fixedAmount: 0, variableAmount: 0, debtAmount: 0, confirmed: true };
+    documents.set(boundaryPath, { payDate: boundary.today, receivedDate: boundary.today, receivedAmount: 1000, allocations: [], confirmed: true, rolloverApplied: true, rolloverAvailable: 500 });
+    await boundaryContext.savePayCycle(boundaryMonth, boundaryFields);
+    assert.equal(documents.get(boundaryPath).payDate, boundary.today);
+    assert.equal(documents.get(boundaryPath).receivedDate, boundary.today);
+    const boundaryIncome = { sources: [], profileId: 'timezone-profile', availableBuffer: 500 };
+    await boundaryContext.savePayCycle(boundaryMonth, { ...boundaryFields, incomeTable: { ...boundaryIncome, openingBuffer: 500 } });
+    assert.equal(documents.get(boundaryPath).confirmed, true);
+    await boundaryContext.savePayCycle(boundaryMonth, { ...boundaryFields, incomeTable: { ...boundaryIncome, addFunds: { id: 'midnight-deposit', amount: 10 } } });
+    assert.equal(documents.get(boundaryPath).bufferDeposits['midnight-deposit'].date, boundary.today);
+    assert.equal(documents.get(boundaryPath).confirmed, true);
+    documents.set(boundaryPath, { payDate: boundary.tomorrow, allocations: [] });
+    await assert.rejects(() => boundaryContext.savePayCycle(boundaryMonth, boundaryFields), /future payday/);
+    await assert.rejects(() => boundaryContext.savePayCycle(boundaryMonth, { ...boundaryFields, confirmed: false, incomeTable: { ...boundaryIncome, openingBuffer: 0 } }), /after this pay cycle starts/);
+    await boundaryContext.savePayCycle(boundaryMonth, { ...boundaryFields, confirmed: false });
+    assert.equal(documents.get(boundaryPath).confirmed, false);
+    documents.delete(boundaryPath);
+  }
+  console.log('Pay-cycle local midnight/year boundaries accept today, date buffer deposits locally and reject genuine future confirmations.');
   const fundsPath = base + 'dayToDayTransactions/funds-example';
   const fundsEntry = { date: '2026-09-27', description: 'Cash already held', amount: 300 };
   await paydayContext.saveSpendingFunds('2026-10', 'funds-example', fundsEntry);

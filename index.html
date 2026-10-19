@@ -5971,6 +5971,8 @@ WR.ui = WR.ui || {};
 
   async function savePayCycle(month, fields) {
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Choose a valid budget month.');
+    const now = new Date();
+    const today = `${WR.ui.currentMonthKey(now)}-${String(now.getDate()).padStart(2, '0')}`;
     const value = input => {
       const number = Number(input);
       if (!Number.isFinite(number) || number < 0) throw new Error('Amounts must be zero or greater.');
@@ -5987,7 +5989,7 @@ WR.ui = WR.ui || {};
       const previous = await transaction.get(cycleRef);
       const old = previous.exists() ? previous.data() : {};
       const payDate = old.payDate || WR.ui.payCycleDates(month).start;
-      if (fields.confirmed && payDate > new Date().toISOString().slice(0, 10)) throw new Error('A future payday can only be saved as a plan.');
+      if (fields.confirmed && payDate > today) throw new Error('A future payday can only be saved as a plan.');
       let incomeChange;
       let profileChange;
       if (fields.incomeTable) {
@@ -6033,10 +6035,10 @@ WR.ui = WR.ui || {};
           if (amount <= 0) throw new Error('Enter an amount greater than zero.');
           if (settings.openingBuffer != null) throw new Error('Add funds separately from balance corrections.');
           availableBuffer = Math.round((availableBuffer + amount) * 100) / 100;
-          fields.bufferDeposits = { ...(old.bufferDeposits || {}), [settings.addFunds.id]: { amount, date: new Date().toISOString().slice(0, 10) } };
+          fields.bufferDeposits = { ...(old.bufferDeposits || {}), [settings.addFunds.id]: { amount, date: today } };
         }
         if (settings.openingBuffer != null || settings.addFunds) {
-          if (payDate > new Date().toISOString().slice(0, 10)) throw new Error('Correct the opening buffer after this pay cycle starts.');
+          if (payDate > today) throw new Error('Correct the opening buffer after this pay cycle starts.');
           if (settings.openingBuffer != null) {
             const corrected = Number(settings.openingBuffer);
             if (!Number.isFinite(corrected)) throw new Error('Enter a valid buffer amount.');
@@ -6049,7 +6051,7 @@ WR.ui = WR.ui || {};
           Object.assign(fields, { rolloverApplied: true, rolloverAvailable: availableBuffer, shortfallAmount: Math.max(0, -availableBuffer) });
         }
         if (bufferAmount > Math.max(0, availableBuffer)) throw new Error('Buffer exceeds the available balance.');
-        Object.assign(fields, { expectedIncome: active.reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0), advanceAmount, savingsAmount, bufferAmount, sourceAdjustments: adjustments, confirmed: payDate <= new Date().toISOString().slice(0, 10) });
+        Object.assign(fields, { expectedIncome: active.reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0), advanceAmount, savingsAmount, bufferAmount, sourceAdjustments: adjustments, confirmed: payDate <= today });
       }
       const next = { ...old, id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(fields.advanceAmount ?? old.advanceAmount ?? 0), bufferAmount: value(fields.bufferAmount ?? old.bufferAmount ?? 0), fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
       if (fields.incomeTable) {
