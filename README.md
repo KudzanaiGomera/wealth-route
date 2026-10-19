@@ -50,9 +50,10 @@ this means for offline use.
   safe-area support.
 - **Cleaner transaction view:** one spending-breakdown card with compact category rows and a date-grouped
   activity ledger with signed amounts, inline editing, and labeled fields on phones.
-- **Income and buffer:** editable Advance and Savings taken columns reduce
-  Total income; savings pots are updated manually. Buffer adds an existing carry-over
-  amount to Total income without duplicating cash.
+- **Income and spending funds:** Advance reduces payday income. Savings taken,
+  buffer allocations, and extra spending funds affect the spending budget,
+  not reported earnings. Manage spending funds on Activity; savings pots are
+  updated separately.
 - **Responsive navigation:** all page links appear horizontally when the
   header has enough room, with Settings last. Smaller desktops use the compact
   links and hamburger; phones retain bottom navigation and a header hamburger.
@@ -91,45 +92,51 @@ future month. Savings taken is an amount only; edits save automatically.
 Total income previews numeric edits while typing. Leaving the field saves
 the change and reloads affected records from the server, without a page refresh.
 
-**Total income = income sources - advances - savings taken + added buffer.**
+**Total income = income sources - advances.** Buffer, savings set aside, and
+spending top-ups never change this number or annual income.
 
-**Budgeted for the month = total income - fixed expenses - actual variable
-expenses - monthly minimum payments on active debts.** These totals stay linked
-to their pages. Updating the budget does not mark a debt as paid.
-Transactions shows this same budget as **Balance at start of month**.
-**Current balance = monthly budget - transaction spending.**
-Unallocated buffer and old initial balances are not added to Transactions.
-Extra receipts are added through **Income > Buffer > Add funds**, not through
-Transactions. Allocate buffer through Income to include it in a spending budget.
+**Base spending budget = total income - savings taken - fixed expenses - actual
+variable expenses - monthly minimum payments on active debts.** These totals
+stay linked to their pages. Updating the budget does not mark a debt as paid.
 
-Savings taken only reduces income and the spending budget. Add that money
+**Total spending budget = base spending budget + allocated buffer + extra funds
+received during the pay cycle - previous shortfall carried forward.**
+
+**Left to spend = total spending budget - transaction spending.**
+Overspending is displayed as **Over budget by** with a positive amount, without
+hiding or erasing the underlying deficit. Spending itself is the sum of recorded
+expenses, not a value inferred from the remaining balance.
+
+Savings taken only reduces the spending budget. Add that money
 to the chosen savings pots manually on Savings. Increasing, reducing, or
 clearing the income deduction never changes a pot balance. Edits require an
 online connection. Current/past months activate funding automatically;
 future months stay planned. Revisit/edit a future plan after payday to activate it.
 
-The **Buffer** section shows carry-over and lets you add an amount from it to
-Total income. It cannot exceed positive available carry-over. This allocates
-existing money; it enters the transaction balance once, through the budget.
-Unallocated carry-over remains outside that spending balance. Negative
-carry-over is retained. Annual income excludes buffer reallocations and savings
-deductions so they are not counted as earnings.
-**Available buffer** is editable for a started pay cycle. Open **Edit balance**,
+On **Activity > Monthly Spending Funds**, allocate money from the **Opening
+buffer** to this period's spending budget. The allocation cannot exceed positive
+carry-over. Unallocated buffer remains outside the spending budget. Negative
+carry-over is retained as a shortfall, not treated as negative income.
+The opening balance is editable for a started pay cycle. Open **Correct opening balance**,
 set it to `0`, and choose **Apply** if you had no carry-over when you first started using
 the app. Corrections are saved and will not be overwritten by rollover or
 refresh. Reducing available buffer also reduces any allocation above that
 amount; with auto-use enabled, the allocation follows the corrected positive
 balance. Negative corrections are carried as a shortfall. Savings pots and
 transaction records are not changed by this correction.
-The Buffer section displays the available balance beside the allocation form
+The spending-funds section displays the opening balance beside the allocation form
 and auto-use switch on desktop, stacking them on phones. Balance correction
 is collapsed until requested; all controls remain keyboard accessible.
-**Add funds** increases Available buffer by the entered positive amount; it
-does not replace the balance. Each deposit has a saved ID and date, so retries
-cannot duplicate it. With auto-use off, the allocation stays unchanged until
-you update Add to total income. With auto-use on, the new positive buffer is
-allocated automatically. Deposits may cover a shortfall first. Add funds is
-available for the current budget month only and requires an online connection.
+**Add extra spending funds** records a positive amount, source, and date within
+the selected started pay cycle, no later than today. It increases that period's
+spending budget directly, regardless of the buffer auto-use setting. Each entry
+has a stable ID so retries cannot duplicate it. **Funding history** allows edits
+and confirmed deletion; linked advance receipts remain managed on Income.
+These are funds already available, not earnings. Record any savings or emergency
+withdrawal on Savings first; adding spending funds does not withdraw it again.
+Old buffer deposits remain in their original records and appear as already
+included in the buffer, never as a second top-up. Opening corrections do not
+change the extra-funds ledger. Funding edits require an online connection.
 Borrowed funds should also be recorded as a debt manually; its monthly minimum
 payment is included in the budget calculation. Adding funds does not create a
 debt or change savings pots automatically.
@@ -138,8 +145,8 @@ On your payday, the previous cycle's remaining money plus any unused reserve
 becomes Available buffer. The opening amount is saved once per cycle, so
 refreshing or reopening on another device cannot credit it again. Later edits
 to historical spending do not silently rewrite a captured opening buffer.
-Use **Add to total income** to choose how much to spend, or enable **Use all
-buffer automatically** to include all positive buffer now and at later paydays.
+Use **Buffer allocated to spending** to choose how much to spend, or enable
+**Use opening buffer automatically** to include positive buffer now and at later paydays.
 The toggle defaults off and is saved per account. Disabling it leaves the
 current allocation editable; it does not remove an amount already allocated.
 
@@ -152,14 +159,15 @@ payday boundary every minute and when brought back into view; historic month
 selections are preserved. Previous unused reserves remain available too.
 
 Everyday transactions reduce remaining money; the Transactions progress bar shows the
-Transactions current balance divided by Budgeted for the month, multiplied
+Transactions current balance divided by Total spending budget, multiplied
 by 100 and clamped to 0-100%;
-extra receipts do not change the budget used as its denominator.
-The dashboard shows **spent = budget - Transactions current balance**, with
+extra receipts increase that same budget denominator.
+The dashboard shows actual recorded spending, with
 a spent-percentage bar. Transactions retains its remaining-percentage bar.
 
 An Advance in the table reduces the selected future salary only. Record its
-receipt using Add funds on Income if not already entered. Do not also put
+receipt using Add extra spending funds on Activity if not already entered or
+automatically linked to an advance receipt. Do not also put
 the principal in Variable Expenses; separate fees remain expenses. Existing
 advance receipt links and pot transfers are retained. Older aggregate
 deductions appear on the first active income row until edited. Pot credits
@@ -170,8 +178,9 @@ Transactions is spending-only and uses the selected pay-cycle budget. New
 entries are always Spend; there is no transaction-type selector. Every entry reduces
 that budget; there is no reserved-expense checkbox or exemption. Legacy
 reserved flags are ignored, so those entries now count as spending too.
-Old Add money records are preserved and hidden from the spending list; they
-are not converted into expenses and retain their original carry-over behavior.
+Old Add money records are preserved and shown separately in Funding history;
+they increase their pay cycle's spending budget once, are not converted into
+expenses, and retain their carry-over behavior.
 Enter everyday spending here rather than duplicating expenses already
 deducted on the Fixed/Variable Expenses pages. Budget funding is not copied
 into editable transaction rows. Existing transaction records are preserved.

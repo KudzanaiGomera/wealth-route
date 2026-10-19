@@ -300,6 +300,9 @@ assert.equal(context.calculateBudgetSpending(1000, 500).percentage, 50);
 assert.equal(context.calculateBudgetSpending(0, 250).percentage, null);
 assert.equal(context.calculateBudgetSpending(0, 250).overBudget, 250);
 assert.equal(context.calculateBudgetSpending(1000, -100).percentage, 0);
+assert.equal(context.calculateBudgetSpending(-500, 100).overBudget, 600);
+assert.equal(context.calculateBudgetSpending(-500, 0).overBudget, 500);
+assert.equal(context.calculateBudgetSpending(-500, 0).barPercentage, 100);
 const rates = [{ fromCurrency: 'USD', toCurrency: 'ZAR', rate: 20, date: '2026-10-06' }];
 const debts = [{ currency: 'USD', currentBalance: 2000, minPayment: 100 }, { currency: 'ZAR', currentBalance: 0, minPayment: 500 }];
 assert.equal(context.calculateTotalMinPayments(debts, rates, 'ZAR'), 2000);
@@ -631,6 +634,19 @@ async function checkReliableDrafts() {
   const signedOut = form();
   draftContext.bindReliableForm(signedOut, async () => {});
   assert.equal(signedOut.fields[0].value, '');
+  const october = form();
+  october.dataset.draftScope = '2026-10';
+  draftContext.bindReliableForm(october, async () => {});
+  october.fields[1].value = '350';
+  october.events.input();
+  const november = form();
+  november.dataset.draftScope = '2026-11';
+  draftContext.bindReliableForm(november, async () => {});
+  assert.equal(november.fields[1].value, '');
+  const octoberAgain = form();
+  octoberAgain.dataset.draftScope = '2026-10';
+  draftContext.bindReliableForm(octoberAgain, async () => {});
+  assert.equal(octoberAgain.fields[1].value, '350');
   console.log('Session draft restoration, save failure/retry, password exclusion, account isolation, and sign-out clearing checks passed.');
 }
 checkReliableDrafts().catch(error => { console.error(error); process.exitCode = 1; });
@@ -925,9 +941,10 @@ async function checkTransactionLayout() {
         previousMonthKey: () => '2026-09', escapeText: context.escapeText,
         syncBudgetMonth() {},
         payCycleDates: () => ({ start: '2026-09-25', endExclusive: '2026-10-25' }),
-        calculatePayCycleBudget: () => ({ carryOver: 9999, funding: 4321, added: 800, spent: 98, remaining: 4223 }),
+        calculatePayCycleBudget: () => ({ carryOver: 9999, funding: 4321, available: 5121, added: 800, spent: 98, remaining: 5023 }),
         calculateBudgetRemainingPercentage: () => 0,
         buildSnapshot: async () => ({ payCycles: [], paydayFunding: { budget: 4321 } }),
+        renderSpendingFunds: () => '<section>Monthly Spending Funds</section>', bindSpendingFunds() {},
         fmt: amount => Number(amount).toFixed(2),
         calculateDayToDayMonthBalance: () => ({ balanceBeforeMonth: 0, currentBalance: 702 }),
         setHTML: (target, value) => { if (target === container) markup = value; else target.markup = value; },
@@ -983,11 +1000,11 @@ async function checkTransactionLayout() {
   assert.ok(markup.includes('data-label="Amount (ZAR)"'));
   assert.ok(!markup.includes("of this month's day-to-day spending"));
   assert.ok(selectors.includes('.day-ledger tbody tr[data-id]'));
-  assert.ok(markup.includes('Balance at start of month</span><span class="stat-value">ZAR 4321.00'));
+  assert.ok(markup.includes('Spending budget</span><span class="stat-value">ZAR 5121.00'));
   assert.ok(!markup.includes('coveredByBudget'));
   assert.ok(!markup.includes('Reserved expense'));
   assert.ok(!markup.includes('day-balance-form'));
-  assert.ok(markup.includes('Current balance</span><span class="stat-value ">ZAR 4223.00'));
+  assert.ok(markup.includes('Left to spend</span><span class="stat-value ">ZAR 5023.00'));
   assert.equal((markup.match(/class="day-category-row/g) || []).length, 1);
   assert.ok(markup.includes('class="day-category-list" role="list"'));
   assert.ok(markup.includes('aria-label="Filter activity by date"'));
@@ -1376,7 +1393,7 @@ async function checkPaydayBudget() {
   };
   const paydayContext = { WR: { ui: {}, account: { getCurrentUser: () => ({ uid: 'payday-test' }), getFirestoreApi: () => api, getDb: () => ({}) } } };
   vm.createContext(paydayContext);
-  vm.runInContext(['currentMonthKey', 'previousMonthKey', 'payCycleDates', 'currentBudgetMonth', 'syncBudgetMonth', 'calculatePayCycleFunding', 'calculateBudgetRemainingPercentage', 'calculatePayCycleBudget', 'ensurePaydayRollover', 'confirmPayday', 'savePayCycle', 'savePayAdvance'].map(name => functions.get(name)).join('\n'), paydayContext);
+  vm.runInContext(['currentMonthKey', 'previousMonthKey', 'payCycleDates', 'currentBudgetMonth', 'syncBudgetMonth', 'calculatePayCycleFunding', 'calculateBudgetRemainingPercentage', 'calculatePayCycleBudget', 'ensurePaydayRollover', 'confirmPayday', 'savePayCycle', 'savePayAdvance', 'saveSpendingFunds', 'renderSpendingFunds'].map(name => functions.get(name)).join('\n'), paydayContext);
   Object.assign(paydayContext.WR.ui, { payCycleDates: paydayContext.payCycleDates, currentBudgetMonth: paydayContext.currentBudgetMonth, previousMonthKey: paydayContext.previousMonthKey, syncBudgetMonth: paydayContext.syncBudgetMonth, calculatePayCycleFunding: paydayContext.calculatePayCycleFunding, calculatePayCycleBudget: paydayContext.calculatePayCycleBudget });
   const funding = { expectedIncome: 10000, advanceAmount: 2000, fixedAmount: 1500, variableAmount: 500, debtAmount: 1000, allocations: [{ potId: 'holiday', amount: 1000 }] };
   assert.equal(paydayContext.calculatePayCycleFunding(funding).budget, 4000);
@@ -1432,15 +1449,15 @@ async function checkPaydayBudget() {
   assert.equal(paydayContext.calculateBudgetRemainingPercentage(10000, -500), 0);
   assert.equal(paydayContext.calculateBudgetRemainingPercentage(10000, 12000), 100);
   const percentageBudget = paydayContext.calculatePayCycleBudget([], [{ date: '2026-09-26', kind: 'spend', amount: 1500 }, { date: '2026-09-27', kind: 'add', amount: 500 }], cycles, [], '2026-10', 25, '2026-10-24');
-  assert.equal(percentageBudget.remaining, 2500);
-  assert.equal(percentageBudget.available, 4000);
-  assert.equal(percentageBudget.remainingPct, 62.5);
-  assert.equal(percentageBudget.funding - percentageBudget.remaining, percentageBudget.spent);
+  assert.equal(percentageBudget.remaining, 3000);
+  assert.equal(percentageBudget.available, 4500);
+  assert.equal(percentageBudget.remainingPct, 3000 / 4500 * 100);
+  assert.equal(percentageBudget.available - percentageBudget.remaining, percentageBudget.spent);
   const withBuffer = paydayContext.calculatePayCycleBudget(accounts, transactions, [{ ...cycles[0], bufferAmount: 2000 }], advances, '2026-10', 25, '2026-10-24');
   assert.equal(withBuffer.remaining, budget.remaining + 2000);
   assert.equal(withBuffer.funding, 6000);
   assert.equal(withBuffer.available, budget.available + 2000);
-  assert.equal(paydayContext.calculatePayCycleFunding({ ...funding, bufferAmount: 2000 }).totalIncome, 9000);
+  assert.equal(paydayContext.calculatePayCycleFunding({ ...funding, bufferAmount: 2000 }).totalIncome, 8000);
   const linked = paydayContext.calculatePayCycleBudget(accounts, [...transactions, { id: 'receipt', date: '2026-09-20', kind: 'add', amount: 2000 }], cycles, [{ ...advances[0], transactionId: 'receipt' }], '2026-10', 25, '2026-10-24');
   assert.equal(linked.remaining, budget.remaining);
   const next = paydayContext.calculatePayCycleBudget(accounts, [...transactions, { date: '2026-10-25', kind: 'spend', amount: 500 }], [...cycles, { ...funding, expectedIncome: 8000, month: '2026-11', payDate: '2026-10-25', confirmed: true }], advances, '2026-11', 25, '2026-11-01');
@@ -1473,6 +1490,47 @@ async function checkPaydayBudget() {
   assert.equal(paydayContext.calculatePayCycleBudget([], [], [{ ...cycles[0], confirmed: false }], [], '2026-10', 25, '2026-10-24').funding, 0);
 
   const base = 'users/payday-test/';
+  const fundsPath = base + 'dayToDayTransactions/funds-example';
+  const fundsEntry = { date: '2026-09-27', description: 'Cash already held', amount: 300 };
+  await paydayContext.saveSpendingFunds('2026-10', 'funds-example', fundsEntry);
+  await paydayContext.saveSpendingFunds('2026-10', 'funds-example', fundsEntry);
+  assert.equal([...documents.keys()].filter(key => key === fundsPath).length, 1);
+  assert.equal(documents.get(fundsPath).kind, 'add');
+  const exampleCycle = { month: '2026-10', expectedIncome: 2000, bufferAmount: 500, payDate: '2026-09-25', confirmed: true, rolloverApplied: true, rolloverAvailable: 1000 };
+  const exampleSpending = { date: '2026-09-28', kind: 'spend', amount: 2400 };
+  const exampleBudget = () => paydayContext.calculatePayCycleBudget([], [documents.get(fundsPath), exampleSpending], [exampleCycle], [], '2026-10', 25, '2026-10-24');
+  assert.equal(exampleBudget().available, 2800);
+  assert.equal(exampleBudget().remaining, 400);
+  assert.equal(exampleBudget().spent, 2400);
+  assert.equal(paydayContext.calculatePayCycleFunding(exampleCycle).totalIncome, 2000);
+  assert.equal(paydayContext.calculatePayCycleFunding({ ...exampleCycle, bufferAmount: 900, shortfallAmount: 100, savingsAmount: 200 }).totalIncome, 2000);
+  assert.equal(paydayContext.calculatePayCycleBudget([], [documents.get(fundsPath), exampleSpending], [exampleCycle], [], '2026-11', 25, '2026-11-01').carryOver, 900);
+  await paydayContext.saveSpendingFunds('2026-10', 'funds-example', { ...fundsEntry, amount: 350 }, 'edit');
+  assert.equal(exampleBudget().remaining, 450);
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-10', 'funds-example', fundsEntry), /already exists/);
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-10', 'funds-invalid', { ...fundsEntry, date: '2026-09-24' }), /valid date/);
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-10', 'funds-invalid', { ...fundsEntry, date: '2026-09-31' }), /valid date/);
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-10', 'funds-invalid', { ...fundsEntry, date: '2099-01-01' }), /valid date/);
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-10', 'funds-invalid', { ...fundsEntry, amount: 0.001 }), /greater than zero/);
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-10', 'funds-invalid', { ...fundsEntry, amount: -1 }), /greater than zero/);
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-10', 'funds-invalid', { ...fundsEntry, description: ' ' }), /source/);
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-11', 'funds-example', {}, 'delete'), /different budget period/);
+  documents.set(fundsPath, { ...documents.get(fundsPath), paydayAdvanceId: 'linked-advance' });
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-10', 'funds-example', fundsEntry, 'edit'), /managed on Income/);
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-10', 'funds-example', {}, 'delete'), /managed on Income/);
+  const inPeriodAdvance = { receivedDate: '2026-09-27', amount: 300, transactionId: 'funds-example' };
+  assert.equal(paydayContext.calculatePayCycleBudget([], [documents.get(fundsPath), exampleSpending], [exampleCycle], [inPeriodAdvance], '2026-10', 25, '2026-10-24').added, 350);
+  assert.equal(paydayContext.calculatePayCycleBudget([], [exampleSpending], [exampleCycle], [{ ...inPeriodAdvance, transactionId: '' }], '2026-10', 25, '2026-10-24').added, 300);
+  documents.set(fundsPath, { ...documents.get(fundsPath), paydayAdvanceId: '' });
+  const runTransaction = api.runTransaction;
+  api.runTransaction = async () => { throw new Error('Commit rejected'); };
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-10', 'funds-example', { ...fundsEntry, amount: 999 }, 'edit'), /Commit rejected/);
+  assert.equal(documents.get(fundsPath).amount, 350);
+  api.runTransaction = runTransaction;
+  await paydayContext.saveSpendingFunds('2026-10', 'funds-example', {}, 'delete');
+  await paydayContext.saveSpendingFunds('2026-10', 'funds-example', {}, 'delete');
+  assert.equal(documents.has(fundsPath), false);
+  await assert.rejects(() => paydayContext.saveSpendingFunds('2026-10', 'funds-example', fundsEntry, 'edit'), /no longer exists/);
   const today = new Date();
   const payDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-25`;
   const past = new Date(today.getFullYear(), today.getMonth() - 2, 25);
@@ -1664,18 +1722,18 @@ async function checkPaydayBudget() {
   paydayContext.WR.ui._paydayProfile = null;
   paydayContext.WR.ui._paydayCycles = [];
   assert.ok(!functions.get('renderDashboard').includes('since last recorded snapshot'));
-  assert.ok(functions.get('renderDashboard').includes('Left to spend</span><span class="hero-value ${s.dayToDaySummary.currentBalance < 0'));
+  assert.ok(functions.get('renderDashboard').includes("s.dayToDaySummary.currentBalance < 0 ? 'Over budget by' : 'Left to spend'"));
   assert.ok(functions.get('renderDashboard').includes('aria-label="Net worth summary"'));
   assert.ok(functions.get('renderDashboard').includes('${fmt(s.netWorth.totalAssets)}</span>'));
   assert.ok(functions.get('renderDashboard').includes('${fmt(s.netWorth.totalLiabilities)}</span>'));
   assert.ok(functions.get('renderDashboard').includes('aria-label="Current budget period"'));
   assert.ok(functions.get('renderDashboard').includes('<dl class="budget-spending-head" aria-label="Spending summary">'));
   assert.ok(functions.get('renderDashboard').includes('<dt>Spent</dt><dd class="budget-spent-value">${currency} ${fmt(budgetSpent)}</dd>'));
-  assert.ok(functions.get('renderDashboard').includes("<dt>Budget</dt><dd>${spending.percentage === null ? 'Not set'"));
+  assert.ok(functions.get('renderDashboard').includes("<dt>Budget</dt><dd>${monthlySurplus === 0 ? 'Not set'"));
   assert.ok(functions.get('renderDashboard').includes('Included in total wealth and net worth'));
   assert.ok(functions.get('renderDashboard').includes('class="dashboard-card reserve-card emergency-card" aria-label="Emergency fund balance"'));
   assert.ok(functions.get('renderDashboard').includes('class="dashboard-card reserve-card savings-card" aria-label="Savings balance"'));
-  assert.ok(functions.get('renderDashboard').includes('${fmt(s.dayToDaySummary.currentBalance)}</span>'));
+  assert.ok(functions.get('renderDashboard').includes('${fmt(Math.abs(s.dayToDaySummary.currentBalance))}</span>'));
   let paydayMarkup = '';
   paydayContext.WR.repos = Object.fromEntries(['payCycles', 'payAdvances', 'savingsPots', 'dayToDayTransactions'].map(store => [store, { getAll: async () => store === 'payCycles' ? [{ month: '2026-10', advanceAmount: 2000 }] : [] }]));
   paydayContext.WR.repos.incomeSources = { getAll: async () => [{ id: 'salary', name: 'Salary', year: 2026, amount: 10000, frequency: 'monthly', startMonth: '2026-01', endMonth: '2026-12' }] };
@@ -1690,16 +1748,26 @@ async function checkPaydayBudget() {
   paydayContext.document = { getElementById: () => ({ addEventListener() {} }) };
   paydayContext.RECURRING_FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
   paydayContext.WR.ui.bindReliableForm = () => {};
+  const fundsSnapshot = { month: '2026-10', profile: { baseCurrency: 'ZAR' }, payCycleBudget: { carryOver: 1000, available: 2800, added: 300 }, paydayRecord: { ...exampleCycle, bufferDeposits: { legacy: { date: '2026-09-26', amount: 100 } } }, paydayFunding: paydayContext.calculatePayCycleFunding(exampleCycle) };
+  const fundsMarkup = paydayContext.renderSpendingFunds(fundsSnapshot, [{ id: 'unsafe', kind: 'add', ...fundsEntry, description: '<unsafe>' }], []);
+  assert.ok(fundsMarkup.includes('id="spending-funds-form"'));
+  assert.ok(fundsMarkup.includes('spending-funds-edit'));
+  assert.ok(fundsMarkup.includes('spending-funds-delete'));
+  assert.ok(fundsMarkup.includes('ZAR 2800.00'));
+  assert.ok(fundsMarkup.includes('Unallocated buffer: ZAR 500.00'));
+  assert.ok(fundsMarkup.includes('Earlier buffer deposit: ZAR 100.00'));
+  assert.ok(fundsMarkup.includes('&lt;unsafe&gt;') && !fundsMarkup.includes('<unsafe>'));
+  assert.ok(!functions.get('buildSnapshot').includes("name: 'Income adjustments'"));
+  assert.ok(functions.get('renderDashboard').includes('const budgetSpent = s.payCycleBudget.spent;'));
+  assert.ok(functions.get('renderDashboard').includes('const monthlySurplus = s.payCycleBudget.available;'));
   vm.runInContext(functions.get('recurringFrequencyOptions') + '\n' + functions.get('renderIncome'), paydayContext);
   await paydayContext.renderIncome({ querySelector: () => ({ addEventListener() {} }), querySelectorAll: () => [] });
   assert.ok(paydayMarkup.includes('id="income-total">ZAR 8000.00'));
   assert.ok(paydayMarkup.includes('<th>Advance</th><th>Savings taken</th>'));
-  assert.ok(paydayMarkup.includes('<h2>Buffer</h2>'));
-  assert.ok(paydayMarkup.includes('id="income-buffer-opening-form"'));
-  assert.ok(paydayMarkup.includes('id="income-buffer-funds-form"'));
-  assert.ok(paydayMarkup.includes('<summary>Edit balance</summary>'));
-  assert.ok(paydayMarkup.includes('class="buffer-layout"'));
-  assert.ok(paydayMarkup.includes('type="checkbox" role="switch"'));
+  assert.ok(!paydayMarkup.includes('<h2>Buffer</h2>'));
+  assert.ok(!paydayMarkup.includes('id="income-buffer-opening-form"'));
+  assert.ok(!paydayMarkup.includes('id="income-buffer-funds-form"'));
+  assert.ok(!paydayMarkup.includes('class="buffer-layout"'));
   assert.ok(!paydayMarkup.includes('next payday excluded'));
   assert.ok(!paydayMarkup.includes('id="payday-form"'));
   assert.ok(!paydayMarkup.includes('data-field="potId"'));
@@ -1713,7 +1781,7 @@ async function checkPaydayBudget() {
   assert.equal(total.textContent, 'ZAR 7000.00');
   controls.savingsAmount.value = '500';
   controls.savingsAmount.events.input();
-  assert.equal(total.textContent, 'ZAR 6500.00');
+  assert.equal(total.textContent, 'ZAR 7000.00');
   let freshReads = 0;
   const cached = { docs: [{ data: () => ({ advanceAmount: 2000 }) }] };
   const current = { docs: [{ data: () => ({ advanceAmount: 3000 }) }] };
