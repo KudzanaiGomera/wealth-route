@@ -1002,7 +1002,12 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .ef-meter span { display: block; height: 100%; width: var(--share); background: linear-gradient(90deg, var(--accent), var(--gold)); }
 
 .ef-activity-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.2rem; margin: 0 0 1.35rem; box-shadow: var(--shadow); }
-.ef-activity-card h3 { margin-top: 0; }
+.ef-activity-card > summary { display: flex; align-items: center; gap: 0.65rem; min-height: 2.5rem; cursor: pointer; list-style: none; font-size: 1rem; font-weight: 700; }
+.ef-activity-card > summary::-webkit-details-marker { display: none; }
+.ef-activity-card > summary::before { content: ''; width: 0.45rem; height: 0.45rem; flex: 0 0 auto; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s ease; }
+.ef-activity-card[open] > summary::before { transform: rotate(45deg); }
+.ef-activity-card > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.ef-activity-card[open] > summary { margin-bottom: 0.75rem; }
 .ef-activity-card .toolbar { margin-top: 0; }
 
 .ef-forms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin: 1.25rem 0; }
@@ -1286,7 +1291,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .form-panel h3 { margin: 0; font-size: 1rem; }
 .archived-pots { margin-top: 1rem; }
 .archived-pots summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 0.9rem; }
-.borrowing-list-head, .borrowing-row > summary { display: grid; grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)) minmax(0, 0.9fr) 1rem; align-items: center; gap: 0.85rem; }
+.borrowing-list-head, .borrowing-row > summary { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) minmax(0, 0.9fr) 1rem; align-items: center; gap: 0.85rem; }
 .borrowing-list-head { padding: 0.4rem 0; color: var(--muted); font-size: 0.75rem; }
 .borrowing-row { border-bottom: 1px solid var(--border); }
 .borrowing-row:first-of-type { border-top: 1px solid var(--border); }
@@ -1310,7 +1315,6 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .borrowing-row-body .reserve-borrowing-edit .card-edit-actions { grid-column: 1 / -1; }
 .borrowing-row-body .borrowing-edit, .borrowing-row-body .borrowing-delete { margin-top: 0.75rem; }
 .borrowing-delete button { min-height: 44px; color: var(--danger); background: transparent; border: 1px solid var(--danger); }
-.borrowing-mobile-amounts { display: none; }
 .ef-account-card .balance-label { display: block; margin: 0.55rem 0 0.2rem; color: var(--muted); font-size: 0.8rem; }
 @media (min-width: 681px) and (max-width: 1000px) {
   .borrowing-row-body { grid-template-columns: minmax(0, 1fr); }
@@ -1322,11 +1326,8 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
   .borrowing-row-state { grid-column: 2; grid-row: 2; justify-self: end; align-self: end; }
   .borrowing-row > summary::after { position: absolute; right: 0.15rem; top: 1rem; }
   .borrowing-row > summary > .borrowing-row-amount { display: none; }
-  .borrowing-row > summary > .borrowing-row-amount:nth-of-type(4) { display: block; grid-column: 1; grid-row: 2; }
+  .borrowing-row > summary > .borrowing-row-amount:nth-of-type(3) { display: block; grid-column: 1; grid-row: 2; }
   .borrowing-row-amount small { display: block; margin-bottom: 0.2rem; color: var(--muted); font-size: 0.72rem; }
-  .borrowing-mobile-amounts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin: 0 0 0.75rem; font-size: 0.85rem; }
-  .borrowing-mobile-amounts dt { color: var(--muted); font-size: 0.75rem; }
-  .borrowing-mobile-amounts dd { margin: 0.2rem 0 0; overflow-wrap: anywhere; }
   .borrowing-row-body { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
   .borrowing-row-body .reserve-repayment { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .borrowing-row-body .card-edit-actions { grid-column: 1 / -1; }
@@ -6761,15 +6762,15 @@ WR.ui = WR.ui || {};
         </div>`).join('')}
       </div>
 
-      <div class="ef-activity-card">
-        <h3>Account activity</h3>
+      <details class="ef-activity-card">
+        <summary>Account activity</summary>
         <div class="toolbar"><label>Month: <input id="emergency-fund-month" type="month" value="${WR.ui.escapeText(month)}" ${WR.ui._emergencyFundShowAll ? 'disabled' : ''}></label>
           <label><input id="emergency-fund-show-all" type="checkbox" ${WR.ui._emergencyFundShowAll ? 'checked' : ''}> All months</label></div>
         <table class="data-table">
           <thead><tr><th>Date</th><th>Account</th><th>Contribution (${profile.baseCurrency})</th><th>Note</th><th></th></tr></thead>
           <tbody>${rows || `<tr><td colspan="5" class="empty">${WR.ui._emergencyFundShowAll ? 'No contributions or transfers recorded.' : 'No contributions or transfers for this month.'}</td></tr>`}</tbody>
         </table>
-      </div>
+      </details>
 
       <div class="ef-forms-grid">
         <div class="ef-form-card">
@@ -10752,17 +10753,15 @@ WR.ui = WR.ui || {};
         <select id="borrowing-history-month"><option value="all" ${selectedMonth === 'all' ? 'selected' : ''}>All months</option>${months.map(month => `<option value="${escape(month)}" ${month === selectedMonth ? 'selected' : ''}>${escape(monthFormatter.format(new Date(`${month}-01T12:00:00`)))}</option>`).join('')}</select>
       </label></div>
       <div class="borrowing-list">
-      ${loans.length ? '<div class="borrowing-list-head" aria-hidden="true"><span>Source / Date</span><span>Borrowed</span><span>Paid back</span><span>Still owed</span><span>Status</span><span></span></div>' : ''}
+      ${loans.length ? '<div class="borrowing-list-head" aria-hidden="true"><span>Source / Date</span><span>Borrowed</span><span>Still owed</span><span>Status</span><span></span></div>' : ''}
       ${loans.map((loan, index) => `<details class="borrowing-row">
         <summary>
           <span class="borrowing-row-source"><strong>${escape(loan.sourceName)}</strong><small>${loan.kind === 'savings' ? 'Savings pot' : 'Emergency fund'} &middot; ${escape(loan.date)}</small></span>
           <span class="borrowing-row-amount" aria-label="Borrowed ${escape(loan.currency)} ${WR.ui.fmt(loan.amount)}"><small>Borrowed</small>${escape(loan.currency)} ${WR.ui.fmt(loan.amount)}</span>
-          <span class="borrowing-row-amount" aria-label="Paid back ${escape(loan.currency)} ${WR.ui.fmt(loan.repaid)}"><small>Paid back</small>${escape(loan.currency)} ${WR.ui.fmt(loan.repaid)}</span>
           <span class="borrowing-row-amount" aria-label="Still owed ${escape(loan.currency)} ${WR.ui.fmt(loan.remaining)}"><small>Still owed</small>${escape(loan.currency)} ${WR.ui.fmt(loan.remaining)}</span>
           <span class="borrowing-row-state">${loan.remaining > 0 ? 'Outstanding' : 'Paid back'}</span>
         </summary>
         <div class="borrowing-row-body"><div>
-          <dl class="borrowing-mobile-amounts"><div><dt>Borrowed</dt><dd>${escape(loan.currency)} ${WR.ui.fmt(loan.amount)}</dd></div><div><dt>Paid back</dt><dd>${escape(loan.currency)} ${WR.ui.fmt(loan.repaid)}</dd></div></dl>
           ${loan.note ? `<p>${escape(loan.note)}</p>` : ''}
           ${(loan.repayments || []).length ? `<details class="card-edit"><summary>Repayment history</summary><ul>${loan.repayments.map(payment => `<li>${escape(payment.date)}: ${escape(loan.currency)} ${WR.ui.fmt(payment.amount)}</li>`).join('')}</ul></details>` : loan.legacyReturned ? '<p class="fine-print">Previously marked returned; repayment date not recorded.</p>' : ''}
           <details class="card-edit borrowing-edit"><summary>Edit borrowing</summary>
