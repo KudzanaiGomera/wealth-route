@@ -5508,7 +5508,7 @@ WR.ui = WR.ui || {};
 
       <section class="health-score">
         ${setupComplete && !s.currencyWarnings.length ? `
-        <h2>Financial Health: ${s.healthScore.score}/100 ${WR.ui.moodEmoji(s.healthScore.score, { good: 70, bad: 40 })}</h2>
+        <h2>Financial Health: ${Math.round(s.healthScore.score * 10)}/1000 ${WR.ui.moodEmoji(s.healthScore.score, { good: 70, bad: 40 })}</h2>
         <div class="score-breakdown">
           ${[
             ['Cash flow', s.healthScore.breakdown.cashFlow],
@@ -7558,7 +7558,7 @@ WR.ui = WR.ui || {};
     if (snapshot.discretionarySpendChangePct !== null) {
       trends.push(`Variable/discretionary spending changed by ${(snapshot.discretionarySpendChangePct * 100).toFixed(1)}% compared with the previous month.`);
     }
-    trends.push(`Financial health score is ${snapshot.healthScore.score}/100 this month.`);
+    trends.push(`Financial health score is ${Math.round(snapshot.healthScore.score * 10)}/1000 this month.`);
 
     const suggestions = snapshot.recommendations.length
       ? snapshot.recommendations.map((item) => `${WR.ui.escapeText(item.title)}: ${item.reason}`)
