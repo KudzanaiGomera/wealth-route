@@ -1600,6 +1600,106 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
 .assistant-history .link-btn { font-size: 0.78rem; }
 #content:has(.assistant-workspace) { width: min(1500px, calc(100vw - 3rem)); max-width: none; }
 
+/* ---------- Monthly report ---------- */
+.report-page { display: grid; gap: 1rem; }
+.report-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem 1.5rem; flex-wrap: wrap; }
+.report-eyebrow { display: block; color: var(--accent); font-size: 0.74rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.report-header h1 { margin: 0.15rem 0 0.25rem; }
+.report-header .fine-print { margin: 0; }
+.report-controls { display: flex; align-items: flex-end; gap: 0.6rem; flex-wrap: wrap; }
+.report-controls label { display: grid; gap: 0.25rem; color: var(--muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.report-controls select { min-height: 44px; min-width: 7.5rem; font-weight: 600; }
+.report-controls button { display: inline-flex; align-items: center; gap: 0.45rem; }
+.report-controls button svg { width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.report-hero { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1.25rem; align-items: center; padding: 1.35rem 1.5rem; border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border)); border-left: 4px solid var(--accent); border-radius: 12px; background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 10%, var(--panel)), var(--panel)); box-shadow: var(--shadow); }
+.report-hero-label { color: var(--muted); font-size: 0.84rem; }
+.report-hero-value { display: block; font-family: var(--font-serif); font-size: clamp(2rem, 4.5vw, 3rem); line-height: 1.1; margin: 0.2rem 0 0.45rem; overflow-wrap: anywhere; }
+.report-hero-value.negative { color: var(--danger); }
+.report-hero p { margin: 0; color: var(--text); font-size: 0.92rem; line-height: 1.5; }
+.report-hero-side { display: grid; gap: 0.75rem; padding-left: 1.25rem; border-left: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); }
+.report-hero-side span { display: block; color: var(--muted); font-size: 0.8rem; }
+.report-hero-side strong { display: block; font-family: var(--font-serif); font-size: 1.35rem; overflow-wrap: anywhere; }
+.report-flow { height: 0.55rem; border-radius: 999px; background: var(--border); overflow: hidden; display: flex; }
+.report-flow span { display: block; height: 100%; }
+.report-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 0.75rem; }
+.report-kpi { min-width: 0; padding: 0.9rem 1rem; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
+.report-kpi-label { display: flex; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.78rem; font-weight: 600; }
+.report-kpi-value { display: block; font-family: var(--font-serif); font-size: 1.3rem; margin-top: 0.3rem; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.report-kpi .delta { margin-top: 0.3rem; }
+.report-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.report-card { min-width: 0; padding: 1.1rem 1.2rem; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+.report-card > h2 { margin: 0 0 0.2rem; font-size: 1.05rem; }
+.report-card > .fine-print { margin: 0 0 0.85rem; }
+.report-donut { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 1.1rem; align-items: center; }
+.report-donut svg { width: 100%; height: auto; }
+.report-donut svg text { font-family: var(--font-sans); }
+.report-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; font-size: 0.85rem; }
+.report-legend li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.15rem 0.75rem; align-items: baseline; }
+.report-legend small { grid-column: 1 / -1; color: var(--muted); font-size: 0.74rem; padding-left: 1.05rem; }
+.report-legend strong { font-variant-numeric: tabular-nums; font-weight: 600; }
+.report-highlights { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+.report-highlights li { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 0.6rem; align-items: start; font-size: 0.9rem; line-height: 1.45; }
+.report-highlights .hl-icon { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: 0.8rem; font-weight: 700; color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); }
+.report-highlights .hl-warn .hl-icon { color: var(--danger); background: color-mix(in srgb, var(--danger) 13%, transparent); }
+.report-highlights .hl-info .hl-icon { color: var(--gold); background: color-mix(in srgb, var(--gold) 15%, transparent); }
+.report-trend svg { display: block; width: 100%; height: auto; }
+.report-trend svg text { fill: var(--muted); font-family: var(--font-sans); }
+.report-chart-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 0.6rem; color: var(--muted); font-size: 0.8rem; }
+.trend-chart { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.6rem; }
+.trend-axis { display: flex; flex-direction: column; justify-content: space-between; height: 220px; color: var(--muted); font-size: 0.72rem; text-align: right; font-variant-numeric: tabular-nums; }
+.trend-axis span { line-height: 1; transform: translateY(-0.1rem); }
+.trend-cols { display: flex; align-items: stretch; gap: 0.25rem; overflow-x: auto; }
+.trend-col { flex: 1 0 2.4rem; display: grid; grid-template-rows: 220px auto; gap: 0.4rem; min-width: 0; }
+.trend-bars { display: flex; align-items: flex-end; justify-content: center; gap: 3px; border-bottom: 1px solid var(--border); background: repeating-linear-gradient(to top, transparent 0, transparent calc(25% - 1px), color-mix(in srgb, var(--border) 70%, transparent) calc(25% - 1px), color-mix(in srgb, var(--border) 70%, transparent) 25%); }
+.trend-bars span { width: min(40%, 1.6rem); min-height: 2px; border-radius: 4px 4px 0 0; transition: height 0.3s ease; }
+.trend-in { background: var(--chart-1); }
+.trend-out { background: var(--chart-2); }
+.trend-label { color: var(--muted); font-size: 0.74rem; text-align: center; }
+.report-chart-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.report-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+.report-bars li { display: grid; gap: 0.3rem; }
+.report-bar-head { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.85rem; }
+.report-bar-head span { min-width: 0; overflow-wrap: anywhere; }
+.report-bar-head strong { flex: 0 0 auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+.report-bar-head small { color: var(--muted); font-weight: 400; }
+.report-bar { position: relative; height: 0.6rem; border-radius: 999px; background: color-mix(in srgb, var(--border) 70%, transparent); overflow: visible; }
+.report-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--chart-1); }
+.report-bar > span.type-variable { background: var(--chart-2); }
+.report-bar > span.over { background: var(--danger); }
+.report-bar > i { position: absolute; top: -0.2rem; bottom: -0.2rem; width: 2px; border-radius: 2px; background: var(--text); opacity: 0.55; }
+.report-mini-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; margin-bottom: 1rem; }
+.report-mini-stats div { min-width: 0; padding: 0.65rem 0.75rem; border-radius: 8px; background: var(--panel-alt); }
+.report-mini-stats span { display: block; color: var(--muted); font-size: 0.74rem; }
+.report-mini-stats strong { display: block; margin-top: 0.15rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; font-size: 0.95rem; }
+.report-mini-stats strong.negative { color: var(--danger); }
+.report-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.report-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.report-table th, .report-table td { padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border); text-align: left; }
+.report-table th { color: var(--muted); font-size: 0.75rem; font-weight: 600; }
+.report-table td.num, .report-table th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.report-table tfoot td { font-weight: 700; border-bottom: 0; }
+.report-table td.negative { color: var(--danger); }
+.report-empty { color: var(--muted); font-size: 0.88rem; padding: 0.5rem 0; }
+@media (max-width: 860px) {
+  .report-grid { grid-template-columns: minmax(0, 1fr); }
+  .report-hero { grid-template-columns: minmax(0, 1fr); }
+  .report-hero-side { padding-left: 0; padding-top: 1rem; border-left: 0; border-top: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .report-controls { width: 100%; }
+  .report-controls label { flex: 1 1 7rem; }
+  .report-controls select { width: 100%; min-width: 0; }
+  .report-controls button { flex: 1 1 100%; justify-content: center; }
+  .report-donut { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .report-donut svg { max-width: 190px; }
+  .report-donut .report-legend { width: 100%; }
+  .report-mini-stats { grid-template-columns: minmax(0, 1fr); }
+  .report-hero { padding: 1.1rem; }
+  .report-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+  .report-kpi { padding: 0.75rem 0.8rem; }
+  .report-kpi-value { font-size: 1.02rem; }
+}
+
 /* ---------- Loading skeleton ---------- */
 .skeleton { display: grid; gap: 1rem; padding-top: 0.5rem; }
 .skeleton-line, .skeleton-card {
@@ -4694,6 +4794,7 @@ WR.ui = WR.ui || {};
     { hash: '#/debts', label: 'Debts' },
     { hash: '#/wealth', label: 'Wealth' },
     { hash: '#/goals', label: 'Goals' },
+    { hash: '#/reports', label: 'Reports' },
     { hash: '#/settings', label: 'Settings' },
   ];
 
@@ -6488,9 +6589,8 @@ WR.ui = WR.ui || {};
   async function renderFixedExpenses(container) {
     WR.ui.syncBudgetMonth();
     const parseDueDay = WR.ui.parseDueDay;
-    const [profile, categories, expenses] = await Promise.all([
+    const [profile, expenses] = await Promise.all([
       WR.ui.getOrCreateProfile(),
-      WR.repos.expenseCategories.getAll(),
       WR.repos.fixedExpenses.getAll(),
     ]);
 
@@ -6504,7 +6604,6 @@ WR.ui = WR.ui || {};
           <td><input class="cell" data-field="name" value="${WR.ui.escapeText(expense.name || '')}"></td>
           <td><input class="cell num" data-field="amount" type="number" step="0.01" min="0" value="${WR.ui.escapeText(expense.amount || 0)}"></td>
           <td><select class="cell" data-field="frequency">${recurringFrequencyOptions(expense.frequency || 'monthly')}</select></td>
-          <td><select class="cell" data-field="categoryId">${categoryOptions(categories, expense.categoryId, 'fixed')}</select></td>
           <td><input class="cell" data-field="startMonth" type="month" value="${WR.ui.escapeText(expense.startMonth || WR.ui.currentMonthKey())}"></td>
           <td><input class="cell" data-field="endMonth" type="month" value="${WR.ui.escapeText(expense.endMonth || '')}"></td>
           <td><input class="cell num" data-field="dueDay" type="number" min="1" max="31" step="1" placeholder="—" value="${WR.ui.escapeText(expense.dueDay || '')}"></td>
@@ -6523,8 +6622,8 @@ WR.ui = WR.ui || {};
       </div>
       <div class="toolbar"><label><input id="fixed-show-ended" type="checkbox" ${showEnded ? 'checked' : ''}> Show ended expenses</label></div>
       <table class="data-table">
-        <thead><tr><th>Name</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Category</th><th>Start month</th><th>End month</th><th>Due day</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="8" class="empty">No current or upcoming fixed expenses.</td></tr>'}</tbody>
+        <thead><tr><th>Name</th><th>Amount (${profile.baseCurrency})</th><th>Frequency</th><th>Start month</th><th>End month</th><th>Due day</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" class="empty">No current or upcoming fixed expenses.</td></tr>'}</tbody>
       </table>
 
       <h3>Add fixed expense</h3>
@@ -6532,7 +6631,6 @@ WR.ui = WR.ui || {};
         <input name="recordName" placeholder="Rent, insurance, internet" required>
         <input name="amount" type="number" step="0.01" min="0" placeholder="Amount" required>
         <select name="frequency">${recurringFrequencyOptions('monthly')}</select>
-        <select name="categoryId">${categoryOptions(categories, undefined, 'fixed')}</select>
         <input name="startMonth" type="month" value="${WR.ui.escapeText(summaryMonth)}">
         <input name="endMonth" type="month">
         <input name="dueDay" type="number" min="1" max="31" step="1" placeholder="Due day (1-31)">
@@ -6601,7 +6699,6 @@ WR.ui = WR.ui || {};
         name: form.elements.recordName.value.trim(),
         amount: Math.max(0, parseFloat(form.amount.value) || 0),
         frequency: form.frequency.value,
-        categoryId: form.categoryId.value || undefined,
         startMonth: form.startMonth.value || summaryMonth,
         endMonth: form.endMonth.value || undefined,
         dueDay: parseDueDay(form.dueDay.value),
@@ -8713,97 +8810,743 @@ WR.ui = WR.ui || {};
 
   WR.ui.renderForecast = renderForecast;
 })();
-// Reports view: trend charts the Dashboard doesn't cover \u2014 income/expenses
-// across every month on record, essential vs discretionary trend, net worth
-// components over time, and spending by category.
+// Reports view: a monthly report for any chosen year/month, with charts and a
+// downloadable/shareable PDF version built from the same report model.
 
 window.WR = window.WR || {};
 WR.ui = WR.ui || {};
 
 (function () {
-  async function renderReports(container) {
-    WR.ui.setHTML(container, '<p class="loading">Building your reports\u2026</p>');
+  const PDF_PALETTE = [[14, 107, 87], [169, 120, 31], [91, 101, 96], [124, 156, 147], [196, 164, 104]];
+  const CHART_VARS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
+  let jsPdfPromise = null;
 
-    const [allBudgetLines, categories, netWorthHistory, profile] = await Promise.all([
-      WR.repos.budgetLines.getAll(),
-      WR.repos.expenseCategories.getAll(),
-      WR.queries.getNetWorthHistory(),
-      WR.ui.getOrCreateProfile(),
-    ]);
+  // jsPDF is ~360KB, so it's only fetched once the Reports page is opened.
+  function loadJsPdf() {
+    if (window.jspdf?.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+    if (!jsPdfPromise) {
+      jsPdfPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'vendor/jspdf.umd.min.js';
+        script.onload = () => {
+          if (window.jspdf?.jsPDF) resolve(window.jspdf.jsPDF);
+          else { jsPdfPromise = null; reject(new Error('PDF library failed to load.')); }
+        };
+        script.onerror = () => { jsPdfPromise = null; reject(new Error('PDF library failed to load. Check your connection and try again.')); };
+        document.head.appendChild(script);
+      });
+    }
+    return jsPdfPromise;
+  }
 
-    const monthly = WR.financial.aggregateMonthlyTotals(allBudgetLines);
-    const currency = profile.baseCurrency;
+  const fmt = (value) => WR.ui.fmt(value);
+  const esc = (value) => WR.ui.escapeText(value ?? '');
+  const pct = (value) => `${((Number(value) || 0) * 100).toFixed(1)}%`;
+  const shortMonth = (monthKey) => WR.ui.monthName(Number(monthKey.slice(5, 7))).slice(0, 3);
+  const compact = (value) => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(value) || 0);
+  const byValueDesc = (a, b) => b.value - a.value;
 
-    if (monthly.length === 0 && netWorthHistory.length === 0) {
-      WR.ui.setHTML(container, `
-        <h1>Reports</h1>
-        <p class="empty">No data yet \u2014 add some transactions on the Transactions tab, or record a net worth snapshot from the Dashboard, and reports will appear here.</p>
-      `);
-      return;
+  function niceMax(value) {
+    if (!(value > 0)) return 1;
+    const power = 10 ** Math.floor(Math.log10(value));
+    return (Math.ceil((value / power) * 2) / 2) * power;
+  }
+
+  function buildReportModel(s, prev) {
+    const currency = s.profile.baseCurrency;
+    const cf = s.cashflow;
+    const convert = (amount, from) => {
+      const result = WR.financial.convertCurrency(Number(amount) || 0, from || currency, currency, s.exchangeRates);
+      return result.converted ? result.value : 0;
+    };
+    const items = (type) => s.budgetLines
+      .filter((line) => line.type === type)
+      .map((line) => ({ label: line.name || 'Unnamed', budget: Number(line.budgetAmount) || 0, actual: Number(line.actualAmount) || 0, type }))
+      .filter((item) => item.budget || item.actual)
+      .sort((a, b) => b.actual - a.actual);
+    const outflowOf = (flow) => flow.fixedExpenses + flow.variableExpenses + flow.debtPayments + flow.savings;
+
+    const outflow = outflowOf(cf);
+    const net = cf.income - outflow;
+    const hasPrev = !!prev && prev.budgetLines.length > 0;
+    const prevCf = hasPrev ? prev.cashflow : null;
+    const income = items('income');
+    const fixed = items('fixed');
+    const variable = items('variable');
+    const savings = items('savings');
+    const expensesTotal = cf.fixedExpenses + cf.variableExpenses;
+    const topExpenses = fixed.concat(variable).filter((item) => item.actual > 0).sort((a, b) => b.actual - a.actual).slice(0, 8);
+    const debtPaid = s.debtPayments
+      .filter((payment) => payment.month === s.month)
+      .reduce((sum, payment) => sum + convert(payment.amount, payment.currency || s.debts.find((debt) => debt.id === payment.debtId)?.currency), 0);
+
+    const breakdown = [
+      { label: 'Fixed expenses', value: cf.fixedExpenses },
+      { label: 'Variable expenses', value: cf.variableExpenses },
+      { label: 'Debt repayments', value: cf.debtPayments },
+      { label: 'Savings', value: cf.savings },
+      { label: 'Left over', value: Math.max(0, net) },
+    ].filter((item) => item.value > 0.004);
+
+    const period = s.payCycleBudget;
+    const periodEnd = new Date(`${period.endExclusive}T12:00:00`);
+    periodEnd.setDate(periodEnd.getDate() - 1);
+    const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const periodLabel = `${dateFormat.format(new Date(`${period.start}T12:00:00`))} \u2013 ${dateFormat.format(periodEnd)}`;
+    const spendByCategory = new Map();
+    (s.dayToDayTransactions || [])
+      .filter((item) => item.kind !== 'add' && item.date >= period.start && item.date < period.endExclusive)
+      .forEach((item) => {
+        const key = String(item.category || '').trim() || 'Uncategorised';
+        spendByCategory.set(key, (spendByCategory.get(key) || 0) + (Number(item.amount) || 0));
+      });
+    const dayCategories = [...spendByCategory].map(([label, value]) => ({ label, value })).filter((item) => item.value > 0).sort(byValueDesc).slice(0, 8);
+
+    const trend = s.annualMonths.map((row) => ({ month: row.month, label: shortMonth(row.month), income: row.cashflow.income, outflow: outflowOf(row.cashflow) }));
+
+    const isCurrent = s.month === WR.ui.currentBudgetMonth();
+    const history = s.netWorthHistory.filter((entry) => entry.date <= `${s.month}-31`);
+    const lastRecorded = history[history.length - 1];
+    const netWorth = isCurrent
+      ? { value: s.netWorth.netWorth, assets: s.netWorth.totalAssets, liabilities: s.netWorth.totalLiabilities, asAt: 'Live balances today' }
+      : lastRecorded && s.month < WR.ui.currentBudgetMonth()
+      ? { value: lastRecorded.netWorth, assets: lastRecorded.totalAssets, liabilities: lastRecorded.totalLiabilities, asAt: `Snapshot recorded ${lastRecorded.date}` }
+      : null;
+
+    const debts = s.debts
+      .filter((debt) => Number(debt.currentBalance) > 0.01)
+      .map((debt) => ({
+        label: debt.name || 'Debt',
+        balance: convert(debt.currentBalance, debt.currency),
+        rate: Number(debt.interestRate) || 0,
+        minPayment: convert(debt.minPayment, debt.currency),
+        paid: s.debtPayments.filter((payment) => payment.debtId === debt.id && payment.month === s.month).reduce((sum, payment) => sum + convert(payment.amount, payment.currency || debt.currency), 0),
+      }))
+      .sort((a, b) => b.balance - a.balance);
+
+    const money = (value) => `${currency} ${fmt(value)}`;
+    const highlights = [];
+    if (cf.income > 0) {
+      highlights.push(net >= 0
+        ? { tone: 'good', text: `You kept ${pct(net / cf.income)} of your income (${money(net)}) after expenses, debt repayments and savings.` }
+        : { tone: 'warn', text: `Money going out was ${money(-net)} more than income this month.` });
+    } else {
+      highlights.push({ tone: 'info', text: 'No income is recorded for this month yet.' });
+    }
+    if (cf.savings > 0) highlights.push({ tone: 'good', text: `${money(cf.savings)} went to savings \u2014 a savings rate of ${pct(cf.savingsRate)}.` });
+    if (prevCf) {
+      const diff = outflow - outflowOf(prevCf);
+      if (Math.abs(diff) >= 0.5) highlights.push({ tone: diff > 0 ? 'info' : 'good', text: `Total money going out was ${money(Math.abs(diff))} ${diff > 0 ? 'higher' : 'lower'} than in ${prev.monthLabel}.` });
+    }
+    if (topExpenses[0] && expensesTotal > 0) highlights.push({ tone: 'info', text: `Largest expense: ${topExpenses[0].label} at ${money(topExpenses[0].actual)} (${pct(topExpenses[0].actual / expensesTotal)} of all expenses).` });
+    const overBudget = variable.filter((item) => item.budget > 0 && item.actual > item.budget + 0.005);
+    if (overBudget.length) highlights.push({ tone: 'warn', text: `${overBudget.length} spending ${overBudget.length === 1 ? 'line went' : 'lines went'} over budget: ${overBudget.slice(0, 3).map((item) => item.label).join(', ')}${overBudget.length > 3 ? '\u2026' : ''}.` });
+    else if (variable.some((item) => item.budget > 0)) highlights.push({ tone: 'good', text: 'All variable spending stayed within budget.' });
+    if (debtPaid > 0) highlights.push({ tone: 'good', text: `${money(debtPaid)} was paid towards debts this month.` });
+    if (period.spent > 0) highlights.push({ tone: period.remaining < 0 ? 'warn' : 'info', text: `Day-to-day spending was ${money(period.spent)}${period.available > 0 ? ` of ${money(period.available)} available` : ''}.` });
+
+    return {
+      month: s.month,
+      monthLabel: s.monthLabel,
+      prevLabel: hasPrev ? prev.monthLabel : null,
+      currency,
+      preparedFor: s.profile.displayName || WR.account?.getUsername?.() || '',
+      generatedOn: new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()),
+      hasData: cf.income !== 0 || outflow > 0,
+      cashflow: cf,
+      prevCashflow: prevCf,
+      outflow,
+      net,
+      healthScore: Math.round((s.healthScore?.score || 0) * 10),
+      prevHealthScore: hasPrev ? Math.round((prev.healthScore?.score || 0) * 10) : null,
+      breakdown,
+      highlights,
+      income,
+      fixed,
+      variable,
+      savings,
+      topExpenses,
+      debtPaid,
+      debts,
+      period: { label: periodLabel, available: period.available, spent: period.spent, remaining: period.remaining },
+      dayCategories,
+      trend,
+      netWorth,
+      netWorthHistory: history.slice(-12),
+      reserves: { pots: s.activePotBalance, emergency: s.emergencyFundBalance, borrowed: s.reserveBorrowing?.total || 0 },
+    };
+  }
+
+  function donutSvg(items, centerLabel, centerValue) {
+    const total = items.reduce((sum, item) => sum + item.value, 0);
+    if (!(total > 0)) return '';
+    const cx = 100, cy = 100, outer = 92, inner = 60;
+    const point = (radius, angle) => `${(cx + radius * Math.cos(angle)).toFixed(2)} ${(cy + radius * Math.sin(angle)).toFixed(2)}`;
+    let angle = -Math.PI / 2;
+    const segments = items.map((item, index) => {
+      const color = CHART_VARS[index % CHART_VARS.length];
+      const fraction = item.value / total;
+      if (fraction > 0.9999) return `<circle cx="${cx}" cy="${cy}" r="${(outer + inner) / 2}" fill="none" stroke="${color}" stroke-width="${outer - inner}"></circle>`;
+      const end = angle + fraction * Math.PI * 2;
+      const large = fraction > 0.5 ? 1 : 0;
+      const path = `<path d="M ${point(outer, angle)} A ${outer} ${outer} 0 ${large} 1 ${point(outer, end)} L ${point(inner, end)} A ${inner} ${inner} 0 ${large} 0 ${point(inner, angle)} Z" fill="${color}" stroke="var(--panel)" stroke-width="1.5"><title>${esc(item.label)}: ${pct(fraction)}</title></path>`;
+      angle = end;
+      return path;
+    });
+    return `<svg viewBox="0 0 200 200" role="img" aria-label="${esc(centerLabel)} breakdown">${segments.join('')}<text x="100" y="94" text-anchor="middle" font-size="12" fill="var(--muted)">${esc(centerLabel)}</text><text x="100" y="116" text-anchor="middle" font-size="20" font-weight="700" fill="var(--text)">${esc(centerValue)}</text></svg>`;
+  }
+
+  function trendHtml(rows) {
+    const max = niceMax(Math.max(0, ...rows.flatMap((row) => [row.income, row.outflow])));
+    const axis = [1, 0.75, 0.5, 0.25, 0].map((f) => `<span>${compact(max * f)}</span>`).join('');
+    const height = (value) => `${((Math.max(0, value) / max) * 100).toFixed(2)}%`;
+    const cols = rows.map((row) => `<div class="trend-col">
+        <div class="trend-bars">
+          <span class="trend-in" style="height:${height(row.income)}" title="${esc(row.label)} income: ${fmt(row.income)}"></span>
+          <span class="trend-out" style="height:${height(row.outflow)}" title="${esc(row.label)} money out: ${fmt(row.outflow)}"></span>
+        </div>
+        <span class="trend-label">${esc(row.label)}</span>
+      </div>`).join('');
+    return `<div class="trend-chart" role="img" aria-label="Income and money out by month"><div class="trend-axis">${axis}</div><div class="trend-cols">${cols}</div></div>`;
+  }
+
+  function lineSvg(points) {
+    const W = 640, H = 220, L = 54, R = 16, T = 14, B = 30;
+    const cw = W - L - R, ch = H - T - B;
+    const values = points.map((p) => p.value);
+    const min = Math.min(0, ...values), max = niceMax(Math.max(...values, 1));
+    const range = max - min || 1;
+    const step = points.length > 1 ? cw / (points.length - 1) : 0;
+    const coords = points.map((p, i) => ({ x: L + (points.length > 1 ? i * step : cw / 2), y: T + ch - ((p.value - min) / range) * ch, ...p }));
+    const path = coords.map((c, i) => `${i ? 'L' : 'M'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
+    const area = coords.length > 1 ? `<path d="${path} L ${coords[coords.length - 1].x.toFixed(1)} ${T + ch} L ${coords[0].x.toFixed(1)} ${T + ch} Z" fill="var(--chart-1)" opacity="0.12"></path>` : '';
+    const grid = [0, 0.5, 1].map((f) => {
+      const y = (T + ch - f * ch).toFixed(1);
+      return `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" stroke="var(--border)"></line><text x="${L - 8}" y="${Number(y) + 4.5}" text-anchor="end" font-size="13">${compact(min + range * f)}</text>`;
+    }).join('');
+    const labelEvery = Math.ceil(coords.length / 6);
+    const dots = coords.map((c, i) => `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3.5" fill="var(--chart-1)"><title>${esc(c.label)}: ${fmt(c.value)}</title></circle>${i % labelEvery === 0 || i === coords.length - 1 ? `<text x="${c.x.toFixed(1)}" y="${H - 8}" text-anchor="${coords.length > 1 && i === 0 ? 'start' : coords.length > 1 && i === coords.length - 1 ? 'end' : 'middle'}" font-size="13">${esc(c.label)}</text>` : ''}`).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Net worth over time">${grid}${area}<path d="${path}" fill="none" stroke="var(--chart-1)" stroke-width="2.5"></path>${dots}</svg>`;
+  }
+
+  function renderReportHtml(r, years, canShare) {
+    const money = (value) => `${esc(r.currency)} ${fmt(value)}`;
+    const [year, monthNumber] = r.month.split('-');
+    const cf = r.cashflow;
+    const prev = r.prevCashflow;
+    const delta = (current, previous, higherIsGood) => {
+      if (previous === null || previous === undefined) return '';
+      const diff = current - previous;
+      if (Math.abs(diff) < 0.005) return `<span class="delta neutral">No change vs ${esc(shortMonth(WR.ui.previousMonthKey(r.month)))}</span>`;
+      const good = higherIsGood ? diff > 0 : diff < 0;
+      return `<span class="delta ${good ? 'positive' : 'negative'}">${diff > 0 ? '\u25b2' : '\u25bc'} ${fmt(Math.abs(diff))} vs ${esc(shortMonth(WR.ui.previousMonthKey(r.month)))}</span>`;
+    };
+    const kpi = (label, value, deltaHtml) => `<div class="report-kpi"><span class="report-kpi-label">${label}</span><span class="report-kpi-value">${value}</span>${deltaHtml}</div>`;
+    const flowBase = Math.max(cf.income, r.outflow, 0.01);
+    const flowSegments = r.breakdown.map((item, index) => `<span style="width:${((item.value / flowBase) * 100).toFixed(2)}%;background:${CHART_VARS[index % CHART_VARS.length]}" title="${esc(item.label)}"></span>`).join('');
+    const breakdownTotal = r.breakdown.reduce((sum, item) => sum + item.value, 0);
+    const legend = r.breakdown.map((item, index) => `<li><span class="legend-label"><span class="legend-dot" style="background:${CHART_VARS[index % CHART_VARS.length]}"></span>${esc(item.label)}</span><strong>${money(item.value)}</strong><small>${pct(item.value / breakdownTotal)} of ${cf.income >= r.outflow ? 'income' : 'money out'}</small></li>`).join('');
+    const icons = { good: '\u2713', warn: '!', info: 'i' };
+    const highlights = r.highlights.map((item) => `<li class="hl-${item.tone}"><span class="hl-icon" aria-hidden="true">${icons[item.tone]}</span><span>${esc(item.text)}</span></li>`).join('');
+    const topMax = r.topExpenses[0]?.actual || 1;
+    const topBars = r.topExpenses.map((item) => `<li><div class="report-bar-head"><span>${esc(item.label)} <small>${item.type === 'fixed' ? 'Fixed' : 'Variable'}</small></span><strong>${money(item.actual)}</strong></div><div class="report-bar"><span class="type-${item.type}" style="width:${((item.actual / topMax) * 100).toFixed(1)}%"></span></div></li>`).join('');
+    const budgetItems = r.variable.filter((item) => item.budget > 0 || item.actual > 0).slice(0, 10);
+    const budgetScale = Math.max(1, ...budgetItems.flatMap((item) => [item.budget, item.actual]));
+    const budgetBars = budgetItems.map((item) => {
+      const over = item.budget > 0 && item.actual > item.budget + 0.005;
+      return `<li><div class="report-bar-head"><span>${esc(item.label)}</span><strong>${money(item.actual)} <small>of ${fmt(item.budget)}</small></strong></div><div class="report-bar"><span class="type-variable${over ? ' over' : ''}" style="width:${((item.actual / budgetScale) * 100).toFixed(1)}%"></span>${item.budget > 0 ? `<i style="left:calc(${((item.budget / budgetScale) * 100).toFixed(1)}% - 1px)" title="Budget"></i>` : ''}</div></li>`;
+    }).join('');
+    const dayMax = r.dayCategories[0]?.value || 1;
+    const dayBars = r.dayCategories.map((item) => `<li><div class="report-bar-head"><span>${esc(item.label)}</span><strong>${money(item.value)}</strong></div><div class="report-bar"><span style="width:${((item.value / dayMax) * 100).toFixed(1)}%"></span></div></li>`).join('');
+    const debtRows = r.debts.map((debt) => `<tr><td>${esc(debt.label)}</td><td class="num">${fmt(debt.balance)}</td><td class="num">${(debt.rate * 100).toFixed(1)}%</td><td class="num">${fmt(debt.minPayment)}</td><td class="num">${fmt(debt.paid)}</td></tr>`).join('');
+    const detailRows = (list, showBudget) => list.map((item) => `<tr><td>${esc(item.label)}</td>${showBudget ? `<td class="num">${fmt(item.budget)}</td>` : ''}<td class="num${item.actual < 0 ? ' negative' : ''}">${fmt(item.actual)}</td>${showBudget ? `<td class="num${item.actual > item.budget ? ' negative' : ''}">${fmt(item.budget - item.actual)}</td>` : ''}</tr>`).join('');
+    const sum = (list, key) => list.reduce((total, item) => total + item[key], 0);
+    const downloadIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>';
+    const shareIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4"/><path d="m15.4 6.5-6.8 4"/></svg>';
+
+    const header = `
+      <header class="report-header">
+        <div>
+          <span class="report-eyebrow">Monthly report</span>
+          <h1>${esc(r.monthLabel)}</h1>
+          <p class="fine-print">${r.preparedFor ? `Prepared for ${esc(r.preparedFor)} \u00b7 ` : ''}Budget period ${esc(r.period.label)}</p>
+        </div>
+        <div class="report-controls">
+          <label>Year<select id="report-year">${years.map((y) => `<option value="${y}" ${String(y) === year ? 'selected' : ''}>${y}</option>`).join('')}</select></label>
+          <label>Month<select id="report-month">${Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map((m) => `<option value="${m}" ${m === monthNumber ? 'selected' : ''}>${WR.ui.monthName(Number(m))}</option>`).join('')}</select></label>
+          <button type="button" id="report-download" ${r.hasData ? '' : 'disabled'}>${downloadIcon}Download PDF</button>
+          ${canShare ? `<button type="button" id="report-share" class="secondary" ${r.hasData ? '' : 'disabled'}>${shareIcon}Share</button>` : ''}
+        </div>
+      </header>`;
+
+    if (!r.hasData) {
+      return `<div class="report-page">${header}<section class="report-card"><h2>Nothing to report yet</h2><p class="report-empty">There is no income or spending recorded for ${esc(r.monthLabel)}. Pick another month, or add income and expenses for this month first.</p></section></div>`;
     }
 
-    const incomeExpenseChart = WR.charts.barChart(
-      monthly.flatMap((m) => [
-        { label: `${m.month} In`, value: m.income },
-        { label: `${m.month} Exp`, value: m.fixed + m.variable },
-      ]),
-      { width: 620, height: 240 },
-    );
+    return `<div class="report-page">
+      ${header}
+      <section class="report-hero">
+        <div>
+          <span class="report-hero-label">${r.net >= 0 ? 'Left over this month' : 'Shortfall this month'}</span>
+          <strong class="report-hero-value${r.net < 0 ? ' negative' : ''}">${money(r.net)}</strong>
+          <p>${cf.income > 0 ? `${r.net >= 0 ? 'You kept' : 'You overspent by'} <strong>${pct(Math.abs(r.net) / cf.income)}</strong> of your income after expenses, debt repayments and savings.` : 'No income recorded for this month.'}</p>
+        </div>
+        <div class="report-hero-side">
+          <div><span>Income</span><strong>${money(cf.income)}</strong></div>
+          <div><span>Money out</span><strong>${money(r.outflow)}</strong></div>
+          <div class="report-flow" style="grid-column:1/-1" role="img" aria-label="Share of income by category">${flowSegments}</div>
+        </div>
+      </section>
 
-    const essentialDiscretionary = monthly.map((m) => {
-      const linesForMonth = allBudgetLines.filter((l) => l.month === m.month);
-      const split = WR.financial.calculateEssentialVsDiscretionary(linesForMonth, categories);
-      return { month: m.month, ...split };
-    });
-    const spendSplitChart = WR.charts.barChart(
-      essentialDiscretionary.flatMap((m) => [
-        { label: `${m.month} Ess`, value: m.essential },
-        { label: `${m.month} Disc`, value: m.discretionary },
-      ]),
-      { width: 620, height: 240 },
-    );
+      <section class="report-kpis" aria-label="Key figures">
+        ${kpi('Income', money(cf.income), prev ? delta(cf.income, prev.income, true) : '')}
+        ${kpi('Fixed expenses', money(cf.fixedExpenses), prev ? delta(cf.fixedExpenses, prev.fixedExpenses, false) : '')}
+        ${kpi('Variable expenses', money(cf.variableExpenses), prev ? delta(cf.variableExpenses, prev.variableExpenses, false) : '')}
+        ${kpi('Debt repayments', money(cf.debtPayments), prev ? delta(cf.debtPayments, prev.debtPayments, false) : '')}
+        ${kpi('Savings', money(cf.savings), prev ? delta(cf.savings, prev.savings, true) : '')}
+        ${kpi('Financial health', `${r.healthScore}<small style="font-size:0.8rem;color:var(--muted)"> / 1000</small>`, r.prevHealthScore !== null ? delta(r.healthScore, r.prevHealthScore, true).replace(/(\d+)\.00/, '$1') : '')}
+      </section>
 
-    const assetsChart = WR.charts.lineChart(
-      netWorthHistory.map((h) => ({ label: h.date, value: h.totalAssets })),
-      { width: 460, height: 220 },
-    );
-    const liabilitiesChart = WR.charts.lineChart(
-      netWorthHistory.map((h) => ({ label: h.date, value: h.totalLiabilities })),
-      { width: 460, height: 220 },
-    );
-
-    const latestMonth = monthly.length ? monthly[monthly.length - 1].month : null;
-    const latestMonthLines = latestMonth ? allBudgetLines.filter((l) => l.month === latestMonth) : [];
-    const categorySpend = WR.financial.aggregateSpendingByCategory(latestMonthLines, categories);
-    const categoryChart = WR.charts.barChart(
-      categorySpend.map((c) => ({ label: c.label, value: c.value })),
-      { width: 620, height: 240 },
-    );
-
-    WR.ui.setHTML(container, `
-      <h1>Reports</h1>
-      <p class="fine-print">Built from every month you've entered data for \u2014 the more months you track, the more these trends tell you.</p>
-
-      <h2>Income vs Expenses by Month</h2>
-      <div class="chart-block">${monthly.length ? incomeExpenseChart : '<p class="empty">No transactions recorded yet.</p>'}</div>
-
-      <h2>Essential vs Discretionary Spending by Month</h2>
-      <p class="fine-print">Tag expense categories as essential/discretionary in Settings to make this accurate \u2014 untagged spending counts as discretionary.</p>
-      <div class="chart-block">${monthly.length ? spendSplitChart : '<p class="empty">No transactions recorded yet.</p>'}</div>
-
-      <h2>Spending by Category (${latestMonth || 'no data'})</h2>
-      <div class="chart-block">${categorySpend.length ? categoryChart : '<p class="empty">No fixed/variable expenses recorded for the latest month.</p>'}</div>
-
-      <h2>Assets &amp; Liabilities Over Time</h2>
-      <div class="charts">
-        <div class="chart-block"><h3>Total Assets (${currency})</h3>${assetsChart}</div>
-        <div class="chart-block"><h3>Total Liabilities (${currency})</h3>${liabilitiesChart}</div>
+      <div class="report-grid">
+        <section class="report-card">
+          <h2>Where the money went</h2>
+          <p class="fine-print">How this month's income was used.</p>
+          ${r.breakdown.length ? `<div class="report-donut">${donutSvg(r.breakdown, 'Income', compact(cf.income))}<ul class="report-legend">${legend}</ul></div>` : '<p class="report-empty">No spending or savings recorded.</p>'}
+        </section>
+        <section class="report-card">
+          <h2>Highlights</h2>
+          <p class="fine-print">The key points from ${esc(r.monthLabel)}.</p>
+          <ul class="report-highlights">${highlights}</ul>
+        </section>
       </div>
-      <p class="fine-print">Record a net worth snapshot from the Dashboard each time your numbers change to build this history.</p>
-    `);
+
+      <section class="report-card report-trend">
+        <h2>${esc(year)} so far</h2>
+        <p class="fine-print">Income compared with money going out (expenses, debt repayments and savings) for each month up to ${esc(r.monthLabel)}.</p>
+        ${r.trend.length ? trendHtml(r.trend) : '<p class="report-empty">No months recorded yet this year.</p>'}
+        <div class="report-chart-legend"><span><span class="legend-dot" style="background:var(--chart-1)"></span>Income</span><span><span class="legend-dot" style="background:var(--chart-2)"></span>Money out</span></div>
+      </section>
+
+      <div class="report-grid">
+        <section class="report-card">
+          <h2>Biggest expenses</h2>
+          <p class="fine-print">Top fixed and variable costs this month.</p>
+          ${topBars ? `<ul class="report-bars">${topBars}</ul>` : '<p class="report-empty">No expenses recorded.</p>'}
+        </section>
+        <section class="report-card">
+          <h2>Budget vs actual</h2>
+          <p class="fine-print">Variable spending against plan. The marker shows the budget; red bars went over.</p>
+          ${budgetBars ? `<ul class="report-bars">${budgetBars}</ul>` : '<p class="report-empty">No variable budget lines for this month.</p>'}
+        </section>
+      </div>
+
+      <div class="report-grid">
+        <section class="report-card">
+          <h2>Day-to-day spending</h2>
+          <p class="fine-print">${esc(r.period.label)}</p>
+          <div class="report-mini-stats">
+            <div><span>Available</span><strong>${money(r.period.available)}</strong></div>
+            <div><span>Spent</span><strong>${money(r.period.spent)}</strong></div>
+            <div><span>Remaining</span><strong class="${r.period.remaining < 0 ? 'negative' : ''}">${money(r.period.remaining)}</strong></div>
+          </div>
+          ${dayBars ? `<ul class="report-bars">${dayBars}</ul>` : '<p class="report-empty">No day-to-day spending recorded in this period.</p>'}
+        </section>
+        <section class="report-card">
+          <h2>Debts</h2>
+          <p class="fine-print">Current balances in ${esc(r.currency)}${r.debtPaid > 0 ? ` \u00b7 ${money(r.debtPaid)} paid this month` : ''}.</p>
+          ${debtRows ? `<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Debt</th><th class="num">Balance</th><th class="num">Rate</th><th class="num">Minimum</th><th class="num">Paid</th></tr></thead><tbody>${debtRows}</tbody><tfoot><tr><td>Total</td><td class="num">${fmt(sum(r.debts, 'balance'))}</td><td></td><td class="num">${fmt(sum(r.debts, 'minPayment'))}</td><td class="num">${fmt(sum(r.debts, 'paid'))}</td></tr></tfoot></table></div>` : '<p class="report-empty">No outstanding debts.</p>'}
+        </section>
+      </div>
+
+      <div class="report-grid">
+        <section class="report-card">
+          <h2>Net worth</h2>
+          <p class="fine-print">${r.netWorth ? esc(r.netWorth.asAt) : 'No net worth snapshot recorded for this month.'}</p>
+          ${r.netWorth ? `<div class="report-mini-stats">
+            <div><span>Assets</span><strong>${money(r.netWorth.assets)}</strong></div>
+            <div><span>Liabilities</span><strong>${money(r.netWorth.liabilities)}</strong></div>
+            <div><span>Net worth</span><strong class="${r.netWorth.value < 0 ? 'negative' : ''}">${money(r.netWorth.value)}</strong></div>
+          </div>` : ''}
+          ${r.netWorthHistory.length > 1 ? `<div class="report-trend">${lineSvg(r.netWorthHistory.map((entry) => ({ label: entry.date.slice(5, 7) === '01' || r.netWorthHistory.length < 7 ? `${shortMonth(entry.date.slice(0, 7))} ${entry.date.slice(2, 4)}` : shortMonth(entry.date.slice(0, 7)), value: entry.netWorth })))}</div>` : ''}
+        </section>
+        <section class="report-card">
+          <h2>Savings &amp; reserves</h2>
+          <p class="fine-print">Current balances.</p>
+          <div class="report-mini-stats">
+            <div><span>Savings pots</span><strong>${money(r.reserves.pots)}</strong></div>
+            <div><span>Emergency fund</span><strong>${money(r.reserves.emergency)}</strong></div>
+            <div><span>Borrowed from reserves</span><strong class="${r.reserves.borrowed > 0 ? 'negative' : ''}">${money(r.reserves.borrowed)}</strong></div>
+          </div>
+          ${r.savings.length ? `<table class="report-table"><thead><tr><th>Saved this month</th><th class="num">Amount</th></tr></thead><tbody>${detailRows(r.savings, false)}</tbody></table>` : ''}
+        </section>
+      </div>
+
+      <div class="report-grid">
+        <section class="report-card">
+          <h2>Income</h2>
+          ${r.income.length ? `<table class="report-table"><thead><tr><th>Source</th><th class="num">Amount</th></tr></thead><tbody>${detailRows(r.income, false)}</tbody><tfoot><tr><td>Total</td><td class="num">${fmt(cf.income)}</td></tr></tfoot></table>` : '<p class="report-empty">No income recorded.</p>'}
+        </section>
+        <section class="report-card">
+          <h2>Fixed expenses</h2>
+          ${r.fixed.length ? `<table class="report-table"><thead><tr><th>Expense</th><th class="num">Amount</th></tr></thead><tbody>${detailRows(r.fixed, false)}</tbody><tfoot><tr><td>Total</td><td class="num">${fmt(cf.fixedExpenses)}</td></tr></tfoot></table>` : '<p class="report-empty">No fixed expenses.</p>'}
+        </section>
+      </div>
+
+      ${r.variable.length ? `<section class="report-card">
+        <h2>Variable expenses</h2>
+        <div class="report-table-wrap"><table class="report-table"><thead><tr><th>Expense</th><th class="num">Budget</th><th class="num">Actual</th><th class="num">Difference</th></tr></thead><tbody>${detailRows(r.variable, true)}</tbody><tfoot><tr><td>Total</td><td class="num">${fmt(sum(r.variable, 'budget'))}</td><td class="num">${fmt(cf.variableExpenses)}</td><td class="num">${fmt(sum(r.variable, 'budget') - cf.variableExpenses)}</td></tr></tfoot></table></div>
+      </section>` : ''}
+    </div>`;
+  }
+
+  function pdfSafe(value) {
+    return String(value ?? '')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201c\u201d]/g, '"')
+      .replace(/[\u2013\u2014]/g, '-')
+      .replace(/\u2026/g, '...')
+      .replace(/[^\x20-\x7e\u00a0-\u00ff]/g, '')
+      .trim();
+  }
+
+  function createReportPdf(JsPDF, r) {
+    const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210, H = 297, M = 14, CW = W - M * 2;
+    const C = { accent: [14, 107, 87], text: [28, 36, 33], muted: [104, 113, 109], border: [223, 228, 225], panel: [245, 248, 247], tint: [231, 242, 238], danger: [166, 51, 43], success: [46, 125, 79], white: [255, 255, 255] };
+    const money = (value) => `${r.currency} ${fmt(value)}`;
+    const cf = r.cashflow;
+    let y = 0;
+    const font = (size, style = 'normal', color = C.text) => { doc.setFont('helvetica', style); doc.setFontSize(size); doc.setTextColor(...color); };
+    const text = (value, x, yy, options) => doc.text(pdfSafe(value), x, yy, options);
+    const fitText = (value, width) => {
+      let output = pdfSafe(value);
+      while (output.length > 1 && doc.getTextWidth(output) > width) output = output.slice(0, -1);
+      return output === pdfSafe(value) ? output : `${output.slice(0, -1)}...`;
+    };
+    const ensure = (height) => { if (y + height > H - 18) { doc.addPage(); y = 18; } };
+    const section = (title, note, minBody = 30) => {
+      ensure(14 + minBody);
+      y += 4;
+      font(13, 'bold');
+      text(title, M, y);
+      doc.setDrawColor(...C.accent); doc.setLineWidth(0.6); doc.line(M, y + 2, M + 14, y + 2);
+      y += 7;
+      if (note) {
+        font(8.5, 'normal', C.muted);
+        const lines = doc.splitTextToSize(pdfSafe(note), CW);
+        doc.text(lines, M, y);
+        y += lines.length * 3.8 + 1.5;
+      }
+    };
+
+    // Header band
+    doc.setFillColor(...C.accent); doc.rect(0, 0, W, 40, 'F');
+    font(8.5, 'bold', [196, 228, 218]); text('WEALTHROUTE  |  MONTHLY FINANCIAL REPORT', M, 12);
+    font(24, 'bold', C.white); text(r.monthLabel, M, 25);
+    font(9.5, 'normal', [220, 238, 232]);
+    text(`${r.preparedFor ? `Prepared for ${r.preparedFor}  |  ` : ''}Budget period ${r.period.label}`, M, 33);
+    text(`Generated ${r.generatedOn}`, W - M, 12, { align: 'right' });
+    y = 50;
+
+    // Hero summary
+    doc.setFillColor(...C.tint); doc.setDrawColor(...C.border); doc.roundedRect(M, y, CW, 34, 3, 3, 'FD');
+    doc.setFillColor(...C.accent); doc.rect(M, y, 1.6, 34, 'F');
+    font(9, 'normal', C.muted); text(r.net >= 0 ? 'Left over this month' : 'Shortfall this month', M + 7, y + 9);
+    font(22, 'bold', r.net < 0 ? C.danger : C.text); text(money(r.net), M + 7, y + 20);
+    font(9, 'normal', C.text);
+    const heroNote = cf.income > 0 ? `${r.net >= 0 ? 'You kept' : 'You overspent by'} ${pct(Math.abs(r.net) / cf.income)} of your income after expenses, debt repayments and savings.` : 'No income recorded for this month.';
+    doc.text(doc.splitTextToSize(pdfSafe(heroNote), CW * 0.58), M + 7, y + 27);
+    const sideX = M + CW * 0.66;
+    doc.setDrawColor(...C.border); doc.line(sideX - 5, y + 6, sideX - 5, y + 28);
+    font(8.5, 'normal', C.muted); text('Income', sideX, y + 10); text('Money out', sideX, y + 22);
+    font(12.5, 'bold'); text(money(cf.income), sideX, y + 16); text(money(r.outflow), sideX, y + 28);
+    y += 42;
+
+    // KPI grid
+    const kpis = [
+      ['Income', money(cf.income), r.prevCashflow?.income, cf.income, true],
+      ['Fixed expenses', money(cf.fixedExpenses), r.prevCashflow?.fixedExpenses, cf.fixedExpenses, false],
+      ['Variable expenses', money(cf.variableExpenses), r.prevCashflow?.variableExpenses, cf.variableExpenses, false],
+      ['Debt repayments', money(cf.debtPayments), r.prevCashflow?.debtPayments, cf.debtPayments, false],
+      ['Savings', money(cf.savings), r.prevCashflow?.savings, cf.savings, true],
+      ['Financial health', `${r.healthScore} / 1000`, r.prevHealthScore ?? undefined, r.healthScore, true],
+    ];
+    const boxW = (CW - 8) / 3, boxH = 21;
+    kpis.forEach(([label, value, previous, current, higherIsGood], index) => {
+      const x = M + (index % 3) * (boxW + 4);
+      const by = y + Math.floor(index / 3) * (boxH + 4);
+      doc.setFillColor(...C.white); doc.setDrawColor(...C.border); doc.roundedRect(x, by, boxW, boxH, 2, 2, 'FD');
+      font(8, 'normal', C.muted); text(label, x + 4, by + 6.5);
+      font(12, 'bold'); text(fitText(value, boxW - 8), x + 4, by + 13.5);
+      if (previous !== undefined && previous !== null) {
+        const diff = current - previous;
+        const good = higherIsGood ? diff > 0 : diff < 0;
+        font(7.5, 'bold', Math.abs(diff) < 0.005 ? C.muted : good ? C.success : C.danger);
+        const amount = label === 'Financial health' ? String(Math.abs(diff)) : fmt(Math.abs(diff));
+        text(Math.abs(diff) < 0.005 ? `No change vs ${r.prevLabel}` : `${diff > 0 ? '+' : '-'}${amount} vs ${r.prevLabel}`, x + 4, by + 18.5);
+      }
+    });
+    y += boxH * 2 + 8;
+
+    // Donut + legend
+    if (r.breakdown.length) {
+      section('Where the money went', "How this month's income was used.", 58);
+      const total = r.breakdown.reduce((sum, item) => sum + item.value, 0);
+      const cx = M + 27, cy = y + 26, outer = 25, inner = 16;
+      let angle = -Math.PI / 2;
+      r.breakdown.forEach((item, index) => {
+        const sweep = (item.value / total) * Math.PI * 2;
+        const steps = Math.max(2, Math.ceil(sweep / 0.05));
+        const points = [];
+        for (let i = 0; i <= steps; i += 1) { const a = angle + (sweep * i) / steps; points.push([cx + outer * Math.cos(a), cy + outer * Math.sin(a)]); }
+        for (let i = steps; i >= 0; i -= 1) { const a = angle + (sweep * i) / steps; points.push([cx + inner * Math.cos(a), cy + inner * Math.sin(a)]); }
+        const deltas = points.slice(1).map((p, i) => [p[0] - points[i][0], p[1] - points[i][1]]);
+        doc.setFillColor(...PDF_PALETTE[index % PDF_PALETTE.length]);
+        doc.lines(deltas, points[0][0], points[0][1], [1, 1], 'F', true);
+        angle += sweep;
+      });
+      font(7.5, 'normal', C.muted); text('Income', cx, cy - 1, { align: 'center' });
+      font(10, 'bold'); text(compact(cf.income), cx, cy + 4.5, { align: 'center' });
+      let ly = y + 6;
+      const lx = M + 64;
+      r.breakdown.forEach((item, index) => {
+        doc.setFillColor(...PDF_PALETTE[index % PDF_PALETTE.length]); doc.roundedRect(lx, ly - 3, 3.2, 3.2, 0.8, 0.8, 'F');
+        font(9.5, 'normal'); text(item.label, lx + 6, ly);
+        font(9.5, 'bold'); text(money(item.value), M + CW, ly, { align: 'right' });
+        font(7.5, 'normal', C.muted); text(`${pct(item.value / total)} of ${cf.income >= r.outflow ? 'income' : 'money out'}`, lx + 6, ly + 4);
+        doc.setDrawColor(...C.border); doc.setLineWidth(0.2); doc.line(lx, ly + 6.2, M + CW, ly + 6.2);
+        ly += 10;
+      });
+      y = Math.max(y + 56, ly + 2);
+    }
+
+    // Highlights
+    section('Highlights', null, 20);
+    r.highlights.forEach((item) => {
+      const lines = doc.splitTextToSize(pdfSafe(item.text), CW - 8);
+      ensure(lines.length * 4.4 + 3);
+      doc.setFillColor(...(item.tone === 'warn' ? C.danger : item.tone === 'info' ? PDF_PALETTE[1] : C.success));
+      doc.circle(M + 1.8, y - 1.3, 1.3, 'F');
+      font(9.5, 'normal'); doc.text(lines, M + 6, y);
+      y += lines.length * 4.4 + 2.2;
+    });
+
+    // Year-to-date trend
+    if (r.trend.length) {
+      section(`${r.month.slice(0, 4)} so far`, `Income compared with money going out for each month up to ${r.monthLabel}.`, 62);
+      const chartH = 50, L = M + 16, chartW = CW - 16, top = y + 2;
+      const max = niceMax(Math.max(0, ...r.trend.flatMap((row) => [row.income, row.outflow])));
+      [0, 0.25, 0.5, 0.75, 1].forEach((f) => {
+        const gy = top + chartH - f * chartH;
+        doc.setDrawColor(...C.border); doc.setLineWidth(0.2); doc.line(L, gy, L + chartW, gy);
+        font(7, 'normal', C.muted); text(compact(max * f), L - 2, gy + 1, { align: 'right' });
+      });
+      const groupW = chartW / r.trend.length;
+      const barW = Math.min(6, groupW * 0.32);
+      r.trend.forEach((row, index) => {
+        const center = L + index * groupW + groupW / 2;
+        [[row.income, PDF_PALETTE[0], center - barW - 0.4], [row.outflow, PDF_PALETTE[1], center + 0.4]].forEach(([value, color, x]) => {
+          const h = (Math.max(0, value) / max) * chartH;
+          if (h > 0) { doc.setFillColor(...color); doc.rect(x, top + chartH - h, barW, h, 'F'); }
+        });
+        font(7.5, 'normal', C.muted); text(row.label, center, top + chartH + 4.5, { align: 'center' });
+      });
+      y = top + chartH + 10;
+      [['Income', PDF_PALETTE[0]], ['Money out', PDF_PALETTE[1]]].forEach(([label, color], index) => {
+        const x = L + index * 30;
+        doc.setFillColor(...color); doc.rect(x, y - 2.6, 3, 3, 'F');
+        font(8, 'normal', C.muted); text(label, x + 5, y);
+      });
+      y += 4;
+    }
+
+    const bars = (title, note, list, valueOf, labelOf, extraOf, colorOf, markerOf) => {
+      if (!list.length) return;
+      section(title, note, 16);
+      const max = Math.max(1, ...list.map((item) => Math.max(valueOf(item), markerOf ? markerOf(item) : 0)));
+      list.forEach((item) => {
+        ensure(10);
+        font(9, 'normal'); text(fitText(labelOf(item), CW - 60), M, y);
+        font(9, 'bold'); text(extraOf(item), M + CW, y, { align: 'right' });
+        doc.setFillColor(...C.panel); doc.roundedRect(M, y + 1.8, CW, 2.6, 1.3, 1.3, 'F');
+        const w = (Math.max(0, valueOf(item)) / max) * CW;
+        if (w > 0.3) { doc.setFillColor(...colorOf(item)); doc.roundedRect(M, y + 1.8, w, 2.6, 1.3, 1.3, 'F'); }
+        if (markerOf && markerOf(item) > 0) { doc.setFillColor(...C.text); doc.rect(M + (markerOf(item) / max) * CW - 0.3, y + 1, 0.6, 4.2, 'F'); }
+        y += 9.5;
+      });
+    };
+    bars('Biggest expenses', 'Top fixed and variable costs this month.', r.topExpenses, (item) => item.actual, (item) => `${item.label} (${item.type === 'fixed' ? 'Fixed' : 'Variable'})`, (item) => money(item.actual), (item) => (item.type === 'fixed' ? PDF_PALETTE[0] : PDF_PALETTE[1]));
+    bars('Budget vs actual', 'Variable spending against plan. The dark marker shows the budget; red bars went over.', r.variable.slice(0, 10), (item) => item.actual, (item) => item.label, (item) => `${money(item.actual)} of ${fmt(item.budget)}`, (item) => (item.budget > 0 && item.actual > item.budget + 0.005 ? C.danger : PDF_PALETTE[1]), (item) => item.budget);
+
+    const table = (columns, rows, footer) => {
+      const rowH = 6.6;
+      const drawHead = () => {
+        doc.setFillColor(...C.panel); doc.rect(M, y - 4.4, CW, rowH, 'F');
+        font(8, 'bold', C.muted);
+        let x = M;
+        columns.forEach((col) => { text(col.label, col.align === 'right' ? x + col.w - 2 : x + 2, y, col.align === 'right' ? { align: 'right' } : undefined); x += col.w; });
+        y += rowH;
+      };
+      ensure(rowH * 3);
+      drawHead();
+      const drawRow = (cells, bold) => {
+        if (y + rowH > H - 18) { doc.addPage(); y = 18; drawHead(); }
+        font(8.8, bold ? 'bold' : 'normal');
+        let x = M;
+        cells.forEach((cell, index) => {
+          const col = columns[index];
+          const value = col.align === 'right' ? pdfSafe(cell) : fitText(cell, col.w - 4);
+          text(value, col.align === 'right' ? x + col.w - 2 : x + 2, y, col.align === 'right' ? { align: 'right' } : undefined);
+          x += col.w;
+        });
+        doc.setDrawColor(...C.border); doc.setLineWidth(0.2); doc.line(M, y + 2.2, M + CW, y + 2.2);
+        y += rowH;
+      };
+      rows.forEach((cells) => drawRow(cells, false));
+      if (footer) drawRow(footer, true);
+      y += 2;
+    };
+
+    section('Day-to-day spending', r.period.label, 24);
+    font(9, 'normal');
+    text(`Available ${money(r.period.available)}   |   Spent ${money(r.period.spent)}   |   Remaining ${money(r.period.remaining)}`, M, y);
+    y += 8;
+    if (r.dayCategories.length) {
+      const dayList = r.dayCategories;
+      const max = dayList[0].value || 1;
+      dayList.forEach((item) => {
+        ensure(10);
+        font(9, 'normal'); text(fitText(item.label, CW - 50), M, y);
+        font(9, 'bold'); text(money(item.value), M + CW, y, { align: 'right' });
+        doc.setFillColor(...C.panel); doc.roundedRect(M, y + 1.8, CW, 2.6, 1.3, 1.3, 'F');
+        doc.setFillColor(...PDF_PALETTE[0]); doc.roundedRect(M, y + 1.8, Math.max(0.6, (item.value / max) * CW), 2.6, 1.3, 1.3, 'F');
+        y += 9.5;
+      });
+    }
+
+    if (r.debts.length) {
+      section('Debts', `Current balances in ${r.currency}${r.debtPaid > 0 ? `. ${money(r.debtPaid)} paid this month` : ''}.`, 24);
+      const total = (key) => r.debts.reduce((sum, debt) => sum + debt[key], 0);
+      table(
+        [{ label: 'Debt', w: CW - 120 }, { label: 'Balance', w: 34, align: 'right' }, { label: 'Rate', w: 18, align: 'right' }, { label: 'Minimum', w: 34, align: 'right' }, { label: 'Paid', w: 34, align: 'right' }],
+        r.debts.map((debt) => [debt.label, fmt(debt.balance), `${(debt.rate * 100).toFixed(1)}%`, fmt(debt.minPayment), fmt(debt.paid)]),
+        ['Total', fmt(total('balance')), '', fmt(total('minPayment')), fmt(total('paid'))],
+      );
+    }
+
+    section('Net worth & reserves', r.netWorth ? r.netWorth.asAt : 'No net worth snapshot recorded for this month.', 20);
+    const stats = [
+      ...(r.netWorth ? [['Assets', r.netWorth.assets], ['Liabilities', r.netWorth.liabilities], ['Net worth', r.netWorth.value]] : []),
+      ['Savings pots', r.reserves.pots], ['Emergency fund', r.reserves.emergency], ['Borrowed from reserves', r.reserves.borrowed],
+    ];
+    const statW = (CW - 8) / 3;
+    stats.forEach(([label, value], index) => {
+      if (index % 3 === 0) ensure(16);
+      const x = M + (index % 3) * (statW + 4);
+      doc.setFillColor(...C.panel); doc.roundedRect(x, y - 3, statW, 13, 1.5, 1.5, 'F');
+      font(7.5, 'normal', C.muted); text(label, x + 3, y + 1.5);
+      font(10, 'bold', value < 0 ? C.danger : C.text); text(fitText(money(value), statW - 6), x + 3, y + 7.2);
+      if (index % 3 === 2 || index === stats.length - 1) y += 16;
+    });
+
+    const twoCol = [{ label: 'Item', w: CW - 40 }, { label: `Amount (${r.currency})`, w: 40, align: 'right' }];
+    if (r.income.length) {
+      section('Income', null, 20);
+      table(twoCol, r.income.map((item) => [item.label, fmt(item.actual)]), ['Total', fmt(cf.income)]);
+    }
+    if (r.fixed.length) {
+      section('Fixed expenses', null, 20);
+      table(twoCol, r.fixed.map((item) => [item.label, fmt(item.actual)]), ['Total', fmt(cf.fixedExpenses)]);
+    }
+    if (r.variable.length) {
+      section('Variable expenses', null, 20);
+      const budgetTotal = r.variable.reduce((sum, item) => sum + item.budget, 0);
+      table(
+        [{ label: 'Item', w: CW - 105 }, { label: 'Budget', w: 35, align: 'right' }, { label: 'Actual', w: 35, align: 'right' }, { label: 'Difference', w: 35, align: 'right' }],
+        r.variable.map((item) => [item.label, fmt(item.budget), fmt(item.actual), fmt(item.budget - item.actual)]),
+        ['Total', fmt(budgetTotal), fmt(cf.variableExpenses), fmt(budgetTotal - cf.variableExpenses)],
+      );
+    }
+    if (r.savings.length) {
+      section('Saved this month', null, 20);
+      table(twoCol, r.savings.map((item) => [item.label, fmt(item.actual)]), ['Total', fmt(cf.savings)]);
+    }
+
+    const pages = doc.getNumberOfPages();
+    for (let page = 1; page <= pages; page += 1) {
+      doc.setPage(page);
+      doc.setDrawColor(...C.border); doc.setLineWidth(0.2); doc.line(M, H - 12, W - M, H - 12);
+      font(7.5, 'normal', C.muted);
+      text(`WealthRoute  |  ${r.monthLabel} report`, M, H - 7);
+      text(`Page ${page} of ${pages}`, W - M, H - 7, { align: 'right' });
+    }
+    return doc;
+  }
+
+  function canSharePdf() {
+    try {
+      return typeof File !== 'undefined' && !!navigator.canShare && navigator.canShare({ files: [new File(['%PDF'], 'report.pdf', { type: 'application/pdf' })] });
+    } catch {
+      return false;
+    }
+  }
+
+  async function renderReports(container) {
+    const month = WR.ui._reportMonth || WR.ui.currentBudgetMonth();
+    WR.ui.setHTML(container, '<p class="loading">Building your report\u2026</p>');
+    loadJsPdf().catch(() => {});
+    const [snapshot, previous] = await Promise.all([
+      WR.ui.buildSnapshot(month),
+      WR.ui.buildSnapshot(WR.ui.previousMonthKey(month)),
+    ]);
+    WR.ui.assertActiveView(container);
+    const report = buildReportModel(snapshot, previous);
+
+    const years = new Set([new Date().getFullYear(), Number(month.slice(0, 4))]);
+    snapshot.allBudgetLines.forEach((line) => years.add(Number(String(line.month || '').slice(0, 4))));
+    snapshot.payCycles.forEach((cycle) => years.add(Number(String(cycle.month || '').slice(0, 4))));
+    snapshot.netWorthHistory.forEach((entry) => years.add(Number(String(entry.date || '').slice(0, 4))));
+    snapshot.incomeSources.forEach((source) => years.add(Number(source.year)));
+    const yearList = [...years].filter((y) => Number.isInteger(y) && y > 1990 && y < 2200).sort((a, b) => b - a);
+
+    WR.ui.setHTML(container, renderReportHtml(report, yearList, canSharePdf()));
+
+    const changeMonth = () => {
+      WR.ui._reportMonth = `${container.querySelector('#report-year').value}-${container.querySelector('#report-month').value}`;
+      renderReports(container).catch((error) => { if (error.name !== 'AbortError') WR.ui.notify(error.message || 'Could not build the report.', 'error'); });
+    };
+    container.querySelector('#report-year').addEventListener('change', changeMonth);
+    container.querySelector('#report-month').addEventListener('change', changeMonth);
+
+    const filename = `WealthRoute-Report-${report.month}.pdf`;
+    const runPdf = async (button, action) => {
+      const children = [...button.childNodes];
+      button.disabled = true;
+      button.textContent = 'Preparing PDF\u2026';
+      try {
+        const JsPDF = await loadJsPdf();
+        await action(createReportPdf(JsPDF, report));
+      } catch (error) {
+        if (error?.name !== 'AbortError') WR.ui.notify(error?.message || 'Could not create the PDF.', 'error');
+      } finally {
+        button.disabled = false;
+        button.replaceChildren(...children);
+      }
+    };
+    container.querySelector('#report-download')?.addEventListener('click', (event) => {
+      runPdf(event.currentTarget, (doc) => { doc.save(filename); WR.ui.notify('Report downloaded.', 'success'); });
+    });
+    container.querySelector('#report-share')?.addEventListener('click', (event) => {
+      runPdf(event.currentTarget, (doc) => navigator.share({
+        files: [new File([doc.output('blob')], filename, { type: 'application/pdf' })],
+        title: `${report.monthLabel} financial report`,
+        text: `Our ${report.monthLabel} finances from WealthRoute.`,
+      }));
+    });
   }
 
   WR.ui.renderReports = renderReports;
+  WR.ui.buildReportModel = buildReportModel;
 })();
 // Excel view: upload -> pick sheet -> pick header row -> map columns ->
 // preview -> confirm import, plus export of current data to a new workbook.

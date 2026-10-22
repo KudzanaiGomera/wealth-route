@@ -1109,6 +1109,7 @@ async function checkFixedExpenseExpiry() {
   assert.equal(fixedContext.isActiveForMonth(expenses[3], '2027-01'), true);
   await fixedContext.renderFixedExpenses(container);
   assert.ok(markup.includes('ZAR 600.00'));
+  assert.ok(!markup.includes('categoryId') && !markup.includes('<th>Category</th>'), 'Fixed expenses must not show a category column');
   assert.ok(!markup.includes('data-id="ended"') && !markup.includes('data-id="old-year"'));
   assert.ok(markup.includes('data-id="ending"') && markup.includes('data-id="future"'));
   await controls['#fixed-show-ended']({ target: { checked: true } });

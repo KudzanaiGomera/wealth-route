@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wealthroute-shell-v159';
+const CACHE_NAME = 'wealthroute-shell-v160';
 const APP_SHELL = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const APP_SHELL = [
   './tests.html',
   './vendor/purify.min.js',
   './vendor/papaparse.min.js',
+  './vendor/jspdf.umd.min.js',
   './favicon-16.png',
   './favicon-32.png',
   './icon-192.png',
