@@ -2637,6 +2637,25 @@ WR.financial = WR.financial || {};
   }
 
   /**
+   * Debt payments that belong to one budget month. A debt counts when it still
+   * has a balance, or when a payment was recorded against it for that month.
+   * The second rule matters: marking the final payment as paid drops the
+   * balance to zero, and without it the debt would disappear from the budget
+   * of the very month it was paid in, so Left to spend would jump back up.
+   * @param {Array} debts
+   * @param {Array} debtPayments - payment ledger records ({ debtId, month })
+   * @param {string} monthKey - 'YYYY-MM' budget month
+   */
+  function calculateMonthDebtPayments(debts, debtPayments, monthKey, exchangeRates, baseCurrency) {
+    const paidThisMonth = new Set((debtPayments || []).filter((payment) => payment.month === monthKey).map((payment) => payment.debtId));
+    return debts.reduce((total, debt) => {
+      const cleared = debt.currentBalance !== undefined && Number(debt.currentBalance) <= 0.01;
+      if (cleared && !paidThisMonth.has(debt.id)) return total;
+      return total + debtValueInCurrency(debt, monthlyMinPayment(debt), exchangeRates, baseCurrency);
+    }, 0);
+  }
+
+  /**
    * Debt-to-income ratio using minimum required payments against monthly
    * income. Returns 0 when income is 0 or negative, to avoid Infinity/NaN
    * leaking into the dashboard or health score.
@@ -2677,6 +2696,7 @@ WR.financial = WR.financial || {};
     monthlyMinPayment,
     calculateTotalDebt,
     calculateTotalMinPayments,
+    calculateMonthDebtPayments,
     calculateDebtToIncomeRatio,
     getHighestInterestDebt,
     calculateWeightedAverageInterestRate,
@@ -4075,7 +4095,7 @@ WR.ui = WR.ui || {};
       expectedIncome: data.incomeSources.filter(source => Number(source.year || year) === year && WR.ui.isActiveForMonth(source, month)).reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0),
       fixedAmount: data.fixedExpenses.filter(expense => WR.ui.isActiveForMonth(expense, month)).reduce((sum, expense) => sum + WR.ui.monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'), 0),
       variableAmount: data.budgetLines.filter(line => line.month === month && line.type === 'variable').reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0),
-      debtAmount: WR.financial.calculateTotalMinPayments(data.debts, data.exchangeRates, data.profile.baseCurrency),
+      debtAmount: WR.financial.calculateMonthDebtPayments(data.debts, data.debtPayments, month, data.exchangeRates, data.profile.baseCurrency),
     };
     if (!receipt && !existing && defaults.expectedIncome <= 0 && carryOver === 0) return existing;
     const uid = WR.account.getCurrentUser()?.uid;
@@ -4200,10 +4220,10 @@ WR.ui = WR.ui || {};
       if (cycle.mode !== 'income-table') return cycle;
       const fixedAmount = fixedExpenses.filter(expense => isActiveForMonth(expense, cycle.month)).reduce((sum, expense) => sum + monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'), 0);
       const variableAmount = allBudgetLines.filter(line => line.month === cycle.month && line.type === 'variable').reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
-      const debtAmount = WR.financial.calculateTotalMinPayments(debts, exchangeRates, profile.baseCurrency);
+      const debtAmount = WR.financial.calculateMonthDebtPayments(debts, debtPayments, cycle.month, exchangeRates, profile.baseCurrency);
       return { ...cycle, fixedAmount, variableAmount, debtAmount };
     });
-    const rollover = await ensurePaydayRollover({ profile, incomeSources, fixedExpenses, budgetLines: allBudgetLines, debts, exchangeRates, accounts: dayToDayAccounts, transactions: dayToDayTransactions, cycles: effectivePayCycles, advances: payAdvances }, month);
+    const rollover = await ensurePaydayRollover({ profile, incomeSources, fixedExpenses, budgetLines: allBudgetLines, debts, debtPayments, exchangeRates, accounts: dayToDayAccounts, transactions: dayToDayTransactions, cycles: effectivePayCycles, advances: payAdvances }, month);
     if (rollover) {
       const storedIndex = payCycles.findIndex(cycle => cycle.month === month);
       if (storedIndex < 0) payCycles.push(rollover); else payCycles[storedIndex] = rollover;
@@ -4272,12 +4292,12 @@ WR.ui = WR.ui || {};
       .concat(prevRecurringFixedLines), prevMonth);
 
     const F = WR.financial;
-    const minimumDebtPayments = F.calculateTotalMinPayments(debts, exchangeRates, profile.baseCurrency);
+    const minimumDebtPayments = F.calculateMonthDebtPayments(debts, debtPayments, month, exchangeRates, profile.baseCurrency);
     const cashflow = F.calculateCashFlowSummary(budgetLines, minimumDebtPayments);
     const paydayRecord = effectivePayCycles.find(item => item.month === month);
     const paydayFunding = calculatePayCycleFunding({ expectedIncome: recurringIncomeLines.reduce((sum, line) => sum + line.actualAmount, 0), fixedAmount: cashflow.fixedExpenses, variableAmount: cashflow.variableExpenses, debtAmount: minimumDebtPayments, allocations: [], ...paydayRecord });
     if (paydayRecord) cashflow.availableSurplus = paydayFunding.baseBudget;
-    const prevCashflow = F.calculateCashFlowSummary(prevBudgetLines, minimumDebtPayments);
+    const prevCashflow = F.calculateCashFlowSummary(prevBudgetLines, F.calculateMonthDebtPayments(debts, debtPayments, prevMonth, exchangeRates, profile.baseCurrency));
     const surplusDelta = prevBudgetLines.length > 0 ? cashflow.monthlySurplus - prevCashflow.monthlySurplus : null;
     const split = F.calculateEssentialVsDiscretionary(budgetLines, expenseCategories);
     const prevSplit = F.calculateEssentialVsDiscretionary(prevBudgetLines, expenseCategories);
@@ -4355,7 +4375,7 @@ WR.ui = WR.ui || {};
         .filter((expense) => isActiveForMonth(expense, monthId))
         .map((expense) => ({ type: 'fixed', actualAmount: monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly') }));
       const fullLines = applyPaydayIncome(monthLines.concat(monthIncome).concat(monthFixed), monthId);
-      const monthCashflow = F.calculateCashFlowSummary(fullLines, minimumDebtPayments);
+      const monthCashflow = F.calculateCashFlowSummary(fullLines, F.calculateMonthDebtPayments(debts, debtPayments, monthId, exchangeRates, profile.baseCurrency));
       return { month: monthId, cashflow: monthCashflow };
     });
 
@@ -6192,7 +6212,7 @@ WR.ui = WR.ui || {};
 
   async function saveIncomeBudget(month, settings = {}) {
     const [snapshot, sources] = await Promise.all([WR.ui.buildSnapshot(month), WR.repos.incomeSources.getAll()]);
-    const debtAmount = WR.financial.calculateTotalMinPayments(snapshot.debts, snapshot.exchangeRates, snapshot.profile.baseCurrency);
+    const debtAmount = WR.financial.calculateMonthDebtPayments(snapshot.debts, snapshot.debtPayments, month, snapshot.exchangeRates, snapshot.profile.baseCurrency);
     await savePayCycle(month, { fixedAmount: snapshot.cashflow.fixedExpenses, variableAmount: snapshot.cashflow.variableExpenses, debtAmount, incomeTable: { sources, availableBuffer: snapshot.payCycleBudget.carryOver, profileId: snapshot.profile.id, ...settings } });
   }
   WR.ui.saveIncomeBudget = saveIncomeBudget;

@@ -124,7 +124,7 @@ for (const match of fs.readFileSync(path.join(root, 'tests.html'), 'utf8').match
   acorn.parse(match[1], { ecmaVersion: 'latest' });
 }
 
-const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'authErrorMessage', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateDebtToIncomeRatio', 'calculateWeightedAverageInterestRate', 'calculateLiquidAssets', 'convertCurrency', 'calculateWealth', 'calculateNetWorth', 'calculateTotalInvestments', 'sumInBaseCurrency', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus', 'parseAmount', 'normalizeTransactionImportDate', 'transactionImportDuplicateKey', 'prepareTransactionImportRows', 'findRecurringSpendPatterns', 'summarizeTransactionPeriod'];
+const names = ['visibilityIcon', 'bindPasswordVisibility', 'bindFinancialVisibility', 'escapeText', 'assertActiveView', 'authErrorMessage', 'monthlyMinPayment', 'debtValueInCurrency', 'calculateTotalDebt', 'calculateTotalMinPayments', 'calculateMonthDebtPayments', 'calculateDebtToIncomeRatio', 'calculateWeightedAverageInterestRate', 'calculateLiquidAssets', 'convertCurrency', 'calculateWealth', 'calculateNetWorth', 'calculateTotalInvestments', 'sumInBaseCurrency', 'sumActualByType', 'calculateCashFlowSummary', 'calculateMoneyOwed', 'trackedPaymentForMonth', 'updateDebtPaidOffDate', 'setDebtPaymentStatus', 'parseAmount', 'normalizeTransactionImportDate', 'transactionImportDuplicateKey', 'prepareTransactionImportRows', 'findRecurringSpendPatterns', 'summarizeTransactionPeriod'];
 const context = { WR: { financial: {} } };
 vm.createContext(context);
 vm.runInContext(functions.get('calculateEmergencyBorrowing'), context);
@@ -338,6 +338,16 @@ assert.equal(context.calculateTotalMinPayments(debts, rates, 'ZAR'), 2000);
 assert.equal(context.calculateTotalDebt(debts, rates, 'ZAR'), 40000);
 assert.equal(context.calculateDebtToIncomeRatio(debts, 30000, rates, 'ZAR'), 2000 / 30000);
 assert.equal(context.calculateTotalMinPayments(debts, [], 'ZAR'), 0);
+// Regression: marking the final payment paid zeroes the balance. That month's
+// budget must keep reserving the payment instead of jumping back up.
+const clearedDebt = { id: 'd1', currency: 'ZAR', currentBalance: 0, minPayment: 500, paymentFrequency: 'monthly' };
+const openDebt = { id: 'd2', currency: 'ZAR', currentBalance: 900, minPayment: 300, paymentFrequency: 'monthly' };
+const ledger = [{ debtId: 'd1', month: '2026-10', amount: 500 }];
+assert.equal(context.calculateMonthDebtPayments([clearedDebt, openDebt], ledger, '2026-10', [], 'ZAR'), 800, 'cleared debt still counts in the month it was paid');
+assert.equal(context.calculateMonthDebtPayments([clearedDebt, openDebt], ledger, '2026-11', [], 'ZAR'), 300, 'cleared debt stops counting after the month it was paid');
+assert.equal(context.calculateMonthDebtPayments([clearedDebt, openDebt], [], '2026-10', [], 'ZAR'), 300, 'cleared debt with no payment that month does not count');
+assert.equal(context.calculateMonthDebtPayments([openDebt], ledger, '2026-10', [], 'ZAR'), 300, 'open debt is unaffected by other debts payments');
+assert.equal(context.calculateMonthDebtPayments([clearedDebt], undefined, '2026-10', [], 'ZAR'), 0, 'missing ledger is tolerated');
 const investments = [{ name: 'Local', currentValue: 500, currency: 'ZAR' }, { name: 'Foreign', currentValue: 100, currency: 'USD' }];
 assert.equal(context.calculateTotalInvestments(investments, rates, 'ZAR'), 2500);
 assert.equal(context.calculateTotalInvestments([], rates, 'ZAR'), 0);
@@ -1726,7 +1736,7 @@ async function checkPaydayBudget() {
   assert.equal(documents.get(base + 'payCycles/' + month).savingsAmount, 700);
   assert.equal(documents.get(base + 'payCycles/' + month).legacySavingsAllocations[0].amount, 1000);
   paydayContext.WR.repos = { incomeSources: { getAll: async () => [documents.get(base + 'incomeSources/salary'), documents.get(base + 'incomeSources/claim')] } };
-  paydayContext.WR.financial = { calculateTotalMinPayments: context.calculateTotalMinPayments };
+  paydayContext.WR.financial = { calculateTotalMinPayments: context.calculateTotalMinPayments, calculateMonthDebtPayments: context.calculateMonthDebtPayments };
   paydayContext.WR.ui._activeBudgetMonth = undefined;
   documents.set(base + 'userProfile/profile', { id: 'profile', baseCurrency: 'ZAR', autoUseBuffer: false });
   const rolloverData = { profile: { id: 'profile', baseCurrency: 'ZAR' }, incomeSources: [{ id: 'roll-salary', year: 2026, amount: 10000, frequency: 'monthly' }], fixedExpenses: [], budgetLines: [], debts: [], exchangeRates: [], accounts: [], transactions: [{ date: '2026-10-24', kind: 'spend', amount: 2500 }, { date: '2026-10-25', kind: 'spend', amount: 999 }], cycles: [{ ...funding, month: '2026-10', payDate: '2026-09-25', confirmed: true }], advances: [] };
