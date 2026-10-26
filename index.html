@@ -1283,6 +1283,19 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .span-2 { grid-column: 1 / -1; }
 .card-edit-actions, .form-panel-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .card-edit-actions button, .form-panel-actions button { flex: 1 1 8rem; }
+.base-budget-stat { gap: 0.55rem; }
+.base-budget-heading { display: grid; gap: 0.2rem; }
+.base-budget-edit { margin-top: 0.25rem; padding-top: 0.55rem; border-top: 1px solid var(--border); }
+.base-budget-edit summary { min-height: 2rem; padding: 0.25rem 0; }
+.base-budget-edit-form { grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }
+.base-budget-edit-form > label { font-size: 0.8rem; color: var(--text); }
+.base-budget-input-wrap { display: flex; align-items: center; gap: 0.55rem; min-height: 2.9rem; padding: 0 0.7rem; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.base-budget-input-wrap > span { color: var(--muted); font-weight: 600; }
+.base-budget-input-wrap input { width: 100%; min-width: 0; min-height: 2.7rem; padding: 0.4rem 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.base-budget-input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent); }
+.base-budget-edit-form .fine-print { margin: 0.15rem 0 0.25rem; line-height: 1.45; }
+.base-budget-edit-form .card-edit-actions { display: flex; }
+.base-budget-edit-form button { width: 100%; min-height: 2.65rem; }
 .form-panel-actions { grid-column: 1 / -1; justify-content: flex-end; }
 .form-panel-actions button { flex: 0 1 12rem; }
 .form-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1rem; margin: 1rem 0; }
@@ -6277,7 +6290,7 @@ WR.ui = WR.ui || {};
     return `<details class="day-disclosure spending-funds">
       <summary id="spending-funds-heading">Monthly Spending Funds</summary>
       <div class="stat-grid">
-        <div class="stat"><span class="stat-label">Base spending budget</span><strong class="stat-value">${money(funding.baseBudget)}</strong><details class="card-edit"><summary>Edit base budget</summary><form id="spending-base-budget-form" class="buffer-form"><label>Correct base spending budget<input name="amount" type="number" inputmode="decimal" step="0.01" value="${escape(funding.baseBudget)}" ${active ? '' : 'disabled'} required></label><p class="fine-print">This saves a budget adjustment for this pay cycle. Income, savings, expenses and debt records remain unchanged.</p><button type="submit" ${active ? '' : 'disabled'}>Save budget</button></form></details></div>
+        <div class="stat base-budget-stat"><div class="base-budget-heading"><span class="stat-label">Base spending budget</span><strong class="stat-value">${money(funding.baseBudget)}</strong></div><details class="card-edit base-budget-edit"><summary>Edit amount</summary><form id="spending-base-budget-form" class="card-edit-form base-budget-edit-form"><label for="base-budget-amount">New base budget</label><div class="base-budget-input-wrap"><span aria-hidden="true">${escape(currencySymbol())}</span><input id="base-budget-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${escape(funding.baseBudget)}" ${active ? '' : 'disabled'} required></div><p class="fine-print span-2">Only this cycle’s budget changes. Your income, savings, expenses and debt records stay untouched.</p><div class="card-edit-actions span-2"><button type="submit" ${active ? '' : 'disabled'}>Save budget</button></div></form></details></div>
         <div class="stat"><span class="stat-label">Buffer allocated</span><span class="stat-value">${money(allocated)}</span></div>
         <div class="stat"><span class="stat-label">Extra funds received</span><span class="stat-value">${money(budget.added)}</span></div>
         <div class="stat"><span class="stat-label">Total spending budget</span><span class="stat-value">${money(budget.available)}</span></div>
