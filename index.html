@@ -6179,7 +6179,7 @@ WR.ui = WR.ui || {};
         if (bufferAmount > Math.max(0, availableBuffer)) throw new Error('Buffer exceeds the available balance.');
         Object.assign(fields, { expectedIncome: active.reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0), advanceAmount, savingsAmount, bufferAmount, budgetAdjustment: settings.budgetAdjustment ?? old.budgetAdjustment ?? 0, sourceAdjustments: adjustments, confirmed: payDate <= today });
       }
-      const next = { ...old, id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(fields.advanceAmount ?? old.advanceAmount ?? 0), bufferAmount: value(fields.bufferAmount ?? old.bufferAmount ?? 0), budgetAdjustment: value(fields.budgetAdjustment ?? old.budgetAdjustment ?? 0), fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
+      const next = { ...old, id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(fields.advanceAmount ?? old.advanceAmount ?? 0), bufferAmount: value(fields.bufferAmount ?? old.bufferAmount ?? 0), budgetAdjustment: Math.round(Number(fields.budgetAdjustment ?? old.budgetAdjustment ?? 0) * 100) / 100, fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
       if (fields.incomeTable) {
         next.mode = 'income-table';
         next.savingsAmount = value(fields.savingsAmount);
