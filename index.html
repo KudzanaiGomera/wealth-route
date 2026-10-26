@@ -4090,7 +4090,8 @@ WR.ui = WR.ui || {};
     const period = counted.filter(item => item.date >= dates.start && item.date < dates.endExclusive);
     const cycle = confirmed.find(item => item.month === month);
     const funding = dates.start <= today ? Number(budgetAmount ?? (cycle ? calculatePayCycleFunding(cycle).budget : 0)) : 0;
-    const added = sum(period.filter(item => item.kind === 'add'));
+    const recordedAdded = sum(period.filter(item => item.kind === 'add'));
+    const added = Math.max(0, Math.round((recordedAdded + (Number(cycle?.extraFundsAdjustment) || 0)) * 100) / 100);
     const spent = -sum(period.filter(item => item.kind === 'spend'));
     const available = Math.round((funding + added) * 100) / 100;
     const remaining = Math.round((available - spent) * 100) / 100;
@@ -6190,9 +6191,9 @@ WR.ui = WR.ui || {};
           Object.assign(fields, { rolloverApplied: true, rolloverAvailable: availableBuffer, shortfallAmount: Math.max(0, -availableBuffer) });
         }
         if (bufferAmount > Math.max(0, availableBuffer)) throw new Error('Buffer exceeds the available balance.');
-        Object.assign(fields, { expectedIncome: active.reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0), advanceAmount, savingsAmount, bufferAmount, budgetAdjustment: settings.budgetAdjustment ?? old.budgetAdjustment ?? 0, sourceAdjustments: adjustments, confirmed: payDate <= today });
+        Object.assign(fields, { expectedIncome: active.reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0), advanceAmount, savingsAmount, bufferAmount, budgetAdjustment: settings.budgetAdjustment ?? old.budgetAdjustment ?? 0, extraFundsAdjustment: settings.extraFundsAdjustment ?? old.extraFundsAdjustment ?? 0, sourceAdjustments: adjustments, confirmed: payDate <= today });
       }
-      const next = { ...old, id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(fields.advanceAmount ?? old.advanceAmount ?? 0), bufferAmount: value(fields.bufferAmount ?? old.bufferAmount ?? 0), budgetAdjustment: Math.round(Number(fields.budgetAdjustment ?? old.budgetAdjustment ?? 0) * 100) / 100, fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
+      const next = { ...old, id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(fields.advanceAmount ?? old.advanceAmount ?? 0), bufferAmount: value(fields.bufferAmount ?? old.bufferAmount ?? 0), budgetAdjustment: Math.round(Number(fields.budgetAdjustment ?? old.budgetAdjustment ?? 0) * 100) / 100, extraFundsAdjustment: Math.round(Number(fields.extraFundsAdjustment ?? old.extraFundsAdjustment ?? 0) * 100) / 100, fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
       if (fields.incomeTable) {
         next.mode = 'income-table';
         next.savingsAmount = value(fields.savingsAmount);
@@ -6292,7 +6293,7 @@ WR.ui = WR.ui || {};
       <div class="stat-grid">
         <div class="stat base-budget-stat"><div class="base-budget-heading"><span class="stat-label">Base spending budget</span><strong class="stat-value">${money(funding.baseBudget)}</strong></div><details class="card-edit base-budget-edit"><summary>Edit amount</summary><form id="spending-base-budget-form" class="card-edit-form base-budget-edit-form"><label for="base-budget-amount">New base budget</label><div class="base-budget-input-wrap"><input id="base-budget-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${escape(funding.baseBudget)}" ${active ? '' : 'disabled'} required></div><p class="fine-print span-2">Only this cycle’s budget changes. Your income, savings, expenses and debt records stay untouched.</p><div class="card-edit-actions span-2"><button type="submit" ${active ? '' : 'disabled'}>Save budget</button></div></form></details></div>
         <div class="stat"><span class="stat-label">Buffer allocated</span><span class="stat-value">${money(allocated)}</span></div>
-        <div class="stat"><span class="stat-label">Extra funds received</span><span class="stat-value">${money(budget.added)}</span></div>
+        <div class="stat base-budget-stat extra-funds-stat"><div class="base-budget-heading"><span class="stat-label">Extra funds received</span><strong class="stat-value">${money(budget.added)}</strong></div><details class="card-edit base-budget-edit"><summary>Edit amount</summary><form id="spending-extra-funds-form" class="card-edit-form base-budget-edit-form"><label for="extra-funds-amount">Correct total extra funds</label><div class="base-budget-input-wrap"><input id="extra-funds-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${escape(budget.added)}" ${active ? '' : 'disabled'} required></div><p class="fine-print span-2">Sets the total counted for this pay cycle. Existing funding entries stay intact; this saves a correction to the total.</p><div class="card-edit-actions span-2"><button type="submit" ${active ? '' : 'disabled'}>Save amount</button></div></form></details></div>
         <div class="stat"><span class="stat-label">Total spending budget</span><span class="stat-value">${money(budget.available)}</span></div>
       </div>
       ${funding.shortfall > 0 ? `<p class="warning">Previous shortfall carried forward: ${money(funding.shortfall)}</p>` : ''}
@@ -6335,6 +6336,14 @@ WR.ui = WR.ui || {};
       const amount = Number(form.elements.amount.value);
       if (!Number.isFinite(amount) || amount < 0) throw new Error('Base budget must be zero or greater.');
       return saveIncomeBudget(month, { budgetAdjustment: Math.round((amount - rawBaseBudget) * 100) / 100 });
+    });
+    bind('#spending-extra-funds-form', form => {
+      const amount = Number(form.elements.amount.value);
+      if (!Number.isFinite(amount) || amount < 0) throw new Error('Extra funds must be zero or greater.');
+      const recordedAdded = snapshot.dayToDayTransactions
+        .filter(item => item.kind === 'add' && item.date >= snapshot.payCycleBudget.start && item.date < snapshot.payCycleBudget.endExclusive && item.date <= new Date().toISOString().slice(0, 10))
+        .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+      return saveIncomeBudget(month, { extraFundsAdjustment: Math.round((amount - recordedAdded) * 100) / 100 });
     });
     bind('#spending-buffer-form', form => saveIncomeBudget(month, { bufferAmount: Number(form.elements.amount.value) }));
     const id = WR.models.newId();
