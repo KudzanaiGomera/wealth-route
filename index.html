@@ -10519,8 +10519,8 @@ WR.account = {};
         authApi = authModule;
         firestoreApi = firestoreModule;
         auth = authModule.getAuth(app);
-        await authModule.setPersistence(auth, authModule.inMemoryPersistence);
-        await authModule.signOut(auth);
+        // Keep the Firebase session across page refreshes; explicit logout still signs out.
+        await authModule.setPersistence(auth, authModule.browserLocalPersistence);
         // persistentLocalCache turns on Firestore's own offline cache (backed by
         // its own private IndexedDB, invisible to app code) so reads work
         // instantly from cache and writes queue automatically while offline,
