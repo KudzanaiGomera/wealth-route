@@ -4044,7 +4044,8 @@ WR.ui = WR.ui || {};
     const expenses = cents(cycle.fixedAmount) + cents(cycle.variableAmount) + cents(cycle.debtAmount);
     const buffer = cents(cycle.bufferAmount);
     const shortfall = cents(cycle.shortfallAmount);
-    return { salary: salary / 100, savings: savings / 100, expenses: expenses / 100, shortfall: shortfall / 100, totalIncome: salary / 100, baseBudget: (salary - savings - expenses) / 100, buffer: buffer / 100, budget: (salary - savings + buffer - shortfall - expenses) / 100 };
+    const budgetAdjustment = cents(cycle.budgetAdjustment);
+    return { salary: salary / 100, savings: savings / 100, expenses: expenses / 100, shortfall: shortfall / 100, totalIncome: salary / 100, baseBudget: (salary - savings - expenses + budgetAdjustment) / 100, buffer: buffer / 100, budget: (salary - savings + buffer - shortfall - expenses + budgetAdjustment) / 100 };
   }
 
   function calculateBudgetRemainingPercentage(budget, remaining) {
@@ -6176,9 +6177,9 @@ WR.ui = WR.ui || {};
           Object.assign(fields, { rolloverApplied: true, rolloverAvailable: availableBuffer, shortfallAmount: Math.max(0, -availableBuffer) });
         }
         if (bufferAmount > Math.max(0, availableBuffer)) throw new Error('Buffer exceeds the available balance.');
-        Object.assign(fields, { expectedIncome: active.reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0), advanceAmount, savingsAmount, bufferAmount, sourceAdjustments: adjustments, confirmed: payDate <= today });
+        Object.assign(fields, { expectedIncome: active.reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0), advanceAmount, savingsAmount, bufferAmount, budgetAdjustment: settings.budgetAdjustment ?? old.budgetAdjustment ?? 0, sourceAdjustments: adjustments, confirmed: payDate <= today });
       }
-      const next = { ...old, id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(fields.advanceAmount ?? old.advanceAmount ?? 0), bufferAmount: value(fields.bufferAmount ?? old.bufferAmount ?? 0), fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
+      const next = { ...old, id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(fields.advanceAmount ?? old.advanceAmount ?? 0), bufferAmount: value(fields.bufferAmount ?? old.bufferAmount ?? 0), budgetAdjustment: value(fields.budgetAdjustment ?? old.budgetAdjustment ?? 0), fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
       if (fields.incomeTable) {
         next.mode = 'income-table';
         next.savingsAmount = value(fields.savingsAmount);
@@ -6276,7 +6277,7 @@ WR.ui = WR.ui || {};
     return `<details class="day-disclosure spending-funds">
       <summary id="spending-funds-heading">Monthly Spending Funds</summary>
       <div class="stat-grid">
-        <div class="stat"><span class="stat-label">Base spending budget</span><span class="stat-value">${money(funding.baseBudget)}</span></div>
+        <div class="stat"><span class="stat-label">Base spending budget</span><strong class="stat-value">${money(funding.baseBudget)}</strong><details class="card-edit"><summary>Edit base budget</summary><form id="spending-base-budget-form" class="buffer-form"><label>Correct base spending budget<input name="amount" type="number" inputmode="decimal" step="0.01" value="${escape(funding.baseBudget)}" ${active ? '' : 'disabled'} required></label><p class="fine-print">This saves a budget adjustment for this pay cycle. Income, savings, expenses and debt records remain unchanged.</p><button type="submit" ${active ? '' : 'disabled'}>Save budget</button></form></details></div>
         <div class="stat"><span class="stat-label">Buffer allocated</span><span class="stat-value">${money(allocated)}</span></div>
         <div class="stat"><span class="stat-label">Extra funds received</span><span class="stat-value">${money(budget.added)}</span></div>
         <div class="stat"><span class="stat-label">Total spending budget</span><span class="stat-value">${money(budget.available)}</span></div>
@@ -6315,6 +6316,13 @@ WR.ui = WR.ui || {};
     };
     const bind = (selector, save) => bindForm(container.querySelector(selector), save);
     bind('#spending-buffer-opening-form', form => saveIncomeBudget(month, { openingBuffer: Number(form.elements.amount.value) }));
+    bind('#spending-base-budget-form', form => {
+      const currentAdjustment = Number(snapshot.paydayRecord?.budgetAdjustment) || 0;
+      const rawBaseBudget = snapshot.paydayFunding.baseBudget - currentAdjustment;
+      const amount = Number(form.elements.amount.value);
+      if (!Number.isFinite(amount) || amount < 0) throw new Error('Base budget must be zero or greater.');
+      return saveIncomeBudget(month, { budgetAdjustment: Math.round((amount - rawBaseBudget) * 100) / 100 });
+    });
     bind('#spending-buffer-form', form => saveIncomeBudget(month, { bufferAmount: Number(form.elements.amount.value) }));
     const id = WR.models.newId();
     bind('#spending-funds-form', form => saveSpendingFunds(month, id, { date: form.elements.date.value, description: form.elements.description.value, amount: form.elements.amount.value }));
