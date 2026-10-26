@@ -4190,7 +4190,10 @@ WR.ui = WR.ui || {};
     let [allBudgetLines, debts, assets, investments, exchangeRates, expenseCategories, netWorthHistory, profile, incomeSources, fixedExpenses, emergencyFundContributions, dayToDayAccounts, dayToDayTransactions, savingsPots, debtPayments, payCycles, payAdvances] =
       await Promise.all([
         WR.repos.budgetLines.getAll(),
-        WR.repos.debts.getAll(),
+        // Debt payments change the monthly budget immediately when the tracker is toggled.
+        // Read these from the server so a stale local snapshot cannot drop a paid-off
+        // debt's payment from the current month's reserved budget.
+        WR.repos.debts.getAll({ fresh: true }),
         WR.repos.assets.getAll(),
         WR.repos.investments.getAll(),
         WR.repos.exchangeRates.getAll(),
@@ -4203,7 +4206,7 @@ WR.ui = WR.ui || {};
         WR.repos.dayToDayAccounts.getAll(),
         WR.repos.dayToDayTransactions.getAll(),
         WR.repos.savingsPots.getAll(),
-        WR.repos.debtPayments.getAll(),
+        WR.repos.debtPayments.getAll({ fresh: true }),
         WR.repos.payCycles.getAll(),
         WR.repos.payAdvances.getAll(),
       ]);
