@@ -4241,7 +4241,7 @@ WR.ui = WR.ui || {};
       // Keep the debt amount already reserved for this pay cycle stable.
       // Toggling a payment in the tracker updates the debt balance/history, but
       // must not change Left to Spend for a budget that has already been calculated.
-      const debtAmount = Number.isFinite(Number(cycle.debtAmount))
+      const debtAmount = cycle.debtAmount != null && Number.isFinite(Number(cycle.debtAmount))
         ? Number(cycle.debtAmount)
         : WR.financial.calculateMonthDebtPayments(debts, debtPayments, cycle.month, exchangeRates, profile.baseCurrency);
       return { ...cycle, fixedAmount, variableAmount, debtAmount };
@@ -4319,7 +4319,7 @@ WR.ui = WR.ui || {};
     const paydayRecord = effectivePayCycles.find(item => item.month === month);
     // Prefer the pay cycle's already-reserved debt amount so changing a debt's
     // tracker status cannot recalculate Left to Spend mid-cycle.
-    const minimumDebtPayments = paydayRecord && Number.isFinite(Number(paydayRecord.debtAmount))
+    const minimumDebtPayments = paydayRecord && paydayRecord.debtAmount != null && Number.isFinite(Number(paydayRecord.debtAmount))
       ? Number(paydayRecord.debtAmount)
       : calculatedDebtPayments;
     const cashflow = F.calculateCashFlowSummary(budgetLines, minimumDebtPayments);
