@@ -7980,9 +7980,29 @@ WR.ui = WR.ui || {};
     const ids = [...new Set([paymentId, ...ledger.docs.filter((document) => document.data().month === month).map((document) => document.id)])];
     const debtRef = api.doc(db, 'users', user.uid, 'debts', debtId);
     const paymentRefs = ids.map((id) => api.doc(db, 'users', user.uid, 'debtPayments', id));
+    // If this pay cycle predates debtAmount being saved, snapshot the reserve
+    // before clearing the final balance. Otherwise the next dashboard refresh
+    // can recalculate the cycle without this debt and return the reserve to
+    // Left to Spend.
+    let reserveBeforePayment = null;
+    let exchangeRates = [];
+    let payCycleRef = null;
+    if (paid) {
+      const [allDebtDocs, allPaymentDocs, rates] = await Promise.all([
+        api.getDocsFromServer(api.collection(db, 'users', user.uid, 'debts')),
+        api.getDocsFromServer(api.collection(db, 'users', user.uid, 'debtPayments')),
+        WR.repos.exchangeRates.getAll({ fresh: true }),
+      ]);
+      const allDebts = allDebtDocs.docs.map((document) => ({ ...document.data(), id: document.id }));
+      const allPayments = allPaymentDocs.docs.map((document) => ({ ...document.data(), id: document.id }));
+      exchangeRates = rates;
+      reserveBeforePayment = WR.financial.calculateMonthDebtPayments(allDebts, allPayments, month, exchangeRates, profile.baseCurrency);
+      payCycleRef = api.doc(db, 'users', user.uid, 'payCycles', month);
+    }
     await api.runTransaction(db, async (transaction) => {
       const debtSnapshot = await transaction.get(debtRef);
       const paymentSnapshots = await Promise.all(paymentRefs.map((ref) => transaction.get(ref)));
+      const payCycleSnapshot = payCycleRef ? await transaction.get(payCycleRef) : null;
       if (!debtSnapshot.exists()) throw new Error('This debt no longer exists.');
       const debt = debtSnapshot.data();
       const previousBalance = Number(debt.currentBalance) || 0;
@@ -7991,6 +8011,16 @@ WR.ui = WR.ui || {};
         const amount = Math.min(previousBalance, trackedPaymentForMonth(debt, month));
         if (amount <= 0) throw new Error('No payment is due for this debt in that month.');
         transaction.set(paymentRefs[0], { id: paymentId, debtId, month, amount, currency: debt.currency || profile.baseCurrency });
+        // Backfill a missing current-cycle reserve from the pre-payment state.
+        // Existing reserves (including zero) are intentionally left untouched.
+        if (payCycleSnapshot?.exists() && payCycleSnapshot.data().debtAmount == null && reserveBeforePayment != null) {
+          transaction.set(payCycleRef, {
+            ...payCycleSnapshot.data(),
+            id: payCycleSnapshot.data().id || month,
+            month,
+            debtAmount: reserveBeforePayment,
+          });
+        }
         debt.currentBalance = Math.round((previousBalance - amount) * 100) / 100;
       } else if (!paid && existing.length) {
         debt.currentBalance = Math.round((previousBalance + existing.reduce((sum, snapshot) => sum + Number(snapshot.data().amount), 0)) * 100) / 100;
