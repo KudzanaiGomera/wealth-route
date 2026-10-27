@@ -4238,7 +4238,12 @@ WR.ui = WR.ui || {};
       if (cycle.mode !== 'income-table') return cycle;
       const fixedAmount = fixedExpenses.filter(expense => isActiveForMonth(expense, cycle.month)).reduce((sum, expense) => sum + monthlyAmountFromFrequency(expense.amount, expense.frequency || 'monthly'), 0);
       const variableAmount = allBudgetLines.filter(line => line.month === cycle.month && line.type === 'variable').reduce((sum, line) => sum + (Number(line.actualAmount) || 0), 0);
-      const debtAmount = WR.financial.calculateMonthDebtPayments(debts, debtPayments, cycle.month, exchangeRates, profile.baseCurrency);
+      // Keep the debt amount already reserved for this pay cycle stable.
+      // Toggling a payment in the tracker updates the debt balance/history, but
+      // must not change Left to Spend for a budget that has already been calculated.
+      const debtAmount = Number.isFinite(Number(cycle.debtAmount))
+        ? Number(cycle.debtAmount)
+        : WR.financial.calculateMonthDebtPayments(debts, debtPayments, cycle.month, exchangeRates, profile.baseCurrency);
       return { ...cycle, fixedAmount, variableAmount, debtAmount };
     });
     const rollover = await ensurePaydayRollover({ profile, incomeSources, fixedExpenses, budgetLines: allBudgetLines, debts, debtPayments, exchangeRates, accounts: dayToDayAccounts, transactions: dayToDayTransactions, cycles: effectivePayCycles, advances: payAdvances }, month);
@@ -4310,9 +4315,14 @@ WR.ui = WR.ui || {};
       .concat(prevRecurringFixedLines), prevMonth);
 
     const F = WR.financial;
-    const minimumDebtPayments = F.calculateMonthDebtPayments(debts, debtPayments, month, exchangeRates, profile.baseCurrency);
-    const cashflow = F.calculateCashFlowSummary(budgetLines, minimumDebtPayments);
+    const calculatedDebtPayments = F.calculateMonthDebtPayments(debts, debtPayments, month, exchangeRates, profile.baseCurrency);
     const paydayRecord = effectivePayCycles.find(item => item.month === month);
+    // Prefer the pay cycle's already-reserved debt amount so changing a debt's
+    // tracker status cannot recalculate Left to Spend mid-cycle.
+    const minimumDebtPayments = paydayRecord && Number.isFinite(Number(paydayRecord.debtAmount))
+      ? Number(paydayRecord.debtAmount)
+      : calculatedDebtPayments;
+    const cashflow = F.calculateCashFlowSummary(budgetLines, minimumDebtPayments);
     const paydayFunding = calculatePayCycleFunding({ expectedIncome: recurringIncomeLines.reduce((sum, line) => sum + line.actualAmount, 0), fixedAmount: cashflow.fixedExpenses, variableAmount: cashflow.variableExpenses, debtAmount: minimumDebtPayments, allocations: [], ...paydayRecord });
     if (paydayRecord) cashflow.availableSurplus = paydayFunding.baseBudget;
     const prevCashflow = F.calculateCashFlowSummary(prevBudgetLines, F.calculateMonthDebtPayments(debts, debtPayments, prevMonth, exchangeRates, profile.baseCurrency));
