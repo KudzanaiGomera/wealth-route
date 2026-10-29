@@ -1975,6 +1975,75 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
      duplicate entries in the dropdown; mobile (no horizontal bar) still needs them. */
   #nav a.in-horizontal-nav { display: none; }
 }
+
+/* ---------- Cross-screen interaction and layout polish ---------- */
+
+/* Keep a visible keyboard position on links as well as form controls. */
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+button:disabled,
+button[aria-disabled="true"] {
+  cursor: not-allowed;
+  filter: none;
+  opacity: 0.58;
+}
+
+.table-wrap {
+  scrollbar-color: color-mix(in srgb, var(--muted) 55%, var(--border)) var(--panel-alt);
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+.table-wrap::-webkit-scrollbar { height: 10px; }
+.table-wrap::-webkit-scrollbar-track { background: var(--panel-alt); }
+.table-wrap::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 48%, var(--border));
+  border: 2px solid var(--panel-alt);
+  border-radius: 999px;
+}
+.table-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+@media (min-width: 901px) {
+  .topbar { gap: clamp(0.75rem, 1.4vw, 1.35rem); }
+  .nav-horizontal a { min-height: 40px; display: inline-flex; align-items: center; }
+  #content { padding-top: clamp(1.5rem, 2.4vw, 2.25rem); }
+  .dashboard-heading { margin-bottom: 1.25rem; }
+  .dashboard-card, .chart-block, .pie-card { border-radius: 12px; }
+}
+
+@media (max-width: 900px) {
+  .mobile-nav {
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    border-top-color: color-mix(in srgb, var(--border) 82%, var(--accent));
+  }
+  .mobile-nav a.active, .mobile-nav button[aria-expanded="true"] {
+    border-radius: 12px;
+  }
+  .mobile-nav a.active small { font-weight: 700; }
+  .mobile-nav a.active .nav-icon { stroke-width: 2.1; }
+  .dashboard-card, .health-score, .chart-block, .pie-card { border-radius: 12px; }
+  .dashboard-actions a { border-radius: 10px; }
+  .dashboard-heading { margin-bottom: 1.1rem; }
+}
+
+@media (max-width: 520px) {
+  #content { padding-top: 0.85rem; }
+  .dashboard-heading { gap: 0.4rem; margin-top: 0.1rem; }
+  .dashboard-heading .month-label { font-size: 0.8rem; }
+  .dashboard-overview .hero-value { font-size: clamp(1.85rem, 8vw, 2.25rem); }
+  .dashboard-card, .health-score, .chart-block, .pie-card { padding: 1rem; }
+  .table-wrap { border-radius: 10px; }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --muted: color-mix(in srgb, var(--text) 82%, var(--bg));
+    --border: color-mix(in srgb, var(--text) 35%, var(--bg));
+  }
+}
     </style>
   </head>
   <body>
@@ -4856,7 +4925,7 @@ WR.ui = WR.ui || {};
   const HORIZONTAL_NAV_HASHES = ['#/dashboard', '#/transactions', '#/debts', '#/savings', '#/settings'];
   const HORIZONTAL_NAV_ITEMS = HORIZONTAL_NAV_HASHES.map((hash) => NAV_ITEMS.find((i) => i.hash === hash)).filter(Boolean);
   // Must match the links in the mobile bottom bar (.mobile-nav) in renderShell().
-  const MOBILE_NAV_HASHES = ['#/dashboard', '#/transactions', '#/debts', '#/savings'];
+  const MOBILE_NAV_HASHES = ['#/dashboard', '#/transactions', '#/variable-expenses', '#/savings'];
   const SUPPORT_WHATSAPP_URL = 'https://wa.me/27625417921?text=' + encodeURIComponent('Hi WealthRoute support, I need help with...');
 
   function renderNavAccount() {
@@ -5138,7 +5207,7 @@ WR.ui = WR.ui || {};
         <nav class="mobile-nav" aria-label="Mobile navigation">
           <a href="#/dashboard" data-hash="#/dashboard" aria-label="Home" title="Home"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h14V9M9 21v-7h6v7"/></svg><small>Home</small></a>
           <a href="#/transactions" data-hash="#/transactions" aria-label="Transactions" title="Transactions"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M16 3l4 4-4 4M20 17H4m4-4-4 4 4 4"/></svg><small>Activity</small></a>
-          <a href="#/debts" data-hash="#/debts" aria-label="Debts" title="Debts"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M16 14h2"/></svg><small>Debts</small></a>
+          <a href="#/variable-expenses" data-hash="#/variable-expenses" aria-label="Budget" title="Budget"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h3M16 15h.01"/></svg><small>Budget</small></a>
           <a href="#/savings" data-hash="#/savings" aria-label="Savings" title="Savings"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9.5A7 7 0 0 1 18.5 8H21v6h-2.5a7 7 0 0 1-13.5-4.5Z"/><path d="M5 10H3v4h4M10 7h.01M14 7h.01M9 15c1.5 1 3.5 1 5 0"/></svg><small>Savings</small></a>
           <button id="mobile-more-btn" type="button" aria-label="More navigation" aria-controls="nav" aria-expanded="false" title="More navigation"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg><small>More</small></button>
         </nav>
