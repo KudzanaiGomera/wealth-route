@@ -5235,6 +5235,10 @@ WR.ui = WR.ui || {};
       // horizontal links if fonts or the available width changed since the
       // last ResizeObserver notification.
       updateNavigationLayout(topbar);
+      // Measuring can promote the full horizontal navigation and close an
+      // already-open dropdown. Do not then interpret that closed state as a
+      // request to reopen the now-redundant menu.
+      if (topbar.classList.contains('nav-expanded')) return;
       setNavigationOpen(!topbar.classList.contains('nav-open'), true);
     };
     setNavigationOpen(false);
