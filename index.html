@@ -5230,7 +5230,12 @@ WR.ui = WR.ui || {};
     document.getElementById('theme-toggle-btn').addEventListener('click', WR.ui.toggleTheme);
     renderSaveStatus();
     const toggleNavigation = () => {
-      setNavigationOpen(!document.querySelector('.topbar').classList.contains('nav-open'), true);
+      const topbar = document.querySelector('.topbar');
+      // Measure before opening. This keeps the hamburger in sync with the
+      // horizontal links if fonts or the available width changed since the
+      // last ResizeObserver notification.
+      updateNavigationLayout(topbar);
+      setNavigationOpen(!topbar.classList.contains('nav-open'), true);
     };
     setNavigationOpen(false);
     document.getElementById('nav-toggle-btn').addEventListener('click', toggleNavigation);
