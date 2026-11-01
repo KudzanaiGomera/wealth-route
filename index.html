@@ -90,6 +90,30 @@ button, a, input, select, textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
+.tutorial-panel {
+  position: fixed;
+  z-index: 1200;
+  right: calc(1rem + env(safe-area-inset-right));
+  bottom: calc(5rem + env(safe-area-inset-bottom));
+  width: min(380px, calc(100vw - 2rem));
+  max-height: calc(100dvh - 10rem);
+  overflow-y: auto;
+  padding: 1rem;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+.tutorial-header, .tutorial-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.tutorial-header small { color: var(--muted); }
+.tutorial-message { margin: 1rem 0; padding: 0.85rem; background: var(--panel-alt); border-left: 3px solid var(--accent); }
+.tutorial-message h2 { font-size: 1.05rem; margin: 0 0 0.5rem; letter-spacing: 0; }
+.tutorial-message p { margin: 0; font-size: 0.9rem; line-height: 1.55; overflow-wrap: anywhere; }
+.tutorial-panel button, .tutorial-panel a { min-height: 44px; }
+.tutorial-destination { display: inline-flex; align-items: center; color: var(--accent); margin-bottom: 0.75rem; }
+.tutorial-error { color: var(--danger); font-size: 0.85rem; }
+
 /* ---------- Auth gate ---------- */
 .app-splash {
   min-height: 100vh;
@@ -678,6 +702,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .position-card .visibility-toggle:focus-visible { outline-color: var(--accent); }
 .password-field { position: relative; min-width: 0; }
 .auth-form .password-field input { width: 100%; padding-right: 3.6rem; }
+#auth-password-input::-ms-reveal, #auth-password-input::-ms-clear { display: none; }
 .password-field .visibility-toggle { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; }
 .balance-masked { color: inherit !important; }
 [data-private-detail].balance-masked { min-height: 2.5rem; display: flex; align-items: center; color: var(--muted) !important; font-size: 0.85rem; }
@@ -1601,6 +1626,8 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
 .assistant-main { min-width: 0; }
 .assistant-chat { width: 100%; max-width: none; margin: 1rem 0 0; }
 .assistant-chat textarea { width: 100%; min-height: 7rem; resize: vertical; font-size: 1rem; line-height: 1.5; padding: 0.8rem 0.9rem; }
+.ai-consent { display: flex; flex-direction: row; align-items: flex-start; gap: 0.65rem; font-size: 0.85rem; line-height: 1.5; cursor: pointer; }
+.ai-consent input[type="checkbox"] { position: static; opacity: 1; width: 20px; min-width: 20px; max-width: 20px; height: 20px; min-height: 20px; flex: 0 0 20px; margin: 0; padding: 0; accent-color: var(--accent); }
 .assistant-chat button { align-self: flex-end; }
 .assistant-status { min-height: 1.25rem; margin: 0.65rem 0 0; }
 .assistant-history { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: sticky; top: 5.5rem; }
@@ -4000,7 +4027,7 @@ WR.ui = WR.ui || {};
     return currentMonthKey(d);
   }
 
-  async function getOrCreateProfile() {
+  async function getOrCreateProfile(options = {}) {
     const profiles = await WR.repos.userProfile.getAll();
     if (profiles.length > 0) {
       WR.ui._paydayProfile = profiles[0];
@@ -4012,7 +4039,7 @@ WR.ui = WR.ui || {};
       emergencyFundTargetMonths: 3,
       riskProfile: 'moderate',
     });
-    await WR.repos.userProfile.add(profile);
+    if (!options.readOnly) await WR.repos.userProfile.add(profile);
     WR.ui._paydayProfile = profile;
     return profile;
   }
@@ -4265,7 +4292,7 @@ WR.ui = WR.ui || {};
     return { savings, emergency, total: Math.round((savings + emergency) * 100) / 100 };
   }
 
-  async function buildSnapshot(monthKey) {
+  async function buildSnapshot(monthKey, options = {}) {
     const month = monthKey || currentMonthKey();
     const prevMonth = previousMonthKey(month);
     const selectedYear = Number(month.slice(0, 4));
@@ -4283,7 +4310,7 @@ WR.ui = WR.ui || {};
         WR.repos.exchangeRates.getAll(),
         WR.repos.expenseCategories.getAll(),
         WR.queries.getNetWorthHistory(),
-        getOrCreateProfile(),
+        getOrCreateProfile(options),
         WR.repos.incomeSources.getAll(),
         WR.repos.fixedExpenses.getAll(),
         WR.repos.emergencyFundContributions.getAll(),
@@ -4315,7 +4342,7 @@ WR.ui = WR.ui || {};
         : WR.financial.calculateMonthDebtPayments(debts, debtPayments, cycle.month, exchangeRates, profile.baseCurrency);
       return { ...cycle, fixedAmount, variableAmount, debtAmount };
     });
-    const rollover = await ensurePaydayRollover({ profile, incomeSources, fixedExpenses, budgetLines: allBudgetLines, debts, debtPayments, exchangeRates, accounts: dayToDayAccounts, transactions: dayToDayTransactions, cycles: effectivePayCycles, advances: payAdvances }, month);
+    const rollover = options.readOnly ? null : await ensurePaydayRollover({ profile, incomeSources, fixedExpenses, budgetLines: allBudgetLines, debts, debtPayments, exchangeRates, accounts: dayToDayAccounts, transactions: dayToDayTransactions, cycles: effectivePayCycles, advances: payAdvances }, month);
     if (rollover) {
       const storedIndex = payCycles.findIndex(cycle => cycle.month === month);
       if (storedIndex < 0) payCycles.push(rollover); else payCycles[storedIndex] = rollover;
@@ -4915,7 +4942,7 @@ WR.ui = WR.ui || {};
     { hash: '#/settings', label: 'Settings' },
   ];
 
-  const SECONDARY_NAV_ITEMS = [];
+  const SECONDARY_NAV_ITEMS = [{ hash: '#/assistant', label: 'Wealth Assistant' }];
 
   const NAV_ITEMS = PRIMARY_NAV_ITEMS.concat(SECONDARY_NAV_ITEMS);
 
@@ -5506,7 +5533,7 @@ WR.ui = WR.ui || {};
     const s = await WR.ui.buildSnapshot(WR.ui.currentBudgetMonth());
     WR.ui.assertActiveView(container);
     const currency = s.profile.baseCurrency;
-    const setupComplete = s.cashflow.income > 0 && s.budgetLines.some((line) => line.type === 'fixed' || line.type === 'variable');
+    const setupComplete = WR.ui.hasEnoughFinancialData(s);
     await ensureMonthlyNetWorthSnapshot(s);
     const debtProgress = calculateDebtFreeProgress(s);
     const hasDueDays = s.fixedExpenses.some((e) => Number(e.dueDay) > 0) || s.debts.some((d) => Number(d.dueDay) > 0);
@@ -5754,7 +5781,7 @@ WR.ui = WR.ui || {};
           }).join('')}
         </div>
         <p class="fine-print">Every component above is a plain formula - see Settings for assumptions.</p>
-        ` : '<h2>Financial Health</h2><p class="fine-print">Not enough complete data to calculate a score yet.</p>'}
+        ` : '<h2>Financial Health</h2><p class="fine-print">Not enough data for a financial assessment. Add income and expenses or debt, and resolve any missing exchange rates first.</p>'}
       </section>
 
       <details class="dashboard-disclosure"><summary>Monthly and annual spending breakdowns</summary>
@@ -7544,9 +7571,50 @@ WR.ui = WR.ui || {};
               <div class="transaction-import-preview">
                 <p class="fine-print">${prepared.filter(row => row.include).length} row(s) ready by default. Review dates, descriptions, categories, and amounts. Transfers are never preselected.</p>
                 <p id="day-import-status" class="transaction-import-status" role="status" aria-live="polite"></p>
+                ${WR.account.getPasskeyWorkerUrl() ? `<label class="ai-consent"><input type="checkbox" id="day-import-ai-consent"><span>I agree to send selected merchant descriptions and category labels to Google Gemini for suggestions. Dates, amounts, and account identifiers are not sent. Descriptions may contain personal details; edit them first if needed.</span></label><button type="button" id="day-import-ai" class="secondary">Suggest missing categories</button>` : ''}
                 <div class="transaction-import-list">${previewRows}</div>
                 <div class="transaction-import-actions"><button type="button" id="day-import-commit">Import selected</button><span>Maximum ${450} rows per atomic import.</span></div>
               </div>`);
+            importPreview.querySelector('#day-import-ai')?.addEventListener('click', async event => {
+              const button = event.currentTarget;
+              const uid = WR.account.getCurrentUser()?.uid;
+              const status = importStatus();
+              if (!importPreview.querySelector('#day-import-ai-consent').checked) { status.textContent = 'Confirm data-sharing consent first.'; return; }
+              const candidates = [...importPreview.querySelectorAll('[data-import-index]')].filter(element => {
+                const original = prepared[Number(element.dataset.importIndex)];
+                return element.querySelector('[data-import-include]').checked && !element.querySelector('[data-import-field="category"]').value.trim() && !original.problems.length && !original.duplicate && !original.possibleTransfer && !original.notSpend;
+              }).slice(0, 50).map(element => ({ element, index: Number(element.dataset.importIndex), description: element.querySelector('[data-import-field="description"]').value.trim().slice(0, 160), category: '' }));
+              if (!candidates.length) { status.textContent = 'Select valid spending rows with blank categories first.'; return; }
+              const categories = categoryNames.filter(label => label.length <= 80).slice(0, 50);
+              button.disabled = true;
+              importPreview.querySelector('#day-import-commit').disabled = true;
+              status.textContent = 'Suggesting categories for up to 50 selected rows...';
+              try {
+                const data = await WR.ui.requestAssistant(WR.account.getPasskeyWorkerUrl(), { task: 'categorise', transactions: candidates.map(({ index, description }) => ({ index, description })), categories }, true);
+                if (!button.isConnected || WR.account.getCurrentUser()?.uid !== uid) return;
+                if (!importPreview.querySelector('#day-import-ai-consent').checked) { status.textContent = 'Consent withdrawn. Suggestions were not applied.'; return; }
+                const suggestions = WR.ui.validateImportSuggestions(candidates, data.suggestions, categories);
+                let applied = 0;
+                suggestions.forEach(suggestion => {
+                  const candidate = candidates.find(row => row.index === suggestion.index);
+                  const element = candidate.element;
+                  const categoryInput = element.querySelector('[data-import-field="category"]');
+                  if (categoryInput.value.trim() || element.querySelector('[data-import-field="description"]').value.trim().slice(0, 160) !== candidate.description || !element.querySelector('[data-import-include]').checked) return;
+                  categoryInput.value = suggestion.category;
+                  element.querySelector('.transaction-import-row-status').textContent = `AI suggestion (${suggestion.confidence} confidence). Review before importing.`;
+                  applied++;
+                });
+                status.textContent = `${applied} category suggestion(s) added to the preview only. Review and edit them before Import selected. Uncertain rows may remain blank.`;
+              } catch (error) {
+                if (button.isConnected) status.textContent = error.message || 'Could not suggest categories. You can still import manually.';
+              } finally {
+                if (button.isConnected) {
+                  button.disabled = false;
+                  const commit = importPreview.querySelector('#day-import-commit');
+                  if (commit) commit.disabled = false;
+                }
+              }
+            });
             importPreview.querySelector('#day-import-commit').addEventListener('click', async buttonEvent => {
               const button = buttonEvent.currentTarget;
               const selectedRows = [...importPreview.querySelectorAll('.transaction-import-row[data-import-index]')].filter(row => row.querySelector('[data-import-include]').checked);
@@ -7796,7 +7864,9 @@ WR.ui = WR.ui || {};
     if (snapshot.discretionarySpendChangePct !== null) {
       trends.push(`Variable/discretionary spending changed by ${(snapshot.discretionarySpendChangePct * 100).toFixed(1)}% compared with the previous month.`);
     }
-    trends.push(`Financial health score is ${Math.round(snapshot.healthScore.score * 10)}/1000 this month.`);
+    trends.push(WR.ui.hasEnoughFinancialData(snapshot)
+      ? `Financial health score is ${Math.round(snapshot.healthScore.score * 10)}/1000 this month.`
+      : 'Not enough data for a financial assessment. Add income and expenses or debt, and resolve missing exchange rates first.');
 
     const suggestions = snapshot.recommendations.length
       ? snapshot.recommendations.map((item) => `${WR.ui.escapeText(item.title)}: ${item.reason}`)
@@ -9128,8 +9198,8 @@ WR.ui = WR.ui || {};
       prevCashflow: prevCf,
       outflow,
       net,
-      healthScore: Math.round((s.healthScore?.score || 0) * 10),
-      prevHealthScore: hasPrev ? Math.round((prev.healthScore?.score || 0) * 10) : null,
+      healthScore: WR.ui.hasEnoughFinancialData(s) ? Math.round((s.healthScore?.score || 0) * 10) : null,
+      prevHealthScore: hasPrev && WR.ui.hasEnoughFinancialData(prev) ? Math.round((prev.healthScore?.score || 0) * 10) : null,
       breakdown,
       highlights,
       income,
@@ -9275,7 +9345,7 @@ WR.ui = WR.ui || {};
         ${kpi('Variable expenses', money(cf.variableExpenses), prev ? delta(cf.variableExpenses, prev.variableExpenses, false) : '')}
         ${kpi('Debt repayments', money(cf.debtPayments), prev ? delta(cf.debtPayments, prev.debtPayments, false) : '')}
         ${kpi('Savings', money(cf.savings), prev ? delta(cf.savings, prev.savings, true) : '')}
-        ${kpi('Financial health', `${r.healthScore}<small style="font-size:0.8rem;color:var(--muted)"> / 1000</small>`, r.prevHealthScore !== null ? delta(r.healthScore, r.prevHealthScore, true).replace(/(\d+)\.00/, '$1') : '')}
+        ${kpi('Financial health', r.healthScore === null ? 'Not enough data' : `${r.healthScore}<small style="font-size:0.8rem;color:var(--muted)"> / 1000</small>`, r.healthScore !== null && r.prevHealthScore !== null ? delta(r.healthScore, r.prevHealthScore, true).replace(/(\d+)\.00/, '$1') : '')}
       </section>
 
       <div class="report-grid">
@@ -9440,7 +9510,7 @@ WR.ui = WR.ui || {};
       ['Variable expenses', money(cf.variableExpenses), r.prevCashflow?.variableExpenses, cf.variableExpenses, false],
       ['Debt repayments', money(cf.debtPayments), r.prevCashflow?.debtPayments, cf.debtPayments, false],
       ['Savings', money(cf.savings), r.prevCashflow?.savings, cf.savings, true],
-      ['Financial health', `${r.healthScore} / 1000`, r.prevHealthScore ?? undefined, r.healthScore, true],
+      ['Financial health', r.healthScore === null ? 'Not enough data' : `${r.healthScore} / 1000`, r.healthScore === null ? undefined : r.prevHealthScore ?? undefined, r.healthScore, true],
     ];
     const boxW = (CW - 8) / 3, boxH = 21;
     kpis.forEach(([label, value, previous, current, higherIsGood], index) => {
@@ -10157,6 +10227,7 @@ WR.ui = WR.ui || {};
 
       <section id="settings-about" class="settings-card">
         ${cardHead(ICONS.info, 'About WealthRoute', `Version ${APP_VERSION}`)}
+        <button type="button" id="replay-tutorial-btn" class="secondary">Replay welcome messages</button>
         <details class="settings-details">
           <summary>How the numbers are calculated</summary>
           <p class="fine-print">WealthRoute is deterministic: formulas calculate outcomes and the assistant explains existing numbers only.</p>
@@ -10212,6 +10283,7 @@ WR.ui = WR.ui || {};
     document.getElementById('theme-preference').addEventListener('change', (event) => {
       WR.ui.setThemePreference(event.target.value);
     });
+    document.getElementById('replay-tutorial-btn').addEventListener('click', () => WR.ui.startTutorial(true));
 
     container.querySelectorAll('.settings-chip').forEach((chip) => {
       chip.addEventListener('click', () => {
@@ -10948,7 +11020,12 @@ WR.account = {};
     return !!currentUser && currentUser.providerData.some((p) => p.providerId === 'password');
   }
 
+  function isPasswordValid(password) {
+    return typeof password === 'string' && password.length >= 8 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
+  }
+
   async function signUp(email, password, username) {
+    if (!isPasswordValid(password)) throw Object.assign(new Error('Use at least 8 characters, including a letter and a number.'), { code: 'auth/weak-password' });
     await ensureInit();
     preserveSignupScreen = false;
     const { lower } = normalizeUsername(username);
@@ -11080,6 +11157,7 @@ WR.account = {};
   WR.account.isUsernameAvailable = isUsernameAvailable;
   WR.account.sendPasswordReset = sendPasswordReset;
   WR.account.usesPasswordProvider = usesPasswordProvider;
+  WR.account.isPasswordValid = isPasswordValid;
   WR.account.signUp = signUp;
   WR.account.signIn = signIn;
   WR.account.signInWithGoogle = signInWithGoogle;
@@ -11101,7 +11179,8 @@ WR.ui = WR.ui || {};
       'auth/invalid-credential': 'Email or password is incorrect. Check your details, or sign up if you are new.',
       'auth/wrong-password': 'Email or password is incorrect. Check your details, or sign up if you are new.',
       'auth/email-already-in-use': 'An account with this email already exists. Log in instead.',
-      'auth/weak-password': 'Choose a stronger password of at least 6 characters.',
+      'auth/weak-password': 'Use at least 8 characters, including a letter and a number.',
+      'auth/password-does-not-meet-requirements': 'Use at least 8 characters, including a letter and a number.',
       'auth/invalid-email': 'Enter a valid email address.',
       'auth/network-request-failed': 'Connection failed. Check your internet and try again.',
       'auth/too-many-requests': 'Too many attempts. Wait a little before trying again.',
@@ -11166,9 +11245,9 @@ WR.ui = WR.ui || {};
               </label>
               ${isReset ? '' : `<label for="auth-password-input">Password</label>
               <div class="password-field">
-                <input type="password" id="auth-password-input" autocomplete="${isSignup ? 'new-password' : 'current-password'}" minlength="6" required>
+                <input type="password" id="auth-password-input" autocomplete="${isSignup ? 'new-password' : 'current-password'}" ${isSignup ? 'minlength="8" pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}" aria-describedby="auth-password-help" title="Use at least 8 characters, including a letter and a number."' : ''} required>
                 <button type="button" id="auth-password-toggle" class="visibility-toggle" aria-controls="auth-password-input" aria-label="Show password" title="Show password">${WR.ui.visibilityIcon(true)}</button>
-              </div>`}
+              </div>${isSignup ? '<p id="auth-password-help" class="fine-print">At least 8 characters, including a letter and a number. Symbols are welcome.</p>' : ''}`}
               <p id="auth-reset-status" class="fine-print" role="status"></p>
               <button type="submit" id="auth-submit-btn">${isReset ? 'Send reset link' : isSignup ? 'Sign up' : 'Log in'}</button>
             </form>
@@ -11297,58 +11376,90 @@ WR.ui = WR.ui || {};
   }
 
   function snapshotForPrompt(s) {
-    // A trimmed, explicitly-labelled version of the snapshot \u2014 numbers only,
-    // no raw transaction-level detail, so the model has exactly what it
-    // needs to explain the dashboard and nothing it could use to invent
-    // detail that isn't there.
+    const finite = value => Number.isFinite(value) ? value : null;
     return {
       month: s.month,
       baseCurrency: s.profile.baseCurrency,
-      monthlyIncome: s.income,
-      monthlyExpenses: s.cashflow.totalExpenses,
-      availableSurplus: s.availableSurplus,
-      savingsRate: s.savingsRate,
-      totalDebt: s.totalDebt,
-      debtToIncomeRatio: s.debtToIncomeRatio,
-      highestInterestDebt: s.highestInterestDebt
-        ? { name: s.highestInterestDebt.name, interestRate: s.highestInterestDebt.interestRate, balance: s.highestInterestDebt.currentBalance }
-        : null,
-      emergencyFundMonths: s.emergencyFundMonths,
-      emergencyFundTargetMonths: s.emergencyFundTargetMonths,
-      netWorth: s.netWorth.netWorth,
-      totalAssets: s.netWorth.totalAssets,
-      totalLiabilities: s.netWorth.totalLiabilities,
-      assumedInvestmentReturn: s.assumedInvestmentReturn,
-      investmentReadiness: s.investmentReadiness,
-      financialHealthScore: s.healthScore.score,
-      currentRecommendations: s.recommendations.map((r) => ({ title: r.title, priority: r.priority, reason: r.reason })),
+      hasEnoughData: WR.ui.hasEnoughFinancialData(s),
+      monthlyIncome: finite(s.income),
+      monthlyExpenses: finite(s.cashflow.totalExpenses),
+      baseSpendingBudget: finite(s.availableSurplus),
+      totalSpendingFunds: finite(s.payCycleBudget?.available),
+      everydaySpending: finite(s.payCycleBudget?.spent),
+      leftToSpend: finite(s.payCycleBudget?.remaining),
+      savingsRate: finite(s.savingsRate),
+      totalDebt: finite(s.totalDebt),
+      emergencyFundMonths: finite(s.emergencyFundMonths),
+      emergencyFundTargetMonths: finite(s.emergencyFundTargetMonths),
+      netWorth: finite(s.netWorth.netWorth),
+      totalAssets: finite(s.netWorth.totalAssets),
+      totalLiabilities: finite(s.netWorth.totalLiabilities),
+      financialHealthScore: WR.ui.hasEnoughFinancialData(s) ? finite(s.healthScore.score) : null,
     };
   }
 
-  async function askAssistant(workerUrl, question, snapshot) {
-    const response = await fetch(`${workerUrl.replace(/\/$/, '')}/assistant`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        question,
-        snapshot: snapshotForPrompt(snapshot),
-      }),
-    });
+  function hasEnoughFinancialData(snapshot) {
+    return !snapshot.currencyWarnings?.length && Number(snapshot.income ?? snapshot.cashflow?.income) > 0 && (
+      Number(snapshot.cashflow?.totalExpenses) > 0 || Number(snapshot.payCycleBudget?.spent) > 0 || Number(snapshot.totalDebt) > 0
+    );
+  }
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`API error ${response.status}: ${errText}`);
+  function validateImportSuggestions(rows, suggestions, categories) {
+    if (!Array.isArray(suggestions)) return [];
+    const seen = new Set();
+    return suggestions.filter(suggestion => {
+      if (!suggestion || seen.has(suggestion.index) || !categories.includes(suggestion.category) || !['high', 'medium', 'low'].includes(suggestion.confidence)) return false;
+      const row = rows.find(item => item.index === suggestion.index);
+      if (!row || String(row.category || '').trim()) return false;
+      seen.add(suggestion.index);
+      return true;
+    }).map(({ index, category, confidence }) => ({ index, category, confidence }));
+  }
+
+  async function requestAssistant(workerUrl, payload, consent) {
+    if (consent !== true) throw new Error('Confirm data-sharing consent before using AI.');
+    const user = WR.account.getCurrentUser();
+    if (!user) throw new Error('Sign in before using AI.');
+    const endpoint = new URL(workerUrl);
+    if (endpoint.protocol !== 'https:' && !(endpoint.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(endpoint.hostname))) throw new Error('AI requires a secure Worker endpoint.');
+    const token = await user.getIdToken();
+    if (WR.account.getCurrentUser()?.uid !== user.uid) throw new Error('Your account changed. Please try again.');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
+    try {
+      const response = await fetch(`${workerUrl.replace(/\/$/, '')}/assistant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+        body: JSON.stringify({ ...payload, consent: true }),
+      });
+      let data;
+      try { data = await response.json(); } catch { throw new Error('AI service returned an invalid response.'); }
+      if (!response.ok) throw new Error(data.error || `AI request failed (${response.status}).`);
+      if (WR.account.getCurrentUser()?.uid !== user.uid) throw new Error('Your account changed. Please try again.');
+      return data;
+    } catch (error) {
+      if (error.name === 'AbortError') throw new Error('AI request timed out. Please try again.');
+      throw error;
+    } finally {
+      clearTimeout(timer);
     }
-    const data = await response.json();
+  }
+
+  async function askAssistant(workerUrl, question, snapshot, options = {}) {
+    const data = await requestAssistant(workerUrl, {
+      task: options.task || 'explain', question, snapshot: snapshotForPrompt(snapshot),
+      ...(options.previousSnapshot ? { previousSnapshot: snapshotForPrompt(options.previousSnapshot) } : {}),
+    }, options.consent);
     if (!data.answer) throw new Error('Assistant returned no answer.');
     return data.answer;
   }
 
   async function renderAssistant(container) {
-    const workerUrl = localStorage.getItem('wr_worker_url') || '';
+    const workerUrl = WR.account.getPasskeyWorkerUrl();
+    const uid = WR.account.getCurrentUser()?.uid;
     const chats = (await WR.repos.assistantChats.getAll()).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    if (!container.isConnected || WR.account.getCurrentUser()?.uid !== uid) return;
     const historyRows = chats.slice(0, 20).map((chat) => `
       <tr data-id="${WR.ui.escapeText(chat.id)}">
         <td>${new Date(chat.createdAt).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' })}</td>
@@ -11364,7 +11475,10 @@ WR.ui = WR.ui || {};
                <div class="assistant-main">
                  <p class="fine-print">Answers use only the numbers already shown on your Dashboard. General information, not personalised financial advice.</p>
                  <form id="ask-form" class="stacked-form assistant-chat">
-                   <textarea id="question-input" rows="3" placeholder="Ask about your cash flow, debt, emergency fund, or next financial priority." required></textarea>
+                   <label for="question-input">Your question</label>
+                   <textarea id="question-input" rows="3" maxlength="1000" placeholder="Ask about your cash flow, debt, emergency fund, or next financial priority." required></textarea>
+                   <label class="ai-consent"><input id="assistant-consent" type="checkbox" required><span>I agree to send my question and calculated financial summaries to Google Gemini through the app's AI service. No raw transactions or account identifiers are included in the model input. Avoid personal details in your question.</span></label>
+                   <div class="settings-actions"><button type="button" class="secondary" data-ai-task="explain">Explain my budget</button><button type="button" class="secondary" data-ai-task="review">Review this month</button></div>
                    <button type="submit">Ask Wealth Assistant</button>
                  </form>
                  <div id="answer-area" class="assistant-status" aria-live="polite"></div>
@@ -11376,7 +11490,7 @@ WR.ui = WR.ui || {};
                  </table>
                </aside>
              </div>`
-          : `<p class="empty">No Worker endpoint configured. Add your Cloudflare Worker URL in Settings to enable the assistant.</p>`
+          : `<p class="empty">The AI service is not available in this build yet.</p>`
       }
     `);
 
@@ -11391,31 +11505,60 @@ WR.ui = WR.ui || {};
       });
     });
 
-    document.getElementById('ask-form').addEventListener('submit', async (e) => {
+    const form = container.querySelector('#ask-form');
+    container.querySelector('#question-input').addEventListener('input', () => { delete form.dataset.task; });
+    container.querySelectorAll('[data-ai-task]').forEach(button => button.addEventListener('click', () => {
+      form.dataset.task = button.dataset.aiTask;
+      container.querySelector('#question-input').value = button.dataset.aiTask === 'review'
+        ? 'Review this budget month against the previous month. Highlight changes supported by the numbers and practical next priorities. Mention any missing data.'
+        : 'Explain my base spending budget, total spending funds and Left to spend. What should I prioritise next based on these numbers?';
+      form.requestSubmit();
+    }));
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const question = document.getElementById('question-input').value.trim();
+      if (form.dataset.pending === 'true' || !form.reportValidity()) return;
+      const question = container.querySelector('#question-input').value.trim();
       if (!question) return;
-      const answerArea = document.getElementById('answer-area');
+      const answerArea = container.querySelector('#answer-area');
+      const task = form.dataset.task || 'explain';
+      delete form.dataset.task;
+      form.dataset.pending = 'true';
+      form.querySelectorAll('button').forEach(button => { button.disabled = true; });
       WR.ui.setHTML(answerArea, '<p class="loading">Thinking\u2026</p>');
       try {
-        const snapshot = await WR.ui.buildSnapshot();
-        const answer = await askAssistant(workerUrl, question, snapshot);
+        const snapshot = await WR.ui.buildSnapshot(undefined, { readOnly: true });
+        const previousSnapshot = task === 'review' ? await WR.ui.buildSnapshot(WR.ui.previousMonthKey(snapshot.month), { readOnly: true }) : null;
+        if (!container.isConnected || WR.account.getCurrentUser()?.uid !== uid) return;
+        const answer = await askAssistant(workerUrl, question, snapshot, { task, previousSnapshot, consent: container.querySelector('#assistant-consent').checked });
+        if (!container.isConnected || WR.account.getCurrentUser()?.uid !== uid) return;
+        WR.ui.setHTML(answerArea, `<div class="assistant-answer">${formatAssistantAnswer(answer)}</div>`);
         await WR.repos.assistantChats.add(WR.models.createAssistantChat({
           question,
           answer,
           createdAt: new Date().toISOString(),
           month: snapshot.month,
         }));
+        if (!container.isConnected || WR.account.getCurrentUser()?.uid !== uid) return;
+        const currentQuestion = container.querySelector('#question-input').value;
+        const currentConsent = container.querySelector('#assistant-consent').checked;
         await renderAssistant(container);
-        document.getElementById('question-input').value = question;
-        WR.ui.setHTML(document.getElementById('answer-area'), `<div class="assistant-answer">${formatAssistantAnswer(answer)}</div>`);
+        if (!container.isConnected || WR.account.getCurrentUser()?.uid !== uid) return;
+        container.querySelector('#question-input').value = currentQuestion;
+        container.querySelector('#assistant-consent').checked = currentConsent;
+        WR.ui.setHTML(container.querySelector('#answer-area'), `<div class="assistant-answer">${formatAssistantAnswer(answer)}</div>`);
       } catch (err) {
-        WR.ui.setHTML(answerArea, `<p class="warning">Something went wrong: ${err.message}</p>`);
+        if (container.isConnected && WR.account.getCurrentUser()?.uid === uid) WR.ui.setHTML(answerArea, `<p class="warning">${escapeHtml(err.message)}</p>`);
+      } finally {
+        delete form.dataset.pending;
+        form.querySelectorAll('button').forEach(button => { button.disabled = false; });
       }
     });
   }
 
   WR.ui.renderAssistant = renderAssistant;
+  WR.ui.hasEnoughFinancialData = hasEnoughFinancialData;
+  WR.ui.validateImportSuggestions = validateImportSuggestions;
+  WR.ui.requestAssistant = requestAssistant;
   WR.ui._askAssistant = askAssistant; // exposed for testing snapshotForPrompt indirectly
   WR.ui._snapshotForPrompt = snapshotForPrompt;
   WR.ui._formatAssistantAnswer = formatAssistantAnswer;
@@ -11982,6 +12125,89 @@ function lockForPasskey() {
 WR.ui.schedulePasskeyLock = schedulePasskeyLock;
 WR.ui.lockForPasskey = lockForPasskey;
 
+function shouldShowTutorial(profile, replay = false) {
+  return replay || !profile.tutorialCompletedAt;
+}
+
+function tutorialSteps() {
+  return [
+    { title: 'Welcome to WealthRoute', message: "Let's get your money organised, one step at a time. You can explore each page as we go, or skip these messages and return to them in Settings.", route: '#/dashboard', action: 'Open Dashboard' },
+    { title: 'Start with income and payday', message: 'Add your income sources on Income. Set your usual payday in Settings, then use I\'ve been paid when your salary arrives. Your budget cycle follows your payday, not necessarily the calendar month.', route: '#/income', action: 'Open Income' },
+    { title: 'Plan your commitments', message: 'Add recurring bills on Fixed Expenses, planned variable costs on Budget, and balances and minimum payments on Debts. These commitments help calculate how much is available for everyday spending.', route: '#/fixed-expenses', action: 'Open Fixed Expenses' },
+    { title: 'Track everyday spending', message: 'Record purchases on Activity and check Left to spend. Monthly Spending Funds is where you manage buffer and extra money received. Adding spending funds does not automatically withdraw money from Savings.', route: '#/day-to-day', action: 'Open Activity' },
+    { title: 'Build savings and track borrowing', message: 'Create savings pots and record emergency fund balances on Savings. If you borrow from a reserve, use Borrowing & Repayments and record repayments there so your balances stay accurate.', route: '#/savings', action: 'Open Savings' },
+    { title: 'See the bigger picture', message: 'Add assets and investments on Wealth, set targets on Goals, and review your monthly Reports. Dashboard balances are current; year-to-date totals are money flowing during the year. Empty figures become useful as you add your own records.', route: '#/reports', action: 'Open Reports' },
+  ];
+}
+
+function closeTutorial() {
+  WR.ui._tutorialSession = null;
+  document.getElementById('welcome-tutorial')?.remove();
+}
+
+async function startTutorial(replay = false) {
+  const uid = WR.account.getCurrentUser()?.uid;
+  if (!uid || (!replay && WR.ui._tutorialSession?.uid === uid)) return;
+  closeTutorial();
+  const session = { uid, step: 0 };
+  WR.ui._tutorialSession = session;
+  try {
+    const profile = await WR.ui.getOrCreateProfile();
+    if (WR.ui._tutorialSession !== session || WR.account.getCurrentUser()?.uid !== uid) return;
+    if (!shouldShowTutorial(profile, replay)) { closeTutorial(); return; }
+    const steps = tutorialSteps();
+    const panel = document.createElement('section');
+    panel.id = 'welcome-tutorial';
+    panel.className = 'tutorial-panel';
+    panel.setAttribute('aria-label', 'WealthRoute welcome messages');
+    document.body.appendChild(panel);
+    const render = () => {
+      const step = steps[session.step];
+      WR.ui.setHTML(panel, `
+        <div class="tutorial-header"><strong>WealthRoute guide</strong><small>${session.step + 1} of ${steps.length}</small></div>
+        <div class="tutorial-message" aria-live="polite" aria-atomic="true"><h2>${WR.ui.escapeText(step.title)}</h2><p>${WR.ui.escapeText(step.message)}</p></div>
+        <a class="tutorial-destination" href="${step.route}">${WR.ui.escapeText(step.action)} &rarr;</a>
+        <div class="tutorial-actions">
+          <button type="button" class="link-btn" data-tutorial="skip">Skip tutorial</button>
+          <button type="button" class="secondary" data-tutorial="back" ${session.step === 0 ? 'disabled' : ''}>Back</button>
+          <button type="button" data-tutorial="next">${session.step === steps.length - 1 ? 'Finish' : 'Next'}</button>
+        </div><p class="tutorial-error" role="status"></p>`);
+      panel.querySelector('[data-tutorial="back"]').addEventListener('click', () => { session.step--; render(); panel.querySelector('[data-tutorial="next"]').focus(); });
+      const finish = async () => {
+        if (WR.account.getCurrentUser()?.uid !== uid || WR.ui._tutorialSession !== session) { panel.remove(); return; }
+        panel.querySelectorAll('button').forEach(button => { button.disabled = true; });
+        try {
+          const api = WR.account.getFirestoreApi();
+          await api.setDoc(api.doc(WR.account.getDb(), 'users', uid, 'userProfile', profile.id), { tutorialCompletedAt: new Date().toISOString() }, { merge: true });
+          if (WR.ui._tutorialSession === session) {
+            const restoreFocus = panel.contains(document.activeElement);
+            closeTutorial();
+            if (restoreFocus) document.querySelector('#replay-tutorial-btn, #content h1')?.focus();
+          }
+        } catch (error) {
+          if (WR.ui._tutorialSession !== session) return;
+          render();
+          panel.querySelector('.tutorial-error').textContent = 'Could not save your progress. Check your connection and try again.';
+        }
+      };
+      panel.querySelector('[data-tutorial="skip"]').addEventListener('click', finish);
+      panel.querySelector('[data-tutorial="next"]').addEventListener('click', () => {
+        if (session.step === steps.length - 1) { finish(); return; }
+        session.step++;
+        render();
+        panel.querySelector('[data-tutorial="next"]').focus();
+      });
+    };
+    render();
+  } catch (error) {
+    if (WR.ui._tutorialSession === session) closeTutorial();
+    console.warn('Welcome tutorial unavailable', error);
+  }
+}
+
+WR.ui.startTutorial = startTutorial;
+WR.ui.closeTutorial = closeTutorial;
+
 function bootApp() {
   if (!window.location.hash || window.location.hash === '#') {
     window.location.hash = '#/dashboard';
@@ -11990,6 +12216,7 @@ function bootApp() {
   WR.ui.renderShell();
   WR.ui.initRouter();
   schedulePasskeyLock();
+  WR.ui.startTutorial();
   if (!WR.ui._paydayWatcher) {
     let lastPaydayCheck = new Date().toDateString();
     const refreshPayday = () => {
@@ -12127,6 +12354,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // username that finishes loading a moment after sign-in resolves).
   let draftAccountUid = initialUser?.uid || null;
   WR.account.onAuthChange((user) => {
+    if (!user || WR.ui._tutorialSession?.uid !== user.uid) WR.ui.closeTutorial();
     if ((user?.uid || null) !== draftAccountUid) {
       WR.ui.clearFormDrafts?.();
       WR.ui._paydayProfile = null;

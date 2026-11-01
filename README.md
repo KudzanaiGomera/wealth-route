@@ -264,6 +264,20 @@ username (must be unique, 3\u201320 characters, letters/numbers/underscores),
 and \u2014 for email/password accounts \u2014 send yourself a password reset email.
 Google accounts manage their password through Google instead.
 
+New email/password sign-ups require at least eight characters, with an ASCII
+letter and a number; symbols are allowed. Existing passwords can still log in.
+The app shows one password visibility button and suppresses Edge's native
+duplicate. Set Firebase Authentication's server-side password policy as well:
+minimum length eight and numeric characters, plus the desired letter-case
+requirement. Firebase's built-in letter rules require lowercase or uppercase
+specifically, rather than "either case". Align that stricter policy with the
+app validator if enabled. Firebase-hosted password resets follow the Firebase
+policy, not this app's signup validation.
+
+First-use welcome messages guide account setup and can be replayed under
+Settings > About. Financial assessments remain unavailable until income and
+expenses or debt are recorded and required exchange rates are present.
+
 Settings > Account also offers permanent account deletion. Export a JSON
 backup first. Email/password accounts must re-enter their password; Google
 accounts must complete Google's sign-in prompt. If deletion is interrupted,
@@ -535,10 +549,24 @@ for account management (username, password reset, log out) \u2014 see
 
 ## Live updates and assistant
 
-`worker.js` is a Cloudflare Worker with two routes: `/rates` proxies the
-free Frankfurter exchange-rate service and `/assistant` sends only the
-calculated financial snapshot to Google Gemini. The provider key is a
-Cloudflare secret, never a browser setting or repository file.
+`worker.js` exposes `/rates`, `/assistant`, and passkey routes. Wealth Assistant
+offers budget explanations and current-versus-previous-month reviews using
+app-calculated financial summaries. AI never calculates stored balances or
+changes financial records. CSV review can request category suggestions for up
+to 50 selected spending rows with blank categories; suggestions remain editable
+and require the existing Import selected confirmation. Income, transfers,
+duplicate checks and whole-import Undo are unchanged.
+
+Every AI request requires a Firebase ID token and explicit consent. Explanations
+send the question and aggregate summaries, not record names or raw transactions.
+Categorisation sends only merchant descriptions and category labels, not dates,
+amounts or account IDs. Descriptions and free-text questions may contain personal
+details, so users can edit them before consent. Google receives the supplied
+content under its Gemini service terms; do not promise zero retention. Questions
+and answers are saved in the user's existing private assistantChats collection.
+The Worker stores UID, UTC day and request count in D1 for a 20-request daily
+per-account limit (failed provider calls also consume a slot). Limits reset at
+midnight UTC. The provider key is a Cloudflare secret, never shipped to browsers.
 
 1. Create a free Gemini API key in Google AI Studio. Gemini's free developer
   tier is suitable for personal use, subject to Google's current quotas.
@@ -547,14 +575,24 @@ Cloudflare secret, never a browser setting or repository file.
   npm install -g wrangler
   wrangler login
   wrangler secret put GEMINI_API_KEY
+  wrangler d1 migrations apply wealthroute-passkeys --remote
   wrangler deploy
   ```
 3. In the Cloudflare Worker dashboard, add a plain-text `ALLOWED_ORIGINS`
   variable with the exact app origin, for example
   `https://your-account.github.io`. For local testing add
   `http://localhost:8000` too, comma-separated.
-4. Copy the deployed `https://...workers.dev` URL into Settings > Live
-  Updates & Wealth Assistant.
+4. The assistant uses the deployed app Worker (`PASSKEY_WORKER_URL`), with the
+  existing Advanced Settings Worker URL override available for development.
+  `FIREBASE_PROJECT_ID` must match the client project. The existing `PASSKEY_DB`
+  binding must have migration `0002_assistant_usage.sql` applied; without quota
+  protection the endpoint refuses requests. `GEMINI_MODEL` in wrangler.toml is
+  configurable; choose a model available to your Google project.
+
+Run `node scripts/check-app.js --improvements-only` for focused production
+parsing, password, insufficient-data, import-suggestion and mocked Worker
+authentication/consent/quota regressions. These tests do not deploy the Worker,
+call Gemini, or certify published Firebase settings.
 
 ### Passkey sign-in and automatic device lock
 

@@ -8,6 +8,7 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ALLOWED_ORIGINS = "https://kudzanaigomera.github.io,http://localhost:8000"
 FIREBASE_PROJECT_ID = "wealthroute-cabd6"
+GEMINI_MODEL = "gemini-2.5-flash"
 PASSKEY_RP_NAME = "WealthRoute"
 PASSKEY_RP_ID = "kudzanaigomera.github.io"
 PASSKEY_ORIGIN = "https://kudzanaigomera.github.io"

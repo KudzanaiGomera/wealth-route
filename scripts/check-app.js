@@ -68,6 +68,122 @@ for (const match of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].
 }
 if (process.argv.includes('--migrate-html') || process.argv.includes('--escape-values')) fs.writeFileSync(htmlPath, html);
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+const tutorialContext = {};
+vm.runInNewContext(`${functions.get('shouldShowTutorial')}\n${functions.get('tutorialSteps')}`, tutorialContext);
+assert.equal(tutorialContext.shouldShowTutorial({}), true, 'First-time accounts receive welcome messages');
+assert.equal(tutorialContext.shouldShowTutorial({ tutorialCompletedAt: '2026-11-01T10:00:00Z' }), false, 'Completed or skipped tutorials stay dismissed');
+assert.equal(tutorialContext.shouldShowTutorial({ tutorialCompletedAt: '2026-11-01T10:00:00Z' }, true), true, 'Tutorial can be replayed');
+assert.equal(tutorialContext.tutorialSteps().length, 6);
+for (const step of tutorialContext.tutorialSteps()) {
+  assert.ok(html.includes(`'${step.route}':`), `Tutorial destination ${step.route} must be a registered route`);
+}
+if (process.argv.includes('--improvements-only')) {
+  vm.runInNewContext(functions.get('isPasswordValid'), tutorialContext);
+  for (const password of ['abc123', 'abcdefgh', '12345678', '', null]) assert.equal(tutorialContext.isPasswordValid(password), false);
+  for (const password of ['abcd1234', 'Secure12!', 'a1234567']) assert.equal(tutorialContext.isPasswordValid(password), true);
+  assert.match(html, /#auth-password-input::-ms-reveal/);
+  assert.match(html, /\.ai-consent input\[type="checkbox"\] \{ position: static; opacity: 1;/);
+  assert.match(functions.get('renderAssistant'), /checked = currentConsent/);
+  vm.runInNewContext(functions.get('validateImportSuggestions'), tutorialContext);
+  const importRows = [{ index: 0, category: '' }, { index: 1, category: 'Existing' }];
+  const importSuggestions = tutorialContext.validateImportSuggestions(importRows, [
+    { index: 0, category: 'Food', confidence: 'high', amount: 999 },
+    { index: 0, category: 'Food', confidence: 'low' },
+    { index: 1, category: 'Food', confidence: 'high' },
+    { index: 2, category: 'Invented', confidence: 'high' },
+  ], ['Food']);
+  assert.equal(JSON.stringify(importSuggestions), JSON.stringify([{ index: 0, category: 'Food', confidence: 'high' }]));
+  assert.equal(importRows[1].category, 'Existing', 'AI must not overwrite existing categories');
+  vm.runInNewContext(functions.get('hasEnoughFinancialData'), tutorialContext);
+  assert.equal(tutorialContext.hasEnoughFinancialData({ income: 0, cashflow: { totalExpenses: 0 } }), false);
+  assert.equal(tutorialContext.hasEnoughFinancialData({ income: 1000, cashflow: { totalExpenses: 0 } }), false);
+  assert.equal(tutorialContext.hasEnoughFinancialData({ income: 1000, cashflow: { totalExpenses: 200 } }), true);
+  assert.equal(tutorialContext.hasEnoughFinancialData({ income: 1000, totalDebt: 500 }), true);
+  assert.equal(tutorialContext.hasEnoughFinancialData({ income: 1000, totalDebt: 500, currencyWarnings: ['USD'] }), false);
+  const summaryContext = { WR: { ui: { hasEnoughFinancialData: tutorialContext.hasEnoughFinancialData } } };
+  vm.runInNewContext(functions.get('snapshotForPrompt'), summaryContext);
+  const aiSummary = summaryContext.snapshotForPrompt({ month: '2026-11', profile: { baseCurrency: 'ZAR' }, income: 1000, cashflow: { totalExpenses: 200 }, availableSurplus: 800, payCycleBudget: { available: 900, spent: 250, remaining: 650 }, netWorth: { netWorth: 10, totalAssets: 10, totalLiabilities: 0 }, healthScore: { score: 40 }, emergencyFundMonths: Infinity, highestInterestDebt: { name: 'Private name' } });
+  assert.equal(aiSummary.baseSpendingBudget, 800);
+  assert.equal(aiSummary.leftToSpend, 650);
+  assert.equal(aiSummary.emergencyFundMonths, null);
+  assert.ok(!JSON.stringify(aiSummary).includes('Private name'));
+  assert.match(functions.get('buildSnapshot'), /options\.readOnly \? null : await ensurePaydayRollover/);
+  assert.match(functions.get('getOrCreateProfile'), /if \(!options\.readOnly\) await WR\.repos\.userProfile\.add/);
+  assert.match(functions.get('renderAssistant'), /buildSnapshot\(undefined, \{ readOnly: true \}\)/);
+  const workerSource = fs.readFileSync(path.join(root, 'worker.js'), 'utf8');
+  const workerTree = acorn.parse(workerSource, { ecmaVersion: 'latest', sourceType: 'module' });
+  const workerFunctions = new Map();
+  walk(workerTree, node => { if (node.type === 'FunctionDeclaration') workerFunctions.set(node.id.name, workerSource.slice(node.start, node.end)); });
+  async function checkAssistantProtection() {
+    let calls = 0;
+    const usage = new Map();
+    let providerText = 'Your budget explanation.';
+    const workerContext = {
+      URL, Response, AbortSignal, Date, Set, GEMINI_MODEL: 'fixture-model', firebaseJwks: {},
+      CORS_HEADERS: {},
+      jwtVerify: async (token, keys, options) => {
+        assert.equal(options.audience, 'fixture-project');
+        assert.equal(options.issuer, 'https://securetoken.google.com/fixture-project');
+        if (token !== 'valid-token') throw new Error('Invalid signature');
+        return { payload: { sub: 'fixture-user' } };
+      },
+      fetch: async (url, options) => {
+        calls++;
+        assert.ok(!url.includes('key='), 'Provider key must not be sent in the URL');
+        const input = JSON.parse(options.body);
+        assert.ok(input.systemInstruction.parts[0].text);
+        assert.ok(!JSON.parse(input.contents[0].parts[0].text).snapshot?.privateName);
+        return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: providerText }] } }] }));
+      },
+    };
+    vm.createContext(workerContext);
+    vm.runInContext(['json', 'passkeyError', 'readJson', 'getSignedInUser', 'validateAssistantPayload', 'reserveAssistantUsage', 'handleAssistantRequest'].map(name => workerFunctions.get(name)).join('\n'), workerContext);
+    const env = {
+      FIREBASE_PROJECT_ID: 'fixture-project', GEMINI_API_KEY: 'fixture-secret',
+      PASSKEY_DB: { prepare: sql => ({ bind: (uid, day) => ({ first: async () => {
+        assert.match(sql, /ON CONFLICT\(uid, day\).*WHERE request_count < 20 RETURNING request_count/);
+        const key = `${uid}:${day}`;
+        const count = usage.get(key) || 0;
+        if (count >= 20) return null;
+        usage.set(key, count + 1);
+        return { request_count: count + 1 };
+      } }) }) },
+    };
+    const payload = { consent: true, question: 'Explain my budget', snapshot: { month: '2026-11', baseCurrency: 'ZAR', monthlyIncome: 1000, leftToSpend: -50, privateName: 'Never send this' } };
+    const send = (body = payload, token = 'valid-token', config = env) => workerContext.handleAssistantRequest(new Request('https://worker.example/assistant', { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: JSON.stringify(body) }), config, 'https://app.example');
+    assert.equal((await send(payload, '')).status, 401);
+    assert.equal((await send(payload, 'invalid-token')).status, 401);
+    assert.equal((await send({ ...payload, consent: false })).status, 400);
+    assert.equal((await send({ ...payload, snapshot: { ...payload.snapshot, monthlyIncome: '1000' } })).status, 400);
+    assert.equal((await send(payload, 'valid-token', { ...env, PASSKEY_DB: null })).status, 503);
+    assert.equal(calls, 0, 'Rejected requests must not reach the paid provider');
+    assert.equal((await send()).status, 200);
+    providerText = JSON.stringify({ suggestions: [
+      { index: 3, category: 'Food', confidence: 'high' }, { index: 3, category: 'Food', confidence: 'low' },
+      { index: 4, category: 'Invented', confidence: 'high' }, { index: 99, category: 'Food', confidence: 'high' },
+    ] });
+    const suggestions = await send({ consent: true, task: 'categorise', transactions: [{ index: 3, description: 'Shop' }, { index: 4, description: 'Other shop' }], categories: ['Food'] });
+    assert.deepEqual((await suggestions.json()).suggestions, [{ index: 3, category: 'Food', confidence: 'high' }]);
+    assert.equal((await send({ consent: true, task: 'categorise', transactions: [], categories: ['Food'] })).status, 400);
+    providerText = 'A review using supplied figures.';
+    assert.equal((await send({ ...payload, task: 'review', previousSnapshot: { ...payload.snapshot, month: '2026-10' } })).status, 200);
+    for (let request = 3; request < 20; request++) assert.equal((await send()).status, 200);
+    assert.equal((await send()).status, 429);
+    assert.equal(calls, 20);
+    await workerContext.reserveAssistantUsage(env, 'different-user');
+    assert.ok([...usage.keys()].some(key => key.startsWith('different-user:')));
+    assert.match(fs.readFileSync(path.join(root, 'migrations/0002_assistant_usage.sql'), 'utf8'), /PRIMARY KEY \(uid, day\)/);
+    console.log('Production parsing, onboarding, passwords and AI authentication, consent, quotas and suggestion validation passed.');
+  }
+  checkAssistantProtection().then(() => process.exit(0)).catch(error => { console.error(error); process.exit(1); });
+} else {
+  runAppChecks();
+}
+function runAppChecks() {
+if (process.argv.includes('--tutorial-only')) {
+  console.log('Production script parsing and first-use, dismissal, replay and tutorial route checks passed.');
+  process.exit(0);
+}
 acorn.parse(serviceWorkerSource, { ecmaVersion: 'latest' });
 const passkeyWorkerSource = fs.readFileSync(path.join(root, 'worker.js'), 'utf8');
 acorn.parse(passkeyWorkerSource, { ecmaVersion: 'latest', sourceType: 'module' });
@@ -1994,3 +2110,4 @@ async function checkPayments() {
   console.log('Payment idempotency, reversal, final installments, and legacy-record checks passed.');
 }
 checkPayments().catch(error => { console.error(error); process.exitCode = 1; });
+}
