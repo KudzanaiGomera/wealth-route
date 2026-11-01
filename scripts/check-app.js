@@ -77,10 +77,11 @@ assert.equal(tutorialContext.tutorialSteps().length, 6);
 for (const step of tutorialContext.tutorialSteps()) {
   assert.ok(html.includes(`'${step.route}':`), `Tutorial destination ${step.route} must be a registered route`);
 }
-if (process.argv.includes('--improvements-only')) {
+if (!process.argv.includes('--tutorial-only')) {
   vm.runInNewContext(functions.get('isPasswordValid'), tutorialContext);
-  for (const password of ['abc123', 'abcdefgh', '12345678', '', null]) assert.equal(tutorialContext.isPasswordValid(password), false);
+  for (const password of ['abc123', 'abcdefgh', '12345678', 'ABCD1234', '', null]) assert.equal(tutorialContext.isPasswordValid(password), false);
   for (const password of ['abcd1234', 'Secure12!', 'a1234567']) assert.equal(tutorialContext.isPasswordValid(password), true);
+  assert.match(functions.get('signUp'), /await authApi\.validatePassword\(auth, password\)/);
   assert.match(html, /#auth-password-input::-ms-reveal/);
   assert.match(html, /\.ai-consent input\[type="checkbox"\] \{ position: static; opacity: 1;/);
   assert.match(functions.get('renderAssistant'), /checked = currentConsent/);
@@ -106,6 +107,29 @@ if (process.argv.includes('--improvements-only')) {
   assert.equal(aiSummary.baseSpendingBudget, 800);
   assert.equal(aiSummary.leftToSpend, 650);
   assert.equal(aiSummary.emergencyFundMonths, null);
+  assert.equal(aiSummary.financialHealthScore, 400);
+  assert.equal(aiSummary.financialHealthScoreScale, 1000);
+  const coverageContext = { WR: { financial: {} } };
+  vm.runInNewContext(['convertCurrency', 'calculateLiquidAssets', 'calculateEmergencyReadyBalance', 'calculateEmergencyFundMonths'].map(name => functions.get(name)).join('\n'), coverageContext);
+  coverageContext.WR.financial.convertCurrency = coverageContext.convertCurrency;
+  assert.equal(coverageContext.calculateEmergencyReadyBalance([], 6000, [], 'ZAR'), 6000);
+  assert.equal(coverageContext.calculateEmergencyFundMonths(6000, 2000), 3);
+  assert.equal(coverageContext.calculateEmergencyReadyBalance([{ currentValue: 6000, liquidity: 'high', wealthSource: 'emergency' }, { currentValue: 1000, liquidity: 'high', wealthSource: 'savings' }, { currentValue: 500, liquidity: 'high' }], 6000, [], 'ZAR'), 6500);
+  assert.equal(coverageContext.calculateEmergencyReadyBalance([], -100, [], 'ZAR'), 0);
+  assert.equal(coverageContext.calculateEmergencyReadyBalance([{ currentValue: 100, currency: 'USD', liquidity: 'high' }], 6000, [{ fromCurrency: 'USD', toCurrency: 'ZAR', rate: 20 }], 'ZAR'), 8000);
+  const realFigureSummary = summaryContext.snapshotForPrompt({ month: '2026-11', profile: { baseCurrency: 'ZAR' }, income: 21571.17, cashflow: { totalExpenses: 15243.95, fixedExpenses: 15000, variableExpenses: 243.95, debtPayments: 1390.25 }, availableSurplus: 4936.97, payCycleBudget: { available: 5736.97, spent: 7887.90, remaining: -2150.93 }, paydayFunding: { buffer: 800, shortfall: 0 }, netWorth: { netWorth: -1, totalAssets: 6858.12, totalLiabilities: 6859.12 }, healthScore: { score: 39 } });
+  assert.equal(realFigureSummary.reservedDebtPayments, 1390.25);
+  assert.equal(realFigureSummary.reservedSavings, 0);
+  assert.equal(realFigureSummary.financialHealthScore, 390);
+  vm.runInNewContext([functions.get('escapeText'), functions.get('renderAssistantFigures')].join('\n'), summaryContext);
+  summaryContext.WR.ui.escapeText = summaryContext.escapeText;
+  summaryContext.WR.ui.fmt = value => Number(value).toFixed(2);
+  const verifiedFigures = summaryContext.renderAssistantFigures(realFigureSummary);
+  assert.ok(verifiedFigures.includes('Debt payments reserved'));
+  assert.ok(verifiedFigures.includes('1390.25'));
+  assert.ok(verifiedFigures.includes('390 / 1000'));
+  assert.equal(summaryContext.renderAssistantFigures(null), '', 'Older chats remain readable without a stored summary');
+  assert.equal(Math.round((realFigureSummary.fundedIncome - realFigureSummary.reservedFixedExpenses - realFigureSummary.reservedVariableExpenses - realFigureSummary.reservedDebtPayments) * 100), Math.round(realFigureSummary.baseSpendingBudget * 100));
   assert.ok(!JSON.stringify(aiSummary).includes('Private name'));
   assert.match(functions.get('buildSnapshot'), /options\.readOnly \? null : await ensurePaydayRollover/);
   assert.match(functions.get('getOrCreateProfile'), /if \(!options\.readOnly\) await WR\.repos\.userProfile\.add/);
@@ -140,6 +164,10 @@ if (process.argv.includes('--improvements-only')) {
     };
     vm.createContext(workerContext);
     vm.runInContext(['json', 'passkeyError', 'readJson', 'getSignedInUser', 'validateAssistantPayload', 'reserveAssistantUsage', 'assistantProviderError', 'handleAssistantRequest'].map(name => workerFunctions.get(name)).join('\n'), workerContext);
+    const legacyScore = workerContext.validateAssistantPayload({ consent: true, question: 'Explain', snapshot: { month: '2026-11', baseCurrency: 'ZAR', financialHealthScore: 39 } });
+    assert.equal(legacyScore.snapshot.financialHealthScore, 390);
+    const scaledScore = workerContext.validateAssistantPayload({ consent: true, question: 'Explain', snapshot: { month: '2026-11', baseCurrency: 'ZAR', financialHealthScore: 390, financialHealthScoreScale: 1000 } });
+    assert.equal(scaledScore.snapshot.financialHealthScore, 390);
     assert.equal(workerContext.assistantProviderError(429, {}).status, 429);
     assert.match(workerContext.assistantProviderError(429, {}).message, /separate from WealthRoute/);
     assert.match(workerContext.assistantProviderError(400, { error: { details: [{ reason: 'API_KEY_INVALID' }] } }).message, /rejected the AI key/);
@@ -184,10 +212,11 @@ if (process.argv.includes('--improvements-only')) {
     assert.match(fs.readFileSync(path.join(root, 'migrations/0002_assistant_usage.sql'), 'utf8'), /PRIMARY KEY \(uid, day\)/);
     console.log('Production parsing, onboarding, passwords and AI authentication, consent, quotas and suggestion validation passed.');
   }
-  checkAssistantProtection().then(() => process.exit(0)).catch(error => { console.error(error); process.exit(1); });
-} else {
-  runAppChecks();
+  checkAssistantProtection().then(() => {
+    if (process.argv.includes('--improvements-only')) process.exit(0);
+  }).catch(error => { console.error(error); process.exitCode = 1; });
 }
+if (!process.argv.includes('--improvements-only')) runAppChecks();
 function runAppChecks() {
 if (process.argv.includes('--tutorial-only')) {
   console.log('Production script parsing and first-use, dismissal, replay and tutorial route checks passed.');
@@ -208,8 +237,30 @@ assert.match(passkeyMigration, /CREATE TABLE passkey_challenges/);
 assert.match(html, /PASSKEY_WORKER_URL/);
 assert.match(html, /wr_passkey_lock_pending/);
 assert.match(html, /auth-passkey-btn/);
-assert.match(html, /setPersistence\(auth, authModule\.inMemoryPersistence\)/);
-assert.match(html, /await authModule\.signOut\(auth\)/);
+assert.match(functions.get('ensureInit'), /setPersistence\(auth, authModule\.browserLocalPersistence\)/);
+assert.match(functions.get('signOutUser'), /await authApi\.signOut\(auth\)/);
+async function checkLogoutIsolation() {
+  const events = [];
+  const logoutContext = {
+    ensureInit: async () => {}, auth: {}, db: {},
+    authApi: { signOut: async () => { events.push('sign-out'); } },
+    firestoreApi: {
+      terminate: async () => { events.push('terminate'); },
+      clearIndexedDbPersistence: async () => { events.push('clear-cache'); },
+    },
+    window: { location: { reload: () => { events.push('reload'); } } },
+    console: { warn: () => {} },
+  };
+  const logout = vm.runInNewContext(`(${functions.get('signOutUser')})`, logoutContext);
+  await logout();
+  assert.deepEqual(events, ['sign-out', 'terminate', 'clear-cache', 'reload']);
+  events.length = 0;
+  logoutContext.authApi.signOut = async () => { throw new Error('Sign-out failed'); };
+  await assert.rejects(logout, /Sign-out failed/);
+  assert.deepEqual(events, [], 'Failed sign-out must not falsely reload or clear the active session');
+  console.log('Persistent login and explicit logout/cache-isolation regressions passed.');
+}
+checkLogoutIsolation().catch(error => { console.error(error); process.exitCode = 1; });
 assert.ok(html.indexOf('id="auth-passkey-btn"') < html.indexOf('id="auth-google-btn"'), 'Passkey sign-in must appear before Google and email/password recovery.');
 assert.match(html, /id="auth-form"/);
 async function checkServiceWorkerFallbacks() {
@@ -2091,12 +2142,16 @@ async function checkPayments() {
     }),
   };
   context.WR.financial.monthlyMinPayment = context.monthlyMinPayment;
+  context.WR.financial.calculateMonthDebtPayments = context.calculateMonthDebtPayments;
+  context.WR.repos = { exchangeRates: { getAll: async () => [{ fromCurrency: 'USD', toCurrency: 'ZAR', rate: 20 }] } };
   context.WR.ui = { getOrCreateProfile: async () => ({ baseCurrency: 'ZAR' }) };
   context.WR.account = { getCurrentUser: () => ({ uid: 'test' }), getFirestoreApi: () => api, getDb: () => ({}) };
+  documents.set('users/test/payCycles/2026-10', { id: '2026-10', month: '2026-10' });
   documents.set(debtPath, { id: 'loan', currency: 'USD', currentBalance: 2000, minPayment: 100, paymentFrequency: 'monthly' });
   await context.setDebtPaymentStatus('loan', '2026-10', true);
   await context.setDebtPaymentStatus('loan', '2026-10', true);
   assert.equal(documents.get(debtPath).currentBalance, 1900);
+  assert.equal(documents.get('users/test/payCycles/2026-10').debtAmount, 2000, 'Legacy cycles reserve the converted pre-payment minimum');
   assert.equal([...documents.keys()].filter(key => key.startsWith(ledgerPath)).length, 1);
   await context.setDebtPaymentStatus('loan', '2026-10', false);
   await context.setDebtPaymentStatus('loan', '2026-10', false);

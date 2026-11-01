@@ -264,19 +264,30 @@ username (must be unique, 3\u201320 characters, letters/numbers/underscores),
 and \u2014 for email/password accounts \u2014 send yourself a password reset email.
 Google accounts manage their password through Google instead.
 
-New email/password sign-ups require at least eight characters, with an ASCII
-letter and a number; symbols are allowed. Existing passwords can still log in.
+New email/password sign-ups require at least eight characters, with a lowercase
+ASCII letter and a number; uppercase letters and symbols are allowed too.
+Signup also checks Firebase's active password policy before creating an account.
+Existing passwords can still log in.
 The app shows one password visibility button and suppresses Edge's native
-duplicate. Set Firebase Authentication's server-side password policy as well:
-minimum length eight and numeric characters, plus the desired letter-case
-requirement. Firebase's built-in letter rules require lowercase or uppercase
-specifically, rather than "either case". Align that stricter policy with the
-app validator if enabled. Firebase-hosted password resets follow the Firebase
-policy, not this app's signup validation.
+duplicate. Firebase Authentication's policy was verified on 2026-11-01 as
+enforced: minimum eight, lowercase letter and numeric character, with no forced
+upgrade on existing-user login. Firebase-hosted password resets follow that
+server policy. Recheck the policy after backend configuration changes.
 
 First-use welcome messages guide account setup and can be replayed under
 Settings > About. Financial assessments remain unavailable until income and
 expenses or debt are recorded and required exchange rates are present.
+
+AI explanations now include funded income, fixed and variable reservations,
+debt payments, reserved savings, budget adjustments, buffer, extra funds and
+prior shortfall separately. Health scores use the dashboard's /1000 scale.
+Expandable Verified figures are app-rendered, not model-generated; new saved
+conversations retain the exact summary used for that answer. Older conversations
+remain readable without a summary. Emergency cover includes the emergency-fund
+ledger plus independent high-liquidity assets, without counting reserve-linked
+assets twice. General savings pots are not automatically emergency funds; AI
+reports months of cover as unavailable when the essential-expense baseline is
+missing rather than claiming the fund is empty.
 
 Settings > Account also offers permanent account deletion. Export a JSON
 backup first. Email/password accounts must re-enter their password; Google
@@ -743,10 +754,19 @@ Flagging what's still open rather than letting it be a surprise:
   confirmation.
 - [x] Verify account deletion with a disposable account and confirm its
   username claim is released.
-- [ ] Run `npm run test:rules` in an environment with Java installed, then
-  verify the published Firebase rules using two disposable accounts.
+- [x] Run the isolated demo Firestore rules suite and verify published
+  account isolation with two disposable accounts (2026-11-01). Temporary
+  users and records were deleted; existing users' financial data was untouched.
 - [ ] Complete the release checklist on physical iPhone and Android devices,
   including offline writes, accessibility, and session restoration.
+
+Release verification on 2026-11-01: the normal production test command passes,
+including AI security, summary accuracy, password rules and explicit logout
+cache isolation. Browser fixtures passed tutorial completion, single password
+visibility control, consent gating, stored verified figures, review-first CSV
+import/Undo, and 320-1440px light/dark layouts. This is not physical-phone
+certification. Publish the frontend through the usual manual GitHub Pages
+commit/push flow and complete the physical-device checklist before a wider launch.
 - [ ] Add first-time-user account recovery and deletion guidance.
 - [ ] Split `index.html` into storage, financial-core, and UI modules in
   behavior-preserving steps, keeping the no-bundler deployment model.

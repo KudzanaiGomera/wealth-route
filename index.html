@@ -1622,6 +1622,12 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
 .assistant-answer h2, .assistant-answer h3 { font-family: var(--font-serif); margin: 1rem 0 0.4rem; font-size: 1.05rem; }
 .assistant-answer h2:first-of-type, .assistant-answer h3:first-of-type { margin-top: 0; }
 .assistant-answer p { margin: 0.45rem 0; }
+.assistant-figures { margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
+.assistant-figures summary { color: var(--accent); cursor: pointer; font-size: 0.9rem; }
+.assistant-figures dl { margin: 0.75rem 0; display: grid; gap: 0.45rem; font-size: 0.85rem; }
+.assistant-figures dl div { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.assistant-figures dt { min-width: 0; }
+.assistant-figures dd { margin: 0; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .assistant-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 1.5rem; align-items: start; }
 .assistant-main { min-width: 0; }
 .assistant-chat { width: 100%; max-width: none; margin: 1rem 0 0; }
@@ -2972,6 +2978,11 @@ WR.financial = WR.financial || {};
     return assets.filter(asset => asset.liquidity === 'high').reduce((sum, asset) => sum + (baseCurrency ? WR.financial.convertCurrency(asset.currentValue, asset.currency || baseCurrency, baseCurrency, exchangeRates).value : Number(asset.currentValue) || 0), 0);
   }
 
+  function calculateEmergencyReadyBalance(assets, emergencyFundBalance, exchangeRates = [], baseCurrency) {
+    const independentAssets = assets.filter(asset => !['savings', 'emergency'].includes(asset.wealthSource));
+    return Math.max(0, (Number(emergencyFundBalance) || 0) + calculateLiquidAssets(independentAssets, exchangeRates, baseCurrency));
+  }
+
   /**
    * How many months of essential expenses the liquid assets would cover.
    * Returns Infinity (not a crash) when essential expenses are 0 and there
@@ -2985,7 +2996,7 @@ WR.financial = WR.financial || {};
     return liquidAssets / monthlyEssentialExpenses;
   }
 
-  Object.assign(WR.financial, { calculateLiquidAssets, calculateEmergencyFundMonths });
+  Object.assign(WR.financial, { calculateLiquidAssets, calculateEmergencyReadyBalance, calculateEmergencyFundMonths });
 })();
 // Financial health score. Every point traces back to an explicit formula —
 // per your brief, this must never become an opaque AI-generated number.
@@ -4430,13 +4441,12 @@ WR.ui = WR.ui || {};
     const debtToIncomeRatio = F.calculateDebtToIncomeRatio(debts, cashflow.income, exchangeRates, profile.baseCurrency);
     const highestInterestDebt = F.getHighestInterestDebt(debts);
 
-    const liquidAssets = F.calculateLiquidAssets(assets, exchangeRates, profile.baseCurrency);
     // Fall back to fixed expenses as a rough proxy for "essential monthly
     // expenses" when no categories have been tagged essential yet.
     const essentialMonthlyExpenses = split.essential > 0 ? split.essential : cashflow.fixedExpenses;
-    const emergencyFundMonths = F.calculateEmergencyFundMonths(liquidAssets, essentialMonthlyExpenses);
-
     const netWorth = F.calculateNetWorth(assets, investments, debts, exchangeRates, profile.baseCurrency, savingsPots, emergencyFundContributions);
+    const emergencyReadyBalance = F.calculateEmergencyReadyBalance(assets, netWorth.wealth.emergencyFundTotal, exchangeRates, profile.baseCurrency);
+    const emergencyFundMonths = F.calculateEmergencyFundMonths(emergencyReadyBalance, essentialMonthlyExpenses);
     const missingCurrencies = new Set(netWorth.unconvertedItems.map((item) => item.currency));
     debtPayments.forEach((payment) => {
       const paymentCurrency = payment.currency || debts.find((debt) => debt.id === payment.debtId)?.currency || profile.baseCurrency;
@@ -4557,6 +4567,8 @@ WR.ui = WR.ui || {};
       debtToIncomeRatio,
       highestInterestDebt,
       emergencyFundMonths,
+      emergencyReadyBalance,
+      essentialMonthlyExpenses,
       emergencyFundTargetMonths: profile.emergencyFundTargetMonths,
       netWorth,
       netWorthDelta,
@@ -11021,12 +11033,14 @@ WR.account = {};
   }
 
   function isPasswordValid(password) {
-    return typeof password === 'string' && password.length >= 8 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
+    return typeof password === 'string' && password.length >= 8 && /[a-z]/.test(password) && /[0-9]/.test(password);
   }
 
   async function signUp(email, password, username) {
-    if (!isPasswordValid(password)) throw Object.assign(new Error('Use at least 8 characters, including a letter and a number.'), { code: 'auth/weak-password' });
+    if (!isPasswordValid(password)) throw Object.assign(new Error('Use at least 8 characters, including a lowercase letter and a number.'), { code: 'auth/weak-password' });
     await ensureInit();
+    const passwordCheck = await authApi.validatePassword(auth, password);
+    if (!passwordCheck.isValid) throw Object.assign(new Error('Password does not meet the account security policy.'), { code: 'auth/password-does-not-meet-requirements' });
     preserveSignupScreen = false;
     const { lower } = normalizeUsername(username);
     if (!(await isUsernameAvailable(lower))) throw new Error('That username is already taken.');
@@ -11179,8 +11193,8 @@ WR.ui = WR.ui || {};
       'auth/invalid-credential': 'Email or password is incorrect. Check your details, or sign up if you are new.',
       'auth/wrong-password': 'Email or password is incorrect. Check your details, or sign up if you are new.',
       'auth/email-already-in-use': 'An account with this email already exists. Log in instead.',
-      'auth/weak-password': 'Use at least 8 characters, including a letter and a number.',
-      'auth/password-does-not-meet-requirements': 'Use at least 8 characters, including a letter and a number.',
+      'auth/weak-password': 'Use at least 8 characters, including a lowercase letter and a number.',
+      'auth/password-does-not-meet-requirements': 'Use at least 8 characters, including a lowercase letter and a number.',
       'auth/invalid-email': 'Enter a valid email address.',
       'auth/network-request-failed': 'Connection failed. Check your internet and try again.',
       'auth/too-many-requests': 'Too many attempts. Wait a little before trying again.',
@@ -11245,9 +11259,9 @@ WR.ui = WR.ui || {};
               </label>
               ${isReset ? '' : `<label for="auth-password-input">Password</label>
               <div class="password-field">
-                <input type="password" id="auth-password-input" autocomplete="${isSignup ? 'new-password' : 'current-password'}" ${isSignup ? 'minlength="8" pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,}" aria-describedby="auth-password-help" title="Use at least 8 characters, including a letter and a number."' : ''} required>
+                <input type="password" id="auth-password-input" autocomplete="${isSignup ? 'new-password' : 'current-password'}" ${isSignup ? 'minlength="8" pattern="(?=.*[a-z])(?=.*[0-9]).{8,}" aria-describedby="auth-password-help" title="Use at least 8 characters, including a lowercase letter and a number."' : ''} required>
                 <button type="button" id="auth-password-toggle" class="visibility-toggle" aria-controls="auth-password-input" aria-label="Show password" title="Show password">${WR.ui.visibilityIcon(true)}</button>
-              </div>${isSignup ? '<p id="auth-password-help" class="fine-print">At least 8 characters, including a letter and a number. Symbols are welcome.</p>' : ''}`}
+              </div>${isSignup ? '<p id="auth-password-help" class="fine-print">At least 8 characters, including a lowercase letter and a number. Symbols are welcome.</p>' : ''}`}
               <p id="auth-reset-status" class="fine-print" role="status"></p>
               <button type="submit" id="auth-submit-btn">${isReset ? 'Send reset link' : isSignup ? 'Sign up' : 'Log in'}</button>
             </form>
@@ -11383,19 +11397,56 @@ WR.ui = WR.ui || {};
       hasEnoughData: WR.ui.hasEnoughFinancialData(s),
       monthlyIncome: finite(s.income),
       monthlyExpenses: finite(s.cashflow.totalExpenses),
+      fundedIncome: finite(s.paydayRecord ? s.paydayFunding?.salary : s.income),
+      reservedFixedExpenses: finite(s.paydayRecord?.fixedAmount ?? s.cashflow.fixedExpenses),
+      reservedVariableExpenses: finite(s.paydayRecord?.variableAmount ?? s.cashflow.variableExpenses),
+      reservedDebtPayments: finite(s.paydayRecord?.debtAmount ?? s.cashflow.debtPayments),
+      reservedSavings: s.paydayRecord ? finite(s.paydayFunding?.savings) : 0,
+      budgetAdjustment: s.paydayRecord ? finite(Number(s.paydayRecord.budgetAdjustment || 0)) : 0,
+      allocatedBuffer: finite(s.paydayFunding?.buffer),
+      extraSpendingFunds: finite(s.payCycleBudget?.added),
+      previousShortfall: finite(s.paydayFunding?.shortfall),
       baseSpendingBudget: finite(s.availableSurplus),
       totalSpendingFunds: finite(s.payCycleBudget?.available),
       everydaySpending: finite(s.payCycleBudget?.spent),
       leftToSpend: finite(s.payCycleBudget?.remaining),
       savingsRate: finite(s.savingsRate),
       totalDebt: finite(s.totalDebt),
-      emergencyFundMonths: finite(s.emergencyFundMonths),
+      emergencyFundBalance: finite(s.emergencyFundBalance),
+      emergencyReadyBalance: finite(s.emergencyReadyBalance),
+      essentialMonthlyExpenses: finite(s.essentialMonthlyExpenses),
+      emergencyFundMonths: s.essentialMonthlyExpenses > 0 ? finite(s.emergencyFundMonths) : null,
       emergencyFundTargetMonths: finite(s.emergencyFundTargetMonths),
       netWorth: finite(s.netWorth.netWorth),
       totalAssets: finite(s.netWorth.totalAssets),
       totalLiabilities: finite(s.netWorth.totalLiabilities),
-      financialHealthScore: WR.ui.hasEnoughFinancialData(s) ? finite(s.healthScore.score) : null,
+      financialHealthScore: WR.ui.hasEnoughFinancialData(s) ? finite(Math.round(s.healthScore.score * 10)) : null,
+      financialHealthScoreScale: 1000,
     };
+  }
+
+  function renderAssistantFigures(summary) {
+    if (!summary) return '';
+    const money = value => Number.isFinite(value) ? `${summary.baseCurrency} ${WR.ui.fmt(value)}` : 'Not available';
+    const rows = [
+      ['Funded income', summary.fundedIncome],
+      ['Fixed expenses reserved', summary.reservedFixedExpenses],
+      ['Variable expenses reserved', summary.reservedVariableExpenses],
+      ['Debt payments reserved', summary.reservedDebtPayments],
+      ['Savings reserved', summary.reservedSavings],
+      ['Budget adjustment', summary.budgetAdjustment],
+      ['Base spending budget', summary.baseSpendingBudget],
+      ['Allocated buffer', summary.allocatedBuffer],
+      ['Extra spending funds', summary.extraSpendingFunds],
+      ['Previous shortfall', summary.previousShortfall],
+      ['Total spending funds', summary.totalSpendingFunds],
+      ['Everyday spending', summary.everydaySpending],
+      ['Left to spend', summary.leftToSpend],
+      ['Emergency fund balance', summary.emergencyFundBalance],
+      ['Emergency-ready funds', summary.emergencyReadyBalance],
+      ['Essential monthly expenses', summary.essentialMonthlyExpenses],
+    ];
+    return `<details class="assistant-figures"><summary>Verified figures · ${WR.ui.escapeText(summary.month)}</summary><dl>${rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${WR.ui.escapeText(money(value))}</dd></div>`).join('')}</dl><p>Financial health: ${Number.isFinite(summary.financialHealthScore) ? `${summary.financialHealthScore} / 1000` : 'Not enough data'}</p></details>`;
   }
 
   function hasEnoughFinancialData(snapshot) {
@@ -11501,7 +11552,7 @@ WR.ui = WR.ui || {};
         const chat = chats.find((item) => item.id === button.dataset.id);
         if (!chat) return;
         document.getElementById('question-input').value = chat.question;
-        WR.ui.setHTML(document.getElementById('answer-area'), `<div class="assistant-answer">${formatAssistantAnswer(chat.answer)}</div>`);
+        WR.ui.setHTML(document.getElementById('answer-area'), `<div class="assistant-answer">${renderAssistantFigures(chat.summary)}${formatAssistantAnswer(chat.answer)}</div>`);
       });
     });
 
@@ -11531,13 +11582,14 @@ WR.ui = WR.ui || {};
         if (!container.isConnected || WR.account.getCurrentUser()?.uid !== uid) return;
         const answer = await askAssistant(workerUrl, question, snapshot, { task, previousSnapshot, consent: container.querySelector('#assistant-consent').checked });
         if (!container.isConnected || WR.account.getCurrentUser()?.uid !== uid) return;
-        WR.ui.setHTML(answerArea, `<div class="assistant-answer">${formatAssistantAnswer(answer)}</div>`);
-        await WR.repos.assistantChats.add(WR.models.createAssistantChat({
+        const summary = snapshotForPrompt(snapshot);
+        WR.ui.setHTML(answerArea, `<div class="assistant-answer">${renderAssistantFigures(summary)}${formatAssistantAnswer(answer)}</div>`);
+        await WR.repos.assistantChats.add({ ...WR.models.createAssistantChat({
           question,
           answer,
           createdAt: new Date().toISOString(),
           month: snapshot.month,
-        }));
+        }), summary });
         if (!container.isConnected || WR.account.getCurrentUser()?.uid !== uid) return;
         const currentQuestion = container.querySelector('#question-input').value;
         const currentConsent = container.querySelector('#assistant-consent').checked;
@@ -11545,7 +11597,7 @@ WR.ui = WR.ui || {};
         if (!container.isConnected || WR.account.getCurrentUser()?.uid !== uid) return;
         container.querySelector('#question-input').value = currentQuestion;
         container.querySelector('#assistant-consent').checked = currentConsent;
-        WR.ui.setHTML(container.querySelector('#answer-area'), `<div class="assistant-answer">${formatAssistantAnswer(answer)}</div>`);
+        WR.ui.setHTML(container.querySelector('#answer-area'), `<div class="assistant-answer">${renderAssistantFigures(summary)}${formatAssistantAnswer(answer)}</div>`);
       } catch (err) {
         if (container.isConnected && WR.account.getCurrentUser()?.uid === uid) WR.ui.setHTML(answerArea, `<p class="warning">${escapeHtml(err.message)}</p>`);
       } finally {
