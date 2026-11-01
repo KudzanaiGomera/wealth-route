@@ -781,7 +781,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .delta.neutral { color: var(--muted); font-weight: 500; }
 .hero-headline .delta { font-size: 0.85rem; margin-top: 0.35rem; }
 
-.annual-card .stat-grid { gap: 1.65rem; margin: 0.25rem 0 0.5rem; }
+.annual-card .stat-grid { gap: 1rem; margin: 0.25rem 0 0; }
 .dashboard-card.annual-card .stat { display: flex; align-items: flex-start; gap: 0.45rem; padding: 0; border: 0; min-height: 0; }
 .annual-card .stat-label { display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; }
 .annual-card .stat-label::before { content: ''; width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: var(--accent); }
@@ -789,22 +789,31 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .dashboard-card.annual-card .stat-value { text-align: left; font: 500 1.85rem/1.25 var(--font-serif); white-space: normal; overflow-wrap: anywhere; color: var(--accent); }
 .dashboard-card.annual-card .annual-debt .stat-value { font-size: 1.6rem; color: var(--gold); }
 
-.dashboard-overview { grid-area: position; display: grid; gap: 1rem; min-width: 0; }
+.dashboard-overview { grid-area: position; display: grid; gap: 0.85rem; min-width: 0; align-items: start; }
+.dashboard-overview > .dashboard-card, .reserve-balances > .dashboard-card, .dashboard-card.annual-card { padding: 1rem; }
 .dashboard-overview .position-card { grid-area: auto; }
 .dashboard-overview .position-card { background: linear-gradient(145deg, rgba(24, 143, 113, 0.09), transparent 75%), var(--panel); }
-.dashboard-overview .hero-headline { border: 0; padding: 0; margin: 0 0 1.25rem; }
+.dashboard-overview .hero-headline { border: 0; padding: 0; margin: 0 0 0.8rem; }
 .dashboard-overview .hero-value { font-size: 2.35rem; }
 .networth-breakdown { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .networth-breakdown > div { min-width: 0; padding-left: 0.75rem; border-left: 3px solid var(--accent); }
 .networth-breakdown > div:last-child { border-color: var(--danger); }
 .networth-breakdown .stat-value, .reserve-balances .stat-value { font: 600 1rem/1.5 var(--font-sans); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .dashboard-overview .networth-breakdown .stat-value { white-space: normal; text-align: left; }
-.networth-date { margin: 1rem 0 0; font-size: 0.78rem; color: var(--muted); }
-.reserve-balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-.reserve-card { display: flex; flex-direction: column; justify-content: space-between; gap: 0.65rem; min-width: 0; min-height: 150px; }
+.networth-date { margin: 0.7rem 0 0; font-size: 0.78rem; color: var(--muted); }
+.reserve-balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+.reserve-card { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
 .reserve-card.emergency-card { background: linear-gradient(145deg, rgba(24, 143, 113, 0.08), transparent 85%), var(--panel); }
 .reserve-card.savings-card { background: linear-gradient(145deg, rgba(180, 143, 54, 0.10), transparent 85%), var(--panel); }
 .reserve-card.borrowing-card { grid-column: 1 / -1; border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
+.borrowing-empty { grid-column: 1 / -1; min-width: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.borrowing-empty summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 44px; padding: 0.5rem 0; cursor: pointer; color: var(--muted); font-size: 0.85rem; list-style: none; }
+.borrowing-empty summary::-webkit-details-marker { display: none; }
+.borrowing-empty summary::after { content: '+'; font-size: 1.1rem; }
+.borrowing-empty[open] summary::after { content: '-'; }
+.borrowing-empty summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.borrowing-empty p { margin: 0.35rem 0; color: var(--muted); font-size: 0.8rem; }
+.borrowing-empty .borrowing-history-action { margin-bottom: 0.5rem; }
 .borrowing-history-action, .borrowing-history-action:visited { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 44px; margin-top: 0.2rem; padding-top: 0.65rem; border-top: 1px solid var(--border); color: var(--accent); font-size: 0.85rem; font-weight: 600; text-decoration: none; }
 .borrowing-history-action:hover { color: var(--text); }
 .borrowing-history-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 2px; }
@@ -817,7 +826,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .budget-card[data-state="near"] { --budget-color: var(--gold); }
 .budget-card[data-state="over"] { --budget-color: var(--danger); }
 .budget-card h2 { font: 600 0.9rem/1.4 var(--font-sans); margin: 0; }
-.budget-card .budget-period { margin: 0.3rem 0 1.25rem; font-size: 0.8rem; }
+.budget-card .budget-period { margin: 0.3rem 0 0.75rem; font-size: 0.8rem; }
 .payday-control { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.85rem; }
 .payday-control summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 44px; cursor: pointer; color: var(--accent); font-size: 0.85rem; font-weight: 600; list-style: none; }
 .payday-control summary::-webkit-details-marker { display: none; }
@@ -829,7 +838,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .payday-receipt input, .payday-receipt select { width: 100%; min-width: 0; box-sizing: border-box; }
 .payday-receipt button, .payday-receipt .payday-preview { grid-column: 1 / -1; }
 .payday-preview { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
-.payday-status { margin: 1rem 0 0; font-size: 0.8rem; color: var(--muted); }
+.payday-status { margin: 0.65rem 0 0; font-size: 0.8rem; color: var(--muted); }
 .income-payday { max-width: 36rem; margin-bottom: 1.25rem; }
 @media (max-width: 420px) { .payday-receipt { grid-template-columns: minmax(0, 1fr); } }
   .budget-card-body { display: grid; grid-template-columns: minmax(0, 1fr) 84px; align-items: center; gap: 0.85rem; }
@@ -840,7 +849,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .budget-ring-label { grid-area: 1 / 1; z-index: 1; text-align: center; }
 .budget-ring-label strong { display: block; font-size: 0.95rem; color: var(--budget-color); }
 .budget-ring-label small { display: block; margin-top: 0.15rem; font-size: 0.7rem; color: var(--muted); }
-  .budget-card .budget-spending { border: 0; margin-top: 1.2rem; padding-top: 0; }
+  .budget-card .budget-spending { border: 0; margin-top: 0.75rem; padding-top: 0; }
   .budget-card .budget-spending-head { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 0; line-height: 1.45; }
 .budget-spending-head > div { min-width: 0; }
 .budget-spending-head > div:last-child { text-align: right; }
@@ -857,6 +866,13 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 @media (min-width: 681px) and (max-width: 900px) {
   .dashboard-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .reserve-balances { grid-column: 1 / -1; }
+}
+@media (max-width: 680px) {
+  .dashboard-overview { grid-template-columns: minmax(0, 1fr); grid-template-areas: "budget" "position" "reserves" "borrowing"; }
+  .dashboard-overview > .budget-card { grid-area: budget; }
+  .dashboard-overview > .position-card { grid-area: position; }
+  .dashboard-overview > .reserve-balances { grid-area: reserves; }
+  .dashboard-overview > .borrowing-card, .dashboard-overview > .borrowing-empty { grid-area: borrowing; }
 }
 
 .day-category-list { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; margin: 1rem 0 1.75rem; overflow: hidden; }
@@ -5713,7 +5729,7 @@ WR.ui = WR.ui || {};
           </article>
           <small>Included in total wealth and net worth</small>
         </div>
-        <article class="dashboard-card reserve-card borrowing-card" aria-label="Outstanding reserve borrowing">
+        ${s.reserveBorrowing.total > 0 ? `<article class="dashboard-card reserve-card borrowing-card" aria-label="Outstanding reserve borrowing">
           <h2 class="stat-label">Borrowed from Reserves</h2>
           <span class="stat-value">${currency} ${fmt(s.reserveBorrowing.total)}</span>
           <p>Still to repay</p>
@@ -5722,7 +5738,7 @@ WR.ui = WR.ui || {};
             <div><span class="stat-label">From emergency fund</span><span class="stat-value">${currency} ${fmt(s.reserveBorrowing.emergency)}</span></div>
           </div>
           <a class="borrowing-history-action" href="#/savings"><span>Borrowing history</span><span aria-hidden="true">&#8594;</span></a>
-        </article>
+        </article>` : `<details class="borrowing-empty"><summary>Borrowed from reserves</summary><p data-private-detail>No outstanding reserve borrowing.</p><a class="borrowing-history-action" href="#/savings"><span>Borrowing history</span><span aria-hidden="true">&#8594;</span></a></details>`}
         </div>
 
       <nav class="dashboard-actions" aria-label="Money shortcuts">

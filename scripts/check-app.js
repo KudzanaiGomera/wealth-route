@@ -68,6 +68,10 @@ for (const match of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].
 }
 if (process.argv.includes('--migrate-html') || process.argv.includes('--escape-values')) fs.writeFileSync(htmlPath, html);
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+assert.match(html, /grid-template-areas: "budget" "position" "reserves" "borrowing"/);
+assert.match(functions.get('renderDashboard'), /s\.reserveBorrowing\.total > 0 \? `<article class="dashboard-card reserve-card borrowing-card"/);
+assert.match(functions.get('renderDashboard'), /<details class="borrowing-empty"><summary>Borrowed from reserves<\/summary>/);
+assert.match(html, /\.borrowing-empty summary[^\n]*min-height: 44px/);
 const tutorialContext = {};
 vm.runInNewContext(`${functions.get('shouldShowTutorial')}\n${functions.get('tutorialSteps')}`, tutorialContext);
 assert.equal(tutorialContext.shouldShowTutorial({}), true, 'First-time accounts receive welcome messages');
