@@ -11526,7 +11526,7 @@ WR.ui = WR.ui || {};
       form.querySelectorAll('button').forEach(button => { button.disabled = true; });
       WR.ui.setHTML(answerArea, '<p class="loading">Thinking\u2026</p>');
       try {
-        const snapshot = await WR.ui.buildSnapshot(undefined, { readOnly: true });
+        const snapshot = await WR.ui.buildSnapshot(WR.ui.currentBudgetMonth(), { readOnly: true });
         const previousSnapshot = task === 'review' ? await WR.ui.buildSnapshot(WR.ui.previousMonthKey(snapshot.month), { readOnly: true }) : null;
         if (!container.isConnected || WR.account.getCurrentUser()?.uid !== uid) return;
         const answer = await askAssistant(workerUrl, question, snapshot, { task, previousSnapshot, consent: container.querySelector('#assistant-consent').checked });

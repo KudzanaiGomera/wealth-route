@@ -109,8 +109,10 @@ if (process.argv.includes('--improvements-only')) {
   assert.ok(!JSON.stringify(aiSummary).includes('Private name'));
   assert.match(functions.get('buildSnapshot'), /options\.readOnly \? null : await ensurePaydayRollover/);
   assert.match(functions.get('getOrCreateProfile'), /if \(!options\.readOnly\) await WR\.repos\.userProfile\.add/);
-  assert.match(functions.get('renderAssistant'), /buildSnapshot\(undefined, \{ readOnly: true \}\)/);
+  assert.match(functions.get('renderAssistant'), /buildSnapshot\(WR\.ui\.currentBudgetMonth\(\), \{ readOnly: true \}\)/);
   const workerSource = fs.readFileSync(path.join(root, 'worker.js'), 'utf8');
+  assert.match(workerSource, /const GEMINI_MODEL = 'gemini-3\.5-flash-lite'/);
+  assert.match(fs.readFileSync(path.join(root, 'wrangler.toml'), 'utf8'), /GEMINI_MODEL = "gemini-3\.5-flash-lite"/);
   const workerTree = acorn.parse(workerSource, { ecmaVersion: 'latest', sourceType: 'module' });
   const workerFunctions = new Map();
   walk(workerTree, node => { if (node.type === 'FunctionDeclaration') workerFunctions.set(node.id.name, workerSource.slice(node.start, node.end)); });
@@ -137,7 +139,14 @@ if (process.argv.includes('--improvements-only')) {
       },
     };
     vm.createContext(workerContext);
-    vm.runInContext(['json', 'passkeyError', 'readJson', 'getSignedInUser', 'validateAssistantPayload', 'reserveAssistantUsage', 'handleAssistantRequest'].map(name => workerFunctions.get(name)).join('\n'), workerContext);
+    vm.runInContext(['json', 'passkeyError', 'readJson', 'getSignedInUser', 'validateAssistantPayload', 'reserveAssistantUsage', 'assistantProviderError', 'handleAssistantRequest'].map(name => workerFunctions.get(name)).join('\n'), workerContext);
+    assert.equal(workerContext.assistantProviderError(429, {}).status, 429);
+    assert.match(workerContext.assistantProviderError(429, {}).message, /separate from WealthRoute/);
+    assert.match(workerContext.assistantProviderError(400, { error: { details: [{ reason: 'API_KEY_INVALID' }] } }).message, /rejected the AI key/);
+    assert.match(workerContext.assistantProviderError(403, {}).message, /blocked access/);
+    assert.match(workerContext.assistantProviderError(404, {}).message, /model is not available/);
+    assert.match(workerContext.assistantProviderError(400, {}).message, /request configuration/);
+    assert.ok(!workerContext.assistantProviderError(500, { error: { message: 'private-provider-payload' } }).message.includes('private-provider-payload'));
     const env = {
       FIREBASE_PROJECT_ID: 'fixture-project', GEMINI_API_KEY: 'fixture-secret',
       PASSKEY_DB: { prepare: sql => ({ bind: (uid, day) => ({ first: async () => {
