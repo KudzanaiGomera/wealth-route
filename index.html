@@ -667,7 +667,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .position-summary-grid {
   display: grid;
   grid-template-columns: 1.2fr 0.9fr;
-  grid-template-areas: "position annual" "actions annual" "insights insights";
+  grid-template-areas: "position annual" "actions annual" "allocation allocation" "insights insights";
   gap: 1rem;
   margin: 0.3rem 0 1rem;
   align-items: start;
@@ -849,6 +849,33 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .budget-ring-label { grid-area: 1 / 1; z-index: 1; text-align: center; }
 .budget-ring-label strong { display: block; font-size: 0.95rem; color: var(--budget-color); }
 .budget-ring-label small { display: block; margin-top: 0.15rem; font-size: 0.7rem; color: var(--muted); }
+.allocation-model { margin: 1.25rem 0; padding: 1rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.position-summary-grid > .allocation-model { grid-area: allocation; min-width: 0; margin: 0; }
+.allocation-model h2 { margin: 0; font: 600 1.05rem/1.4 var(--font-sans); }
+.allocation-model header p { margin: 0.3rem 0 1rem; color: var(--muted); font-size: 0.8rem; }
+.allocation-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); align-items: center; gap: 1.5rem; max-width: 760px; }
+.allocation-donut { display: grid; place-items: center; width: 180px; height: 180px; border-radius: 50%; background: conic-gradient(var(--chart-1) 0 var(--needs), var(--chart-2) var(--needs) var(--wants), var(--chart-3) var(--wants) var(--savings), var(--border) var(--savings) 100%); }
+.allocation-donut::before { content: ''; grid-area: 1 / 1; width: 136px; height: 136px; border-radius: 50%; background: var(--bg); }
+.allocation-center { grid-area: 1 / 1; z-index: 1; text-align: center; }
+.allocation-center strong { display: block; font-size: 1.35rem; }
+.allocation-center small { display: block; margin-top: 0.25rem; color: var(--muted); font-size: 0.75rem; }
+.allocation-legend { list-style: none; padding: 0; margin: 0; min-width: 0; width: 100%; }
+.allocation-legend li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.75rem; padding: 0.65rem 0; border-bottom: 1px solid var(--border); }
+.allocation-legend li:last-child { border-bottom: 0; }
+.allocation-legend strong, .allocation-legend small { display: block; overflow-wrap: anywhere; }
+.allocation-legend strong { font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.allocation-legend small { margin-top: 0.25rem; font-size: 0.75rem; color: var(--muted); }
+.allocation-legend .allocation-amount { text-align: right; }
+.allocation-model .allocation-status { margin: 1rem 0 0; font-size: 0.85rem; overflow-wrap: anywhere; }
+.allocation-status[data-over="true"] { color: var(--danger); }
+@media (max-width: 540px) {
+  .allocation-layout { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 0.75rem; }
+  .allocation-legend li { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; padding: 0.85rem 0; }
+  .allocation-legend .allocation-amount { text-align: left; }
+  .allocation-legend strong { font-size: 0.9rem; line-height: 1.5; }
+  .allocation-legend small { font-size: 0.8rem; line-height: 1.5; }
+  .allocation-legend .allocation-amount small { margin-top: 0.15rem; }
+}
   .budget-card .budget-spending { border: 0; margin-top: 0.75rem; padding-top: 0; }
   .budget-card .budget-spending-head { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 0; line-height: 1.45; }
 .budget-spending-head > div { min-width: 0; }
@@ -1949,7 +1976,7 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .mobile-nav a:focus-visible, .mobile-nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .toast-stack { bottom: calc(5rem + env(safe-area-inset-bottom)); }
   .update-banner { bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
-  .position-summary-grid { grid-template-columns: 1fr; grid-template-areas: "position" "actions" "insights" "annual"; }
+  .position-summary-grid { grid-template-columns: 1fr; grid-template-areas: "position" "actions" "allocation" "insights" "annual"; }
   .dashboard-card { padding: 1rem; }
   .dashboard-card .stat { min-height: 5rem; }
   .hero-headline { padding: 0 0 0.9rem; }
@@ -4579,6 +4606,7 @@ WR.ui = WR.ui || {};
       selectedYear,
       profile,
       cashflow,
+      calculatedDebtPayments,
       currencyWarnings,
       income: cashflow.income,
       availableSurplus: cashflow.availableSurplus,
@@ -5529,6 +5557,43 @@ WR.ui = WR.ui || {};
   }
   Object.assign(WR.ui, { paydayReceiptState, renderPaydayReceipt, bindPaydayReceipt });
 
+  function calculate503020(snapshot) {
+    const amount = value => Math.round(Math.max(0, Number(value) || 0) * 100) / 100;
+    const cashflow = snapshot.cashflow;
+    const income = amount(cashflow.income);
+    const groups = [
+      { label: 'Needs', target: 50, value: amount(amount(cashflow.fixedExpenses) + amount(snapshot.calculatedDebtPayments ?? cashflow.debtPayments)) },
+      { label: 'Wants', target: 30, value: amount(amount(cashflow.variableExpenses) + amount(snapshot.payCycleBudget.spent)) },
+      { label: 'Savings', target: 20, value: amount(cashflow.savings) },
+    ].map(group => ({ ...group, percentage: income > 0 ? group.value / income * 100 : null, targetAmount: amount(income * group.target / 100) }));
+    const allocated = amount(groups.reduce((total, group) => total + group.value, 0));
+    return { income, groups, allocated, unallocated: amount(income - allocated), overrun: amount(allocated - income) };
+  }
+
+  WR.ui.calculate503020 = calculate503020;
+
+  function render503020(snapshot, currency, period) {
+    const model = WR.ui.calculate503020(snapshot);
+    const denominator = Math.max(model.income, model.allocated, 1);
+    const stops = model.groups.map((group, index) => model.groups.slice(0, index + 1).reduce((total, item) => total + item.value, 0) / denominator * 100);
+    const basis = ['Fixed + debt payments', 'Variable + period transactions', 'Monthly savings allocations'];
+    return `<section class="allocation-model" aria-labelledby="allocation-heading">
+      <header><h2 id="allocation-heading">50 / 30 / 20</h2><p>${escapeText(period)} | ${escapeText(snapshot.monthLabel)}</p></header>
+      <div data-private-detail>
+        <div class="allocation-layout">
+          <div class="allocation-donut" style="--needs: ${stops[0]}%; --wants: ${stops[1]}%; --savings: ${stops[2]}%" role="img" aria-label="Monthly income allocation; amounts and income percentages in the adjacent list">
+            <span class="allocation-center"><strong>${model.income > 0 ? `${(model.allocated / model.income * 100).toFixed(1)}%` : '--'}</strong><small>allocated</small></span>
+          </div>
+          <ul class="allocation-legend">${model.groups.map((group, index) => `<li>
+            <div><strong><span class="legend-dot" style="background: var(--chart-${index + 1})"></span>${group.label} <span>${group.target}% target</span></strong><small>${basis[index]}</small></div>
+            <div class="allocation-amount"><strong>${escapeText(currency)} ${fmt(group.value)} | ${group.percentage === null ? '--' : `${group.percentage.toFixed(1)}%`}</strong><small>Target ${escapeText(currency)} ${fmt(group.targetAmount)}</small></div>
+          </li>`).join('')}</ul>
+        </div>
+        <p class="allocation-status" data-over="${model.overrun > 0}">${model.income <= 0 ? 'Income not recorded for this month.' : model.overrun > 0 ? `${escapeText(currency)} ${fmt(model.overrun)} above income` : `${escapeText(currency)} ${fmt(model.unallocated)} unallocated`} ${snapshot.currencyWarnings.length ? '| Incomplete exchange rates' : ''}</p>
+      </div>
+    </section>`;
+  }
+
   async function renderDashboard(container) {
     const [paydayProfile, paydayCycles] = await Promise.all([WR.ui.getOrCreateProfile(), WR.repos.payCycles.getAll()]);
     WR.ui.assertActiveView(container);
@@ -5723,6 +5788,8 @@ WR.ui = WR.ui || {};
         <a href="#/savings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 8h18v12H3zM3 8l3-4h12l3 4M9 12h6"/></svg>Savings</a>
         <a href="#/goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>Goals</a>
       </nav>
+
+      ${render503020(s, currency, budgetPeriod)}
 
       <section class="dashboard-insights-grid">
         <article class="dashboard-card bills-card">
