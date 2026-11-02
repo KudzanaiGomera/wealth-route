@@ -69,30 +69,58 @@ for (const match of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].
 if (process.argv.includes('--migrate-html') || process.argv.includes('--escape-values')) fs.writeFileSync(htmlPath, html);
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const allocationContext = {};
+allocationContext.Date = class extends Date { constructor(...args) { super(...(args.length ? args : ['2026-11-02T12:00:00'])); } };
+allocationContext.WR = { financial: { convertCurrency: (value, from, to) => ({ converted: from === to, value }), monthlyMinPayment: debt => Number(debt.minPayment) || 0 } };
+vm.runInNewContext(functions.get('monthlyMinPayment'), allocationContext);
+allocationContext.WR.financial.monthlyMinPayment = allocationContext.monthlyMinPayment;
 vm.runInNewContext(functions.get('calculate503020'), allocationContext);
-const allocationFixture = { cashflow: { income: 10000, fixedExpenses: 4000, debtPayments: 1000, variableExpenses: 1500, savings: 2000 }, payCycleBudget: { spent: 500 } };
+const allocationFixture = { month: '2026-11', cashflow: { income: 10000, fixedExpenses: 4000, debtPayments: 1000, variableExpenses: 1500, savings: 2000 }, payCycleBudget: { spent: 99999 }, dayToDayTransactions: [{ id: 'daily', date: '2026-11-02', kind: 'spend', amount: 500 }, { date: '2026-10-31', kind: 'spend', amount: 700 }, { date: '2026-12-01', kind: 'spend', amount: 900 }, { date: '2025-11-02', kind: 'spend', amount: 800 }, { date: '2026-11-01', kind: 'add', amount: 1000 }] };
+allocationFixture.profile = { baseCurrency: 'ZAR' };
+allocationFixture.payCycleBudget = { start: '2026-10-25', endExclusive: '2026-11-25' };
+allocationFixture.expenseCategories = [{ id: 'food', name: 'Groceries', essential: true }, { id: 'fun', name: 'Eating out', essential: false }];
+allocationFixture.dayToDayTransactions = [{ id: 'daily', date: '2026-11-01', kind: 'spend', category: 'Groceries', amount: 500 }, { date: '2026-10-24', kind: 'spend', amount: 9000 }, { date: '2026-11-01', kind: 'add', amount: 10000 }, { date: '2026-11-01', kind: 'spend', category: 'Eating out', amount: 200 }, { date: '2026-11-01', kind: 'spend', amount: 100 }];
 const allocation = allocationContext.calculate503020(allocationFixture);
-assert.equal(JSON.stringify(allocation.groups.map(group => group.value)), JSON.stringify([5000, 2000, 2000]));
-assert.equal(JSON.stringify(allocation.groups.map(group => group.percentage)), JSON.stringify([50, 20, 20]));
-assert.equal(allocation.unallocated, 1000);
-assert.equal(allocation.overrun, 0);
-assert.equal(allocationContext.calculate503020({ ...allocationFixture, payCycleBudget: { spent: 2500 } }).overrun, 1000);
-assert.equal(allocationContext.calculate503020({ ...allocationFixture, cashflow: { ...allocationFixture.cashflow, savings: 2500 } }).groups[2].value, 2500);
-assert.equal(allocationContext.calculate503020({ ...allocationFixture, calculatedDebtPayments: 1500 }).groups[0].value, 5500);
-assert.equal(allocationContext.calculate503020({ ...allocationFixture, calculatedDebtPayments: 0 }).groups[0].value, 4000);
+assert.equal(JSON.stringify(allocation.groups.map(group => group.value)), JSON.stringify([500, 200, 0]));
+assert.equal(allocation.unclassified, 100);
+assert.equal(allocation.activitySpent, 800);
+assert.equal(allocation.unallocated, 9200);
+const actualFixture = { ...allocationFixture, fixedExpenses: [{ id: 'rent', name: 'Rent', amount: 4000, allocationType: 'needs', billStatuses: { '2026-11': 'paid' } }], debts: [{ id: 'debt', minPayment: 1000 }], debtPayments: [{ debtId: 'debt', month: '2026-11', amount: 1500 }], payCycles: [{ confirmed: true, payDate: '2026-10-25', allocations: [{ amount: 2000 }] }], emergencyFundContributions: [{ date: '2026-11-01', amount: 300 }, { date: '2026-11-01', amount: 9999, transferId: 'transfer' }, { date: '2026-11-01', amount: 9999, balanceAdjustment: true }] };
+assert.equal(JSON.stringify(allocationContext.calculate503020(actualFixture).groups.map(group => group.value)), JSON.stringify([5500, 200, 2800]));
+assert.equal(allocationContext.calculate503020({ ...actualFixture, dayToDayTransactions: [...actualFixture.dayToDayTransactions, { date: '2026-11-01', fixedExpenseId: 'rent', amount: 4000 }, { date: '2026-11-01', debtId: 'debt', amount: 1500 }] }).allocated, allocationContext.calculate503020(actualFixture).allocated);
+assert.equal(allocationContext.calculate503020({ ...allocationFixture, dayToDayTransactions: [...allocationFixture.dayToDayTransactions, { date: '2026-11-24', amount: 9000 }, { date: '2026-11-01', amount: 9000, allocationType: 'tracked' }] }).allocated, allocation.allocated);
+assert.equal(allocationContext.calculate503020({ ...allocationFixture, dayToDayTransactions: [{ date: '2026-10-25', amount: 200, allocationType: 'savings' }, { date: '2026-11-25', amount: 9000, allocationType: 'needs' }] }).groups[2].value, 200);
+assert.equal(allocationContext.calculate503020({ ...allocationFixture, allBudgetLines: [{ month: '2026-11', type: 'savings', budgetAmount: 9999, actualAmount: 300 }, { month: '2026-10', type: 'savings', actualAmount: 9999 }] }).groups[2].value, 300);
+const missingAllocationRate = allocationContext.calculate503020({ ...allocationFixture, allBudgetLines: [{ month: '2026-11', type: 'savings', actualAmount: 300, currency: 'USD' }] });
+assert.equal(missingAllocationRate.groups[2].value, 0);
+assert.equal(missingAllocationRate.incomplete, true);
+const weeklyAllocation = allocationContext.calculate503020({ ...allocationFixture, dayToDayTransactions: [], debts: [{ id: 'weekly', minPayment: 120, paymentFrequency: 'weekly' }], debtPayments: [{ debtId: 'weekly', month: '2026-11', amount: 600 }] });
+assert.equal(weeklyAllocation.groups[0].value, 520);
+assert.equal(weeklyAllocation.groups[2].value, 80);
+const allocationBefore = JSON.stringify(actualFixture);
+allocationContext.calculate503020(actualFixture);
+assert.equal(JSON.stringify(actualFixture), allocationBefore);
+assert.equal(allocationContext.calculate503020({ ...allocationFixture, dayToDayTransactions: allocationFixture.dayToDayTransactions.map(transaction => transaction.id === 'daily' ? { ...transaction, amount: 750 } : transaction) }).activitySpent, 1050);
+assert.equal(allocationContext.calculate503020({ ...allocationFixture, dayToDayTransactions: allocationFixture.dayToDayTransactions.filter(transaction => transaction.id !== 'daily') }).activitySpent, 300);
+assert.equal(allocationContext.calculate503020({ ...allocationFixture, dayToDayTransactions: allocationFixture.dayToDayTransactions.map(transaction => transaction.id === 'daily' ? { ...transaction, date: '2026-10-24' } : transaction) }).activitySpent, 300);
+assert.equal(allocationContext.calculate503020({ ...allocationFixture, cashflow: { ...allocationFixture.cashflow, savings: 2500, variableExpenses: 99999 } }).groups[2].value, 0);
 assert.equal(allocationContext.calculate503020({ ...allocationFixture, cashflow: { ...allocationFixture.cashflow, income: 0 } }).groups[0].percentage, null);
 assert.equal(allocationContext.calculate503020({ cashflow: {}, payCycleBudget: {} }).allocated, 0);
 assert.equal(allocationFixture.cashflow.debtPayments, 1000);
-vm.runInNewContext(functions.get('render503020'), Object.assign(allocationContext, { WR: { ui: { calculate503020: allocationContext.calculate503020 } }, escapeText: value => String(value), fmt: value => Number(value).toFixed(2) }));
+allocationContext.WR.ui = { calculate503020: allocationContext.calculate503020, isActiveForMonth: () => true };
+vm.runInNewContext(functions.get('render503020'), Object.assign(allocationContext, { escapeText: value => String(value), fmt: value => Number(value).toFixed(2) }));
 const allocationMarkup = allocationContext.render503020({ ...allocationFixture, currencyWarnings: [], monthLabel: 'November 2026' }, 'ZAR', '25 Oct - 24 Nov');
 assert.match(allocationMarkup, /data-private-detail/);
-assert.match(allocationMarkup, /--needs: 50%; --wants: 70%; --savings: 90%/);
-assert.match(allocationMarkup, /ZAR 1000.00 unallocated/);
+assert.match(allocationMarkup, /--needs: 5%; --wants: 7%; --savings: 7%; --classified: 8%/);
+assert.match(allocationMarkup, /ZAR 9200.00 unallocated/);
 assert.equal((functions.get('renderDashboard').match(/render503020\(s, currency, budgetPeriod\)/g) || []).length, 1);
 assert.ok(functions.get('renderDashboard').indexOf('render503020(s, currency, budgetPeriod)') < functions.get('renderDashboard').indexOf('<section class="dashboard-insights-grid">'));
+assert.match(allocationMarkup, /25 Oct - 24 Nov \| Actuals against income targets/);
+assert.match(allocationMarkup, /Activity recorded this period: ZAR 800.00/);
+assert.match(allocationMarkup, /Unclassified: ZAR 100.00/);
 assert.match(html, /grid-template-areas: "position" "actions" "allocation" "insights" "annual"/);
 assert.match(html, /\.allocation-legend li \{ grid-template-columns: minmax\(0, 1fr\);/);
-assert.match(allocationContext.render503020({ ...allocationFixture, payCycleBudget: { spent: 2500 }, currencyWarnings: [], monthLabel: 'November 2026' }, 'ZAR', '25 Oct - 24 Nov'), /ZAR 1000.00 above income/);
+assert.match(allocationContext.render503020({ ...allocationFixture, dayToDayTransactions: [{ date: '2026-11-01', kind: 'spend', amount: 11000 }], currencyWarnings: [], monthLabel: 'November 2026' }, 'ZAR', '25 Oct - 24 Nov'), /ZAR 1000.00 above income/);
+if (process.argv.includes('--allocation-only')) { console.log('Payday actual allocation, categories, unknown spending, paid bills, linked deduplication, savings and extra debt passed.'); process.exit(0); }
 assert.match(html, /grid-template-areas: "budget" "position" "reserves" "borrowing"/);
 assert.match(functions.get('renderDashboard'), /s\.reserveBorrowing\.total > 0 \? `<article class="dashboard-card reserve-card borrowing-card"/);
 assert.match(functions.get('renderDashboard'), /<details class="borrowing-empty"><summary>Borrowed from reserves<\/summary>/);
@@ -1188,7 +1216,7 @@ async function checkTransactionLayout() {
         calculatePayCycleBudget: () => ({ carryOver: 9999, funding: 4321, available: 5121, added: 800, spent: 98, remaining: 5023 }),
         calculateBudgetRemainingPercentage: () => 0,
         buildSnapshot: async () => ({ payCycles: [], paydayFunding: { budget: 4321 } }),
-        renderSpendingFunds: () => '<section>Monthly Spending Funds</section>', bindSpendingFunds() {},
+        renderSpendingFunds: () => '<section>Monthly Spending Funds</section>', bindSpendingFunds() {}, bindReliableForm() {},
         fmt: amount => Number(amount).toFixed(2),
         calculateDayToDayMonthBalance: () => ({ balanceBeforeMonth: 0, currentBalance: 702 }),
         setHTML: (target, value) => { if (target === container) markup = value; else target.markup = value; },
@@ -1218,6 +1246,11 @@ async function checkTransactionLayout() {
   assert.ok(markup.includes('id="day-collapse-all"'));
   assert.ok(markup.includes('id="day-expand-all"'));
   assert.ok(markup.includes('inputmode="decimal"'));
+  assert.ok(markup.includes('name="allocationType"'));
+  assert.ok(markup.includes('name="allocationLink"'));
+  assert.ok(markup.includes('Already recorded elsewhere'));
+  assert.ok(markup.includes('data-field="allocationType" aria-label="Allocation for'));
+  assert.ok(markup.includes('id="day-allocation-categories-form"'));
   assert.ok(markup.includes('<label>Description<input'));
   assert.ok(markup.includes('<details class="day-disclosure">'));
   dateToggle.click();

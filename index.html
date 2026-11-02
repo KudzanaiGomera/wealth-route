@@ -854,7 +854,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .allocation-model h2 { margin: 0; font: 600 1.05rem/1.4 var(--font-sans); }
 .allocation-model header p { margin: 0.3rem 0 1rem; color: var(--muted); font-size: 0.8rem; }
 .allocation-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); align-items: center; gap: 1.5rem; max-width: 760px; }
-.allocation-donut { display: grid; place-items: center; width: 180px; height: 180px; border-radius: 50%; background: conic-gradient(var(--chart-1) 0 var(--needs), var(--chart-2) var(--needs) var(--wants), var(--chart-3) var(--wants) var(--savings), var(--border) var(--savings) 100%); }
+.allocation-donut { display: grid; place-items: center; width: 180px; height: 180px; border-radius: 50%; background: conic-gradient(var(--chart-1) 0 var(--needs), var(--chart-2) var(--needs) var(--wants), var(--chart-3) var(--wants) var(--savings), var(--gold) var(--savings) var(--classified), var(--border) var(--classified) 100%); }
 .allocation-donut::before { content: ''; grid-area: 1 / 1; width: 136px; height: 136px; border-radius: 50%; background: var(--bg); }
 .allocation-center { grid-area: 1 / 1; z-index: 1; text-align: center; }
 .allocation-center strong { display: block; font-size: 1.35rem; }
@@ -868,6 +868,13 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .allocation-legend .allocation-amount { text-align: right; }
 .allocation-model .allocation-status { margin: 1rem 0 0; font-size: 0.85rem; overflow-wrap: anywhere; }
 .allocation-status[data-over="true"] { color: var(--danger); }
+.allocation-review { margin-top: 1rem; }
+.allocation-review summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--accent); font-size: 0.85rem; }
+.allocation-review label { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 160px); align-items: center; gap: 0.75rem; padding: 0.4rem 0; font-size: 0.85rem; }
+.allocation-review select { width: 100%; min-width: 0; }
+.allocation-review a { color: var(--accent); }
+.day-allocation-fields { display: grid; gap: 0.4rem; margin-top: 0.4rem; }
+.day-allocation-fields label { display: grid; gap: 0.2rem; font-size: 0.75rem; }
 @media (max-width: 540px) {
   .allocation-layout { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 0.75rem; }
   .allocation-legend li { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; padding: 0.85rem 0; }
@@ -875,6 +882,8 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
   .allocation-legend strong { font-size: 0.9rem; line-height: 1.5; }
   .allocation-legend small { font-size: 0.8rem; line-height: 1.5; }
   .allocation-legend .allocation-amount small { margin-top: 0.15rem; }
+  .allocation-review label { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
+  .day-disclosure .day-entry-grid { grid-template-columns: minmax(0, 1fr); }
 }
   .budget-card .budget-spending { border: 0; margin-top: 0.75rem; padding-top: 0; }
   .budget-card .budget-spending-head { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 0; line-height: 1.45; }
@@ -1016,6 +1025,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
   .data-table.day-ledger td select.cell { color: var(--muted); font-size: 0.78rem; }
   .data-table.day-ledger td .day-amount input { font-weight: 600; min-height: 44px; }
   .day-ledger tr:not(.is-editing) .cell { display: none; }
+  .day-ledger tr:not(.is-editing) .day-allocation-fields { display: none; }
   .day-ledger .day-mobile-value { display: block; overflow-wrap: anywhere; }
   .day-mobile-description { font-size: 0.92rem; font-weight: 500; line-height: 1.3; }
   .day-mobile-category { color: var(--muted); font-size: 0.75rem; line-height: 1.3; padding-top: 0.2rem; }
@@ -1026,9 +1036,9 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
   .day-ledger tr.is-editing { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; background: var(--panel-alt); padding: 0.85rem; }
   .day-ledger tr.is-editing td:nth-child(1) { display: block; grid-column: 1; grid-row: 1; }
   .day-ledger tr.is-editing td:nth-child(2) { grid-column: 2; grid-row: 1; }
-  .day-ledger tr.is-editing td:nth-child(3) { grid-column: 1; grid-row: 2; }
-  .day-ledger tr.is-editing td:nth-child(4) { grid-column: 2; grid-row: 2; }
-  .day-ledger tr.is-editing td:last-child { grid-column: 1 / -1; grid-row: 3; display: flex; align-items: center; justify-content: space-between; }
+  .day-ledger tr.is-editing td:nth-child(3) { grid-column: 1 / -1; grid-row: 2; }
+  .day-ledger tr.is-editing td:nth-child(4) { grid-column: 1 / -1; grid-row: 3; }
+  .day-ledger tr.is-editing td:last-child { grid-column: 1 / -1; grid-row: 4; display: flex; align-items: center; justify-content: space-between; }
   .day-ledger tr.is-editing td[data-label]::before { content: attr(data-label); display: block; color: var(--muted); font-size: 0.72rem; margin-bottom: 0.25rem; }
   .data-table.day-ledger tr.is-editing input.cell, .data-table.day-ledger tr.is-editing select.cell { min-height: 44px; padding: 0.4rem; font-size: 1rem; border-color: var(--border); background: var(--panel); }
   .day-ledger tr.is-editing .delete-day { display: inline-flex; align-items: center; min-height: 44px; color: var(--danger); }
@@ -5559,15 +5569,71 @@ WR.ui = WR.ui || {};
 
   function calculate503020(snapshot) {
     const amount = value => Math.round(Math.max(0, Number(value) || 0) * 100) / 100;
-    const cashflow = snapshot.cashflow;
-    const income = amount(cashflow.income);
+    const income = amount(snapshot.cashflow.income);
+    const period = snapshot.payCycleBudget;
+    const missingCurrencies = new Set();
+    const baseAmount = (record, value) => {
+      const currency = record.currency || snapshot.profile.baseCurrency;
+      const converted = WR.financial.convertCurrency(amount(value), currency, snapshot.profile.baseCurrency, snapshot.exchangeRates || []);
+      if (!converted.converted) missingCurrencies.add(currency);
+      return converted.converted ? amount(converted.value) : 0;
+    };
+    const todayDate = new Date();
+    const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
+    const inPeriod = date => !!date && date >= period.start && date < period.endExclusive && date <= today;
+    const categories = snapshot.expenseCategories || [];
+    const classification = record => {
+      if (['needs', 'wants', 'savings'].includes(record.allocationType)) return record.allocationType;
+      const category = categories.find(item => record.categoryId ? item.id === record.categoryId : String(item.name).trim().toLowerCase() === String(record.category || '').trim().toLowerCase());
+      return typeof category?.essential === 'boolean' ? category.essential ? 'needs' : 'wants' : 'unclassified';
+    };
+    const totals = { needs: 0, wants: 0, savings: 0, unclassified: 0 };
+    const add = (group, value) => { totals[group] += amount(value); };
+    const activities = (snapshot.dayToDayTransactions || []).filter(transaction => transaction.kind !== 'add' && transaction.allocationType !== 'tracked' && inPeriod(transaction.date));
+    const linkedBills = new Set(activities.map(transaction => transaction.fixedExpenseId).filter(Boolean));
+    let activitySpent = 0;
+    const debtActivity = new Map();
+    activities.forEach(transaction => {
+      activitySpent += amount(transaction.amount);
+      if (transaction.debtId) {
+        debtActivity.set(transaction.debtId, (debtActivity.get(transaction.debtId) || 0) + amount(transaction.amount));
+      } else {
+        const bill = (snapshot.fixedExpenses || []).find(item => item.id === transaction.fixedExpenseId);
+        add(classification(transaction.allocationType ? transaction : bill || transaction), transaction.amount);
+      }
+    });
+    (snapshot.fixedExpenses || []).filter(bill => bill.billStatuses?.[snapshot.month] === 'paid' && !linkedBills.has(bill.id)).forEach(bill => {
+      const line = (snapshot.budgetLines || []).find(item => item.type === 'fixed' && item.name === bill.name);
+      add(classification(bill), baseAmount(bill, line?.actualAmount ?? bill.amount));
+    });
+    const debtTotals = new Map();
+    (snapshot.debtPayments || []).filter(payment => payment.date ? inPeriod(payment.date) : payment.month === snapshot.month).forEach(payment => {
+      const debt = (snapshot.debts || []).find(item => item.id === payment.debtId);
+      const paid = baseAmount({ currency: payment.currency || debt?.currency }, payment.amount);
+      debtTotals.set(payment.debtId, (debtTotals.get(payment.debtId) || 0) + paid);
+    });
+    debtActivity.forEach((paid, debtId) => debtTotals.set(debtId, Math.max(paid, debtTotals.get(debtId) || 0)));
+    debtTotals.forEach((paid, debtId) => {
+      const debt = (snapshot.debts || []).find(item => item.id === debtId);
+      const converted = WR.financial.convertCurrency(debt ? WR.financial.monthlyMinPayment(debt) : paid, debt?.currency || snapshot.profile.baseCurrency, snapshot.profile.baseCurrency, snapshot.exchangeRates || []);
+      if (!converted.converted) missingCurrencies.add(debt?.currency);
+      const minimum = converted.converted ? amount(converted.value) : paid;
+      add('needs', Math.min(paid, minimum));
+      add('savings', Math.max(0, paid - minimum));
+    });
+    (snapshot.payCycles || []).filter(cycle => cycle.confirmed && inPeriod(cycle.payDate)).forEach(cycle => {
+      (cycle.allocations || []).forEach(allocation => add('savings', baseAmount(allocation, allocation.amount)));
+    });
+    (snapshot.allBudgetLines || []).filter(line => line.type === 'savings' && line.month === snapshot.month).forEach(line => add('savings', baseAmount(line, line.actualAmount)));
+    (snapshot.emergencyFundContributions || []).filter(entry => inPeriod(entry.date) && !entry.transferId && !entry.balanceAdjustment && Number(entry.amount) > 0).forEach(entry => add('savings', baseAmount(entry, entry.amount)));
     const groups = [
-      { label: 'Needs', target: 50, value: amount(amount(cashflow.fixedExpenses) + amount(snapshot.calculatedDebtPayments ?? cashflow.debtPayments)) },
-      { label: 'Wants', target: 30, value: amount(amount(cashflow.variableExpenses) + amount(snapshot.payCycleBudget.spent)) },
-      { label: 'Savings', target: 20, value: amount(cashflow.savings) },
+      { label: 'Needs', target: 50, value: amount(totals.needs) },
+      { label: 'Wants', target: 30, value: amount(totals.wants) },
+      { label: 'Savings + extra debt', target: 20, value: amount(totals.savings) },
     ].map(group => ({ ...group, percentage: income > 0 ? group.value / income * 100 : null, targetAmount: amount(income * group.target / 100) }));
-    const allocated = amount(groups.reduce((total, group) => total + group.value, 0));
-    return { income, groups, allocated, unallocated: amount(income - allocated), overrun: amount(allocated - income) };
+    const unclassified = amount(totals.unclassified);
+    const allocated = amount(groups.reduce((total, group) => total + group.value, 0) + unclassified);
+    return { income, groups, activitySpent: amount(activitySpent), unclassified, incomplete: missingCurrencies.size > 0, allocated, unallocated: amount(income - allocated), overrun: amount(allocated - income) };
   }
 
   WR.ui.calculate503020 = calculate503020;
@@ -5575,13 +5641,13 @@ WR.ui = WR.ui || {};
   function render503020(snapshot, currency, period) {
     const model = WR.ui.calculate503020(snapshot);
     const denominator = Math.max(model.income, model.allocated, 1);
-    const stops = model.groups.map((group, index) => model.groups.slice(0, index + 1).reduce((total, item) => total + item.value, 0) / denominator * 100);
-    const basis = ['Fixed + debt payments', 'Variable + period transactions', 'Monthly savings allocations'];
+    const stops = model.groups.map((group, index) => Number((model.groups.slice(0, index + 1).reduce((total, item) => total + item.value, 0) / denominator * 100).toFixed(4)));
+    const basis = ['Essential spending + debt minimums paid', 'Discretionary spending', 'Contributions + debt paid above minimums'];
     return `<section class="allocation-model" aria-labelledby="allocation-heading">
-      <header><h2 id="allocation-heading">50 / 30 / 20</h2><p>${escapeText(period)} | ${escapeText(snapshot.monthLabel)}</p></header>
+      <header><h2 id="allocation-heading">50 / 30 / 20</h2><p>${escapeText(period)} | Actuals against income targets</p></header>
       <div data-private-detail>
         <div class="allocation-layout">
-          <div class="allocation-donut" style="--needs: ${stops[0]}%; --wants: ${stops[1]}%; --savings: ${stops[2]}%" role="img" aria-label="Monthly income allocation; amounts and income percentages in the adjacent list">
+          <div class="allocation-donut" style="--needs: ${stops[0]}%; --wants: ${stops[1]}%; --savings: ${stops[2]}%; --classified: ${(model.allocated / denominator * 100)}%" role="img" aria-label="Payday-period actual allocation; amounts and income percentages in the adjacent list">
             <span class="allocation-center"><strong>${model.income > 0 ? `${(model.allocated / model.income * 100).toFixed(1)}%` : '--'}</strong><small>allocated</small></span>
           </div>
           <ul class="allocation-legend">${model.groups.map((group, index) => `<li>
@@ -5589,7 +5655,15 @@ WR.ui = WR.ui || {};
             <div class="allocation-amount"><strong>${escapeText(currency)} ${fmt(group.value)} | ${group.percentage === null ? '--' : `${group.percentage.toFixed(1)}%`}</strong><small>Target ${escapeText(currency)} ${fmt(group.targetAmount)}</small></div>
           </li>`).join('')}</ul>
         </div>
-        <p class="allocation-status" data-over="${model.overrun > 0}">${model.income <= 0 ? 'Income not recorded for this month.' : model.overrun > 0 ? `${escapeText(currency)} ${fmt(model.overrun)} above income` : `${escapeText(currency)} ${fmt(model.unallocated)} unallocated`} ${snapshot.currencyWarnings.length ? '| Incomplete exchange rates' : ''}</p>
+        <p class="allocation-status">Activity recorded this period: ${escapeText(currency)} ${fmt(model.activitySpent)}</p>
+        ${model.unclassified > 0 ? `<p class="allocation-status"><span class="legend-dot" style="background: var(--gold)"></span>Unclassified: ${escapeText(currency)} ${fmt(model.unclassified)}</p>` : ''}
+        <p class="allocation-status" data-over="${model.overrun > 0}">${model.income <= 0 ? 'Income not recorded for this month.' : model.overrun > 0 ? `${escapeText(currency)} ${fmt(model.overrun)} above income` : `${escapeText(currency)} ${fmt(model.unallocated)} unallocated`} ${model.incomplete || snapshot.currencyWarnings.length ? '| Incomplete exchange rates' : ''}</p>
+        <details class="allocation-review"><summary>Classification &amp; recorded sources</summary>
+          ${(snapshot.fixedExpenses || []).filter(bill => WR.ui.isActiveForMonth(bill, snapshot.month)).map(bill => `<label>${escapeText(bill.name)}<select data-allocation-bill="${escapeText(bill.id)}" aria-label="Classify ${escapeText(bill.name)}"><option value="">Use category</option><option value="needs" ${bill.allocationType === 'needs' ? 'selected' : ''}>Needs</option><option value="wants" ${bill.allocationType === 'wants' ? 'selected' : ''}>Wants</option></select></label>`).join('')}
+          <p class="fine-print">Recorded sources: Activity, bills marked paid, debt payments, savings contributions and confirmed pot transfers. Opening balances and unpaid budgets excluded.</p>
+          <p class="fine-print">Monthly-only savings and legacy debt entries follow their assigned budget month.</p>
+          <a href="#/transactions">Review Activity</a> | <a href="#/settings">Expense categories</a>
+        </details>
       </div>
     </section>`;
   }
@@ -5894,6 +5968,18 @@ WR.ui = WR.ui || {};
     `);
 
     WR.ui.bindFinancialVisibility(container);
+    container.querySelectorAll('[data-allocation-bill]').forEach(select => select.addEventListener('change', async () => {
+      select.disabled = true;
+      try {
+        const bill = await WR.repos.fixedExpenses.getById(select.dataset.allocationBill);
+        if (!bill) throw new Error('This bill no longer exists.');
+        await WR.repos.fixedExpenses.update({ ...bill, allocationType: select.value });
+        await renderDashboard(container);
+      } catch (error) {
+        notify(error.message || 'Unable to save classification.', 'error');
+        select.disabled = false;
+      }
+    }));
     bindPaydayReceipt(container, s, () => renderDashboard(container));
     container.querySelectorAll('[data-bill-status]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -7423,6 +7509,13 @@ WR.ui = WR.ui || {};
       const options = categoryNames.map((category) => `<option value="${escapeHtml(category)}" ${category.toLowerCase() === selected.toLowerCase() ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('');
       return `<option value="" ${selected ? '' : 'selected'}>None</option>${options}`;
     };
+    const allocationOptions = selected => [['', 'Use category'], ['needs', 'Needs'], ['wants', 'Wants'], ['savings', 'Savings / investing'], ['tracked', 'Already recorded elsewhere']].map(([value, label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`).join('');
+    const allocationLinkOptions = record => {
+      const selected = record.fixedExpenseId ? `fixed:${record.fixedExpenseId}` : record.debtId ? `debt:${record.debtId}` : record.allocationLink || '';
+      const choices = [['', 'No linked record'], ...(budgetSnapshot.fixedExpenses || []).map(bill => [`fixed:${bill.id}`, `Bill: ${bill.name}`]), ...(budgetSnapshot.debts || []).map(debt => [`debt:${debt.id}`, `Debt: ${debt.name}`])];
+      if (selected && !choices.some(([value]) => value === selected)) choices.push([selected, 'Unavailable linked record']);
+      return choices.map(([value, label]) => `<option value="${escapeHtml(value)}" ${selected === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('');
+    };
     let transactionImportState = null;
     const monthTx = transactions.filter((item) => item.kind !== 'add' && item.date >= dates.start && item.date < dates.endExclusive).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const dateFrom = WR.ui._dayDateFrom || '';
@@ -7481,7 +7574,7 @@ WR.ui = WR.ui || {};
       <tr data-id="${WR.ui.escapeText(item.id)}"${WR.ui._dayEditingId === item.id ? ' class="is-editing"' : ''}${collapsedDates.has(item.date) ? ' hidden' : ''}>
         <td data-label="Date"><input class="cell" data-field="date" type="date" value="${escapeHtml(item.date)}"></td>
         <td data-label="Description"><span class="day-mobile-value day-mobile-description">${escapeHtml(item.description || 'Transaction')}</span><input class="cell" data-field="description" value="${escapeHtml(item.description || '')}"></td>
-        <td data-label="Category"><span class="day-mobile-value day-mobile-category">${escapeHtml(item.category || 'Uncategorised')}</span><select class="cell" data-field="category">${categoryOptions(item.category)}</select></td>
+        <td data-label="Category"><span class="day-mobile-value day-mobile-category">${escapeHtml(item.category || 'Uncategorised')}</span><select class="cell" data-field="category" aria-label="Category for ${escapeHtml(item.description || 'transaction')}">${categoryOptions(item.category)}</select><div class="day-allocation-fields"><label>50 / 30 / 20<select class="cell" data-field="allocationType" aria-label="Allocation for ${escapeHtml(item.description || 'transaction')}">${allocationOptions(item.allocationType || '')}</select></label><label>Linked payment<select class="cell" data-field="allocationLink" aria-label="Linked payment for ${escapeHtml(item.description || 'transaction')}">${allocationLinkOptions(item)}</select></label></div></td>
         <td data-label="Amount (${profile.baseCurrency})"><div class="day-amount"><span class="day-mobile-value day-mobile-amount" aria-label="${escapeHtml(profile.baseCurrency)} ${WR.ui.fmt(item.amount)}">${WR.ui.fmt(item.amount)}</span><input class="cell" data-field="amount" type="number" step="0.01" min="0" value="${WR.ui.escapeText(item.amount)}"></div></td>
         <td><button type="button" class="day-row-toggle" aria-expanded="${WR.ui._dayEditingId === item.id}" aria-label="${WR.ui._dayEditingId === item.id ? 'Close editor for' : 'Edit'} ${escapeHtml(item.description || 'transaction')}" title="Edit transaction">${WR.ui._dayEditingId === item.id ? 'Done' : 'Edit'}</button><button class="link-btn delete-day" data-id="${WR.ui.escapeText(item.id)}">Delete</button></td>
       </tr>`).join('');
@@ -7504,6 +7597,8 @@ WR.ui = WR.ui || {};
           <label>Date<input name="date" type="date" value="${escapeHtml(draft.date)}" ${WR.ui._daySaving ? 'disabled' : ''} required></label>
           <label>Description<input name="description" value="${escapeHtml(draft.description)}" ${WR.ui._daySaving ? 'disabled' : ''} autocomplete="off" required></label>
           <label>Category<select name="category" ${WR.ui._daySaving ? 'disabled' : ''}>${categoryOptions(draft.category)}</select></label>
+          <label>50 / 30 / 20<select name="allocationType" ${WR.ui._daySaving ? 'disabled' : ''}>${allocationOptions(draft.allocationType || '')}</select></label>
+          <label>Linked payment<select name="allocationLink" ${WR.ui._daySaving ? 'disabled' : ''}>${allocationLinkOptions(draft)}</select></label>
           <label>Amount (${profile.baseCurrency})<input name="amount" type="number" inputmode="decimal" value="${escapeHtml(draft.amount)}" ${WR.ui._daySaving ? 'disabled' : ''} step="0.01" min="0.01" required></label>
           <div class="day-entry-actions"><button type="submit" ${WR.ui._daySaving ? 'disabled' : ''}>Add spending</button><span data-save-feedback role="status">${WR.ui._daySaving ? 'Waiting to save...' : ''}</span></div>
         </form>
@@ -7544,8 +7639,13 @@ WR.ui = WR.ui || {};
         <div class="day-category-list" role="list">${categoryCards || '<p class="empty">No spending recorded for this month yet.</p>'}</div>
         <form id="day-category-form" class="inline-form">
           <label>New category<input name="categoryName" required></label>
+          <label>50 / 30 / 20<select name="categoryAllocation"><option value="needs">Needs</option><option value="wants">Wants</option></select></label>
           <button type="submit" class="secondary">Add category</button>
           <span data-save-feedback role="status"></span>
+        </form>
+        <form id="day-allocation-categories-form" class="allocation-review">
+          ${categoryNames.map(name => { const category = expenseCategories.find(item => String(item.name).trim().toLowerCase() === name.toLowerCase()); return `<label>${escapeHtml(name)}<select name="allocation-category-${escapeHtml(name)}" data-category-name="${escapeHtml(name)}" aria-label="Classify ${escapeHtml(name)}"><option value="" ${typeof category?.essential !== 'boolean' ? 'selected' : ''}>Unclassified</option><option value="needs" ${category?.essential === true ? 'selected' : ''}>Needs</option><option value="wants" ${category?.essential === false ? 'selected' : ''}>Wants</option></select></label>`; }).join('')}
+          <button type="submit" class="secondary">Save classifications</button><span data-save-feedback role="status"></span>
         </form>
       </details>
     `);
@@ -7774,12 +7874,23 @@ WR.ui = WR.ui || {};
       const name = form.categoryName.value.trim();
       if (!name) return;
       if (!categoryNames.some((category) => category.toLowerCase() === name.toLowerCase())) {
-        const saved = await WR.ui.submitWithFeedback(form, () => WR.repos.expenseCategories.add(WR.models.createExpenseCategory({ name, type: 'variable', essential: false })));
+        const saved = await WR.ui.submitWithFeedback(form, () => WR.repos.expenseCategories.add(WR.models.createExpenseCategory({ name, type: 'variable', essential: form.elements.categoryAllocation.value === 'needs' })));
         if (!saved) return;
         WR.ui.notify('Day-to-day category added.', 'success');
       }
       renderDayToDay(container);
     });
+
+    WR.ui.bindReliableForm(container.querySelector('#day-allocation-categories-form'), async form => {
+      const currentCategories = await WR.repos.expenseCategories.getAll({ fresh: true });
+      for (const select of form.querySelectorAll('[data-category-name]')) {
+        const name = select.dataset.categoryName;
+        const existing = currentCategories.find(item => String(item.name).trim().toLowerCase() === name.toLowerCase());
+        const essential = select.value ? select.value === 'needs' : null;
+        if (existing && existing.essential !== essential) await WR.repos.expenseCategories.update({ ...existing, essential });
+        else if (!existing && select.value) await WR.repos.expenseCategories.add(WR.models.createExpenseCategory({ name, type: 'variable', essential }));
+      }
+    }, async () => { WR.ui.notify('Classifications saved.', 'success'); await renderDayToDay(container); });
 
     container.querySelectorAll('.day-date-toggle').forEach(button => button.addEventListener('click', () => {
       const date = button.dataset.date;
@@ -7823,7 +7934,10 @@ WR.ui = WR.ui || {};
             row.amount = Math.max(0, parseFloat(input.value) || 0);
             input.value = row.amount;
           } else {
-            row[field] = input.value;
+            if (field === 'allocationLink') {
+              row.fixedExpenseId = input.value.startsWith('fixed:') ? input.value.slice(6) : '';
+              row.debtId = input.value.startsWith('debt:') ? input.value.slice(5) : '';
+            } else row[field] = input.value;
           }
           row.year = Number(String(row.date || '').slice(0, 4)) || year;
           try {
@@ -7856,7 +7970,7 @@ WR.ui = WR.ui || {};
 
     document.getElementById('day-add-form').addEventListener('input', (event) => {
       const form = event.currentTarget;
-      WR.ui._dayDraft = { date: form.date.value, description: form.description.value, category: form.category.value, amount: form.amount.value };
+      WR.ui._dayDraft = { date: form.date.value, description: form.description.value, category: form.category.value, amount: form.amount.value, allocationType: form.elements.allocationType.value, allocationLink: form.elements.allocationLink.value };
     });
     document.getElementById('day-add-form').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -7870,13 +7984,18 @@ WR.ui = WR.ui || {};
         WR.ui.notify('Enter a date, description, and amount greater than zero.', 'error');
         return;
       }
-      WR.ui._dayDraft = { date, description, category, amount: form.amount.value };
+      const allocationType = form.elements.allocationType.value;
+      const allocationLink = form.elements.allocationLink.value;
+      WR.ui._dayDraft = { date, description, category, amount: form.amount.value, allocationType, allocationLink };
       const transaction = WR.models.createDayToDayTransaction({
         year: Number(date.slice(0, 4)),
         date,
         kind: 'spend',
         description,
         category: category || undefined,
+        allocationType,
+        fixedExpenseId: allocationLink.startsWith('fixed:') ? allocationLink.slice(6) : '',
+        debtId: allocationLink.startsWith('debt:') ? allocationLink.slice(5) : '',
         amount,
       });
       WR.ui._daySaving = true;

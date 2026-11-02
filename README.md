@@ -38,6 +38,19 @@ this means for offline use.
 - **Balance-first dashboard:** a subtly accent-tinted net-worth card with two-column
   balance rows, emergency fund and total assets, a compact annual overview,
   and direct links to Transactions, Budget, Savings, and Goals.
+- **50/30/20 actuals:** the dashboard follows the same payday-to-payday period as
+  Activity. Needs are essential spending and debt minimums paid; wants are
+  discretionary spending; the 20% group is recorded savings/investment
+  contributions plus debt payments above the minimum. Budget reservations and
+  existing balances are not added to actuals. Unknown categories remain
+  unclassified, and future-dated activity is excluded until its date arrives.
+  Activity supports Needs/Wants/Savings overrides and links to bill/debt records
+  to avoid counting the same payment twice. Use Already recorded elsewhere for
+  transactions duplicated in another contribution ledger. Savings actuals and
+  legacy debt entries without dates follow their assigned budget month; confirmed
+  pot transfers and emergency contributions use their recorded dates. Bills
+  marked paid use their recorded monthly amount unless linked Activity supplies
+  the payment amount. This chart does not change Left to spend or stored balances.
 - **Dashboard privacy:** the eye button hides or shows all dashboard amounts,
   monetary deltas, chart contents, debt progress details, and financial
   recommendation details together. The preference is remembered on this
