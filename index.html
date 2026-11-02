@@ -879,6 +879,21 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .allocation-summary .allocation-status { margin: 0; text-align: center; font-size: 0.8rem; line-height: 1.5; }
 .allocation-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.4rem 1rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
 .allocation-footer .allocation-status { margin: 0; font-size: 0.78rem; line-height: 1.5; }
+.allocation-guidance { margin: 0.1rem 0 0; font-size: 0.8rem; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+.allocation-guidance[data-state="above"] { color: var(--danger); }
+.allocation-guidance-note { margin: 0.75rem 0 0; font-size: 0.75rem; line-height: 1.5; color: var(--muted); }
+.bill-list.payment-timeline li { position: relative; display: grid; grid-template-columns: 2.8rem minmax(0, 1fr) auto; gap: 0.5rem 0.75rem; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; padding: 0.85rem 0; }
+.payment-timeline .payment-date { display: grid; align-content: center; justify-items: center; gap: 0.1rem; align-self: start; min-height: 44px; border-left: 2px solid var(--accent); color: var(--muted); font-size: 0.7rem; }
+.payment-date strong { font-size: 1.15rem; color: var(--text); font-variant-numeric: tabular-nums; }
+.payment-timeline .bill-info { min-width: 0; overflow-wrap: anywhere; }
+.payment-timeline .bill-amount { white-space: normal; overflow-wrap: anywhere; text-align: right; }
+.payment-timeline .bill-actions { grid-column: 2 / -1; justify-content: flex-end; }
+.payment-timeline .bill-actions button { min-height: 44px; }
+.payment-timeline .bill-soon .payment-date { border-color: var(--danger); }
+@media (max-width: 540px) {
+  .bill-list.payment-timeline li { grid-template-columns: 2.5rem minmax(0, 1fr); }
+  .payment-timeline .bill-amount { grid-column: 2; text-align: left; }
+}
 .allocation-model .allocation-status { overflow-wrap: anywhere; }
 .allocation-status[data-over="true"] { color: var(--danger); }
 .allocation-review { margin-top: 1rem; }
@@ -982,6 +997,35 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .day-entry-grid .day-entry-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.75rem; }
 .day-entry-actions button, .day-activity-tools button { min-height: 44px; }
 .save-status { padding: 0.4rem 1.5rem; color: var(--muted); font-size: 0.78rem; }
+.save-status:not([hidden]) { position: sticky; top: calc(3.5rem + env(safe-area-inset-top)); z-index: 18; background: var(--panel); border-bottom: 1px solid var(--border); min-height: 32px; display: flex; align-items: center; }
+.app-sheet { width: min(100% - 2rem, 32rem); max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem); margin: auto; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); overflow-y: auto; overscroll-behavior: contain; }
+.app-sheet::backdrop { background: rgba(0, 0, 0, 0.5); }
+.app-sheet-heading { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); background: var(--panel); }
+.app-sheet-heading h2 { margin: 0; font: 600 1.1rem/1.4 var(--font-sans); }
+.app-sheet-close { width: 44px; height: 44px; padding: 0; font-size: 1.5rem; background: transparent; color: var(--text); border: 0; }
+.app-sheet-body { padding: 0.5rem 1rem calc(1rem + env(safe-area-inset-bottom)); }
+.quick-expense-action { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 44px; }
+.quick-expense-action span[aria-hidden] { font-size: 1.35rem; line-height: 1; }
+.quick-expense-more { grid-column: 1 / -1; }
+.quick-expense-more summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--accent); }
+.quick-expense-more .day-entry-grid { margin-top: 0; }
+.reconciliation-panel { margin: 1rem 0 1.5rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 0.5rem 0; }
+.reconciliation-panel > summary { min-height: 44px; cursor: pointer; color: var(--accent); display: flex; align-items: center; }
+.reconciliation-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; padding: 0.75rem 0; max-width: 40rem; }
+.reconciliation-form label { display: grid; gap: 0.35rem; min-width: 0; font-size: 0.85rem; }
+.reconciliation-form input, .reconciliation-form select { min-width: 0; width: 100%; min-height: 44px; }
+.reconciliation-preview, .reconciliation-actions, .reconciliation-form [data-save-feedback] { grid-column: 1 / -1; }
+.reconciliation-preview { font-size: 0.9rem; line-height: 1.6; overflow-wrap: anywhere; }
+.reconciliation-preview dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.5rem; margin: 0.5rem 0; }
+.reconciliation-preview dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.reconciliation-preview p { margin: 0.5rem 0; }
+.reconciliation-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.reconciliation-actions button { min-height: 44px; }
+@media (max-width: 540px) {
+  .reconciliation-form { grid-template-columns: minmax(0, 1fr); }
+  .app-sheet { width: 100%; max-width: 100%; max-height: 92vh; max-height: 92dvh; margin: auto 0 0; border: 0; border-radius: 8px 8px 0 0; }
+  .app-sheet .day-entry-grid { grid-template-columns: minmax(0, 1fr); }
+}
 .save-status[data-state="error"], [data-save-feedback][data-state="error"] { color: var(--danger); }
 [data-save-feedback] { font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
 .day-activity-tools { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
@@ -4782,10 +4826,12 @@ WR.ui = WR.ui || {};
     window.addEventListener('offline', update);
     try {
       await operation();
+      controls.filter(([control]) => control.type === 'submit' && control.dataset.saveLabel).forEach(([control]) => { control.textContent = control.dataset.saveLabel; });
       if (status) { status.textContent = 'Saved'; status.dataset.state = 'ready'; }
       return true;
     } catch (error) {
       if (status) { status.textContent = "Couldn't save. Your entry is still here. Please retry."; status.dataset.state = 'error'; }
+      controls.filter(([control]) => control.type === 'submit').forEach(([control]) => { control.dataset.saveLabel = control.dataset.saveLabel || control.textContent; control.textContent = 'Retry save'; });
       WR.ui.notify("Couldn't save. Your entry is still here. Please retry.", 'error');
       return false;
     } finally {
@@ -4799,6 +4845,54 @@ WR.ui = WR.ui || {};
 
   WR.ui.renderSaveStatus = renderSaveStatus;
   WR.ui.submitWithFeedback = submitWithFeedback;
+  async function openAppSheet(id, title, render) {
+    if (document.querySelector('dialog.app-sheet')) return;
+    const owner = WR.account.getCurrentUser()?.uid;
+    const sheet = document.createElement('dialog');
+    sheet.className = 'app-sheet';
+    sheet.id = id;
+    sheet.setAttribute('aria-labelledby', `${id}-title`);
+    WR.ui.setHTML(sheet, `<header class="app-sheet-heading"><h2 id="${id}-title">${escapeText(title)}</h2><button type="button" class="app-sheet-close" aria-label="Close ${escapeText(title)}" title="Close">&times;</button></header><div class="app-sheet-body" aria-busy="true"><p role="status">Loading...</p></div>`);
+    document.body.appendChild(sheet);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusOrigin = document.activeElement;
+    const dismiss = () => { if (sheet.open) sheet.close(); };
+    const sheetHistory = `${id}-${Date.now()}`;
+    history.pushState({ ...(history.state || {}), wrSheet: sheetHistory }, '');
+    const onBack = () => { if (history.state?.wrSheet !== sheetHistory) dismiss(); };
+    window.addEventListener('popstate', onBack);
+    const onCancel = event => {
+      if (sheet.querySelector('[data-saving="true"]')) { event.preventDefault(); return; }
+    };
+    sheet.addEventListener('cancel', onCancel);
+    sheet.querySelector('.app-sheet-close').addEventListener('click', () => {
+      if (!sheet.querySelector('[data-saving="true"]')) dismiss();
+    });
+    window.addEventListener('hashchange', dismiss);
+    sheet.addEventListener('close', () => {
+      window.removeEventListener('hashchange', dismiss);
+      window.removeEventListener('popstate', onBack);
+      if (history.state?.wrSheet === sheetHistory) history.back();
+      WR.ui.captureFormDrafts(sheet);
+      sheet.remove();
+      document.body.style.overflow = previousOverflow;
+      if (focusOrigin?.isConnected) focusOrigin.focus({ preventScroll: true });
+    }, { once: true });
+    sheet.showModal();
+    try {
+      await render(sheet.querySelector('.app-sheet-body'), dismiss);
+      if (!sheet.isConnected || WR.account.getCurrentUser()?.uid !== owner) { dismiss(); return; }
+      sheet.querySelector('.app-sheet-body').setAttribute('aria-busy', 'false');
+      sheet.querySelector('input:not([type="hidden"]),select')?.focus();
+    } catch (error) {
+      if (!sheet.isConnected) return;
+      sheet.querySelector('.app-sheet-body').setAttribute('aria-busy', 'false');
+      WR.ui.setHTML(sheet.querySelector('.app-sheet-body'), `<p role="alert">${escapeText(error.message)}</p>`);
+    }
+  }
+  WR.ui.openAppSheet = openAppSheet;
+  WR.ui.openQuickExpense = () => openAppSheet('quick-expense-sheet', 'Add expense', (body, dismiss) => WR.ui.renderDayToDay(body, { quickEntry: true, afterSave: async () => { dismiss(); await WR.ui.reRenderCurrentRoute(); } }));
   const formDrafts = new Map();
   const pendingForms = new Set();
   function formDraftKey(form) {
@@ -4825,6 +4919,8 @@ WR.ui = WR.ui || {};
     if (typeof document !== 'undefined') document.querySelectorAll('form[data-draft-key]').forEach(form => { form.dataset.draftDirty = 'false'; });
     WR.ui._dayDraft = null;
     WR.ui._dayDraftOwner = null;
+    WR.ui._routeState = null;
+    if (typeof document !== 'undefined') document.querySelector('dialog.app-sheet')?.close();
   }
   function bindReliableForm(form, operation, afterSave) {
     if (!form) return;
@@ -5672,6 +5768,13 @@ WR.ui = WR.ui || {};
 
   WR.ui.calculate503020 = calculate503020;
 
+  function allocationGuidance(group, income, currency) {
+    if (!(income > 0) || group.percentage === null) return '';
+    const difference = Math.round((group.value - group.targetAmount) * 100) / 100;
+    if (group.target === 20) return difference < -0.005 ? `Savings target remaining: ${currency} ${fmt(-difference)}` : 'Savings target reached';
+    return difference > 0.005 ? `${group.label} above target by ${currency} ${fmt(difference)}` : `${group.label} within target`;
+  }
+
   function render503020(snapshot, currency, period) {
     const model = WR.ui.calculate503020(snapshot);
     const denominator = Math.max(model.income, model.allocated, 1);
@@ -5692,6 +5795,7 @@ WR.ui = WR.ui || {};
             <div class="allocation-row-heading"><strong title="${basis[index]}"><span class="legend-dot" style="background: var(--chart-${index + 1})"></span>${group.label}</strong><span class="allocation-percentage">${group.percentage === null ? '--' : `${group.percentage.toFixed(1)}%`}</span></div>
             <div class="allocation-meter" style="--actual: ${Math.min(100, group.percentage || 0)}%; --target: ${group.target}%" role="img" aria-label="${group.label}: ${group.percentage === null ? 'income not recorded' : `${group.percentage.toFixed(1)}% of income`}; ${group.target}% target"><span class="allocation-meter-fill"></span></div>
             <div class="allocation-row-values"><strong>${escapeText(currency)} ${fmt(group.value)}</strong><small>${group.target}% target &middot; ${escapeText(currency)} ${fmt(group.targetAmount)}</small></div>
+            ${model.income > 0 ? `<p class="allocation-guidance" data-state="${group.target !== 20 && group.value > group.targetAmount ? 'above' : 'within'}">${escapeText(allocationGuidance(group, model.income, currency))}</p>` : ''}
           </li>`).join('')}</ul>
         </div>
         <div class="allocation-footer">
@@ -5699,6 +5803,7 @@ WR.ui = WR.ui || {};
         ${model.unclassified > 0 ? `<p class="allocation-status"><span class="legend-dot" style="background: var(--gold)"></span>Unclassified: ${escapeText(currency)} ${fmt(model.unclassified)}</p>` : ''}
         ${model.incomplete || snapshot.currencyWarnings.length ? '<p class="allocation-status">Incomplete exchange rates</p>' : ''}
         </div>
+        <p class="allocation-guidance-note">Targets are a guide, not a financial score.${model.unclassified > 0 || model.incomplete ? ' Classification or exchange rates are incomplete.' : ''}</p>
         <details class="allocation-review"><summary>Classification &amp; recorded sources</summary>
           <p class="fine-print">Needs: ${basis[0]}. Wants: ${basis[1]}. Savings + extra debt: ${basis[2]}.</p>
           ${(snapshot.fixedExpenses || []).filter(bill => WR.ui.isActiveForMonth(bill, snapshot.month)).map(bill => `<label>${escapeText(bill.name)}<select data-allocation-bill="${escapeText(bill.id)}" aria-label="Classify ${escapeText(bill.name)}"><option value="">Use category</option><option value="needs" ${bill.allocationType === 'needs' ? 'selected' : ''}>Needs</option><option value="wants" ${bill.allocationType === 'wants' ? 'selected' : ''}>Wants</option></select></label>`).join('')}
@@ -5748,6 +5853,7 @@ WR.ui = WR.ui || {};
       const dueLabel = bill.daysAway < 0 ? `Overdue by ${Math.abs(bill.daysAway)} days`
         : bill.daysAway === 0 ? 'Due today' : bill.daysAway === 1 ? 'Due tomorrow' : `Due in ${bill.daysAway} days`;
       return `<li class="${!bill.paid && bill.daysAway <= 1 ? 'bill-soon' : ''}">
+        <time class="payment-date" datetime="${bill.monthKey}-${String(bill.due.getDate()).padStart(2, '0')}"><strong>${bill.due.getDate()}</strong><span>${escapeText(WR.ui.monthName(bill.due.getMonth() + 1).slice(0, 3))}</span></time>
         <div class="bill-info"><strong>${escapeText(bill.name)}</strong><span class="fine-print">${bill.kind} · ${bill.paid ? 'Paid' : dueLabel} (${bill.due.getDate()} ${WR.ui.monthName(bill.due.getMonth() + 1).slice(0, 3)} ${bill.due.getFullYear()})</span></div>
         <span class="bill-amount">${escapeText(bill.currency)} ${fmt(bill.amount)}</span>
         <div class="bill-actions">
@@ -5838,7 +5944,7 @@ WR.ui = WR.ui || {};
 
       <header class="dashboard-heading">
         <div><p class="greeting">${escapeText(greeting(s.profile.displayName || WR.account.getUsername()))}</p><h1>Your money at a glance</h1></div>
-        <p class="month-label">${s.monthLabel}</p>
+        <div><p class="month-label">${s.monthLabel}</p><button type="button" class="quick-expense-action" data-quick-expense><span aria-hidden="true">+</span>Add expense</button></div>
       </header>
       <section class="position-summary-grid">
         <div class="dashboard-overview">
@@ -5909,10 +6015,10 @@ WR.ui = WR.ui || {};
 
       <section class="dashboard-insights-grid">
         <article class="dashboard-card bills-card">
-          <h2>Upcoming bills</h2>
-          ${bills.length ? `<ul class="bill-list">${bills.map(billRow).join('')}</ul>`
+          <h2>Upcoming payments</h2><p class="fine-print">Overdue &amp; next 7 days</p>
+          ${bills.length ? `<ul class="bill-list payment-timeline">${bills.map(billRow).join('')}</ul>`
             : `<p class="fine-print">${hasDueDays ? 'No unpaid bills overdue or due in the next 7 days.' : 'Add a due day to your fixed expenses or debts to get reminders here.'}</p>`}
-          ${paidBills.length ? `<details class="bill-paid"><summary>Paid bills (${paidBills.length})</summary><ul class="bill-list">${paidBills.map(billRow).join('')}</ul></details>` : ''}
+          ${paidBills.length ? `<details class="bill-paid"><summary>Paid payments (${paidBills.length})</summary><ul class="bill-list payment-timeline">${paidBills.map(billRow).join('')}</ul></details>` : ''}
         </article>
         ${debtProgress ? `
         <article class="dashboard-card debt-free-card">
@@ -6010,6 +6116,7 @@ WR.ui = WR.ui || {};
     `);
 
     WR.ui.bindFinancialVisibility(container);
+    container.querySelector('[data-quick-expense]')?.addEventListener('click', WR.ui.openQuickExpense);
     container.querySelectorAll('[data-allocation-bill]').forEach(select => select.addEventListener('change', async () => {
       select.disabled = true;
       try {
@@ -7505,7 +7612,7 @@ WR.ui = WR.ui || {};
     }).sort((left, right) => right.occurrences - left.occurrences || right.averageAmount - left.averageAmount).slice(0, 5);
   }
 
-  async function renderDayToDay(container) {
+  async function renderDayToDay(container, options = {}) {
     WR.ui.syncBudgetMonth();
     const [profile, accounts, transactions, expenseCategories, emergencyFundContributions, storedCycles, payAdvances] = await Promise.all([
       WR.ui.getOrCreateProfile(),
@@ -7516,7 +7623,7 @@ WR.ui = WR.ui || {};
       WR.repos.payCycles.getAll(),
       WR.repos.payAdvances.getAll(),
     ]);
-    const budgetSnapshot = await WR.ui.buildSnapshot(WR.ui._dayMonth || WR.ui.currentBudgetMonth());
+    const budgetSnapshot = await WR.ui.buildSnapshot(options.quickEntry ? WR.ui.currentBudgetMonth() : WR.ui._dayMonth || WR.ui.currentBudgetMonth(), { readOnly: !!options.quickEntry });
     const payCycles = budgetSnapshot.payCycles;
     const month = WR.ui._dayMonth || WR.ui.currentBudgetMonth();
     const year = Number(month.slice(0, 4));
@@ -7558,6 +7665,22 @@ WR.ui = WR.ui || {};
       if (selected && !choices.some(([value]) => value === selected)) choices.push([selected, 'Unavailable linked record']);
       return choices.map(([value, label]) => `<option value="${escapeHtml(value)}" ${selected === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('');
     };
+    const entryMarkup = `<form id="day-add-form" class="day-entry-grid">
+      <label>Amount (${escapeHtml(profile.baseCurrency)})<input name="amount" type="number" inputmode="decimal" value="${escapeHtml(draft.amount)}" step="0.01" min="0.01" required></label>
+      <label>Category<select name="category">${categoryOptions(draft.category)}</select></label>
+      <label>Date<input name="date" type="date" value="${escapeHtml(options.quickEntry && !WR.ui._dayDraft ? today : draft.date)}" required></label>
+      <label>Description<input name="description" value="${escapeHtml(draft.description)}" autocomplete="off" ${options.quickEntry ? '' : 'required'}></label>
+      <details class="quick-expense-more" ${draft.allocationType || draft.allocationLink ? 'open' : ''}><summary>Allocation &amp; linked payment</summary><div class="day-entry-grid">
+        <label>50 / 30 / 20<select name="allocationType">${allocationOptions(draft.allocationType || '')}</select></label>
+        <label>Linked payment<select name="allocationLink">${allocationLinkOptions(draft)}</select></label>
+      </div></details>
+      <div class="day-entry-actions"><button type="submit">${options.quickEntry ? 'Save expense' : 'Add spending'}</button><span data-save-feedback role="status" aria-live="polite"></span></div>
+    </form>`;
+    if (options.quickEntry) {
+      WR.ui.setHTML(container, entryMarkup);
+      bindSpendingEntry(container, categoryKey, async () => { await options.afterSave?.(); });
+      return;
+    }
     let transactionImportState = null;
     const monthTx = transactions.filter((item) => item.kind !== 'add' && item.date >= dates.start && item.date < dates.endExclusive).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const dateFrom = WR.ui._dayDateFrom || '';
@@ -7622,7 +7745,7 @@ WR.ui = WR.ui || {};
       </tr>`).join('');
 
     WR.ui.setHTML(container, `
-      <h1>Transactions</h1>
+      <header class="dashboard-heading"><h1>Transactions</h1><button type="button" class="quick-expense-action" data-quick-expense><span aria-hidden="true">+</span>Add expense</button></header>
       <div class="toolbar"><label>Month: <input id="day-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
 
       <div class="stat-grid day-summary-grid">
@@ -7635,15 +7758,7 @@ WR.ui = WR.ui || {};
 
       <details id="day-entry" class="day-disclosure" ${WR.ui._dayDraft ? 'open' : ''}>
         <summary>Add spending</summary>
-        <form id="day-add-form" class="day-entry-grid">
-          <label>Date<input name="date" type="date" value="${escapeHtml(draft.date)}" ${WR.ui._daySaving ? 'disabled' : ''} required></label>
-          <label>Description<input name="description" value="${escapeHtml(draft.description)}" ${WR.ui._daySaving ? 'disabled' : ''} autocomplete="off" required></label>
-          <label>Category<select name="category" ${WR.ui._daySaving ? 'disabled' : ''}>${categoryOptions(draft.category)}</select></label>
-          <label>50 / 30 / 20<select name="allocationType" ${WR.ui._daySaving ? 'disabled' : ''}>${allocationOptions(draft.allocationType || '')}</select></label>
-          <label>Linked payment<select name="allocationLink" ${WR.ui._daySaving ? 'disabled' : ''}>${allocationLinkOptions(draft)}</select></label>
-          <label>Amount (${profile.baseCurrency})<input name="amount" type="number" inputmode="decimal" value="${escapeHtml(draft.amount)}" ${WR.ui._daySaving ? 'disabled' : ''} step="0.01" min="0.01" required></label>
-          <div class="day-entry-actions"><button type="submit" ${WR.ui._daySaving ? 'disabled' : ''}>Add spending</button><span data-save-feedback role="status">${WR.ui._daySaving ? 'Waiting to save...' : ''}</span></div>
-        </form>
+        ${entryMarkup}
       </details>
 
       ${WR.ui.renderSpendingFunds(budgetSnapshot, transactions, payAdvances)}
@@ -7692,6 +7807,7 @@ WR.ui = WR.ui || {};
       </details>
     `);
 
+    container.querySelector('[data-quick-expense]')?.addEventListener('click', WR.ui.openQuickExpense);
     WR.ui.bindSpendingFunds(container, budgetSnapshot, async () => { await renderDayToDay(container); WR.ui.enhanceResponsiveContent(container); });
     const importConfig = container.querySelector('#day-import-config');
     const importPreview = container.querySelector('#day-import-preview');
@@ -8010,26 +8126,37 @@ WR.ui = WR.ui || {};
       });
     });
 
-    document.getElementById('day-add-form').addEventListener('input', (event) => {
-      const form = event.currentTarget;
-      WR.ui._dayDraft = { date: form.date.value, description: form.description.value, category: form.category.value, amount: form.amount.value, allocationType: form.elements.allocationType.value, allocationLink: form.elements.allocationLink.value };
+    bindSpendingEntry(container, categoryKey, async date => {
+      collapsedDates.delete(date);
+      if (container.isConnected) await renderDayToDay(container);
     });
-    document.getElementById('day-add-form').addEventListener('submit', async (event) => {
+  }
+
+  function bindSpendingEntry(container, categoryKey, afterSave) {
+    const entryForm = container.querySelector('#day-add-form');
+    const owner = WR.account?.getCurrentUser()?.uid || 'local';
+    if (WR.ui._daySaving) entryForm.querySelectorAll('input,select,button').forEach(control => { control.disabled = true; });
+    entryForm.addEventListener('input', (event) => {
+      const form = event.currentTarget;
+      WR.ui._dayDraft = { id: WR.ui._dayDraft?.id, date: form.date.value, description: form.description.value, category: form.category.value, amount: form.amount.value, allocationType: form.elements.allocationType.value, allocationLink: form.elements.allocationLink.value };
+    });
+    entryForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (WR.ui._daySaving) return;
       const form = event.target;
       const date = form.date.value;
       const category = form.category.value.trim();
       const amount = Number(form.amount.value);
-      const description = form.description.value.trim();
+      const description = form.description.value.trim() || (form.description.required ? '' : category || 'Expense');
       if (!date || !description || !Number.isFinite(amount) || amount <= 0) {
         WR.ui.notify('Enter a date, description, and amount greater than zero.', 'error');
         return;
       }
       const allocationType = form.elements.allocationType.value;
       const allocationLink = form.elements.allocationLink.value;
-      WR.ui._dayDraft = { date, description, category, amount: form.amount.value, allocationType, allocationLink };
+      WR.ui._dayDraft = { id: WR.ui._dayDraft?.id || WR.models.newId(), date, description, category, amount: form.amount.value, allocationType, allocationLink };
       const transaction = WR.models.createDayToDayTransaction({
+        id: WR.ui._dayDraft.id,
         year: Number(date.slice(0, 4)),
         date,
         kind: 'spend',
@@ -8044,12 +8171,13 @@ WR.ui = WR.ui || {};
       const saved = await WR.ui.submitWithFeedback(form, () => WR.repos.dayToDayTransactions.add(transaction));
       WR.ui._daySaving = false;
       if (!saved) return;
+      if ((WR.account?.getCurrentUser()?.uid || 'local') !== owner) return;
       WR.ui._dayDraft = null;
       WR.ui._dayLastCategory = category;
       try { localStorage.setItem(categoryKey, category); } catch {}
-      collapsedDates.delete(date);
       WR.ui.notify('Spending saved.', 'success');
-      if (container.isConnected) await renderDayToDay(container);
+      if (container.isConnected) await afterSave(date);
+      else WR.ui.reRenderCurrentRoute?.();
     });
   }
 
@@ -12222,8 +12350,110 @@ WR.ui = WR.ui || {};
     });
   }
 
+  async function saveAccountReconciliation(review) {
+    const user = WR.account.getCurrentUser();
+    if (!user || user.uid !== review.owner) throw new Error('Your account changed. Review the balances again.');
+    const cents = value => Math.round(Number(value) * 100);
+    const actual = cents(review.actual);
+    const expected = cents(review.expected);
+    const now = new Date();
+    const today = WR.ui.currentMonthKey(now) + '-' + String(now.getDate()).padStart(2, '0');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(review.date) || !Number.isFinite(Date.parse(`${review.date}T12:00:00Z`)) || new Date(`${review.date}T12:00:00Z`).toISOString().slice(0, 10) !== review.date || review.date > today) throw new Error('Choose a valid reconciliation date, no later than today.');
+    if (!['pot', 'emergency'].includes(review.kind) || !review.id || !review.entryId || !review.note?.trim() || !Number.isSafeInteger(actual) || !Number.isSafeInteger(expected) || (review.kind === 'pot' && actual < 0)) throw new Error('Enter a valid balance and reason, then review again.');
+    const api = WR.account.getFirestoreApi();
+    const db = WR.account.getDb();
+    const records = review.kind === 'emergency' ? await WR.repos.emergencyFundContributions.getAll({ fresh: true }) : [];
+    const profile = review.kind === 'emergency' ? await WR.ui.getOrCreateProfile() : null;
+    const accounts = profile ? WR.ui.getEmergencyFundAccounts(profile) : [];
+    const fallback = accounts[0]?.id;
+    if (review.kind === 'emergency' && !accounts.some(account => account.id === review.id)) throw new Error('This account no longer exists.');
+    const accountRecords = records.filter(record => (record.account || fallback) === review.id);
+    await api.runTransaction(db, async transaction => {
+      const store = review.kind === 'pot' ? 'savingsPots' : 'emergencyFundContributions';
+      const ref = api.doc(db, 'users', user.uid, store, review.kind === 'pot' ? review.id : review.entryId);
+      const snapshot = await transaction.get(ref);
+      if (review.kind === 'pot') {
+        if (!snapshot.exists()) throw new Error('This savings pot no longer exists.');
+        const pot = snapshot.data();
+        if ((pot.reconciliations || []).some(entry => entry.id === review.entryId)) return;
+        if (pot.archived || (pot.currency || review.currency) !== review.currency || cents(pot.currentAmount || 0) !== expected) throw new Error('The tracked balance changed. Review the difference again.');
+        transaction.update(ref, { currentAmount: actual / 100, reconciliations: [...(pot.reconciliations || []), { id: review.entryId, date: review.date, expectedBalance: expected / 100, observedBalance: actual / 100, amount: (actual - expected) / 100, note: review.note.trim() }] });
+      } else {
+        if (snapshot.exists()) return;
+        if (profile.baseCurrency !== review.currency) throw new Error('Your currency changed. Review the balance again.');
+        const snapshots = await Promise.all(accountRecords.map(record => transaction.get(api.doc(db, 'users', user.uid, store, record.id))));
+        const latest = snapshots.filter(item => item.exists()).map(item => item.data());
+        if (latest.some(record => (record.account || fallback) !== review.id)) throw new Error('Account activity changed. Review the difference again.');
+        const balance = latest.reduce((total, record) => total + cents(record.amount || 0) + cents(WR.financial.calculateEmergencyBorrowing(record).repaid), 0);
+        if (balance !== expected) throw new Error('The tracked balance changed. Review the difference again.');
+        transaction.set(ref, { id: review.entryId, account: review.id, date: review.date, currency: review.currency, amount: (actual - expected) / 100, balanceAdjustment: true, expectedBalance: expected / 100, observedBalance: actual / 100, note: review.note.trim() });
+      }
+    });
+  }
+
+  async function loadReconciliationAccounts() {
+    const [profile, pots, contributions] = await Promise.all([WR.ui.getOrCreateProfile(), WR.repos.savingsPots.getAll({ fresh: true }), WR.repos.emergencyFundContributions.getAll({ fresh: true })]);
+    const accounts = WR.ui.getEmergencyFundAccounts(profile);
+    return [
+      ...pots.filter(pot => !pot.archived).map(pot => ({ key: `pot:${pot.id}`, kind: 'pot', id: pot.id, label: pot.name, balance: Number(pot.currentAmount) || 0, currency: pot.currency || profile.baseCurrency, history: pot.reconciliations || [] })),
+      ...accounts.map(account => ({ key: `emergency:${account.id}`, kind: 'emergency', id: account.id, label: account.label, balance: WR.financial.calculateEmergencyAccountSummary(contributions, account.id, accounts[0].id).total, currency: profile.baseCurrency, history: contributions.filter(entry => entry.balanceAdjustment && (entry.account || accounts[0].id) === account.id) })),
+    ];
+  }
+
+  async function renderBalanceReconciliation(container) {
+    let choices = await loadReconciliationAccounts();
+    WR.ui.setHTML(container, `<details id="balance-reconciliation" class="reconciliation-panel"><summary>Reconcile account balance</summary><form id="reconciliation-form" class="reconciliation-form">
+      <label>Account<select name="account" required>${choices.map(choice => `<option value="${WR.ui.escapeText(choice.key)}">${WR.ui.escapeText(choice.label)} (${WR.ui.escapeText(choice.currency)})</option>`).join('')}</select></label>
+      <label>Actual available balance<input name="actualBalance" type="number" step="0.01" inputmode="decimal" required></label>
+      <label class="span-2">Reason for difference<input name="reason" maxlength="240" required></label>
+      <div class="reconciliation-preview" aria-live="polite"></div>
+      <div class="reconciliation-actions"><button type="button" class="secondary" data-review-reconciliation>Review difference</button><button type="submit" disabled>Confirm correction</button></div><span data-save-feedback role="status"></span>
+    </form>${choices.some(choice => choice.history.length) ? `<details><summary>Correction history</summary><ul class="bill-list">${choices.flatMap(choice => choice.history.map(entry => `<li><div><strong>${WR.ui.escapeText(choice.label)}</strong><span>${WR.ui.escapeText(entry.date)} &middot; ${WR.ui.escapeText(entry.note || 'Balance correction')}</span></div><strong>${WR.ui.escapeText(choice.currency)} ${WR.ui.fmt(entry.amount)}</strong></li>`)).join('')}</ul></details>` : ''}</details>`);
+    const form = container.querySelector('form');
+    const preview = container.querySelector('.reconciliation-preview');
+    const confirm = form.querySelector('[type="submit"]');
+    let review = null;
+    const invalidate = () => { review = null; confirm.disabled = true; WR.ui.setHTML(preview, ''); };
+    form.addEventListener('input', invalidate);
+    form.addEventListener('change', invalidate);
+    form.querySelector('[data-review-reconciliation]').addEventListener('click', async event => {
+      if (!form.reportValidity()) return;
+      const button = event.currentTarget;
+      const owner = WR.account.getCurrentUser()?.uid;
+      const values = () => JSON.stringify([form.elements.account.value, form.elements.actualBalance.value, form.elements.reason.value]);
+      const reviewedValues = values();
+      invalidate();
+      button.disabled = true;
+      button.textContent = 'Checking balance...';
+      try {
+        choices = await loadReconciliationAccounts();
+        if (!form.isConnected || WR.account.getCurrentUser()?.uid !== owner || values() !== reviewedValues) return;
+        const choice = choices.find(item => item.key === form.elements.account.value);
+        const actual = Math.round(Number(form.elements.actualBalance.value) * 100) / 100;
+        if (!choice || !Number.isFinite(actual) || (choice.kind === 'pot' && actual < 0)) { WR.ui.notify('Enter a valid available balance.', 'error'); return; }
+        const difference = Math.round((actual - choice.balance) * 100) / 100;
+        const now = new Date();
+        review = { ...choice, expected: choice.balance, actual, note: form.elements.reason.value.trim(), owner: WR.account.getCurrentUser()?.uid, entryId: WR.models.newId(), date: WR.ui.currentMonthKey(now) + '-' + String(now.getDate()).padStart(2, '0') };
+        WR.ui.setHTML(preview, `<dl><dt>Tracked</dt><dd>${WR.ui.escapeText(choice.currency)} ${WR.ui.fmt(choice.balance)}</dd><dt>Actual</dt><dd>${WR.ui.escapeText(choice.currency)} ${WR.ui.fmt(actual)}</dd><dt>Correction</dt><dd>${difference > 0 ? '+' : ''}${WR.ui.escapeText(choice.currency)} ${WR.ui.fmt(difference)}</dd></dl><p>${difference === 0 ? 'Balances match. No correction is needed.' : 'Check for missing contributions, transfers or repayments first. This correction changes the tracked balance, not spending or income.'}</p>`);
+        confirm.disabled = !difference || !review.note;
+      } catch (error) {
+        WR.ui.notify('Unable to check the latest balance. Try Review difference again.', 'error');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Review difference';
+      }
+    });
+    WR.ui.bindReliableForm(form, async () => {
+      if (!review) throw new Error('Review the difference before confirming.');
+      try { await WR.saves.trackSave(() => saveAccountReconciliation(review)); }
+      catch (error) { WR.ui.setHTML(preview, `<p role="alert">${WR.ui.escapeText(error.message)}</p>`); throw error; }
+    }, async () => { WR.ui.notify('Balance correction recorded.', 'success'); await WR.ui.renderSavingsPage(container.closest('#content')); });
+  }
+  WR.ui.saveAccountReconciliation = saveAccountReconciliation;
+
   async function renderSavingsPage(container) {
-    WR.ui.setHTML(container, '<h1>Savings</h1><p class="fine-print">Only active savings pots are included in the savings total. Emergency funds are shown separately.</p><section class="feature-section" id="savings-pots"></section><section class="feature-section" id="reserve-borrowing"></section><section class="feature-section" id="emergency-savings"></section>');
+    WR.ui.setHTML(container, '<h1>Savings</h1><p class="fine-print">Only active savings pots are included in the savings total. Emergency funds are shown separately.</p><section id="account-reconciliation"></section><section class="feature-section" id="savings-pots"></section><section class="feature-section" id="reserve-borrowing"></section><section class="feature-section" id="emergency-savings"></section>');
+    await renderBalanceReconciliation(container.querySelector('#account-reconciliation'));
     await renderSavingsPots(container.querySelector('#savings-pots'));
     await renderReserveBorrowing(container.querySelector('#reserve-borrowing'));
     await WR.ui.renderEmergencyFund(container.querySelector('#emergency-savings'));
@@ -12288,6 +12518,15 @@ WR.ui = WR.ui || {};
     }
     const hash = window.location.hash || '#/dashboard';
     const renderFnName = ROUTES[hash] || 'renderDashboard';
+    const owner = WR.account.getCurrentUser?.()?.uid || 'local';
+    if (WR.ui._routeState?.owner !== owner) WR.ui._routeState = { owner, views: new Map() };
+    const views = WR.ui._routeState.views;
+    const outgoing = document.getElementById('content');
+    if (outgoing?.dataset.routeHash) views.set(outgoing.dataset.routeHash, {
+      scrollY: window.scrollY || 0,
+      disclosures: [...outgoing.querySelectorAll('details[id]')].map(detail => [detail.id, detail.open]),
+    });
+    const restoredView = views.get(hash);
     WR.ui.setActiveNav(ROUTES[hash] ? hash : '#/dashboard');
 
     const previousContent = document.getElementById('content');
@@ -12298,6 +12537,7 @@ WR.ui = WR.ui || {};
     const newView = hash !== lastRoutedHash || !previousContent.dataset.routeView;
     const content = previousContent.cloneNode(!newView);
     content.dataset.routeView = 'true';
+    content.dataset.routeHash = hash;
     previousContent.replaceWith(content);
     content.inert = true;
     content.setAttribute('aria-busy', 'true');
@@ -12322,6 +12562,11 @@ WR.ui = WR.ui || {};
         const heading = content.querySelector('h1');
         if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
       }
+      for (const [id, open] of restoredView?.disclosures || []) {
+        const detail = document.getElementById(id);
+        if (detail && content.contains(detail) && !detail.querySelector('[data-draft-dirty="true"]')) detail.open = open;
+      }
+      window.scrollTo?.(0, restoredView?.scrollY || 0);
     } catch (err) {
       if (requestId !== navigationId || !content.isConnected || err.name === 'AbortError') return;
       content.inert = false;
@@ -12352,6 +12597,7 @@ WR.ui = WR.ui || {};
 
   function initRouter() {
     if (!routerInitialized) {
+      if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
       window.addEventListener('hashchange', handleRoute);
       routerInitialized = true;
     }

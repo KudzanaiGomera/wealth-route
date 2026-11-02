@@ -107,6 +107,7 @@ assert.equal(allocationContext.calculate503020({ ...allocationFixture, cashflow:
 assert.equal(allocationContext.calculate503020({ cashflow: {}, payCycleBudget: {} }).allocated, 0);
 assert.equal(allocationFixture.cashflow.debtPayments, 1000);
 allocationContext.WR.ui = { calculate503020: allocationContext.calculate503020, isActiveForMonth: () => true };
+vm.runInNewContext(functions.get('allocationGuidance'), allocationContext);
 vm.runInNewContext(functions.get('render503020'), Object.assign(allocationContext, { escapeText: value => String(value), fmt: value => Number(value).toFixed(2) }));
 const allocationMarkup = allocationContext.render503020({ ...allocationFixture, currencyWarnings: [], monthLabel: 'November 2026' }, 'ZAR', '25 Oct - 24 Nov');
 assert.match(allocationMarkup, /data-private-detail/);
@@ -128,6 +129,10 @@ const allocationEmptyMarkup = allocationContext.render503020({ ...allocationFixt
 assert.match(allocationEmptyMarkup, /--actual: 0%; --target: 50%/);
 assert.match(allocationEmptyMarkup, /income not recorded; 50% target/);
 assert.doesNotMatch(allocationEmptyMarkup, /NaN|Infinity/);
+assert.match(allocationMarkup, /Savings target remaining: ZAR 2000.00/);
+assert.match(allocationOverMarkup, /Needs above target by ZAR 10000.00/);
+assert.doesNotMatch(allocationEmptyMarkup, /class="allocation-guidance"/);
+assert.match(allocationMarkup, /Targets are a guide, not a financial score/);
 assert.match(html, /grid-template-areas: "position" "actions" "allocation" "insights" "annual"/);
 assert.match(html, /\.allocation-legend li \{ grid-template-columns: minmax\(0, 1fr\);/);
 assert.match(allocationContext.render503020({ ...allocationFixture, dayToDayTransactions: [{ date: '2026-11-01', kind: 'spend', amount: 11000 }], currencyWarnings: [], monthLabel: 'November 2026' }, 'ZAR', '25 Oct - 24 Nov'), /ZAR 1000.00 above income/);
@@ -967,6 +972,101 @@ async function checkEmergencyAtomicWrites() {
 }
 checkEmergencyAtomicWrites().catch(error => { console.error(error); process.exitCode = 1; });
 
+async function checkAccountReconciliation() {
+  const records = new Map([
+    ['users/test/savingsPots/holiday', { id: 'holiday', currentAmount: 500, currency: 'ZAR', borrowings: [{ id: 'loan', amount: 20 }] }],
+    ['users/test/emergencyFundContributions/deposit', { id: 'deposit', account: 'main', amount: 700 }],
+    ['users/test/emergencyFundContributions/loan', { id: 'loan', account: 'main', amount: -200, repayments: [{ amount: 50 }] }],
+  ]);
+  let rejectCommit = false;
+  let uid = 'test';
+  const copy = value => JSON.parse(JSON.stringify(value));
+  const api = {
+    doc: (_db, ...parts) => parts.join('/'),
+    async runTransaction(_db, operation) {
+      const writes = [];
+      await operation({
+        get: async ref => ({ exists: () => records.has(ref), data: () => copy(records.get(ref)) }),
+        update: (ref, fields) => writes.push(() => records.set(ref, { ...records.get(ref), ...copy(fields) })),
+        set: (ref, value) => writes.push(() => records.set(ref, copy(value))),
+      });
+      if (rejectCommit) throw Error('Rejected commit');
+      writes.forEach(write => write());
+    },
+  };
+  const reconciliationContext = { WR: {
+    account: { getCurrentUser: () => ({ uid }), getFirestoreApi: () => api, getDb: () => ({}) },
+    repos: { emergencyFundContributions: { getAll: async () => [...records.entries()].filter(([key]) => key.includes('/emergencyFundContributions/')).map(([, value]) => copy(value)) } },
+    ui: { currentMonthKey: date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`, getOrCreateProfile: async () => ({ baseCurrency: 'ZAR' }), getEmergencyFundAccounts: () => [{ id: 'main' }] },
+    financial: { calculateEmergencyBorrowing: entry => ({ repaid: (entry.repayments || []).reduce((total, payment) => total + payment.amount, 0) }) },
+  } };
+  vm.createContext(reconciliationContext);
+  vm.runInContext(functions.get('saveAccountReconciliation'), reconciliationContext);
+  const potReview = { owner: 'test', kind: 'pot', id: 'holiday', entryId: 'correction1', expected: 500, actual: 480.25, currency: 'ZAR', note: 'Statement check', date: '2026-11-02' };
+  rejectCommit = true;
+  await assert.rejects(reconciliationContext.saveAccountReconciliation(potReview), /Rejected/);
+  assert.equal(records.get('users/test/savingsPots/holiday').currentAmount, 500);
+  rejectCommit = false;
+  await reconciliationContext.saveAccountReconciliation(potReview);
+  await reconciliationContext.saveAccountReconciliation(potReview);
+  const pot = records.get('users/test/savingsPots/holiday');
+  assert.equal(pot.currentAmount, 480.25);
+  assert.equal(pot.reconciliations.length, 1);
+  assert.equal(pot.reconciliations[0].amount, -19.75);
+  assert.equal(pot.borrowings[0].amount, 20);
+  await assert.rejects(reconciliationContext.saveAccountReconciliation({ ...potReview, entryId: 'stale' }), /changed/);
+  await assert.rejects(reconciliationContext.saveAccountReconciliation({ ...potReview, actual: -1 }), /valid balance/);
+  for (const date of ['2026-02-30', 'not-a-date', '2999-01-01']) await assert.rejects(reconciliationContext.saveAccountReconciliation({ ...potReview, date }), /valid reconciliation date/);
+  const emergencyReview = { ...potReview, kind: 'emergency', id: 'main', entryId: 'correction2', expected: 550, actual: 600 };
+  await reconciliationContext.saveAccountReconciliation(emergencyReview);
+  await reconciliationContext.saveAccountReconciliation(emergencyReview);
+  assert.equal(records.get('users/test/emergencyFundContributions/correction2').amount, 50);
+  assert.equal(records.get('users/test/emergencyFundContributions/correction2').balanceAdjustment, true);
+  assert.equal(records.get('users/test/emergencyFundContributions/deposit').amount, 700);
+  await assert.rejects(reconciliationContext.saveAccountReconciliation({ ...emergencyReview, entryId: 'stale' }), /changed/);
+  uid = 'other';
+  await assert.rejects(reconciliationContext.saveAccountReconciliation(potReview), /account changed/);
+  assert.ok([...records.keys()].every(key => key.includes('/savingsPots/') || key.includes('/emergencyFundContributions/')));
+  console.log('Reconciliation preserves ledger history and borrowing, records cent-accurate corrections once, rejects stale/account-changed reviews and failed commits.');
+}
+checkAccountReconciliation().catch(error => { console.error(error); process.exitCode = 1; });
+
+async function checkQuickExpenseRetry() {
+  const listeners = {};
+  const input = value => ({ value, required: false });
+  const form = { date: input('2026-11-02'), amount: input('125.50'), description: input(''), category: input('Groceries'), elements: { allocationType: input('needs'), allocationLink: input('') }, isConnected: true, addEventListener: (name, listener) => { listeners[name] = listener; } };
+  let success = false;
+  let idCount = 0;
+  let refreshed = 0;
+  const writes = [];
+  const quickContext = { localStorage: { setItem() {} }, WR: {
+    account: { getCurrentUser: () => ({ uid: 'test' }) },
+    models: { newId: () => `expense-${++idCount}`, createDayToDayTransaction: fields => fields },
+    repos: { dayToDayTransactions: { add: async transaction => { writes.push(transaction); } } },
+    ui: { notify() {}, submitWithFeedback: async (_form, operation) => { await operation(); return success; } },
+  } };
+  vm.createContext(quickContext);
+  vm.runInContext(functions.get('bindSpendingEntry'), quickContext);
+  quickContext.bindSpendingEntry({ isConnected: true, querySelector: () => form }, 'last-category-test', async () => { refreshed += 1; });
+  const event = { preventDefault() {}, target: form, currentTarget: form };
+  listeners.input(event);
+  await listeners.submit(event);
+  assert.equal(quickContext.WR.ui._dayDraft.amount, '125.50');
+  listeners.input(event);
+  success = true;
+  await listeners.submit(event);
+  assert.equal(writes.length, 2);
+  assert.equal(writes[0].id, writes[1].id);
+  assert.equal(writes[1].description, 'Groceries');
+  assert.equal(writes[1].allocationType, 'needs');
+  assert.equal(writes[1].amount, 125.5);
+  assert.equal(refreshed, 1);
+  assert.equal(quickContext.WR.ui._dayDraft, null);
+  assert.equal(quickContext.WR.ui._dayLastCategory, 'Groceries');
+  console.log('Quick expense retains failed drafts, remembers categories and retries the same transaction ID without duplicate writes.');
+}
+checkQuickExpenseRetry().catch(error => { console.error(error); process.exitCode = 1; });
+
 async function checkSavingsBorrowing() {
   let pot = { id: 'holiday', currentAmount: 500, archived: false };
   let rejectCommit = false;
@@ -1098,6 +1198,7 @@ async function checkRouteRaces() {
   function view() {
     return {
       dataset: {}, isConnected: true, children: [], classList: { toggle() {} }, markup: '',
+      querySelectorAll() { return []; }, contains() { return false; },
       closest() { return this; }, cloneNode() { return view(); },
       replaceWith(next) { this.isConnected = false; current = next; },
       setAttribute() {},
@@ -1110,7 +1211,7 @@ async function checkRouteRaces() {
   const routeContext = {
     lastRoutedHash: '', navigationId: 0, SKELETON_HTML: 'Loading',
     ROUTES: { '#/income': 'renderIncome', '#/settings': 'renderSettings' },
-    window: { location: { hash: '#/income' } },
+    window: { location: { hash: '#/income' }, scrollY: 0, scrollTo(_horizontal, vertical) { this.scrollY = vertical; } },
     document: { getElementById: () => current }, console: { error() {} },
     WR: { account: { isConfigured: () => false }, saves: { state: { pending: 0 } }, ui: {
       setActiveNav() {}, captureFormDrafts() {}, escapeText: context.escapeText,
@@ -1127,10 +1228,16 @@ async function checkRouteRaces() {
   await first;
   assert.equal(current.markup, 'new');
   assert.equal(current.inert, false);
+  routeContext.window.scrollY = 420;
   routeContext.window.location.hash = '#/settings';
   await routeContext.handleRoute();
   assert.equal(current.markup, 'settings');
   assert.equal(headingFocused, true);
+  assert.equal(routeContext.window.scrollY, 0);
+  routeContext.window.location.hash = '#/income';
+  await routeContext.handleRoute();
+  assert.equal(routeContext.window.scrollY, 420);
+  routeContext.window.location.hash = '#/settings';
   routeContext.WR.ui.renderSettings = async () => { throw Error('<img src=x onerror=alert(1)>'); };
   await routeContext.handleRoute();
   assert.ok(current.markup.includes('&lt;img'));
@@ -1138,7 +1245,7 @@ async function checkRouteRaces() {
   routeContext.WR.ui.renderSettings = async element => routeContext.WR.ui.setHTML(element, 'retried');
   await retry();
   assert.equal(current.markup, 'retried');
-  console.log('Same-route race isolation, active-view focus, escaped load errors, and page retry checks passed.');
+  console.log('Same-route race isolation, per-tab scroll restoration, active-view focus, escaped load errors, and page retry checks passed.');
 }
 checkRouteRaces().catch(error => { console.error(error); process.exitCode = 1; });
 
@@ -1236,7 +1343,7 @@ async function checkTransactionLayout() {
     document: { getElementById: () => ({ addEventListener() {} }) },
   };
   vm.createContext(layoutContext);
-  vm.runInContext(`${functions.get('findRecurringSpendPatterns')}\n${functions.get('renderDayToDay')}`, layoutContext);
+  vm.runInContext(`${functions.get('findRecurringSpendPatterns')}\n${functions.get('bindSpendingEntry')}\n${functions.get('renderDayToDay')}`, layoutContext);
   const nextDate = { hidden: false, classList: { contains: () => true } };
   const secondRow = { hidden: false, classList: { contains: () => false }, nextElementSibling: nextDate };
   const firstRow = { hidden: false, classList: { contains: () => false }, nextElementSibling: secondRow };
