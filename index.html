@@ -2015,6 +2015,7 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
 
 @media (min-width: 901px) {
   .nav-horizontal { display: flex; }
+  .topbar:not(.nav-expanded):not(.nav-measuring) .nav-horizontal { display: none; }
   .topbar .brand { flex-shrink: 0; }
   .topbar.nav-expanded .nav-expanded-link, .topbar.nav-measuring .nav-expanded-link { display: block; }
   .topbar.nav-expanded .nav-horizontal { overflow: visible; flex-shrink: 0; }
