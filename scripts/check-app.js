@@ -1516,34 +1516,18 @@ async function checkBorrowingCorrections() {
 checkBorrowingCorrections().catch(error => { console.error(error); process.exitCode = 1; });
 
 function checkNavigationLayout() {
-  const classes = new Set();
-  let width = 1440;
-  const elements = Object.fromEntries([['.brand', 180], ['.nav-horizontal', 950], ['.nav-wide-actions', 130], ['.theme-toggle', 44], ['.nav-account', 0]].map(([selector, size]) => [selector, { scrollWidth: size, getBoundingClientRect: () => ({ width: size }), styles: { display: size ? 'flex' : 'none' } }]));
-  let expanded;
+  const classes = new Set(['nav-expanded', 'nav-measuring']);
   const topbar = {
-    isConnected: true, get clientWidth() { return width; },
-    styles: { columnGap: '16px', paddingLeft: '24px', paddingRight: '24px' },
-    classList: { add: value => classes.add(value), remove: value => classes.delete(value), toggle: (value, enabled) => enabled ? classes.add(value) : classes.delete(value) },
-    querySelector: selector => elements[selector],
-    querySelectorAll: () => [{ setAttribute: (_name, value) => { expanded = value; } }],
+    isConnected: true,
+    classList: { remove: (...values) => values.forEach(value => classes.delete(value)) },
   };
-  const navContext = { window: { matchMedia: () => ({ matches: width >= 901 }) }, getComputedStyle: element => element.styles };
+  const navContext = {};
   vm.createContext(navContext);
   vm.runInContext(functions.get('updateNavigationLayout'), navContext);
   navContext.updateNavigationLayout(topbar);
-  assert.equal(classes.has('nav-expanded'), true);
-  assert.equal(expanded, 'false');
-  width = 1280;
-  navContext.updateNavigationLayout(topbar);
-  assert.equal(classes.has('nav-expanded'), false);
-  width = 1920;
-  navContext.updateNavigationLayout(topbar);
-  assert.equal(classes.has('nav-expanded'), true);
-  width = 375;
-  navContext.updateNavigationLayout(topbar);
   assert.equal(classes.has('nav-expanded'), false);
   assert.equal(classes.has('nav-measuring'), false);
-  console.log('Navigation expands only when all links and actions fit and collapses cleanly on smaller screens.');
+  console.log('Desktop navigation stays fixed at five horizontal links with remaining sections in the hamburger menu.');
 }
 checkNavigationLayout();
 

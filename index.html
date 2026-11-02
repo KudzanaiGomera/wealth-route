@@ -394,7 +394,6 @@ button, a, input, select, textarea {
   font-weight: 600;
 }
 .nav-horizontal a:hover { background: var(--panel-alt); }
-.nav-horizontal a.nav-expanded-link { display: none; }
 .nav-wide-actions { display: flex; align-items: center; gap: 0.5rem; position: absolute; visibility: hidden; pointer-events: none; }
 .nav-wide-actions .nav-install-btn { min-height: 44px; padding: 0.45rem 0.7rem; font-size: 0.8rem; white-space: nowrap; }
 .nav-wide-actions .nav-wide-support { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-alt); color: var(--muted); }
@@ -2015,16 +2014,20 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
 
 @media (min-width: 901px) {
   .nav-horizontal { display: flex; }
-  .topbar:not(.nav-expanded):not(.nav-measuring) .nav-horizontal { display: none; }
+  .nav-horizontal { flex: 0 1 auto; overflow: visible; }
   .topbar .brand { flex-shrink: 0; }
-  .topbar.nav-expanded .nav-expanded-link, .topbar.nav-measuring .nav-expanded-link { display: block; }
-  .topbar.nav-expanded .nav-horizontal { flex: 1 1 auto; justify-content: space-between; overflow: visible; }
-  .topbar.nav-measuring .nav-horizontal { flex: 0 0 auto; overflow: visible; }
-  .topbar.nav-expanded .nav-controls, .topbar.nav-expanded #nav { display: none; }
-  .topbar.nav-expanded .nav-wide-actions { position: static; visibility: visible; pointer-events: auto; margin-left: auto; flex-shrink: 0; }
+  .topbar .nav-account { order: 0; margin-left: 0; }
+  .topbar .nav-controls { order: 1; margin-left: 0; }
+  .topbar .nav-wide-actions { order: 2; }
+  .topbar .theme-toggle { order: 3; margin-left: auto; }
   /* Same links are already on the horizontal bar at this width, so hide the
      duplicate entries in the dropdown; mobile (no horizontal bar) still needs them. */
   #nav a.in-horizontal-nav { display: none; }
+}
+
+@media (min-width: 1400px) {
+  .topbar .nav-wide-actions { position: static; visibility: visible; pointer-events: auto; margin-left: auto; flex-shrink: 0; }
+  .topbar .theme-toggle { margin-left: 0; }
 }
 
 /* ---------- Cross-screen interaction and layout polish ---------- */
@@ -5196,38 +5199,14 @@ WR.ui = WR.ui || {};
 
   function updateNavigationLayout(topbar) {
     if (!topbar?.isConnected) return;
-    let fits = false;
-    if (window.matchMedia('(min-width: 901px)').matches) {
-      topbar.classList.add('nav-measuring');
-      const styles = getComputedStyle(topbar);
-      const selectors = ['.brand', '.nav-horizontal', '.nav-wide-actions', '.theme-toggle', '.nav-account'];
-      const widths = selectors.map(selector => {
-        const element = topbar.querySelector(selector);
-        return element && getComputedStyle(element).display !== 'none' ? Math.max(element.scrollWidth, element.getBoundingClientRect().width) : 0;
-      }).filter(width => width > 0);
-      const required = widths.reduce((sum, width) => sum + width, 0) + (parseFloat(styles.columnGap) || 0) * (widths.length - 1);
-      const available = topbar.clientWidth - (parseFloat(styles.paddingLeft) || 0) - (parseFloat(styles.paddingRight) || 0);
-      fits = required <= available;
-    }
-    topbar.classList.remove('nav-measuring');
-    topbar.classList.toggle('nav-expanded', fits);
-    if (fits) {
-      topbar.classList.remove('nav-open');
-      topbar.querySelectorAll('[aria-expanded]').forEach(control => control.setAttribute('aria-expanded', 'false'));
-      const focused = topbar.ownerDocument?.activeElement;
-      if (focused?.closest('#nav, .nav-controls')) {
-        const destination = [...topbar.querySelectorAll('.nav-horizontal a')].find(link => link.dataset.hash === focused.dataset.hash);
-        (destination || topbar.querySelector('.nav-horizontal a.active') || topbar.querySelector('.brand')).focus();
-      }
-    }
+    topbar.classList.remove('nav-measuring', 'nav-expanded');
   }
   WR.ui.updateNavigationLayout = updateNavigationLayout;
 
   function renderShell() {
     setNavigationOpen(false);
     WR.ui._navResizeObserver?.disconnect();
-    const wideNavItems = HORIZONTAL_NAV_ITEMS.filter(item => item.hash !== '#/settings').concat(NAV_ITEMS.filter(item => !HORIZONTAL_NAV_HASHES.includes(item.hash)), NAV_ITEMS.filter(item => item.hash === '#/settings'));
-    const horizontalNavLinks = wideNavItems.map((i) => `<a href="${i.hash}" data-hash="${i.hash}"${HORIZONTAL_NAV_HASHES.includes(i.hash) ? '' : ' class="nav-expanded-link"'}>${WR.ui.escapeText(i.label)}</a>`).join('');
+    const horizontalNavLinks = HORIZONTAL_NAV_ITEMS.map((i) => `<a href="${i.hash}" data-hash="${i.hash}">${WR.ui.escapeText(i.label)}</a>`).join('');
     const navLink = (i) => {
       const classes = [];
       if (HORIZONTAL_NAV_HASHES.includes(i.hash)) classes.push('in-horizontal-nav');
@@ -5289,14 +5268,7 @@ WR.ui = WR.ui || {};
     renderSaveStatus();
     const toggleNavigation = () => {
       const topbar = document.querySelector('.topbar');
-      // Measure before opening. This keeps the hamburger in sync with the
-      // horizontal links if fonts or the available width changed since the
-      // last ResizeObserver notification.
-      updateNavigationLayout(topbar);
-      // Measuring can promote the full horizontal navigation and close an
-      // already-open dropdown. Do not then interpret that closed state as a
-      // request to reopen the now-redundant menu.
-      if (topbar.classList.contains('nav-expanded')) return;
+      if (!topbar) return;
       setNavigationOpen(!topbar.classList.contains('nav-open'), true);
     };
     setNavigationOpen(false);
