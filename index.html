@@ -853,20 +853,33 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .position-summary-grid > .allocation-model { grid-area: allocation; min-width: 0; margin: 0; }
 .allocation-model h2 { margin: 0; font: 600 1.05rem/1.4 var(--font-sans); }
 .allocation-model header p { margin: 0.3rem 0 1rem; color: var(--muted); font-size: 0.8rem; }
-.allocation-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); align-items: center; gap: 1.5rem; max-width: 760px; }
-.allocation-donut { display: grid; place-items: center; width: 180px; height: 180px; border-radius: 50%; background: conic-gradient(var(--chart-1) 0 var(--needs), var(--chart-2) var(--needs) var(--wants), var(--chart-3) var(--wants) var(--savings), var(--gold) var(--savings) var(--classified), var(--border) var(--classified) 100%); }
-.allocation-donut::before { content: ''; grid-area: 1 / 1; width: 136px; height: 136px; border-radius: 50%; background: var(--bg); }
+.allocation-layout { display: grid; grid-template-columns: 160px minmax(0, 1fr); align-items: start; gap: 1.5rem; }
+.allocation-summary { display: grid; justify-items: center; gap: 0.8rem; min-width: 0; padding-top: 0.65rem; }
+.allocation-donut { display: grid; place-items: center; width: 144px; height: 144px; border-radius: 50%; background: conic-gradient(var(--chart-1) 0 var(--needs), var(--chart-2) var(--needs) var(--wants), var(--chart-3) var(--wants) var(--savings), var(--gold) var(--savings) var(--classified), var(--border) var(--classified) 100%); }
+.allocation-donut::before { content: ''; grid-area: 1 / 1; width: 116px; height: 116px; border-radius: 50%; background: var(--bg); }
 .allocation-center { grid-area: 1 / 1; z-index: 1; text-align: center; }
 .allocation-center strong { display: block; font-size: 1.35rem; }
 .allocation-center small { display: block; margin-top: 0.25rem; color: var(--muted); font-size: 0.75rem; }
 .allocation-legend { list-style: none; padding: 0; margin: 0; min-width: 0; width: 100%; }
-.allocation-legend li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.75rem; padding: 0.65rem 0; border-bottom: 1px solid var(--border); }
+.allocation-legend li { --allocation-color: var(--chart-1); display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.35rem; padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
 .allocation-legend li:last-child { border-bottom: 0; }
 .allocation-legend strong, .allocation-legend small { display: block; overflow-wrap: anywhere; }
-.allocation-legend strong { font-size: 0.85rem; font-variant-numeric: tabular-nums; }
-.allocation-legend small { margin-top: 0.25rem; font-size: 0.75rem; color: var(--muted); }
-.allocation-legend .allocation-amount { text-align: right; }
-.allocation-model .allocation-status { margin: 1rem 0 0; font-size: 0.85rem; overflow-wrap: anywhere; }
+.allocation-legend strong { font-size: 0.9rem; font-variant-numeric: tabular-nums; line-height: 1.45; }
+.allocation-legend small { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+.allocation-row-heading, .allocation-row-values { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; min-width: 0; }
+.allocation-row-heading strong { min-width: 0; }
+.allocation-percentage { flex-shrink: 0; font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.allocation-row-values { flex-wrap: wrap; gap: 0.15rem 0.75rem; }
+.allocation-row-values strong { font-weight: 500; }
+.allocation-meter { position: relative; height: 6px; margin: 0.2rem 0; background: var(--border); border-radius: 3px; }
+.allocation-meter-fill { display: block; height: 100%; width: var(--actual); background: var(--allocation-color); border-radius: inherit; }
+.allocation-meter::after { content: ''; position: absolute; left: var(--target); top: -3px; width: 2px; height: 12px; background: var(--text); border-radius: 1px; }
+.allocation-target-key { margin: 0; font-size: 0.75rem; color: var(--muted); text-align: center; }
+.allocation-target-key::before { content: ''; display: inline-block; height: 10px; border-left: 2px solid var(--text); margin-right: 0.35rem; vertical-align: -1px; }
+.allocation-summary .allocation-status { margin: 0; text-align: center; font-size: 0.8rem; line-height: 1.5; }
+.allocation-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.4rem 1rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+.allocation-footer .allocation-status { margin: 0; font-size: 0.78rem; line-height: 1.5; }
+.allocation-model .allocation-status { overflow-wrap: anywhere; }
 .allocation-status[data-over="true"] { color: var(--danger); }
 .allocation-review { margin-top: 1rem; }
 .allocation-review summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--accent); font-size: 0.85rem; }
@@ -876,12 +889,17 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .day-allocation-fields { display: grid; gap: 0.4rem; margin-top: 0.4rem; }
 .day-allocation-fields label { display: grid; gap: 0.2rem; font-size: 0.75rem; }
 @media (max-width: 540px) {
-  .allocation-layout { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 0.75rem; }
-  .allocation-legend li { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; padding: 0.85rem 0; }
-  .allocation-legend .allocation-amount { text-align: left; }
+  .allocation-layout { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+  .allocation-summary { grid-template-columns: 88px minmax(0, 1fr); justify-items: start; align-items: center; gap: 0.35rem 1rem; padding: 0 0 0.75rem; border-bottom: 1px solid var(--border); }
+  .allocation-donut { grid-row: 1 / 3; width: 88px; height: 88px; }
+  .allocation-donut::before { width: 70px; height: 70px; }
+  .allocation-center strong { font-size: 1rem; }
+  .allocation-center small { font-size: 0.65rem; margin-top: 0.1rem; }
+  .allocation-summary .allocation-status { align-self: end; text-align: left; font-size: 0.9rem; font-weight: 600; }
+  .allocation-target-key { align-self: start; text-align: left; }
+  .allocation-legend li { grid-template-columns: minmax(0, 1fr); gap: 0.35rem; padding: 0.7rem 0; }
   .allocation-legend strong { font-size: 0.9rem; line-height: 1.5; }
   .allocation-legend small { font-size: 0.8rem; line-height: 1.5; }
-  .allocation-legend .allocation-amount small { margin-top: 0.15rem; }
   .allocation-review label { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
   .day-disclosure .day-entry-grid { grid-template-columns: minmax(0, 1fr); }
 }
@@ -2038,7 +2056,7 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
 @media (max-width: 420px) {
   #content { padding-left: 0.7rem; padding-right: 0.7rem; }
   .topbar { padding-left: calc(0.7rem + env(safe-area-inset-left)); padding-right: calc(0.7rem + env(safe-area-inset-right)); gap: 0.4rem; }
-  .brand { font-size: clamp(1.02rem, 4.6vw, 1.2rem); }
+  .brand { font-size: 1.1rem; }
   .brand-mark { width: 1.4rem; height: 1.4rem; }
   .nav-account { gap: 0.35rem; }
   .nav-account-link { padding: 0.35rem 0.45rem; font-size: 0.78rem; }
@@ -2109,17 +2127,33 @@ button[aria-disabled="true"] {
 
 @media (max-width: 900px) {
   .mobile-nav {
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-    border-top-color: color-mix(in srgb, var(--border) 82%, var(--accent));
+    box-shadow: none;
+    border: 0;
+    border-top: 1px solid var(--border);
+    gap: 0;
   }
+  .mobile-nav a, .mobile-nav button { position: relative; height: 3.3rem; border-radius: 0; -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; }
   .mobile-nav a.active, .mobile-nav button[aria-expanded="true"] {
-    border-radius: 12px;
+    border-radius: 0;
+    background: transparent;
   }
+  .mobile-nav a.active::before, .mobile-nav button[aria-expanded="true"]::before { content: ''; position: absolute; top: 0; width: 22px; height: 2px; border-radius: 1px; background: var(--accent); }
+  .mobile-nav a:active, .mobile-nav button:active { background: var(--panel-alt); }
   .mobile-nav a.active small { font-weight: 700; }
   .mobile-nav a.active .nav-icon { stroke-width: 2.1; }
-  .dashboard-card, .health-score, .chart-block, .pie-card { border-radius: 12px; }
-  .dashboard-actions a { border-radius: 10px; }
+  .topbar { padding-top: calc(0.35rem + env(safe-area-inset-top)); padding-bottom: 0.35rem; box-shadow: none; }
+  .brand { font-size: 1.1rem; }
+  #content { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
+  #nav { height: min(72vh, 38rem); height: min(72dvh, 38rem); max-height: 80vh; max-height: 80dvh; padding-top: 0; border: 0; border-radius: 8px 8px 0 0; background: var(--panel-alt); }
+  #nav::before { content: ''; display: block; width: 32px; height: 4px; min-height: 4px; margin: 0.7rem auto 0.8rem; border-radius: 2px; background: var(--muted); opacity: 0.5; }
+  #nav a, #nav .nav-action-item { padding: 0.8rem 0.9rem; border-radius: 0; border-bottom: 1px solid var(--border); background: var(--panel); font-size: 0.95rem; }
+  #nav a.in-mobile-nav { display: none; }
+  #nav a:active, #nav .nav-action-item:active { background: var(--border); }
+  .dashboard-card, .health-score, .chart-block, .pie-card { border-radius: 8px; box-shadow: none; }
+  .dashboard-actions a { border-radius: 8px; min-height: 44px; }
   .dashboard-heading { margin-bottom: 1.1rem; }
+  button, a, summary { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  button:active:not(:disabled), .dashboard-actions a:active { filter: brightness(0.92); }
 }
 
 @media (max-width: 520px) {
@@ -5647,18 +5681,26 @@ WR.ui = WR.ui || {};
       <header><h2 id="allocation-heading">50 / 30 / 20</h2><p>${escapeText(period)} | Actuals against income targets</p></header>
       <div data-private-detail>
         <div class="allocation-layout">
+          <div class="allocation-summary">
           <div class="allocation-donut" style="--needs: ${stops[0]}%; --wants: ${stops[1]}%; --savings: ${stops[2]}%; --classified: ${(model.allocated / denominator * 100)}%" role="img" aria-label="Payday-period actual allocation; amounts and income percentages in the adjacent list">
             <span class="allocation-center"><strong>${model.income > 0 ? `${(model.allocated / model.income * 100).toFixed(1)}%` : '--'}</strong><small>allocated</small></span>
           </div>
-          <ul class="allocation-legend">${model.groups.map((group, index) => `<li>
-            <div><strong><span class="legend-dot" style="background: var(--chart-${index + 1})"></span>${group.label} <span>${group.target}% target</span></strong><small>${basis[index]}</small></div>
-            <div class="allocation-amount"><strong>${escapeText(currency)} ${fmt(group.value)} | ${group.percentage === null ? '--' : `${group.percentage.toFixed(1)}%`}</strong><small>Target ${escapeText(currency)} ${fmt(group.targetAmount)}</small></div>
+            <p class="allocation-status" data-over="${model.overrun > 0}">${model.income <= 0 ? 'Income not recorded for this month.' : model.overrun > 0 ? `${escapeText(currency)} ${fmt(model.overrun)} above income` : `${escapeText(currency)} ${fmt(model.unallocated)} unallocated`}</p>
+            <p class="allocation-target-key">Income targets: 50 / 30 / 20</p>
+          </div>
+          <ul class="allocation-legend">${model.groups.map((group, index) => `<li style="--allocation-color: var(--chart-${index + 1})">
+            <div class="allocation-row-heading"><strong title="${basis[index]}"><span class="legend-dot" style="background: var(--chart-${index + 1})"></span>${group.label}</strong><span class="allocation-percentage">${group.percentage === null ? '--' : `${group.percentage.toFixed(1)}%`}</span></div>
+            <div class="allocation-meter" style="--actual: ${Math.min(100, group.percentage || 0)}%; --target: ${group.target}%" role="img" aria-label="${group.label}: ${group.percentage === null ? 'income not recorded' : `${group.percentage.toFixed(1)}% of income`}; ${group.target}% target"><span class="allocation-meter-fill"></span></div>
+            <div class="allocation-row-values"><strong>${escapeText(currency)} ${fmt(group.value)}</strong><small>${group.target}% target &middot; ${escapeText(currency)} ${fmt(group.targetAmount)}</small></div>
           </li>`).join('')}</ul>
         </div>
+        <div class="allocation-footer">
         <p class="allocation-status">Activity recorded this period: ${escapeText(currency)} ${fmt(model.activitySpent)}</p>
         ${model.unclassified > 0 ? `<p class="allocation-status"><span class="legend-dot" style="background: var(--gold)"></span>Unclassified: ${escapeText(currency)} ${fmt(model.unclassified)}</p>` : ''}
-        <p class="allocation-status" data-over="${model.overrun > 0}">${model.income <= 0 ? 'Income not recorded for this month.' : model.overrun > 0 ? `${escapeText(currency)} ${fmt(model.overrun)} above income` : `${escapeText(currency)} ${fmt(model.unallocated)} unallocated`} ${model.incomplete || snapshot.currencyWarnings.length ? '| Incomplete exchange rates' : ''}</p>
+        ${model.incomplete || snapshot.currencyWarnings.length ? '<p class="allocation-status">Incomplete exchange rates</p>' : ''}
+        </div>
         <details class="allocation-review"><summary>Classification &amp; recorded sources</summary>
+          <p class="fine-print">Needs: ${basis[0]}. Wants: ${basis[1]}. Savings + extra debt: ${basis[2]}.</p>
           ${(snapshot.fixedExpenses || []).filter(bill => WR.ui.isActiveForMonth(bill, snapshot.month)).map(bill => `<label>${escapeText(bill.name)}<select data-allocation-bill="${escapeText(bill.id)}" aria-label="Classify ${escapeText(bill.name)}"><option value="">Use category</option><option value="needs" ${bill.allocationType === 'needs' ? 'selected' : ''}>Needs</option><option value="wants" ${bill.allocationType === 'wants' ? 'selected' : ''}>Wants</option></select></label>`).join('')}
           <p class="fine-print">Recorded sources: Activity, bills marked paid, debt payments, savings contributions and confirmed pot transfers. Opening balances and unpaid budgets excluded.</p>
           <p class="fine-print">Monthly-only savings and legacy debt entries follow their assigned budget month.</p>

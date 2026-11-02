@@ -117,6 +117,17 @@ assert.ok(functions.get('renderDashboard').indexOf('render503020(s, currency, bu
 assert.match(allocationMarkup, /25 Oct - 24 Nov \| Actuals against income targets/);
 assert.match(allocationMarkup, /Activity recorded this period: ZAR 800.00/);
 assert.match(allocationMarkup, /Unclassified: ZAR 100.00/);
+assert.equal((allocationMarkup.match(/class="allocation-meter"/g) || []).length, 3);
+assert.match(allocationMarkup, /--actual: 5%; --target: 50%/);
+assert.match(allocationMarkup, /Needs: 5.0% of income; 50% target/);
+assert.match(allocationMarkup, /class="allocation-summary"/);
+const allocationOverMarkup = allocationContext.render503020({ ...allocationFixture, dayToDayTransactions: [{ date: '2026-11-01', amount: 15000, allocationType: 'needs' }], currencyWarnings: [] }, 'ZAR', '25 Oct - 24 Nov');
+assert.match(allocationOverMarkup, /--actual: 100%; --target: 50%/);
+assert.match(allocationOverMarkup, /150.0% of income; 50% target/);
+const allocationEmptyMarkup = allocationContext.render503020({ ...allocationFixture, cashflow: { income: 0 }, dayToDayTransactions: [], currencyWarnings: [] }, 'ZAR', '25 Oct - 24 Nov');
+assert.match(allocationEmptyMarkup, /--actual: 0%; --target: 50%/);
+assert.match(allocationEmptyMarkup, /income not recorded; 50% target/);
+assert.doesNotMatch(allocationEmptyMarkup, /NaN|Infinity/);
 assert.match(html, /grid-template-areas: "position" "actions" "allocation" "insights" "annual"/);
 assert.match(html, /\.allocation-legend li \{ grid-template-columns: minmax\(0, 1fr\);/);
 assert.match(allocationContext.render503020({ ...allocationFixture, dayToDayTransactions: [{ date: '2026-11-01', kind: 'spend', amount: 11000 }], currencyWarnings: [], monthLabel: 'November 2026' }, 'ZAR', '25 Oct - 24 Nov'), /ZAR 1000.00 above income/);
