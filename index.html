@@ -2018,7 +2018,7 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .topbar:not(.nav-expanded):not(.nav-measuring) .nav-horizontal { display: none; }
   .topbar .brand { flex-shrink: 0; }
   .topbar.nav-expanded .nav-expanded-link, .topbar.nav-measuring .nav-expanded-link { display: block; }
-  .topbar.nav-expanded .nav-horizontal { overflow: visible; flex-shrink: 0; }
+  .topbar.nav-expanded .nav-horizontal { flex: 1 1 auto; justify-content: space-between; overflow: visible; }
   .topbar.nav-measuring .nav-horizontal { flex: 0 0 auto; overflow: visible; }
   .topbar.nav-expanded .nav-controls, .topbar.nav-expanded #nav { display: none; }
   .topbar.nav-expanded .nav-wide-actions { position: static; visibility: visible; pointer-events: auto; margin-left: auto; flex-shrink: 0; }
