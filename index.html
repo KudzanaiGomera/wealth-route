@@ -1639,12 +1639,13 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .spending-funds .stat { border: 0; border-radius: 0; background: transparent; padding: 0.75rem 1rem 0.75rem 0; box-shadow: none; }
 @media (max-width: 680px) {
   .spending-funds .funding-entry-form { grid-template-columns: minmax(0, 1fr); }
-  .spending-funds .spending-budget-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .spending-budget-summary > div { padding: 0.85rem; }
+  .spending-funds .spending-budget-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0.65rem; }
+  .spending-budget-summary > div { padding: 0.7rem 0.65rem; }
   .spending-budget-summary dd { font-size: 1.1rem; }
   .spending-budget-summary dt { font-size: 0.75rem; }
-  .spending-budget-summary .budget-remaining { grid-column: 1 / -1; padding: 0.85rem 1rem; border-top: 1px solid var(--border); }
-  .spending-budget-summary .budget-remaining dd { font-size: 1.45rem; }
+  .spending-budget-summary .budget-remaining { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; padding: 0.65rem 0.8rem; border-top: 1px solid var(--border); }
+  .spending-budget-summary .budget-remaining dd { margin: 0; font-size: 1.2rem; text-align: right; }
+  .spending-funds > .day-category-meter { margin-top: 0.45rem; }
   .spending-funds .stat-grid { grid-template-columns: minmax(0, 1fr); }
 }
 .buffer-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
