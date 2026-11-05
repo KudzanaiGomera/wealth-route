@@ -1364,6 +1364,7 @@ async function checkTransactionLayout() {
   assert.ok(markup.includes('id="day-today"'));
   assert.ok(markup.includes('id="day-collapse-all"'));
   assert.ok(markup.includes('id="day-expand-all"'));
+  assert.ok(markup.includes('<details id="day-import" class="day-disclosure" hidden>'));
   assert.ok(markup.includes('inputmode="decimal"'));
   assert.ok(markup.includes('name="allocationType"'));
   assert.ok(markup.includes('name="allocationLink"'));
@@ -2239,6 +2240,7 @@ async function checkPaydayBudget() {
   assert.ok(!fundsMarkup.includes('<unsafe>'));
   assert.ok(fundsMarkup.startsWith('<section class="spending-funds"'));
   assert.ok(fundsMarkup.includes('aria-controls="spending-funds-entry"'));
+  assert.ok(fundsMarkup.includes('id="spending-funds-toggle" class="spending-add-funds"'));
   assert.ok(fundsMarkup.includes('id="spending-funds-entry" hidden'));
   assert.ok(fundsMarkup.includes('<dt>Spent</dt><dd>ZAR 800.00</dd>'));
   assert.ok(fundsMarkup.includes('<dt>Left to spend</dt><dd>ZAR 2000.00</dd>'));
