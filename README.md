@@ -155,14 +155,14 @@ and auto-use switch on desktop, stacking them on phones. Balance correction
 is collapsed until requested; all controls remain keyboard accessible.
 The always-visible **Spending budget** summary shows total budget, spent, and
 left to spend (or over budget). **Add funds** opens the funding form beside the
-summary. Recent funding entries appear below it; **View all funding history**
-reveals older entries. **Budget breakdown** contains base-budget and added-funds
+summary. Funding history is not displayed; recorded entries remain intact.
+**Budget breakdown** contains base-budget and added-funds
 corrections, while **Manage buffer** keeps occasional balance maintenance separate.
 **Add funds** records a positive amount, source, and date within
 the selected started pay cycle, no later than today. It increases that period's
 spending budget directly, regardless of the buffer auto-use setting. Each entry
-has a stable ID so retries cannot duplicate it. **Funding history** allows edits
-and confirmed deletion; linked advance receipts remain managed on Income.
+has a stable ID so retries cannot duplicate it. Correct the total added funds
+under **Budget breakdown**; linked advance receipts remain managed on Income.
 These are funds already available, not earnings. Record any savings or emergency
 withdrawal on Savings first; adding spending funds does not withdraw it again.
 Old buffer deposits remain in their original records and appear as already
@@ -209,7 +209,7 @@ Transactions is spending-only and uses the selected pay-cycle budget. New
 entries are always Spend; there is no transaction-type selector. Every entry reduces
 that budget; there is no reserved-expense checkbox or exemption. Legacy
 reserved flags are ignored, so those entries now count as spending too.
-Old Add money records are preserved and shown separately in Funding history;
+Old Add money records are preserved but not displayed in a funding history;
 they increase their pay cycle's spending budget once, are not converted into
 expenses, and retain their carry-over behavior.
 Enter everyday spending here rather than duplicating expenses already

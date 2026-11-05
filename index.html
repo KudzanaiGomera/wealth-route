@@ -1621,10 +1621,6 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .spending-funds .funding-entry-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) auto; align-items: end; gap: 0.75rem; }
 .funding-entry-form label { display: grid; gap: 0.4rem; min-width: 0; color: var(--muted); font-size: 0.82rem; }
 .funding-entry-form input { width: 100%; min-width: 0; min-height: 44px; }
-.funding-history-heading { font-size: 0.95rem; margin: 1rem 0 0; }
-.spending-funds .funding-history { margin-top: 0.25rem; }
-.spending-funds .funding-history > details > summary { min-height: 44px; }
-.funding-history-more > .funding-history { margin-left: 0.5rem; }
 .spending-funds .stat-grid { gap: 0; margin-top: 0.5rem; }
 .spending-funds .stat { border: 0; border-radius: 0; background: transparent; padding: 0.75rem 1rem 0.75rem 0; box-shadow: none; }
 @media (max-width: 680px) {
@@ -1634,10 +1630,6 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
   .spending-budget-summary dt { font-size: 0.75rem; }
   .spending-funds .stat-grid { grid-template-columns: minmax(0, 1fr); }
 }
-.funding-history { margin-top: 1rem; }
-.funding-history > details { border-bottom: 1px solid var(--border); padding: 0.75rem 0; }
-.funding-history summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; cursor: pointer; overflow-wrap: anywhere; }
-.funding-history .inline-form { margin-top: 0.75rem; }
 .buffer-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
 .buffer-balance { min-width: 0; }
 .buffer-value { display: block; font-family: var(--font-serif); font-size: 2rem; line-height: 1.2; font-variant-numeric: tabular-nums; margin-top: 0.35rem; overflow-wrap: anywhere; }
@@ -6728,16 +6720,6 @@ WR.ui = WR.ui || {};
     const date = today >= dates.start && today < dates.endExclusive ? today : dates.start;
     const availableBuffer = Math.max(0, budget.carryOver);
     const allocated = Number(cycle.bufferAmount) || 0;
-    const entries = transactions.filter(item => item.kind === 'add' && item.date >= dates.start && item.date < dates.endExclusive && item.date <= today).sort((left, right) => right.date.localeCompare(left.date));
-    const history = entries.map(item => `<details><summary><span>${escape(item.date)} · ${escape(item.description || 'Added funds')}</span><strong>${money(item.amount)}</strong></summary>
-      ${item.paydayAdvanceId ? '<p class="fine-print">Advance receipt. Managed on Income.</p>' : `<form class="inline-form spending-funds-edit" data-id="${escape(item.id)}">
-        <label>Date<input name="date" type="date" value="${escape(item.date)}" required></label>
-        <label>Source<input name="description" value="${escape(item.description || '')}" required></label>
-        <label>Amount<input name="amount" type="number" step="0.01" min="0.01" value="${escape(item.amount)}" required></label><button type="submit">Save</button>
-      </form><details><summary>Delete entry</summary><form class="spending-funds-delete" data-id="${escape(item.id)}"><button type="submit" class="danger">Confirm delete</button></form></details>`}
-    </details>`);
-    const advanceHistory = advances.filter(item => !item.transactionId && item.receivedDate >= dates.start && item.receivedDate < dates.endExclusive && item.receivedDate <= today).map(item => `<p class="fine-print">${escape(item.receivedDate)} · Advance receipt: ${money(item.amount)} (managed on Income)</p>`).join('');
-    const legacyHistory = Object.values(cycle.bufferDeposits || {}).map(item => `<p class="fine-print">${escape(item.date)} · Earlier buffer deposit: ${money(item.amount)} (already included in buffer)</p>`).join('');
     return `<section class="spending-funds" aria-labelledby="spending-funds-heading">
       <header class="spending-budget-heading"><h2 id="spending-funds-heading">Spending budget</h2><button type="button" id="spending-funds-toggle" class="secondary" aria-expanded="false" aria-controls="spending-funds-entry" ${active ? '' : 'disabled'}><span aria-hidden="true">+</span> Add funds</button></header>
       <dl class="spending-budget-summary">
@@ -6755,8 +6737,6 @@ WR.ui = WR.ui || {};
           <button type="submit" ${active ? '' : 'disabled'}>Add funds</button>
         </form>
       </div>
-      <h3 class="funding-history-heading">Funding history</h3>
-      <div class="funding-history">${history.slice(0, 3).join('')}${history.length > 3 || advanceHistory || legacyHistory ? `<details class="funding-history-more"><summary>View all funding history${history.length ? ` (${history.length})` : ''}</summary><div class="funding-history">${history.slice(3).join('')}${advanceHistory}${legacyHistory}</div></details>` : ''}${history.length || advanceHistory || legacyHistory ? '' : '<p class="empty">No added funds this period.</p>'}</div>
       <details class="day-disclosure spending-budget-breakdown"><summary>Budget breakdown</summary>
       <div class="stat-grid">
         <div class="stat base-budget-stat"><div class="base-budget-heading"><span class="stat-label">Base spending budget</span><strong class="stat-value">${money(funding.baseBudget)}</strong></div><details class="card-edit base-budget-edit"><summary>Edit amount</summary><form id="spending-base-budget-form" class="card-edit-form base-budget-edit-form"><label for="base-budget-amount">New base budget</label><div class="base-budget-input-wrap"><input id="base-budget-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${escape(funding.baseBudget)}" ${active ? '' : 'disabled'} required></div><p class="fine-print span-2">Only this cycle’s budget changes. Your income, savings, expenses and debt records stay untouched.</p><div class="card-edit-actions span-2"><button type="submit" ${active ? '' : 'disabled'}>Save budget</button></div></form></details></div>
@@ -6821,8 +6801,6 @@ WR.ui = WR.ui || {};
     bind('#spending-buffer-form', form => saveIncomeBudget(month, { bufferAmount: Number(form.elements.amount.value) }));
     const id = WR.models.newId();
     bind('#spending-funds-form', form => saveSpendingFunds(month, id, { date: form.elements.date.value, description: form.elements.description.value, amount: form.elements.amount.value }));
-    container.querySelectorAll('.spending-funds-edit').forEach(form => bindForm(form, form => saveSpendingFunds(month, form.dataset.id, { date: form.elements.date.value, description: form.elements.description.value, amount: form.elements.amount.value }, 'edit')));
-    container.querySelectorAll('.spending-funds-delete').forEach(form => bindForm(form, form => saveSpendingFunds(month, form.dataset.id, {}, 'delete')));
     container.querySelector('#spending-auto-buffer').addEventListener('change', async event => {
       const enabled = event.target.checked;
       try {
@@ -10658,7 +10636,7 @@ WR.ui = WR.ui || {};
             <li>Possible recurring charges and budget-cycle reviews are suggestions only; they never change budgets automatically.</li>
             <li>Assets and Investments now use the shared sortable, filterable tables and render correctly.</li>
             <li>Version 3.0: redesigned balance card, compact annual overview, and dashboard shortcuts for Transactions, Budget, Savings, and Goals.</li>
-            <li>Income retains Advance and Savings taken amounts. Spending budget on Transactions separates buffer allocations and dated top-ups from earnings, with editable funding history.</li>
+            <li>Income retains Advance and Savings taken amounts. Spending budget on Transactions separates buffer allocations and dated top-ups from earnings.</li>
             <li>Hide or show dashboard balances, charts, and financial recommendation details with one privacy control. This device remembers the choice per account.</li>
             <li>Show or hide the password while logging in or signing up; passwords always start hidden.</li>
             <li>Responsive two-column balance rows and touch-friendly controls in light and dark mode.</li>
