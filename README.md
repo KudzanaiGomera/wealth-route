@@ -139,7 +139,7 @@ clearing the income deduction never changes a pot balance. Edits require an
 online connection. Current/past months activate funding automatically;
 future months stay planned. Revisit/edit a future plan after payday to activate it.
 
-On **Activity > Monthly Spending Funds**, allocate money from the **Opening
+On **Transactions > Spending budget > Manage buffer**, allocate money from the **Opening
 buffer** to this period's spending budget. The allocation cannot exceed positive
 carry-over. Unallocated buffer remains outside the spending budget. Negative
 carry-over is retained as a shortfall, not treated as negative income.
@@ -153,7 +153,12 @@ transaction records are not changed by this correction.
 The spending-funds section displays the opening balance beside the allocation form
 and auto-use switch on desktop, stacking them on phones. Balance correction
 is collapsed until requested; all controls remain keyboard accessible.
-**Add extra spending funds** records a positive amount, source, and date within
+The always-visible **Spending budget** summary shows total budget, spent, and
+left to spend (or over budget). **Add funds** opens the funding form beside the
+summary. Recent funding entries appear below it; **View all funding history**
+reveals older entries. **Budget breakdown** contains base-budget and added-funds
+corrections, while **Manage buffer** keeps occasional balance maintenance separate.
+**Add funds** records a positive amount, source, and date within
 the selected started pay cycle, no later than today. It increases that period's
 spending budget directly, regardless of the buffer auto-use setting. Each entry
 has a stable ID so retries cannot duplicate it. **Funding history** allows edits

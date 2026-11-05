@@ -1609,6 +1609,31 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .spending-funds .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 1.25rem; }
 .spending-funds .stat { min-width: 0; }
 .spending-funds .stat-value { overflow-wrap: anywhere; }
+.spending-funds { margin: 0 0 1rem; }
+.spending-budget-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
+.spending-budget-heading h2 { margin: 0; font-size: 1.15rem; }
+.spending-funds .spending-budget-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0; padding: 1rem 0; border-top: 1px solid var(--border); }
+.spending-budget-summary > div { min-width: 0; }
+.spending-budget-summary dt { color: var(--muted); font-size: 0.82rem; }
+.spending-budget-summary dd { margin: 0.3rem 0 0; font-size: 1.35rem; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.spending-budget-summary .budget-remaining dd { color: var(--accent); }
+.spending-budget-summary .budget-remaining.over-budget dd { color: var(--danger); }
+.spending-funds .funding-entry-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) auto; align-items: end; gap: 0.75rem; }
+.funding-entry-form label { display: grid; gap: 0.4rem; min-width: 0; color: var(--muted); font-size: 0.82rem; }
+.funding-entry-form input { width: 100%; min-width: 0; min-height: 44px; }
+.funding-history-heading { font-size: 0.95rem; margin: 1rem 0 0; }
+.spending-funds .funding-history { margin-top: 0.25rem; }
+.spending-funds .funding-history > details > summary { min-height: 44px; }
+.funding-history-more > .funding-history { margin-left: 0.5rem; }
+.spending-funds .stat-grid { gap: 0; margin-top: 0.5rem; }
+.spending-funds .stat { border: 0; border-radius: 0; background: transparent; padding: 0.75rem 1rem 0.75rem 0; box-shadow: none; }
+@media (max-width: 680px) {
+  .spending-funds .funding-entry-form { grid-template-columns: minmax(0, 1fr); }
+  .spending-funds .spending-budget-summary { gap: 0.75rem; }
+  .spending-budget-summary dd { font-size: 1rem; }
+  .spending-budget-summary dt { font-size: 0.75rem; }
+  .spending-funds .stat-grid { grid-template-columns: minmax(0, 1fr); }
+}
 .funding-history { margin-top: 1rem; }
 .funding-history > details { border-bottom: 1px solid var(--border); padding: 0.75rem 0; }
 .funding-history summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; cursor: pointer; overflow-wrap: anywhere; }
@@ -6704,24 +6729,43 @@ WR.ui = WR.ui || {};
     const availableBuffer = Math.max(0, budget.carryOver);
     const allocated = Number(cycle.bufferAmount) || 0;
     const entries = transactions.filter(item => item.kind === 'add' && item.date >= dates.start && item.date < dates.endExclusive && item.date <= today).sort((left, right) => right.date.localeCompare(left.date));
-    const history = entries.map(item => `<details><summary><span>${escape(item.date)} · ${escape(item.description || 'Extra funds')}</span><strong>${money(item.amount)}</strong></summary>
+    const history = entries.map(item => `<details><summary><span>${escape(item.date)} · ${escape(item.description || 'Added funds')}</span><strong>${money(item.amount)}</strong></summary>
       ${item.paydayAdvanceId ? '<p class="fine-print">Advance receipt. Managed on Income.</p>' : `<form class="inline-form spending-funds-edit" data-id="${escape(item.id)}">
         <label>Date<input name="date" type="date" value="${escape(item.date)}" required></label>
         <label>Source<input name="description" value="${escape(item.description || '')}" required></label>
         <label>Amount<input name="amount" type="number" step="0.01" min="0.01" value="${escape(item.amount)}" required></label><button type="submit">Save</button>
       </form><details><summary>Delete entry</summary><form class="spending-funds-delete" data-id="${escape(item.id)}"><button type="submit" class="danger">Confirm delete</button></form></details>`}
-    </details>`).join('');
+    </details>`);
     const advanceHistory = advances.filter(item => !item.transactionId && item.receivedDate >= dates.start && item.receivedDate < dates.endExclusive && item.receivedDate <= today).map(item => `<p class="fine-print">${escape(item.receivedDate)} · Advance receipt: ${money(item.amount)} (managed on Income)</p>`).join('');
     const legacyHistory = Object.values(cycle.bufferDeposits || {}).map(item => `<p class="fine-print">${escape(item.date)} · Earlier buffer deposit: ${money(item.amount)} (already included in buffer)</p>`).join('');
-    return `<details class="day-disclosure spending-funds">
-      <summary id="spending-funds-heading">Monthly Spending Funds</summary>
+    return `<section class="spending-funds" aria-labelledby="spending-funds-heading">
+      <header class="spending-budget-heading"><h2 id="spending-funds-heading">Spending budget</h2><button type="button" id="spending-funds-toggle" class="secondary" aria-expanded="false" aria-controls="spending-funds-entry" ${active ? '' : 'disabled'}><span aria-hidden="true">+</span> Add funds</button></header>
+      <dl class="spending-budget-summary">
+        <div><dt>Total budget</dt><dd>${money(budget.available)}</dd></div>
+        <div><dt>Spent</dt><dd>${money(budget.spent)}</dd></div>
+        <div class="budget-remaining ${budget.remaining < 0 ? 'over-budget' : ''}"><dt>${budget.remaining < 0 ? 'Over budget by' : 'Left to spend'}</dt><dd>${money(Math.abs(budget.remaining))}</dd></div>
+      </dl>
+      <div class="day-category-meter" role="progressbar" aria-label="Budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(budget.remainingPct)}"><span style="--share: ${budget.remainingPct}%"></span></div>
+      <div id="spending-funds-entry" hidden>
+        <p class="fine-print">Money already available, not new earnings. Record savings withdrawals on Savings first. Adding funds here does not change savings or emergency balances.</p>
+        <form id="spending-funds-form" class="inline-form funding-entry-form">
+          <label>Date<input name="date" type="date" value="${escape(date)}" min="${dates.start}" max="${today < dates.endExclusive ? today : new Date(Date.parse(`${dates.endExclusive}T12:00:00Z`) - 86400000).toISOString().slice(0, 10)}" ${active ? '' : 'disabled'} required></label>
+          <label>Source<input name="description" placeholder="Existing cash or recorded withdrawal" ${active ? '' : 'disabled'} required></label>
+          <label>Amount (${escape(profile.baseCurrency)})<input name="amount" type="number" inputmode="decimal" step="0.01" min="0.01" ${active ? '' : 'disabled'} required></label>
+          <button type="submit" ${active ? '' : 'disabled'}>Add funds</button>
+        </form>
+      </div>
+      <h3 class="funding-history-heading">Funding history</h3>
+      <div class="funding-history">${history.slice(0, 3).join('')}${history.length > 3 || advanceHistory || legacyHistory ? `<details class="funding-history-more"><summary>View all funding history${history.length ? ` (${history.length})` : ''}</summary><div class="funding-history">${history.slice(3).join('')}${advanceHistory}${legacyHistory}</div></details>` : ''}${history.length || advanceHistory || legacyHistory ? '' : '<p class="empty">No added funds this period.</p>'}</div>
+      <details class="day-disclosure spending-budget-breakdown"><summary>Budget breakdown</summary>
       <div class="stat-grid">
         <div class="stat base-budget-stat"><div class="base-budget-heading"><span class="stat-label">Base spending budget</span><strong class="stat-value">${money(funding.baseBudget)}</strong></div><details class="card-edit base-budget-edit"><summary>Edit amount</summary><form id="spending-base-budget-form" class="card-edit-form base-budget-edit-form"><label for="base-budget-amount">New base budget</label><div class="base-budget-input-wrap"><input id="base-budget-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${escape(funding.baseBudget)}" ${active ? '' : 'disabled'} required></div><p class="fine-print span-2">Only this cycle’s budget changes. Your income, savings, expenses and debt records stay untouched.</p><div class="card-edit-actions span-2"><button type="submit" ${active ? '' : 'disabled'}>Save budget</button></div></form></details></div>
         <div class="stat"><span class="stat-label">Buffer allocated</span><span class="stat-value">${money(allocated)}</span></div>
-        <div class="stat base-budget-stat extra-funds-stat"><div class="base-budget-heading"><span class="stat-label">Extra funds received</span><strong class="stat-value">${money(budget.added)}</strong></div><details class="card-edit base-budget-edit"><summary>Edit amount</summary><form id="spending-extra-funds-form" class="card-edit-form base-budget-edit-form"><label for="extra-funds-amount">Correct total extra funds</label><div class="base-budget-input-wrap"><input id="extra-funds-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${escape(budget.added)}" ${active ? '' : 'disabled'} required></div><p class="fine-print span-2">Sets the total counted for this pay cycle. Existing funding entries stay intact; this saves a correction to the total.</p><div class="card-edit-actions span-2"><button type="submit" ${active ? '' : 'disabled'}>Save amount</button></div></form></details></div>
-        <div class="stat"><span class="stat-label">Total spending budget</span><span class="stat-value">${money(budget.available)}</span></div>
+        <div class="stat base-budget-stat extra-funds-stat"><div class="base-budget-heading"><span class="stat-label">Added funds</span><strong class="stat-value">${money(budget.added)}</strong></div><details class="card-edit base-budget-edit"><summary>Edit amount</summary><form id="spending-extra-funds-form" class="card-edit-form base-budget-edit-form"><label for="extra-funds-amount">Correct total added funds</label><div class="base-budget-input-wrap"><input id="extra-funds-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${escape(budget.added)}" ${active ? '' : 'disabled'} required></div><p class="fine-print span-2">Sets the total counted for this pay cycle. Existing funding entries stay intact; this saves a correction to the total.</p><div class="card-edit-actions span-2"><button type="submit" ${active ? '' : 'disabled'}>Save amount</button></div></form></details></div>
       </div>
       ${funding.shortfall > 0 ? `<p class="warning">Previous shortfall carried forward: ${money(funding.shortfall)}</p>` : ''}
+      </details>
+      <details class="day-disclosure"><summary>Manage buffer</summary>
       <div class="buffer-layout">
         <div class="buffer-balance"><span class="stat-label">${budget.carryOver < 0 ? 'Opening shortfall' : 'Opening buffer'}</span><strong class="buffer-value ${budget.carryOver < 0 ? 'negative' : ''}">${money(Math.abs(budget.carryOver))}</strong>
           <p class="fine-print">Unallocated buffer: ${money(Math.max(0, availableBuffer - allocated))}</p>
@@ -6734,21 +6778,25 @@ WR.ui = WR.ui || {};
           <label class="buffer-auto-control"><span>Use opening buffer automatically</span><input id="spending-auto-buffer" type="checkbox" role="switch" ${profile.autoUseBuffer ? 'checked' : ''} ${active ? '' : 'disabled'}><span class="buffer-switch" aria-hidden="true"></span></label>
         </div>
       </div>
-      <details class="day-disclosure"><summary>Add extra spending funds</summary>
-        <p class="fine-print">Money already available, not new earnings. Savings withdrawals must already be recorded on Savings. These entries do not change savings or emergency balances.</p>
-        <form id="spending-funds-form" class="inline-form">
-          <label>Date<input name="date" type="date" value="${escape(date)}" max="${today}" ${active ? '' : 'disabled'} required></label>
-          <label>Source<input name="description" placeholder="Existing cash or recorded withdrawal" ${active ? '' : 'disabled'} required></label>
-          <label>Amount (${escape(profile.baseCurrency)})<input name="amount" type="number" inputmode="decimal" step="0.01" min="0.01" ${active ? '' : 'disabled'} required></label>
-          <button type="submit" ${active ? '' : 'disabled'}>Add funds</button>
-        </form>
       </details>
-      <details class="day-disclosure"><summary>Funding history</summary><div class="funding-history">${history}${advanceHistory}${legacyHistory}${history || advanceHistory || legacyHistory ? '' : '<p class="empty">No extra funds recorded for this period.</p>'}</div></details>
-    </details>`;
+    </section>`;
   }
 
   function bindSpendingFunds(container, snapshot, afterSave) {
     const month = snapshot.month;
+    const toggle = container.querySelector('#spending-funds-toggle');
+    const entry = container.querySelector('#spending-funds-entry');
+    toggle.addEventListener('click', () => {
+      entry.hidden = !entry.hidden;
+      toggle.setAttribute('aria-expanded', String(!entry.hidden));
+      if (!entry.hidden) entry.querySelector('[name="amount"]').focus();
+    });
+    entry.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      entry.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.focus();
+    });
     const bindForm = (form, save) => {
       form.dataset.draftScope = month;
       WR.ui.bindReliableForm(form, save, afterSave);
@@ -7752,20 +7800,12 @@ WR.ui = WR.ui || {};
       <header class="dashboard-heading"><h1>Transactions</h1><button type="button" class="quick-expense-action" data-quick-expense><span aria-hidden="true">+</span>Add expense</button></header>
       <div class="toolbar"><label>Month: <input id="day-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
 
-      <div class="stat-grid day-summary-grid">
-        <div class="stat"><span class="stat-label">Spending budget</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(balanceBeforeMonth)}</span></div>
-        <div class="stat"><span class="stat-label">Money spent</span><span class="stat-value">${profile.baseCurrency} ${WR.ui.fmt(spent)}</span></div>
-        <div class="stat"><span class="stat-label">${current < 0 ? 'Over budget by' : 'Left to spend'}</span><span class="stat-value ${current < 0 ? 'negative' : ''}">${profile.baseCurrency} ${WR.ui.fmt(Math.abs(current))}</span></div>
-        <div class="stat"><span class="stat-label">Transactions this month</span><span class="stat-value">${monthTx.length}</span></div>
-      </div>
-      <div class="day-category-meter" role="progressbar" aria-label="Budget remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(payBudget.remainingPct)}"><span style="--share: ${payBudget.remainingPct}%"></span></div><p class="fine-print">${Math.round(payBudget.remainingPct)}% remaining</p>
+      ${WR.ui.renderSpendingFunds({ ...budgetSnapshot, payCycleBudget: payBudget }, transactions, payAdvances)}
 
       <details id="day-entry" class="day-disclosure" ${WR.ui._dayDraft ? 'open' : ''}>
         <summary>Add spending</summary>
         ${entryMarkup}
       </details>
-
-      ${WR.ui.renderSpendingFunds(budgetSnapshot, transactions, payAdvances)}
 
       <details id="day-import" class="day-disclosure">
         <summary>Import transactions from CSV</summary>
@@ -10600,7 +10640,7 @@ WR.ui = WR.ui || {};
             <li>Total income = income sources - advances. Buffer and extra spending funds are not earnings.</li>
             <li>Base spending budget = total income - savings taken - fixed expenses - actual variable expenses - monthly debt minimums.</li>
             <li>Total spending budget = base spending budget + allocated buffer + extra funds received - previous shortfall. Left to spend = this budget - everyday spending.</li>
-            <li>Manage buffer and extra funds on Activity under Monthly Spending Funds. Savings balances are updated separately, never by adding spending funds.</li>
+            <li>Manage added funds under Transactions > Spending budget, and opening balances under Manage buffer. Savings balances are updated separately, never by adding spending funds.</li>
             <li>Emergency cover = liquid emergency-ready funds divided by essential monthly expenses.</li>
             <li>Financial health score blends cash flow, emergency cover, debt burden, savings rate, and net-worth trend.</li>
             <li>Forecasts are scenarios, not guarantees.</li>
@@ -10618,7 +10658,7 @@ WR.ui = WR.ui || {};
             <li>Possible recurring charges and budget-cycle reviews are suggestions only; they never change budgets automatically.</li>
             <li>Assets and Investments now use the shared sortable, filterable tables and render correctly.</li>
             <li>Version 3.0: redesigned balance card, compact annual overview, and dashboard shortcuts for Transactions, Budget, Savings, and Goals.</li>
-            <li>Income retains Advance and Savings taken amounts. Monthly Spending Funds on Activity separates buffer allocations and dated top-ups from earnings, with editable funding history.</li>
+            <li>Income retains Advance and Savings taken amounts. Spending budget on Transactions separates buffer allocations and dated top-ups from earnings, with editable funding history.</li>
             <li>Hide or show dashboard balances, charts, and financial recommendation details with one privacy control. This device remembers the choice per account.</li>
             <li>Show or hide the password while logging in or signing up; passwords always start hidden.</li>
             <li>Responsive two-column balance rows and touch-friendly controls in light and dark mode.</li>
@@ -12656,7 +12696,7 @@ function tutorialSteps() {
     { title: 'Welcome to WealthRoute', message: "Let's get your money organised, one step at a time. You can explore each page as we go, or skip these messages and return to them in Settings.", route: '#/dashboard', action: 'Open Dashboard' },
     { title: 'Start with income and payday', message: 'Add your income sources on Income. Set your usual payday in Settings, then use I\'ve been paid when your salary arrives. Your budget cycle follows your payday, not necessarily the calendar month.', route: '#/income', action: 'Open Income' },
     { title: 'Plan your commitments', message: 'Add recurring bills on Fixed Expenses, planned variable costs on Budget, and balances and minimum payments on Debts. These commitments help calculate how much is available for everyday spending.', route: '#/fixed-expenses', action: 'Open Fixed Expenses' },
-    { title: 'Track everyday spending', message: 'Record purchases on Activity and check Left to spend. Monthly Spending Funds is where you manage buffer and extra money received. Adding spending funds does not automatically withdraw money from Savings.', route: '#/day-to-day', action: 'Open Activity' },
+    { title: 'Track everyday spending', message: 'Record purchases on Transactions and check Left to spend. Choose Add funds in Spending budget for extra money, or Manage buffer for opening balances. Adding spending funds does not automatically withdraw money from Savings.', route: '#/day-to-day', action: 'Open Transactions' },
     { title: 'Build savings and track borrowing', message: 'Create savings pots and record emergency fund balances on Savings. If you borrow from a reserve, use Borrowing & Repayments and record repayments there so your balances stay accurate.', route: '#/savings', action: 'Open Savings' },
     { title: 'See the bigger picture', message: 'Add assets and investments on Wealth, set targets on Goals, and review your monthly Reports. Dashboard balances are current; year-to-date totals are money flowing during the year. Empty figures become useful as you add your own records.', route: '#/reports', action: 'Open Reports' },
   ];

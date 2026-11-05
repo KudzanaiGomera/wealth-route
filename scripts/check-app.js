@@ -1333,8 +1333,8 @@ async function checkTransactionLayout() {
         payCycleDates: () => ({ start: '2026-09-25', endExclusive: '2026-10-25' }),
         calculatePayCycleBudget: () => ({ carryOver: 9999, funding: 4321, available: 5121, added: 800, spent: 98, remaining: 5023 }),
         calculateBudgetRemainingPercentage: () => 0,
-        buildSnapshot: async () => ({ payCycles: [], paydayFunding: { budget: 4321 } }),
-        renderSpendingFunds: () => '<section>Monthly Spending Funds</section>', bindSpendingFunds() {}, bindReliableForm() {},
+        buildSnapshot: async () => ({ month: '2026-10', profile: { baseCurrency: 'ZAR' }, payCycles: [], paydayFunding: { budget: 4321, baseBudget: 4321 } }),
+        bindSpendingFunds() {}, bindReliableForm() {},
         fmt: amount => Number(amount).toFixed(2),
         calculateDayToDayMonthBalance: () => ({ balanceBeforeMonth: 0, currentBalance: 702 }),
         setHTML: (target, value) => { if (target === container) markup = value; else target.markup = value; },
@@ -1343,7 +1343,8 @@ async function checkTransactionLayout() {
     document: { getElementById: () => ({ addEventListener() {} }) },
   };
   vm.createContext(layoutContext);
-  vm.runInContext(`${functions.get('findRecurringSpendPatterns')}\n${functions.get('bindSpendingEntry')}\n${functions.get('renderDayToDay')}`, layoutContext);
+  vm.runInContext(`${functions.get('renderSpendingFunds')}\n${functions.get('findRecurringSpendPatterns')}\n${functions.get('bindSpendingEntry')}\n${functions.get('renderDayToDay')}`, layoutContext);
+  layoutContext.WR.ui.renderSpendingFunds = layoutContext.renderSpendingFunds;
   const nextDate = { hidden: false, classList: { contains: () => true } };
   const secondRow = { hidden: false, classList: { contains: () => false }, nextElementSibling: nextDate };
   const firstRow = { hidden: false, classList: { contains: () => false }, nextElementSibling: secondRow };
@@ -1390,23 +1391,25 @@ async function checkTransactionLayout() {
   assert.ok(markup.includes('2 transactions'));
   assert.ok(!markup.includes('data-field="kind"'));
   assert.ok(!markup.includes('name="kind"'));
-  assert.ok(!markup.includes('data-id="third"'));
+  assert.ok(!markup.includes('<tr data-id="third"'));
   assert.ok(functions.get('renderDayToDay').includes("kind: 'spend'"));
   assert.ok(markup.includes('data-label="Amount (ZAR)"'));
   assert.ok(!markup.includes("of this month's day-to-day spending"));
   assert.ok(selectors.includes('.day-ledger tbody tr[data-id]'));
-  assert.ok(markup.includes('Spending budget</span><span class="stat-value">ZAR 5121.00'));
+  assert.ok(markup.includes('<dt>Total budget</dt><dd>ZAR 5121.00'));
+  assert.ok(markup.indexOf('id="spending-funds-toggle"') < markup.indexOf('id="day-entry"'));
+  assert.equal((markup.match(/class="spending-budget-summary"/g) || []).length, 1);
   assert.ok(!markup.includes('coveredByBudget'));
   assert.ok(!markup.includes('Reserved expense'));
   assert.ok(!markup.includes('day-balance-form'));
-  assert.ok(markup.includes('Left to spend</span><span class="stat-value ">ZAR 5023.00'));
+  assert.ok(markup.includes('<dt>Left to spend</dt><dd>ZAR 5023.00'));
   assert.equal((markup.match(/class="day-category-row/g) || []).length, 1);
   assert.ok(markup.includes('class="day-category-list" role="list"'));
   assert.ok(markup.includes('aria-label="Filter activity by date"'));
   assert.ok(markup.includes('id="day-date-from" type="date"'));
   assert.ok(markup.includes('id="day-date-to" type="date"'));
   assert.ok(!markup.includes('day-category-card'));
-  assert.ok(!markup.includes('stat-label">Buffer'));
+  assert.ok(!markup.includes('class="stat-grid day-summary-grid"'));
   assert.ok(!markup.includes('Money added to buffer'));
   assert.equal((markup.match(/class="day-row-toggle"/g) || []).length, 2);
   assert.equal((markup.match(/class="day-mobile-value day-mobile-description"/g) || []).length, 2);
@@ -2225,7 +2228,7 @@ async function checkPaydayBudget() {
   paydayContext.document = { getElementById: () => ({ addEventListener() {} }) };
   paydayContext.RECURRING_FREQUENCIES = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
   paydayContext.WR.ui.bindReliableForm = () => {};
-  const fundsSnapshot = { month: '2026-10', profile: { baseCurrency: 'ZAR' }, payCycleBudget: { carryOver: 1000, available: 2800, added: 300 }, paydayRecord: { ...exampleCycle, bufferDeposits: { legacy: { date: '2026-09-26', amount: 100 } } }, paydayFunding: paydayContext.calculatePayCycleFunding(exampleCycle) };
+  const fundsSnapshot = { month: '2026-10', profile: { baseCurrency: 'ZAR' }, payCycleBudget: { carryOver: 1000, available: 2800, added: 300, spent: 800, remaining: 2000, remainingPct: 2000 / 2800 * 100 }, paydayRecord: { ...exampleCycle, bufferDeposits: { legacy: { date: '2026-09-26', amount: 100 } } }, paydayFunding: paydayContext.calculatePayCycleFunding(exampleCycle) };
   const fundsMarkup = paydayContext.renderSpendingFunds(fundsSnapshot, [{ id: 'unsafe', kind: 'add', ...fundsEntry, description: '<unsafe>' }], []);
   assert.ok(fundsMarkup.includes('id="spending-funds-form"'));
   assert.ok(fundsMarkup.includes('spending-funds-edit'));
@@ -2234,6 +2237,22 @@ async function checkPaydayBudget() {
   assert.ok(fundsMarkup.includes('Unallocated buffer: ZAR 500.00'));
   assert.ok(fundsMarkup.includes('Earlier buffer deposit: ZAR 100.00'));
   assert.ok(fundsMarkup.includes('&lt;unsafe&gt;') && !fundsMarkup.includes('<unsafe>'));
+  assert.ok(fundsMarkup.startsWith('<section class="spending-funds"'));
+  assert.ok(fundsMarkup.includes('aria-controls="spending-funds-entry"'));
+  assert.ok(fundsMarkup.includes('id="spending-funds-entry" hidden'));
+  assert.ok(fundsMarkup.includes('<dt>Spent</dt><dd>ZAR 800.00</dd>'));
+  assert.ok(fundsMarkup.includes('<dt>Left to spend</dt><dd>ZAR 2000.00</dd>'));
+  assert.ok(fundsMarkup.includes('<summary>Manage buffer</summary>'));
+  assert.ok(fundsMarkup.includes('<summary>Budget breakdown</summary>'));
+  assert.ok(fundsMarkup.includes('>Added funds</span>'));
+  assert.ok(!fundsMarkup.includes('Monthly Spending Funds'));
+  const recentFunds = Array.from({ length: 5 }, (_, index) => ({ id: `fund-${index}`, kind: 'add', ...fundsEntry, description: `Source ${index}` }));
+  const recentMarkup = paydayContext.renderSpendingFunds(fundsSnapshot, recentFunds, []);
+  assert.ok(recentMarkup.indexOf('data-id="fund-2"') < recentMarkup.indexOf('View all funding history (5)'));
+  assert.ok(recentMarkup.indexOf('data-id="fund-3"') > recentMarkup.indexOf('View all funding history (5)'));
+  assert.equal((recentMarkup.match(/class="inline-form spending-funds-edit"/g) || []).length, 5);
+  const deficitMarkup = paydayContext.renderSpendingFunds({ ...fundsSnapshot, payCycleBudget: { ...fundsSnapshot.payCycleBudget, remaining: -100, remainingPct: 0 } }, [], []);
+  assert.ok(deficitMarkup.includes('<dt>Over budget by</dt><dd>ZAR 100.00</dd>'));
   assert.ok(!functions.get('buildSnapshot').includes("name: 'Income adjustments'"));
   assert.ok(functions.get('renderDashboard').includes('const budgetSpent = s.payCycleBudget.spent;'));
   assert.ok(functions.get('renderDashboard').includes('const monthlySurplus = s.payCycleBudget.available;'));
