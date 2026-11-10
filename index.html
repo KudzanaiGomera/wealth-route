@@ -340,7 +340,6 @@ button, a, input, select, textarea {
 
 .topbar {
   background: var(--panel);
-  background: color-mix(in srgb, var(--panel) 94%, transparent);
   border-bottom: 1px solid var(--border);
   /* env(safe-area-inset-*) keeps controls clear of notches/status bars when
      launched standalone from the home screen (needs viewport-fit=cover). */
@@ -352,7 +351,8 @@ button, a, input, select, textarea {
   position: sticky;
   top: 0;
   z-index: 20;
-  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 .brand {
   font-family: var(--font-serif);
@@ -577,7 +577,7 @@ button, a, input, select, textarea {
   background: var(--text);
 }
 
-.theme-toggle {
+.assistant-shortcut {
   background: var(--panel-alt);
   border: 1px solid var(--border);
   color: var(--text);
@@ -589,8 +589,9 @@ button, a, input, select, textarea {
   justify-content: center;
   padding: 0;
   flex-shrink: 0;
+  text-decoration: none;
 }
-.theme-toggle:hover { border-color: var(--accent); }
+.assistant-shortcut:hover { border-color: var(--accent); }
 
 #content { width: 100%; max-width: 1280px; margin: 0 auto; padding: 1.35rem clamp(1rem, 3vw, 2rem) 2.5rem; }
 #content > section { animation: sectionIn 220ms ease-out; }
@@ -1771,7 +1772,7 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
 .warning { color: var(--danger); }
 .loading { color: var(--muted); }
 .assistant-answer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.4rem; line-height: 1.65; box-shadow: var(--shadow); margin-top: 1rem; width: 100%; max-width: none; min-height: 12rem; }
-.assistant-answer::before { content: "Wealth Assistant"; display: block; color: var(--accent); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.65rem; }
+.assistant-answer::before { content: "Ask AI"; display: block; color: var(--accent); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.65rem; }
 .assistant-answer h2, .assistant-answer h3 { font-family: var(--font-serif); margin: 1rem 0 0.4rem; font-size: 1.05rem; }
 .assistant-answer h2:first-of-type, .assistant-answer h3:first-of-type { margin-top: 0; }
 .assistant-answer p { margin: 0.45rem 0; }
@@ -2073,7 +2074,7 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .topbar.nav-open .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(0, 0, 0, 0.5); touch-action: none; }
   #content { padding: 0.95rem 1rem calc(6.5rem + env(safe-area-inset-bottom)); min-width: 0; }
   .topbar .nav-controls { display: none; }
-  .topbar .theme-toggle { margin-left: auto; width: 44px; height: 44px; }
+  .topbar .assistant-shortcut { margin-left: auto; width: 44px; height: 44px; }
   #nav a.in-mobile-nav { display: none; }
   .mobile-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; padding: 0.3rem max(0.3rem, env(safe-area-inset-right)) calc(0.3rem + env(safe-area-inset-bottom)) max(0.3rem, env(safe-area-inset-left)); gap: 0.2rem; background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.14); }
   :root[data-editing="true"] .mobile-nav { display: none; }
@@ -2144,7 +2145,7 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .nav-account { gap: 0.35rem; }
   .nav-account-link { padding: 0.35rem 0.45rem; font-size: 0.78rem; }
   .nav-account-email { max-width: 90px; }
-  .theme-toggle, .nav-toggle { width: 44px; height: 44px; }
+  .assistant-shortcut, .nav-toggle { width: 44px; height: 44px; }
   .hero-headline .hero-value { font-size: 1.9rem; overflow-wrap: anywhere; }
   .debt-calendar-stats { gap: 0.7rem; }
   .debt-calendar-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -2157,8 +2158,8 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .topbar .nav-account { order: 0; margin-left: 0; }
   .topbar .nav-wide-actions { order: 1; }
   .topbar .nav-controls { order: 2; margin-left: auto; }
-  .topbar .theme-toggle { order: 3; margin-left: 0; }
-  .topbar .nav-toggle, .topbar .theme-toggle { width: 40px; height: 40px; }
+  .topbar .assistant-shortcut { order: 3; margin-left: 0; }
+  .topbar .nav-toggle, .topbar .assistant-shortcut { width: 40px; height: 40px; }
   /* Same links are already on the horizontal bar at this width, so hide the
      duplicate entries in the dropdown; mobile (no horizontal bar) still needs them. */
   #nav a.in-horizontal-nav { display: none; }
@@ -2557,9 +2558,11 @@ window.WR = window.WR || {};
     },
 
     /** Full net worth history, oldest first — powers the net worth trend chart. */
-    async getNetWorthHistory() {
+    async getNetWorthHistory({ fresh = false } = {}) {
       const { uid, api, db } = requireContext();
-      const snap = await readDocs(api, api.query(api.collection(db, 'users', uid, 'netWorthSnapshots'), api.orderBy('date')), `users/${uid}/netWorthSnapshots?orderBy=date`);
+      const ref = api.query(api.collection(db, 'users', uid, 'netWorthSnapshots'), api.orderBy('date'));
+      const key = `users/${uid}/netWorthSnapshots?orderBy=date`;
+      const snap = fresh ? await api.getDocsFromServer(ref).catch(() => readDocs(api, ref, key)) : await readDocs(api, ref, key);
       return snap.docs.map((d) => d.data());
     },
   };
@@ -4497,7 +4500,7 @@ WR.ui = WR.ui || {};
         WR.repos.investments.getAll(),
         WR.repos.exchangeRates.getAll(),
         WR.repos.expenseCategories.getAll(),
-        WR.queries.getNetWorthHistory(),
+        WR.queries.getNetWorthHistory({ fresh: !!options.freshNetWorthHistory }),
         getOrCreateProfile(options),
         WR.repos.incomeSources.getAll(),
         WR.repos.fixedExpenses.getAll(),
@@ -5184,7 +5187,7 @@ WR.ui = WR.ui || {};
     { hash: '#/settings', label: 'Settings' },
   ];
 
-  const SECONDARY_NAV_ITEMS = [{ hash: '#/assistant', label: 'Wealth Assistant' }];
+  const SECONDARY_NAV_ITEMS = [{ hash: '#/assistant', label: 'Ask AI' }];
 
   const NAV_ITEMS = PRIMARY_NAV_ITEMS.concat(SECONDARY_NAV_ITEMS);
 
@@ -5463,7 +5466,9 @@ WR.ui = WR.ui || {};
             <span class="nav-toggle-bars"><span></span><span></span><span></span></span>
           </button>
         </div>
-        <button id="theme-toggle-btn" class="theme-toggle" type="button"></button>
+        <a id="ask-ai-shortcut" class="assistant-shortcut" href="#/assistant" data-hash="#/assistant" aria-label="Ask AI" title="Ask AI">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"/></svg>
+        </a>
       </header>
       <div id="pull-refresh" class="pull-refresh" data-state="idle" role="status" aria-label="Refresh" aria-busy="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 11.5-1L20 9M4 15l2.5 3A7 7 0 0 0 18 17"/></svg></div>
       <div id="global-notice" class="global-notice"></div>
@@ -5471,8 +5476,6 @@ WR.ui = WR.ui || {};
       <main id="content"></main>
       <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
     `);
-    WR.ui.updateToggleIcon(document.documentElement.getAttribute('data-theme') || 'light');
-    document.getElementById('theme-toggle-btn').addEventListener('click', WR.ui.toggleTheme);
     renderSaveStatus();
     const toggleNavigation = () => {
       const topbar = document.querySelector('.topbar');
@@ -5854,12 +5857,12 @@ WR.ui = WR.ui || {};
     </section>`;
   }
 
-  async function renderDashboard(container) {
+  async function renderDashboard(container, options = {}) {
     const [paydayProfile, paydayCycles] = await Promise.all([WR.ui.getOrCreateProfile(), WR.repos.payCycles.getAll()]);
     WR.ui.assertActiveView(container);
     WR.ui._paydayProfile = paydayProfile;
     WR.ui._paydayCycles = paydayCycles;
-    const s = await WR.ui.buildSnapshot(WR.ui.currentBudgetMonth());
+    const s = await WR.ui.buildSnapshot(WR.ui.currentBudgetMonth(), options);
     WR.ui.assertActiveView(container);
     const currency = s.profile.baseCurrency;
     const setupComplete = WR.ui.hasEnoughFinancialData(s);
@@ -6192,16 +6195,26 @@ WR.ui = WR.ui || {};
       });
     });
 
-    document.getElementById('snapshot-networth-btn').addEventListener('click', async () => {
-      const snap = WR.models.createNetWorthSnapshot({
-        date: new Date().toISOString().slice(0, 10),
-        totalAssets: s.netWorth.totalAssets,
-        totalLiabilities: s.netWorth.totalLiabilities,
-        netWorth: s.netWorth.netWorth,
-        currency: s.profile.baseCurrency,
-      });
-      await WR.repos.netWorthSnapshots.add(snap);
-      WR.ui.renderDashboard(container);
+    const snapshotButton = container.querySelector('#snapshot-networth-btn');
+    snapshotButton.addEventListener('click', async () => {
+      snapshotButton.disabled = true;
+      let saved = false;
+      try {
+        const snap = WR.models.createNetWorthSnapshot({
+          date: new Date().toISOString().slice(0, 10),
+          totalAssets: s.netWorth.totalAssets,
+          totalLiabilities: s.netWorth.totalLiabilities,
+          netWorth: s.netWorth.netWorth,
+          currency: s.profile.baseCurrency,
+        });
+        await WR.repos.netWorthSnapshots.add(snap);
+        saved = true;
+        await renderDashboard(container, { freshNetWorthHistory: true });
+        notify('Net worth snapshot recorded.', 'success');
+      } catch (error) {
+        notify(saved ? 'Snapshot recorded, but the chart could not refresh.' : error.message || 'Unable to record net worth snapshot.', 'error');
+        if (snapshotButton.isConnected) snapshotButton.disabled = false;
+      }
     });
 
     if (!setupComplete) {
@@ -11907,7 +11920,7 @@ WR.ui = WR.ui || {};
       </tr>`).join('');
 
     WR.ui.setHTML(container, `
-      <h1>Wealth Assistant</h1>
+      <h1>Ask AI</h1>
       ${
         workerUrl
           ? `<div class="assistant-workspace">
@@ -11918,7 +11931,7 @@ WR.ui = WR.ui || {};
                    <textarea id="question-input" rows="3" maxlength="1000" placeholder="Ask about your cash flow, debt, emergency fund, or next financial priority." required></textarea>
                    <label class="ai-consent"><input id="assistant-consent" type="checkbox" required><span>I agree to send my question and calculated financial summaries to Google Gemini through the app's AI service. No raw transactions or account identifiers are included in the model input. Avoid personal details in your question.</span></label>
                    <div class="settings-actions"><button type="button" class="secondary" data-ai-task="explain">Explain my budget</button><button type="button" class="secondary" data-ai-task="review">Review this month</button></div>
-                   <button type="submit">Ask Wealth Assistant</button>
+                   <button type="submit">Ask AI</button>
                  </form>
                  <div id="answer-area" class="assistant-status" aria-live="polite"></div>
                </div>
