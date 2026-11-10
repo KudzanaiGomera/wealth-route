@@ -2228,11 +2228,12 @@ button[aria-disabled="true"] {
   .topbar { padding-top: calc(0.35rem + env(safe-area-inset-top)); padding-bottom: 0.35rem; box-shadow: none; }
   .brand { font-size: 1.1rem; }
   #content { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
-  #nav { height: min(72vh, 38rem); height: min(72dvh, 38rem); max-height: 80vh; max-height: 80dvh; padding-top: 0; border: 0; border-radius: 8px 8px 0 0; background: var(--panel-alt); }
+  #nav { height: min(72vh, 38rem); height: min(72dvh, 38rem); max-height: 80vh; max-height: 80dvh; padding-top: 0; border: 0; border-radius: 8px 8px 0 0; background: var(--panel); }
   #nav::before { content: ''; display: block; width: 32px; height: 4px; min-height: 4px; margin: 0.7rem auto 0.8rem; border-radius: 2px; background: var(--muted); opacity: 0.5; }
-  #nav a, #nav .nav-action-item { padding: 0.8rem 0.9rem; border-radius: 0; border-bottom: 1px solid var(--border); background: var(--panel); font-size: 0.95rem; }
+  #nav a, #nav .nav-action-item { min-height: 48px; padding: 0.65rem 0.9rem; border: 0; border-radius: 8px; background: transparent; font-size: 0.95rem; }
+  #nav a.active { box-shadow: inset 3px 0 var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--panel)); }
   #nav a.in-mobile-nav { display: none; }
-  #nav a:active, #nav .nav-action-item:active { background: var(--border); }
+  #nav a:active, #nav .nav-action-item:active { background: var(--panel-alt); }
   .dashboard-card, .health-score, .chart-block, .pie-card { border-radius: 8px; box-shadow: none; }
   .dashboard-actions a { border-radius: 8px; min-height: 44px; }
   .dashboard-heading { margin-bottom: 1.1rem; }

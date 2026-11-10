@@ -683,6 +683,8 @@ assert.ok(html.includes('id="ask-ai-shortcut"'));
 assert.ok(html.includes('<h1>Ask AI</h1>'));
 assert.ok(!html.includes('id="theme-toggle-btn"'));
 assert.ok(!html.includes('Wealth Assistant'));
+assert.match(html, /#nav a, #nav \.nav-action-item \{[^}]*border: 0;[^}]*\}/);
+assert.doesNotMatch(html, /#nav a, #nav \.nav-action-item \{[^}]*border-bottom: 1px solid var\(--border\)/);
 assert.equal(context.calculateLiquidAssets([{ currency: 'USD', currentValue: 100, liquidity: 'high' }, { currency: 'ZAR', currentValue: 500, liquidity: 'high' }], rates, 'ZAR'), 2500);
 assert.equal(context.calculateLiquidAssets([{ currency: 'USD', currentValue: 100, liquidity: 'high' }], [], 'ZAR'), 0);
 assert.ok(Math.abs(context.calculateWeightedAverageInterestRate([{ currency: 'USD', currentBalance: 100, interestRate: 0.1 }, { currency: 'ZAR', currentBalance: 1000, interestRate: 0.2 }], rates, 'ZAR') - 0.13333333333333333) < 1e-10);
