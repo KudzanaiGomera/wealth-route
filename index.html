@@ -11380,7 +11380,7 @@ WR.account = {};
     const trimmed = (username || '').trim();
     const lower = trimmed.toLowerCase();
     if (!/^[a-z0-9_]{3,20}$/.test(lower)) {
-      throw new Error('Username must be 3-20 characters: letters, numbers, and underscores only.');
+      throw new Error('Username must be 3-20 characters: use letters, numbers, and underscores only (e.g. alex_123).');
     }
     return { display: trimmed, lower };
   }
@@ -11653,9 +11653,9 @@ WR.ui = WR.ui || {};
             <form id="auth-form" class="auth-form" novalidate>
               ${isSignup ? `
               <label>Username
-                <input type="text" id="auth-username-input" autocomplete="username" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" placeholder="letters, numbers, underscores" aria-describedby="auth-username-help" title="Use 3-20 letters, numbers, or underscores. No spaces or email addresses." required>
+                <input type="text" id="auth-username-input" autocomplete="username" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" placeholder="e.g. alex_123" aria-describedby="auth-username-help" title="Use 3-20 letters, numbers, or underscores. No spaces or email addresses." required>
               </label>
-              <p id="auth-username-help" class="fine-print">Use 3-20 letters, numbers, or underscores. No spaces or email addresses.</p>
+              <p id="auth-username-help" class="fine-print">Use 3-20 characters: letters, numbers, and underscores only (e.g. alex_123). No spaces or email addresses.</p>
               ` : ''}
               <label>Email
                 <input type="email" id="auth-email-input" autocomplete="email" required>
