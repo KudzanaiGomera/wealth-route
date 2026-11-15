@@ -11660,11 +11660,11 @@ WR.ui = WR.ui || {};
               <p id="auth-username-help" class="fine-print">Choose 3-30 characters. Spaces, punctuation, and Unicode are allowed; / and control characters are not.</p>
               ` : ''}
               <label>Email
-                <input type="email" id="auth-email-input" autocomplete="email" required>
+                <input type="text" id="auth-email-input" autocomplete="email" inputmode="email" aria-label="Email address" required>
               </label>
               ${isReset ? '' : `<label for="auth-password-input">Password</label>
               <div class="password-field">
-                <input type="password" id="auth-password-input" autocomplete="${isSignup ? 'new-password' : 'current-password'}" ${isSignup ? 'minlength="8" pattern="(?=.*[a-z])(?=.*[0-9]).{8,}" aria-describedby="auth-password-help" title="Use at least 8 characters, including a lowercase letter and a number."' : ''} required>
+                <input type="password" id="auth-password-input" autocomplete="${isSignup ? 'new-password' : 'current-password'}" ${isSignup ? 'aria-describedby="auth-password-help" title="Use at least 8 characters, including a lowercase letter and a number."' : ''} required>
                 <button type="button" id="auth-password-toggle" class="visibility-toggle" aria-controls="auth-password-input" aria-label="Show password" title="Show password">${WR.ui.visibilityIcon(true)}</button>
               </div>${isSignup ? '<p id="auth-password-help" class="fine-print">At least 8 characters, including a lowercase letter and a number. Symbols are welcome.</p>' : ''}`}
               <p id="auth-reset-status" class="fine-print" role="status"></p>
@@ -11692,11 +11692,49 @@ WR.ui = WR.ui || {};
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!form.reportValidity()) return;
-        errorEl.textContent = '';
-        const email = document.getElementById('auth-email-input').value.trim();
-        const password = document.getElementById('auth-password-input')?.value || '';
+
+        const emailInput = document.getElementById('auth-email-input');
+        const passwordInput = document.getElementById('auth-password-input');
         const usernameInput = document.getElementById('auth-username-input');
+        const email = emailInput.value.trim();
+        const password = passwordInput?.value || '';
+
+        if (isSignup && !usernameInput.value.trim()) {
+          errorEl.textContent = 'Enter a username.';
+          usernameInput.focus();
+          return;
+        }
+        if (isSignup) {
+          try {
+            normalizeUsername(usernameInput.value);
+          } catch (error) {
+            errorEl.textContent = error.message;
+            usernameInput.focus();
+            return;
+          }
+        }
+        if (!email) {
+          errorEl.textContent = 'Enter your email address.';
+          emailInput.focus();
+          return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          errorEl.textContent = 'Enter a valid email address.';
+          emailInput.focus();
+          return;
+        }
+        if (!isReset && !password) {
+          errorEl.textContent = 'Enter your password.';
+          passwordInput?.focus();
+          return;
+        }
+        if (isSignup && !WR.account.isPasswordValid(password)) {
+          errorEl.textContent = 'Use at least 8 characters, including a lowercase letter and a number.';
+          passwordInput?.focus();
+          return;
+        }
+
+        errorEl.textContent = '';
         submitBtn.disabled = true;
         submitBtn.textContent = isReset ? 'Sending\u2026' : isSignup ? 'Creating account\u2026' : 'Logging in\u2026';
         try {

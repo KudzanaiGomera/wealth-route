@@ -357,6 +357,13 @@ const usernameInputMarkup = html.match(/<input\b[^>]*id="auth-username-input"[^>
 assert.ok(usernameInputMarkup, 'Signup must include a username input.');
 assert.match(usernameInputMarkup, /\btype="text"/);
 assert.doesNotMatch(usernameInputMarkup, /\bpattern=/, 'Username validation must allow spaces and punctuation.');
+const emailInputMarkup = html.match(/<input\b[^>]*id="auth-email-input"[^>]*>/)?.[0];
+assert.ok(emailInputMarkup, 'Signup must include an email input.');
+assert.doesNotMatch(emailInputMarkup, /\btype="email"/, 'Email validation must use custom checks instead of native email validation.');
+const authFormMarkup = html.match(/<form id="auth-form"[\s\S]*?<\/form>/)?.[0];
+assert.ok(authFormMarkup, 'Auth form markup must be present.');
+assert.doesNotMatch(authFormMarkup, /reportValidity\(\)/, 'Auth form validation must use custom messages instead of native reportValidity prompts.');
+assert.doesNotMatch(authFormMarkup, /pattern="\(\?=\.\*\[a-z\]\)\(\?=\.\*\[0-9\]\)\.\{8,\}"/, 'Password guidance must not rely on native HTML pattern validation.');
 async function checkServiceWorkerFallbacks() {
   const handlers = {};
   const cachedResponses = new Map();
