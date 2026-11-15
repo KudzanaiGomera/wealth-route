@@ -353,6 +353,10 @@ async function checkLogoutIsolation() {
 checkLogoutIsolation().catch(error => { console.error(error); process.exitCode = 1; });
 assert.ok(html.indexOf('id="auth-passkey-btn"') < html.indexOf('id="auth-google-btn"'), 'Passkey sign-in must appear before Google and email/password recovery.');
 assert.match(html, /id="auth-form"/);
+const usernameInputMarkup = html.match(/<input\b[^>]*id="auth-username-input"[^>]*>/)?.[0];
+assert.ok(usernameInputMarkup, 'Signup must include a username input.');
+assert.match(usernameInputMarkup, /\btype="text"/);
+assert.doesNotMatch(usernameInputMarkup, /\bpattern=/, 'Username validation must allow spaces and punctuation.');
 async function checkServiceWorkerFallbacks() {
   const handlers = {};
   const cachedResponses = new Map();
