@@ -67,6 +67,23 @@ for (const match of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].
   }
 }
 if (process.argv.includes('--migrate-html') || process.argv.includes('--escape-values')) fs.writeFileSync(htmlPath, html);
+const usernameContext = {};
+vm.runInNewContext(functions.get('normalizeUsername'), usernameContext);
+const normalizedUsername = usernameContext.normalizeUsername('  Alex Smith-É.1  ');
+assert.equal(normalizedUsername.display, 'Alex Smith-É.1');
+assert.equal(normalizedUsername.lower, 'alex smith-é.1');
+assert.equal(usernameContext.normalizeUsername('ALEX SMITH-É.1').lower, normalizedUsername.lower);
+assert.equal(usernameContext.normalizeUsername('😀 User').lower, '😀 user');
+assert.equal(
+  usernameContext.normalizeUsername('Cafe\u0301 User').lower,
+  usernameContext.normalizeUsername('Café User').lower,
+  'Canonically equivalent Unicode usernames must share a claim key'
+);
+assert.throws(() => usernameContext.normalizeUsername('ab'), /Username must be 3-30 characters/);
+assert.throws(() => usernameContext.normalizeUsername('name/with slash'), /Username must be 3-30 characters/);
+assert.throws(() => usernameContext.normalizeUsername('name\nwith newline'), /Username must be 3-30 characters/);
+assert.throws(() => usernameContext.normalizeUsername('a'.repeat(31)), /Username must be 3-30 characters/);
+
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const allocationContext = {};
 allocationContext.Date = class extends Date { constructor(...args) { super(...(args.length ? args : ['2026-11-02T12:00:00'])); } };

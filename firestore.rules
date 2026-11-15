@@ -18,7 +18,7 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(['uid'])
         && request.resource.data.uid == request.auth.uid
-        && username.matches('^[a-z0-9_]{3,20}$');
+        && username.matches('^[^/\\p{Cc}\\p{Cs}\\p{Lu}\\p{Lt}]{3,30}$');
       allow update: if request.auth != null
         && resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasOnly(['uid'])

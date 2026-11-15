@@ -21,6 +21,8 @@ async function main() {
     const anonymous = testEnvironment.unauthenticatedContext().firestore();
     const ownerRecord = doc(owner, 'users/owner/budgetLines/monthly-rent');
     const ownerClaim = doc(owner, 'usernames/owner_name');
+    const expandedOwnerClaim = doc(owner, 'usernames/alex smith-é.1');
+    const unicodeOwnerClaim = doc(owner, 'usernames/😀 user');
 
     await assertSucceeds(setDoc(ownerRecord, { id: 'monthly-rent', amount: 1200 }));
     await assertSucceeds(getDoc(ownerRecord));
@@ -30,6 +32,10 @@ async function main() {
     await assertFails(getDoc(doc(anonymous, 'users/owner/budgetLines/monthly-rent')));
 
     await assertSucceeds(setDoc(ownerClaim, { uid: 'owner' }));
+    await assertSucceeds(setDoc(expandedOwnerClaim, { uid: 'owner' }));
+    await assertSucceeds(setDoc(unicodeOwnerClaim, { uid: 'owner' }));
+    await assertFails(setDoc(doc(other, 'usernames/Alex Smith-É.1'), { uid: 'other' }));
+    await assertFails(setDoc(doc(owner, 'usernames/name\nwith newline'), { uid: 'owner' }));
     await assertSucceeds(getDoc(doc(anonymous, 'usernames/owner_name')));
     await assertFails(getDocs(collection(anonymous, 'usernames')));
     await assertFails(setDoc(doc(other, 'usernames/owner_name'), { uid: 'other' }));
