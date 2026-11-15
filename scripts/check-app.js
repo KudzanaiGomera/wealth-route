@@ -368,8 +368,8 @@ assert.match(functions.get('renderSettings'), /id="username-form"/, 'Settings mu
 assert.match(functions.get('renderSettings'), /WR\.account\.updateUsername\(form\.elements\.username\.value\)/);
 const defaultUsernameContext = {};
 vm.runInNewContext(functions.get('defaultUsernameFor'), defaultUsernameContext);
-assert.match(defaultUsernameContext.defaultUsernameFor('AbCdEfGhIjKlMnOpQrStUvWxYz12345'), /^member-[a-z0-9]{16}$/);
-assert.ok(defaultUsernameContext.defaultUsernameFor('AbCdEfGhIjKlMnOpQrStUvWxYz12345').length <= 30);
+assert.match(defaultUsernameContext.defaultUsernameFor('AbCdEfGhIjKlMnOpQrStUvWxYz12345'), /^member[a-z0-9]{10}$/);
+assert.ok(defaultUsernameContext.defaultUsernameFor('AbCdEfGhIjKlMnOpQrStUvWxYz12345').length <= 20);
 assert.throws(() => defaultUsernameContext.defaultUsernameFor('ab'), /valid account ID/);
 async function checkEmailPasswordSignupDefaultsUsername() {
   const claims = [];

@@ -11443,9 +11443,9 @@ WR.account = {};
   }
 
   function defaultUsernameFor(uid) {
-    const suffix = String(uid || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(-16);
+    const suffix = String(uid || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(-10);
     if (suffix.length < 3) throw new Error('A valid account ID is required to create a default username.');
-    return `member-${suffix}`;
+    return `member${suffix}`;
   }
 
   /** For the Settings/Profile page: change the signed-in user's username. */
