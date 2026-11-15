@@ -16,6 +16,9 @@ after clearing browser data, and your data is exactly as you left it. See
 "Accounts, data, and privacy" below for the full picture, including what
 this means for offline use.
 
+User feedback and its implementation status are tracked in
+[FEEDBACK.md](FEEDBACK.md).
+
 ## What's new in 3.1
 
 - **Quick expense entry:** Dashboard and Activity open the same accessible expense sheet. Enter amount, category and date; description is optional in quick entry. The last category is remembered per account on this browser. Failed entries stay editable, and retries reuse the same transaction ID.
@@ -414,6 +417,9 @@ Firestore's offline cache keeps the app usable without a connection.
 2. **Authentication** \u2192 Sign-in method \u2192 enable **Email/Password** (and
   **Google** if you want that option too). **Anonymous** is optional for
   browser tests; the runner can use a disposable email/password account.
+  Under **Authentication → Settings → Authorized domains**, add each deployed
+  hostname (for example, `wealth-route.pages.dev`, without `https://`). Add
+  `kudzanaigomera.github.io` too if you still use the GitHub Pages site.
 3. **Firestore Database** \u2192 create a database, then publish the contents of
   [firestore.rules](firestore.rules) in the Rules tab. These rules restrict
   profiles and financial collections to their account owner, permit individual
