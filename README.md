@@ -25,23 +25,6 @@ app shell, keeps your account and saved data intact, and reloads the current
 page from the network. A new-version notice also offers **Refresh now** when
 the service worker detects an update.
 
-## Automatic Cloudflare Pages deployment
-
-Pushing to `main` runs the **Deploy Cloudflare Pages** workflow. It validates
-the app, builds the static Pages output, and deploys it to the `wealth-route`
-Pages project. In the GitHub repository, add these Actions secrets under
-**Settings → Secrets and variables → Actions**:
-
-| Secret | Value |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | An API token with **Cloudflare Pages: Edit** permission for the account. |
-| `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID that owns the Pages project. |
-
-Set the Pages production branch to `main`. If the Cloudflare Git integration
-already deploys this repository, pause that trigger to avoid duplicate
-deployments. Deployment results and errors appear in the GitHub **Actions**
-tab; a failed deployment does not replace the live site.
-
 ## Feedback status
 
 | ID | Topic | Priority | Status | Notes |
