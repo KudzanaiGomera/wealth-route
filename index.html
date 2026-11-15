@@ -5432,6 +5432,7 @@ WR.ui = WR.ui || {};
       ${primaryNavLinks}
       ${secondaryNavLinks}
       <div class="nav-divider"></div>
+      <button type="button" id="nav-refresh-app" class="nav-action-item">Refresh app &amp; clear cache</button>
       <a href="${SUPPORT_WHATSAPP_URL}" target="_blank" rel="noopener noreferrer" class="nav-support-link">
         <svg class="nav-support-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.5-.2Z"/></svg>
         Contact support
@@ -5514,6 +5515,18 @@ WR.ui = WR.ui || {};
           logoutBtn.disabled = false;
         }
       });
+    });
+    document.getElementById('nav-refresh-app').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = 'Refreshing app...';
+      try {
+        await WR.ui.refreshAppAndClearCache();
+      } catch (error) {
+        WR.ui.notify(`Could not refresh the app: ${error.message}`, 'error');
+        button.disabled = false;
+        button.textContent = 'Refresh app & clear cache';
+      }
     });
     const support = document.querySelector('#nav .nav-support-link').cloneNode(true);
     support.classList.add('nav-wide-support');
@@ -12870,13 +12883,38 @@ function showUpdateBanner() {
   banner.setAttribute('role', 'status');
   WR.ui.setHTML(banner, `
     <span>A new version of WealthRoute is available.</span>
-    <button type="button" id="update-banner-refresh">Refresh</button>
+    <button type="button" id="update-banner-refresh">Refresh now</button>
     <button type="button" id="update-banner-dismiss" class="update-banner-close" aria-label="Dismiss">×</button>
   `);
   document.body.appendChild(banner);
-  document.getElementById('update-banner-refresh').addEventListener('click', () => window.location.reload());
+  document.getElementById('update-banner-refresh').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      await WR.ui.refreshAppAndClearCache();
+    } catch (error) {
+      WR.ui.notify(`Could not refresh the app: ${error.message}`, 'error');
+      button.disabled = false;
+    }
+  });
   document.getElementById('update-banner-dismiss').addEventListener('click', () => banner.remove());
 }
+
+async function clearAppShellCacheAndReload() {
+  if (window.caches) {
+    const cacheNames = await window.caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter((name) => name.startsWith('wealthroute-shell-'))
+        .map((name) => window.caches.delete(name))
+    );
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set('wr-refresh', String(Date.now()));
+  window.location.replace(url.href);
+}
+
+WR.ui.refreshAppAndClearCache = clearAppShellCacheAndReload;
 
 function hideSplashScreen() {
   const splash = document.querySelector('.app-splash');
@@ -12888,6 +12926,11 @@ function hideSplashScreen() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  const launchUrl = new URL(window.location.href);
+  if (launchUrl.searchParams.has('wr-refresh')) {
+    launchUrl.searchParams.delete('wr-refresh');
+    window.history.replaceState(window.history.state, '', `${launchUrl.pathname}${launchUrl.search}${launchUrl.hash}`);
+  }
   renderSplashScreen();
   const splashStartedAt = performance.now();
   if ('serviceWorker' in navigator) {
@@ -12898,6 +12941,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     navigator.serviceWorker.register('./service-worker.js')
       .then((reg) => {
+        reg.addEventListener('updatefound', () => {
+          const installing = reg.installing;
+          installing?.addEventListener('statechange', () => {
+            if (installing.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner();
+          });
+        });
         reg.update().catch(() => {});
         setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
         document.addEventListener('visibilitychange', () => {

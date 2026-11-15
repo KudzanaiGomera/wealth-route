@@ -7,8 +7,8 @@ reported problems open until the relevant change is deployed and tested.
 
 | ID | Feedback | Priority | Status |
 | --- | --- | --- | --- |
-| F-001 | Google sign-in reports that the site address is not authorized. | High | Verified on Pages (2026-11-15) — browser test and user report confirm sign-in works without the unauthorized-domain error. |
-| F-002 | Sign-up username input gives a confusing format error when a full name or email address is entered. | Medium | Implemented locally — deploy and mobile retest pending. |
+| F-001 | Google sign-in reports that the site address is not authorized. | High | Closed (2026-11-15) — verified on Pages; sign-in now works without the unauthorized-domain error. |
+| F-002 | Sign-up username input gives a confusing format error when a full name or email address is entered. | Medium | Closed (2026-11-15) — custom validation now prevents the browser’s generic format popup and keeps the username rules clear. |
 | F-003 | Consider packaging a beta for the Google Play Store. | Later | Backlog — evaluate packaging, release readiness, and Play Store requirements. |
 | F-004 | Consider monetization, potentially ads before other revenue. | Later | Backlog — assess privacy, trust, and suitability for a personal-finance app before deciding. |
 

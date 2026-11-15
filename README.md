@@ -19,6 +19,28 @@ this means for offline use.
 User feedback and its implementation status are tracked in
 [FEEDBACK.md](FEEDBACK.md).
 
+To apply a newly deployed version, open the top-right navigation menu and
+select **Refresh app & clear cache**. This removes only WealthRoute's cached
+app shell, keeps your account and saved data intact, and reloads the current
+page from the network. A new-version notice also offers **Refresh now** when
+the service worker detects an update.
+
+## Feedback status
+
+| ID | Topic | Priority | Status | Notes |
+| --- | --- | --- | --- | --- |
+| F-001 | Google sign-in domain authorization | High | Closed | Verified on the Pages deployment; the unauthorized-domain issue is resolved. |
+| F-002 | Username format validation | Medium | Closed | Custom validation replaced the browser popup so full names and email-like inputs are handled with clear app guidance. |
+| F-003 | Google Play beta packaging | Later | Backlog | Needs packaging review, release readiness checks, and Play Store requirements. |
+| F-004 | Monetization review | Later | Backlog | Needs privacy/trust review before deciding on ads or other revenue paths. |
+
+## Resolved fixes
+
+| Date | Fix | Outcome |
+| --- | --- | --- |
+| 2026-11-15 | Google sign-in domain authorization | Fixed and verified on the Pages deployment; the unauthorized-domain sign-in error no longer appears. |
+| 2026-11-15 | Username validation clarity | Fixed by replacing native browser validation with app-specific checks and clearer messaging for username/email format issues. |
+
 ## What's new in 3.1
 
 - **Quick expense entry:** Dashboard and Activity open the same accessible expense sheet. Enter amount, category and date; description is optional in quick entry. The last category is remembered per account on this browser. Failed entries stay editable, and retries reuse the same transaction ID.

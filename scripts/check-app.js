@@ -85,6 +85,7 @@ assert.throws(() => usernameContext.normalizeUsername('name\nwith newline'), /Us
 assert.throws(() => usernameContext.normalizeUsername('a'.repeat(31)), /Username must be 3-30 characters/);
 
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+assert.match(serviceWorkerSource, /wealthroute-shell-v201/);
 const allocationContext = {};
 allocationContext.Date = class extends Date { constructor(...args) { super(...(args.length ? args : ['2026-11-02T12:00:00'])); } };
 allocationContext.WR = { financial: { convertCurrency: (value, from, to) => ({ converted: from === to, value }), monthlyMinPayment: debt => Number(debt.minPayment) || 0 } };
@@ -364,17 +365,60 @@ const authFormMarkup = html.match(/<form id="auth-form"[\s\S]*?<\/form>/)?.[0];
 assert.ok(authFormMarkup, 'Auth form markup must be present.');
 assert.doesNotMatch(authFormMarkup, /reportValidity\(\)/, 'Auth form validation must use custom messages instead of native reportValidity prompts.');
 assert.doesNotMatch(authFormMarkup, /pattern="\(\?=\.\*\[a-z\]\)\(\?=\.\*\[0-9\]\)\.\{8,\}"/, 'Password guidance must not rely on native HTML pattern validation.');
+assert.match(functions.get('renderShell'), /id="nav-refresh-app"/, 'The app refresh and cache-clear action must be available from navigation.');
+assert.match(functions.get('renderShell'), /WR\.ui\.refreshAppAndClearCache\(\)/);
+assert.match(functions.get('showUpdateBanner'), /WR\.ui\.refreshAppAndClearCache\(\)/, 'The update banner must use the cache-clearing refresh action.');
+async function checkAppRefreshCacheScope() {
+  const deleted = [];
+  let reloadedUrl;
+  const refreshContext = {
+    URL,
+    Date,
+    window: {
+      caches: {
+        keys: async () => ['wealthroute-shell-v200', 'wealthroute-shell-v201', 'unrelated-app-cache'],
+        delete: async (name) => { deleted.push(name); return true; },
+      },
+      location: {
+        href: 'https://example.com/wealth-route/?month=2026-11#/dashboard',
+        replace: (url) => { reloadedUrl = url; },
+      },
+    },
+  };
+  await vm.runInNewContext(`(${functions.get('clearAppShellCacheAndReload')})`, refreshContext)();
+  assert.deepEqual(deleted, ['wealthroute-shell-v200', 'wealthroute-shell-v201'], 'Refresh must only remove WealthRoute app-shell caches.');
+  const refreshUrl = new URL(reloadedUrl);
+  assert.equal(refreshUrl.searchParams.get('month'), '2026-11', 'Refresh must preserve existing query parameters.');
+  assert.ok(refreshUrl.searchParams.has('wr-refresh'), 'Refresh must bypass stale document caches.');
+  assert.equal(refreshUrl.hash, '#/dashboard', 'Refresh must preserve the current route.');
+  console.log('App refresh clears only WealthRoute caches and reloads the current route without stale document caching.');
+}
+checkAppRefreshCacheScope().catch(error => { console.error(error); process.exitCode = 1; });
 async function checkServiceWorkerFallbacks() {
   const handlers = {};
   const cachedResponses = new Map();
+  const cacheNames = ['wealthroute-shell-v200', 'unrelated-app-cache', 'wealthroute-shell-v201'];
+  const deletedCaches = [];
   const origin = 'https://example.com';
   const workerContext = {
     URL, Response,
-    self: { location: { origin }, addEventListener: (type, handler) => { handlers[type] = handler; } },
-    caches: { match: async request => cachedResponses.get(typeof request === 'string' ? request : request.url) },
+    self: {
+      location: { origin },
+      clients: { claim: async () => {} },
+      addEventListener: (type, handler) => { handlers[type] = handler; },
+    },
+    caches: {
+      match: async request => cachedResponses.get(typeof request === 'string' ? request : request.url),
+      keys: async () => cacheNames,
+      delete: async (name) => { deletedCaches.push(name); return true; },
+    },
     fetch: async () => { throw new Error('Network unavailable'); },
   };
   vm.runInNewContext(serviceWorkerSource, workerContext);
+  let activation;
+  handlers.activate({ waitUntil: promise => { activation = promise; } });
+  await activation;
+  assert.deepEqual(deletedCaches, ['wealthroute-shell-v200'], 'Activation must preserve caches belonging to other apps on the same origin.');
   const shell = new Response('<html>App shell</html>', { headers: { 'Content-Type': 'text/html' } });
   cachedResponses.set('./index.html', shell);
   function dispatch(url, mode, destination) {

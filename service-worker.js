@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wealthroute-shell-v200';
+const CACHE_NAME = 'wealthroute-shell-v201';
 const APP_SHELL = [
   './',
   './index.html',
@@ -24,7 +24,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+      Promise.all(keys.filter((key) => key.startsWith('wealthroute-shell-') && key !== CACHE_NAME).map((key) => caches.delete(key)))
     )
   );
   self.clients.claim();
