@@ -13,6 +13,7 @@ import zlib
 
 BG = (14, 107, 87)      # #0e6b57 (--accent, light theme) - green background
 MARK = (255, 255, 255)  # white "WR" lettering
+GOLD = (244, 190, 75)
 
 # Classic 5x7 font, one column per byte, bit N (0=top row .. 6=bottom row) set
 # means that pixel is lit. This is the same glyph data used by Adafruit's
@@ -76,9 +77,53 @@ def make_png(size, path, maskable=False):
     print(f'wrote {path} ({size}x{size})')
 
 
+def make_instagram_profile(path):
+    size = 1080
+    center = (size - 1) / 2
+    outer_radius = size * 0.455
+    inner_radius = outer_radius - 14
+    glyph_w = size * 0.62
+    cell = glyph_w / GRID_W
+    glyph_h = cell * GRID_H
+    gx0 = (size - glyph_w) / 2
+    gy0 = (size - glyph_h) / 2 - size * 0.035
+    pixels = bytearray()
+
+    for y in range(size):
+        row = bytearray()
+        for x in range(size):
+            distance = ((x - center) ** 2 + (y - center) ** 2) ** 0.5
+            color = GOLD if inner_radius < distance < outer_radius else BG
+            gx = int((x - gx0) / cell)
+            gy = int((y - gy0) / cell)
+            if glyph_lit(gx, gy):
+                color = MARK
+            row += bytes(color) + b'\xff'
+        pixels += row
+
+    def chunk(tag, data):
+        return (struct.pack('>I', len(data)) + tag + data
+                + struct.pack('>I', zlib.crc32(tag + data) & 0xffffffff))
+
+    raw = bytearray()
+    stride = size * 4
+    for y in range(size):
+        raw += b'\x00' + bytes(pixels[y * stride:(y + 1) * stride])
+
+    png = b'\x89PNG\r\n\x1a\n'
+    png += chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 6, 0, 0, 0))
+    png += chunk(b'IDAT', zlib.compress(bytes(raw), 9))
+    png += chunk(b'IEND', b'')
+
+    with open(path, 'wb') as f:
+        f.write(png)
+    print(f'wrote {path} ({size}x{size})')
+
+
 if __name__ == '__main__':
     make_png(16, 'favicon-16.png')
     make_png(32, 'favicon-32.png')
     make_png(192, 'icon-192.png')
     make_png(512, 'icon-512.png')
     make_png(512, 'icon-512-maskable.png', maskable=True)
+    make_instagram_profile('instagram-profile.png')
