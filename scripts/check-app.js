@@ -354,10 +354,7 @@ async function checkLogoutIsolation() {
 checkLogoutIsolation().catch(error => { console.error(error); process.exitCode = 1; });
 assert.ok(html.indexOf('id="auth-passkey-btn"') < html.indexOf('id="auth-google-btn"'), 'Passkey sign-in must appear before Google and email/password recovery.');
 assert.match(html, /id="auth-form"/);
-const usernameInputMarkup = html.match(/<input\b[^>]*id="auth-username-input"[^>]*>/)?.[0];
-assert.ok(usernameInputMarkup, 'Signup must include a username input.');
-assert.match(usernameInputMarkup, /\btype="text"/);
-assert.doesNotMatch(usernameInputMarkup, /\bpattern=/, 'Username validation must allow spaces and punctuation.');
+assert.doesNotMatch(html, /id="auth-username-input"/, 'Signup must not require a username.');
 const emailInputMarkup = html.match(/<input\b[^>]*id="auth-email-input"[^>]*>/)?.[0];
 assert.ok(emailInputMarkup, 'Signup must include an email input.');
 assert.doesNotMatch(emailInputMarkup, /\btype="email"/, 'Email validation must use custom checks instead of native email validation.');
@@ -365,6 +362,52 @@ const authFormMarkup = html.match(/<form id="auth-form"[\s\S]*?<\/form>/)?.[0];
 assert.ok(authFormMarkup, 'Auth form markup must be present.');
 assert.doesNotMatch(authFormMarkup, /reportValidity\(\)/, 'Auth form validation must use custom messages instead of native reportValidity prompts.');
 assert.doesNotMatch(authFormMarkup, /pattern="\(\?=\.\*\[a-z\]\)\(\?=\.\*\[0-9\]\)\.\{8,\}"/, 'Password guidance must not rely on native HTML pattern validation.');
+assert.match(functions.get('signUp'), /async function signUp\(email, password\)/, 'Signup must accept just an email and password.');
+assert.match(functions.get('signUp'), /defaultUsernameFor\(createdUser\.uid\)/, 'Signup must assign an automatic username.');
+assert.match(functions.get('renderSettings'), /id="username-form"/, 'Settings must let users change their username.');
+assert.match(functions.get('renderSettings'), /WR\.account\.updateUsername\(form\.elements\.username\.value\)/);
+const defaultUsernameContext = {};
+vm.runInNewContext(functions.get('defaultUsernameFor'), defaultUsernameContext);
+assert.match(defaultUsernameContext.defaultUsernameFor('AbCdEfGhIjKlMnOpQrStUvWxYz12345'), /^member-[a-z0-9]{16}$/);
+assert.ok(defaultUsernameContext.defaultUsernameFor('AbCdEfGhIjKlMnOpQrStUvWxYz12345').length <= 30);
+assert.throws(() => defaultUsernameContext.defaultUsernameFor('ab'), /valid account ID/);
+async function checkEmailPasswordSignupDefaultsUsername() {
+  const claims = [];
+  const user = { uid: 'AbCdEfGhIjKlMnOpQrStUvWxYz12345', email: 'new-user@example.test' };
+  const signupContext = {
+    auth: {},
+    authApi: {
+      validatePassword: async () => ({ isValid: true }),
+      createUserWithEmailAndPassword: async (_auth, email, password) => {
+        assert.equal(email, user.email);
+        assert.equal(password, 'abc12345');
+        return { user };
+      },
+    },
+    ensureInit: async () => {},
+    claimUsername: async (...args) => { claims.push(args); },
+    clearPasskeyLockPending() {},
+    onChangeCallback: null,
+    currentUser: null,
+    cachedUsername: null,
+    cachedEmail: null,
+    preserveSignupScreen: false,
+    signupInProgress: false,
+  };
+  vm.createContext(signupContext);
+  vm.runInContext([
+    functions.get('isPasswordValid'),
+    functions.get('defaultUsernameFor'),
+    functions.get('signUp'),
+  ].join('\n'), signupContext);
+  await signupContext.signUp(user.email, 'abc12345');
+  assert.deepEqual(claims, [[user.uid, defaultUsernameContext.defaultUsernameFor(user.uid), user.email]]);
+  assert.equal(signupContext.currentUser, user);
+  assert.equal(signupContext.cachedUsername, claims[0][1]);
+  assert.equal(signupContext.cachedEmail, user.email);
+  console.log('Email/password signup assigns a unique default username without requiring username entry.');
+}
+checkEmailPasswordSignupDefaultsUsername().catch(error => { console.error(error); process.exitCode = 1; });
 assert.match(functions.get('renderShell'), /id="nav-refresh-app"/, 'The app refresh and cache-clear action must be available from navigation.');
 assert.match(functions.get('renderShell'), /WR\.ui\.refreshAppAndClearCache\(\)/);
 assert.match(functions.get('showUpdateBanner'), /WR\.ui\.refreshAppAndClearCache\(\)/, 'The update banner must use the cache-clearing refresh action.');

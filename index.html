@@ -10535,6 +10535,13 @@ WR.ui = WR.ui || {};
               <p id="passkey-result" class="fine-print settings-result" role="status" aria-live="polite"></p>
             ` : ''}
           </div>
+          <form id="username-form" class="settings-row-control display-name-form">
+            <label>Username <small>Assigned automatically at signup. You can change it anytime.</small>
+              <input name="username" value="${esc(username || '')}" maxlength="30" autocomplete="username" aria-describedby="settings-username-help" required>
+              <span id="settings-username-help" class="fine-print">Use 3-30 characters. Spaces and punctuation are allowed, but / and control characters are not.</span>
+            </label>
+            <button type="submit">Save username</button>
+          </form>
           <form id="display-name-form" class="settings-row-control display-name-form">
             <label>Display name <small>Optional \u2014 shown in your dashboard greeting</small>
               <input name="displayName" value="${esc(profile.displayName || '')}" placeholder="e.g. Kudzanai" maxlength="60">
@@ -10855,6 +10862,13 @@ WR.ui = WR.ui || {};
     WR.ui.bindReliableForm(document.getElementById('display-name-form'), async (form) => {
       await WR.repos.userProfile.update({ ...await WR.ui.getOrCreateProfile(), displayName: form.elements.displayName.value.trim() });
       WR.ui.notify('Display name saved.', 'success');
+    });
+
+    WR.ui.bindReliableForm(document.getElementById('username-form'), async (form) => {
+      await WR.account.updateUsername(form.elements.username.value);
+      WR.ui.notify('Username saved.', 'success');
+    }, async () => {
+      await WR.ui.reRenderCurrentRoute();
     });
 
     WR.ui.bindReliableForm(document.getElementById('profile-form'), async (form) => {
@@ -11428,6 +11442,12 @@ WR.account = {};
     return display;
   }
 
+  function defaultUsernameFor(uid) {
+    const suffix = String(uid || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(-16);
+    if (suffix.length < 3) throw new Error('A valid account ID is required to create a default username.');
+    return `member-${suffix}`;
+  }
+
   /** For the Settings/Profile page: change the signed-in user's username. */
   async function updateUsername(username) {
     if (!currentUser) throw new Error('Not signed in.');
@@ -11453,20 +11473,20 @@ WR.account = {};
     return typeof password === 'string' && password.length >= 8 && /[a-z]/.test(password) && /[0-9]/.test(password);
   }
 
-  async function signUp(email, password, username) {
+  async function signUp(email, password) {
     if (!isPasswordValid(password)) throw Object.assign(new Error('Use at least 8 characters, including a lowercase letter and a number.'), { code: 'auth/weak-password' });
     await ensureInit();
     const passwordCheck = await authApi.validatePassword(auth, password);
     if (!passwordCheck.isValid) throw Object.assign(new Error('Password does not meet the account security policy.'), { code: 'auth/password-does-not-meet-requirements' });
     preserveSignupScreen = false;
-    const { lower } = normalizeUsername(username);
-    if (!(await isUsernameAvailable(lower))) throw new Error('That username is already taken.');
     signupInProgress = true;
     let createdUser = null;
+    let createdUsername = null;
     try {
       const cred = await authApi.createUserWithEmailAndPassword(auth, email, password);
       createdUser = cred.user;
-      await claimUsername(createdUser.uid, username, email);
+      createdUsername = defaultUsernameFor(createdUser.uid);
+      await claimUsername(createdUser.uid, createdUsername, email);
     } catch (error) {
       if (createdUser) {
         preserveSignupScreen = true;
@@ -11484,6 +11504,8 @@ WR.account = {};
       signupInProgress = false;
     }
     currentUser = createdUser;
+    cachedUsername = createdUsername;
+    cachedEmail = email;
     clearPasskeyLockPending();
     if (onChangeCallback) onChangeCallback(createdUser);
     return createdUser;
@@ -11666,12 +11688,6 @@ WR.ui = WR.ui || {};
               ${!isSignup && !isReset ? '<details class="auth-email-recovery"><summary>Use email instead</summary>' : ''}
 
             <form id="auth-form" class="auth-form" novalidate>
-              ${isSignup ? `
-              <label>Username
-                <input type="text" id="auth-username-input" autocomplete="username" maxlength="60" placeholder="e.g. Alex Smith" aria-describedby="auth-username-help" title="Use 3-30 characters. Spaces and punctuation are allowed, but / and control characters are not." required>
-              </label>
-              <p id="auth-username-help" class="fine-print">Choose 3-30 characters. Spaces, punctuation, and Unicode are allowed; / and control characters are not.</p>
-              ` : ''}
               <label>Email
                 <input type="text" id="auth-email-input" autocomplete="email" inputmode="email" aria-label="Email address" required>
               </label>
@@ -11708,24 +11724,9 @@ WR.ui = WR.ui || {};
 
         const emailInput = document.getElementById('auth-email-input');
         const passwordInput = document.getElementById('auth-password-input');
-        const usernameInput = document.getElementById('auth-username-input');
         const email = emailInput.value.trim();
         const password = passwordInput?.value || '';
 
-        if (isSignup && !usernameInput.value.trim()) {
-          errorEl.textContent = 'Enter a username.';
-          usernameInput.focus();
-          return;
-        }
-        if (isSignup) {
-          try {
-            normalizeUsername(usernameInput.value);
-          } catch (error) {
-            errorEl.textContent = error.message;
-            usernameInput.focus();
-            return;
-          }
-        }
         if (!email) {
           errorEl.textContent = 'Enter your email address.';
           emailInput.focus();
@@ -11758,7 +11759,7 @@ WR.ui = WR.ui || {};
             submitBtn.textContent = 'Send reset link';
             return;
           }
-          if (isSignup) await WR.account.signUp(email, password, usernameInput.value);
+          if (isSignup) await WR.account.signUp(email, password);
           else await WR.account.signIn(email, password);
           // Success flips the app over via the global auth-state listener; nothing else to do here.
         } catch (err) {

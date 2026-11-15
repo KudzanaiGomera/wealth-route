@@ -30,7 +30,7 @@ the service worker detects an update.
 | ID | Topic | Priority | Status | Notes |
 | --- | --- | --- | --- | --- |
 | F-001 | Google sign-in domain authorization | High | Closed | Verified on the Pages deployment; the unauthorized-domain issue is resolved. |
-| F-002 | Username format validation | Medium | Closed | Custom validation replaced the browser popup so full names and email-like inputs are handled with clear app guidance. |
+| F-002 | Signup format popup | Medium | Open | Email/password-only signup now creates a temporary username automatically; deploy and verify the live form before closing. |
 | F-003 | Google Play beta packaging | Later | Backlog | Needs packaging review, release readiness checks, and Play Store requirements. |
 | F-004 | Monetization review | Later | Backlog | Needs privacy/trust review before deciding on ads or other revenue paths. |
 
@@ -39,7 +39,6 @@ the service worker detects an update.
 | Date | Fix | Outcome |
 | --- | --- | --- |
 | 2026-11-15 | Google sign-in domain authorization | Fixed and verified on the Pages deployment; the unauthorized-domain sign-in error no longer appears. |
-| 2026-11-15 | Username validation clarity | Fixed by replacing native browser validation with app-specific checks and clearer messaging for username/email format issues. |
 
 ## What's new in 3.1
 
