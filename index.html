@@ -1521,11 +1521,11 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .settings-row-text span { color: var(--muted); font-size: 0.84rem; }
 .settings-row-control { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .settings-row-control input { min-width: 12rem; flex: 1; }
-.display-name-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.55rem 0.75rem; max-width: 40rem; margin-top: 0.9rem; }
-.display-name-form label { display: grid; gap: 0.35rem; min-width: 0; color: var(--text); font-size: 0.88rem; font-weight: 600; }
-.display-name-form label small { color: var(--muted); font-size: 0.78rem; font-weight: 400; }
-.display-name-form input { width: 100%; min-width: 0; min-height: 2.6rem; }
-.display-name-form [data-save-feedback] { grid-column: 2; margin: 0; }
+.username-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.55rem 0.75rem; max-width: 40rem; margin-top: 0.9rem; }
+.username-form label { display: grid; gap: 0.35rem; min-width: 0; color: var(--text); font-size: 0.88rem; font-weight: 600; }
+.username-form label small { color: var(--muted); font-size: 0.78rem; font-weight: 400; }
+.username-form input { width: 100%; min-width: 0; min-height: 2.6rem; }
+.username-form [data-save-feedback] { grid-column: 2; margin: 0; }
 .settings-result:empty { display: none; }
 .settings-result { margin: 0.4rem 0 0; }
 .settings-form-grid label small { font-weight: 400; color: var(--muted); font-size: 0.74rem; }
@@ -1577,9 +1577,9 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
   .account-summary { flex-wrap: wrap; }
   .account-summary .danger { width: 100%; }
   .settings-row-control { width: 100%; }
-  .display-name-form { grid-template-columns: minmax(0, 1fr); max-width: none; }
-  .display-name-form button { width: 100%; }
-  .display-name-form [data-save-feedback] { grid-column: 1; }
+  .username-form { grid-template-columns: minmax(0, 1fr); max-width: none; }
+  .username-form button { width: 100%; }
+  .username-form [data-save-feedback] { grid-column: 1; }
 }
 .mobile-nav { display: none; }
 .data-table { width: 100%; min-width: max-content; border-collapse: collapse; background: var(--panel); border: none; border-radius: 0; overflow: visible; margin: 0; }
@@ -5432,7 +5432,6 @@ WR.ui = WR.ui || {};
       ${primaryNavLinks}
       ${secondaryNavLinks}
       <div class="nav-divider"></div>
-      <button type="button" id="nav-refresh-app" class="nav-action-item">Refresh app &amp; clear cache</button>
       <a href="${SUPPORT_WHATSAPP_URL}" target="_blank" rel="noopener noreferrer" class="nav-support-link">
         <svg class="nav-support-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.5-.2Z"/></svg>
         Contact support
@@ -5515,18 +5514,6 @@ WR.ui = WR.ui || {};
           logoutBtn.disabled = false;
         }
       });
-    });
-    document.getElementById('nav-refresh-app').addEventListener('click', async (event) => {
-      const button = event.currentTarget;
-      button.disabled = true;
-      button.textContent = 'Refreshing app...';
-      try {
-        await WR.ui.refreshAppAndClearCache();
-      } catch (error) {
-        WR.ui.notify(`Could not refresh the app: ${error.message}`, 'error');
-        button.disabled = false;
-        button.textContent = 'Refresh app & clear cache';
-      }
     });
     const support = document.querySelector('#nav .nav-support-link').cloneNode(true);
     support.classList.add('nav-wide-support');
@@ -10535,18 +10522,12 @@ WR.ui = WR.ui || {};
               <p id="passkey-result" class="fine-print settings-result" role="status" aria-live="polite"></p>
             ` : ''}
           </div>
-          <form id="username-form" class="settings-row-control display-name-form">
+          <form id="username-form" class="settings-row-control username-form">
             <label>Username <small>Assigned automatically at signup. You can change it anytime.</small>
               <input name="username" value="${esc(username || '')}" maxlength="30" autocomplete="username" aria-describedby="settings-username-help" required>
               <span id="settings-username-help" class="fine-print">Use 3-30 characters. Spaces and punctuation are allowed, but / and control characters are not.</span>
             </label>
             <button type="submit">Save username</button>
-          </form>
-          <form id="display-name-form" class="settings-row-control display-name-form">
-            <label>Display name <small>Optional \u2014 shown in your dashboard greeting</small>
-              <input name="displayName" value="${esc(profile.displayName || '')}" placeholder="e.g. Kudzanai" maxlength="60">
-            </label>
-            <button type="submit">Save</button>
           </form>
           <div class="settings-rows">
             <div class="settings-row">
@@ -10857,11 +10838,6 @@ WR.ui = WR.ui || {};
         btn.disabled = false;
         btn.textContent = 'Refresh saved rates';
       }
-    });
-
-    WR.ui.bindReliableForm(document.getElementById('display-name-form'), async (form) => {
-      await WR.repos.userProfile.update({ ...await WR.ui.getOrCreateProfile(), displayName: form.elements.displayName.value.trim() });
-      WR.ui.notify('Display name saved.', 'success');
     });
 
     WR.ui.bindReliableForm(document.getElementById('username-form'), async (form) => {

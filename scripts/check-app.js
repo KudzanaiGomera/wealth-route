@@ -365,6 +365,7 @@ assert.doesNotMatch(authFormMarkup, /pattern="\(\?=\.\*\[a-z\]\)\(\?=\.\*\[0-9\]
 assert.match(functions.get('signUp'), /async function signUp\(email, password\)/, 'Signup must accept just an email and password.');
 assert.match(functions.get('signUp'), /defaultUsernameFor\(createdUser\.uid\)/, 'Signup must assign an automatic username.');
 assert.match(functions.get('renderSettings'), /id="username-form"/, 'Settings must let users change their username.');
+assert.doesNotMatch(functions.get('renderSettings'), /id="display-name-form"/, 'Settings must not show a second name field.');
 assert.match(functions.get('renderSettings'), /WR\.account\.updateUsername\(form\.elements\.username\.value\)/);
 const defaultUsernameContext = {};
 vm.runInNewContext(functions.get('defaultUsernameFor'), defaultUsernameContext);
@@ -408,8 +409,7 @@ async function checkEmailPasswordSignupDefaultsUsername() {
   console.log('Email/password signup assigns a unique default username without requiring username entry.');
 }
 checkEmailPasswordSignupDefaultsUsername().catch(error => { console.error(error); process.exitCode = 1; });
-assert.match(functions.get('renderShell'), /id="nav-refresh-app"/, 'The app refresh and cache-clear action must be available from navigation.');
-assert.match(functions.get('renderShell'), /WR\.ui\.refreshAppAndClearCache\(\)/);
+assert.doesNotMatch(functions.get('renderShell'), /nav-refresh-app|Refresh app &amp; clear cache/, 'Users must not see a manual cache-clear action in navigation.');
 assert.match(functions.get('showUpdateBanner'), /WR\.ui\.refreshAppAndClearCache\(\)/, 'The update banner must use the cache-clearing refresh action.');
 async function checkAppRefreshCacheScope() {
   const deleted = [];

@@ -19,11 +19,8 @@ this means for offline use.
 User feedback and its implementation status are tracked in
 [FEEDBACK.md](FEEDBACK.md).
 
-To apply a newly deployed version, open the top-right navigation menu and
-select **Refresh app & clear cache**. This removes only WealthRoute's cached
-app shell, keeps your account and saved data intact, and reloads the current
-page from the network. A new-version notice also offers **Refresh now** when
-the service worker detects an update.
+When the service worker detects a newly deployed version, an update notice
+offers **Refresh now**. Users do not need to clear the app cache manually.
 
 ## Feedback status
 
