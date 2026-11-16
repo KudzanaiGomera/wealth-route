@@ -85,7 +85,7 @@ assert.throws(() => usernameContext.normalizeUsername('name\nwith newline'), /Us
 assert.throws(() => usernameContext.normalizeUsername('a'.repeat(31)), /Username must be 3-30 characters/);
 
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
-assert.match(serviceWorkerSource, /wealthroute-shell-v201/);
+assert.match(serviceWorkerSource, /wealthroute-shell-v202/);
 const allocationContext = {};
 allocationContext.Date = class extends Date { constructor(...args) { super(...(args.length ? args : ['2026-11-02T12:00:00'])); } };
 allocationContext.WR = { financial: { convertCurrency: (value, from, to) => ({ converted: from === to, value }), monthlyMinPayment: debt => Number(debt.minPayment) || 0 } };
@@ -461,7 +461,7 @@ async function checkServiceWorkerFallbacks() {
   let activation;
   handlers.activate({ waitUntil: promise => { activation = promise; } });
   await activation;
-  assert.deepEqual(deletedCaches, ['wealthroute-shell-v200'], 'Activation must preserve caches belonging to other apps on the same origin.');
+  assert.deepEqual(deletedCaches, ['wealthroute-shell-v200', 'wealthroute-shell-v201'], 'Activation must remove old WealthRoute caches and preserve caches belonging to other apps on the same origin.');
   const shell = new Response('<html>App shell</html>', { headers: { 'Content-Type': 'text/html' } });
   cachedResponses.set('./index.html', shell);
   function dispatch(url, mode, destination) {
