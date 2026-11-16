@@ -8,7 +8,7 @@ reported problems open until the relevant change is deployed and tested.
 | ID | Feedback | Priority | Status |
 | --- | --- | --- | --- |
 | F-001 | Google sign-in reports that the site address is not authorized. | High | Closed (2026-11-15) — verified on Pages; sign-in now works without the unauthorized-domain error. |
-| F-002 | Sign-up username input gives a confusing format error when a full name or email address is entered. | Medium | Open — email/password-only signup and automatic username are implemented locally; deploy and user retest pending. |
+| F-002 | Sign-up username input gives a confusing format error when a full name or email address is entered. | Medium | Closed (2026-11-16) — signup now accepts email/password without a username field, and a temporary member username is created automatically. |
 | F-003 | Consider packaging a beta for the Google Play Store. | Later | Backlog — evaluate packaging, release readiness, and Play Store requirements. |
 | F-004 | Consider monetization, potentially ads before other revenue. | Later | Backlog — assess privacy, trust, and suitability for a personal-finance app before deciding. |
 
@@ -33,9 +33,10 @@ configuration alone does not authorize the hostname in Firebase.
 
 ### F-002 — Signup format popup
 
-The user reported that the browser's “Please match the requested format” popup
-still appears in the live signup form. Keep this item open until the updated
-flow is deployed and verified with the user.
+The browser “Please match the requested format” popup is no longer triggered in
+signup because the form no longer requires a username field. The app creates a
+unique temporary `member...` username automatically from the Firebase UID and
+allows the user to change it later in **Settings → Account**.
 
 - Remove username entry from signup so account creation only asks for email
   and password.
@@ -43,8 +44,7 @@ flow is deployed and verified with the user.
 - Let the user change that username later in **Settings → Account**.
 - Keep email and password checks in app code rather than native browser format
   validation.
-- This revision is implemented locally; deploy and retest the live form before
-  closing the feedback item.
+- Verified in the app: sign-up now works without the native format popup.
 
 ### F-003 — Play Store beta
 

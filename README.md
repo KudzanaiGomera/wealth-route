@@ -6,7 +6,7 @@ Personal finance & wealth planning assistant, version **3.1**. Core files:
 `worker.js`/`wrangler.toml` (optional Cloudflare Worker for live rates and the
 AI assistant). No bundler or TypeScript compiler for the app itself:
 everything is inlined into a single `<script>`/`<style>` tag per file.
-Use npm for validation and to prepare the bundled DOMPurify dependency.
+Use npm for validation and to prepare the bundled DOMPurify dependency. GitHub Actions runs the same validation on pushes and pull requests so regressions are caught before deploy.
 
 **Architecture change in 2.0: real accounts, not local-only storage.**
 Every visitor signs up or logs in (email/password or Google) before seeing
@@ -36,6 +36,7 @@ offers **Refresh now**. Users do not need to clear the app cache manually.
 | Date | Fix | Outcome |
 | --- | --- | --- |
 | 2026-11-15 | Google sign-in domain authorization | Fixed and verified on the Pages deployment; the unauthorized-domain sign-in error no longer appears. |
+| 2026-11-16 | Signup format popup | Fixed and verified; signup no longer asks for a username field and auto-creates a temporary member username instead. |
 
 ## What's new in 3.1
 
