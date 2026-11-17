@@ -1931,6 +1931,27 @@ function checkMobileNavigation() {
 }
 checkMobileNavigation();
 
+function checkNavigationOutsideClick() {
+  let open = true;
+  const closed = [];
+  const navContext = {
+    document: { querySelector: () => ({ classList: { contains: () => open } }) },
+    setNavigationOpen: value => { closed.push(value); open = value; },
+  };
+  vm.createContext(navContext);
+  vm.runInContext(functions.get('closeNavigationOnOutsideClick'), navContext);
+  navContext.closeNavigationOnOutsideClick({ target: { closest: () => null } });
+  assert.deepEqual(closed, [false], 'A click outside the open menu should close it');
+  open = true;
+  navContext.closeNavigationOnOutsideClick({ target: { closest: selector => selector.includes('#nav') ? {} : null } });
+  assert.deepEqual(closed, [false], 'A click inside the menu should not be treated as an outside click');
+  open = false;
+  navContext.closeNavigationOnOutsideClick({ target: { closest: () => null } });
+  assert.deepEqual(closed, [false], 'Clicks while the menu is closed should not change its state');
+  console.log('Navigation closes on outside clicks without dismissing clicks inside the menu.');
+}
+checkNavigationOutsideClick();
+
 async function checkPullRefresh() {
   let user = { uid: 'refresh-user' };
   let reads = 0;
