@@ -352,7 +352,38 @@ async function checkLogoutIsolation() {
   console.log('Persistent login and explicit logout/cache-isolation regressions passed.');
 }
 checkLogoutIsolation().catch(error => { console.error(error); process.exitCode = 1; });
-assert.ok(html.indexOf('id="auth-passkey-btn"') < html.indexOf('id="auth-google-btn"'), 'Passkey sign-in must appear before Google and email/password recovery.');
+assert.ok(html.indexOf('id="auth-passkey-btn"') < html.indexOf('id="auth-google-btn"'), 'Passkey sign-in must appear before Apple, Google, and email/password recovery.');
+assert.match(html, /id="auth-apple-btn"[^>]*>[\s\S]*?Continue with Apple/, 'Login must offer Apple sign-in.');
+assert.match(html, /async function signInWithApple\(\)[\s\S]*?new authApi\.OAuthProvider\('apple\.com'\)/, 'Apple sign-in must use Firebase OAuthProvider.');
+assert.match(functions.get('deleteAccount'), /providers\.includes\('apple\.com'\)[\s\S]*?reauthenticateWithPopup/, 'Apple accounts must reauthenticate before deletion.');
+async function checkAppleSignIn() {
+  const events = [];
+  const user = { uid: 'apple-user' };
+  const appleContext = {
+    auth: {},
+    authApi: {
+      OAuthProvider: class {
+        constructor(providerId) { this.providerId = providerId; }
+        addScope(scope) { events.push(['scope', scope]); }
+      },
+      signInWithPopup: async (_auth, provider) => {
+        events.push(['popup', provider.providerId]);
+        return { user };
+      },
+    },
+    ensureInit: async () => {},
+    clearPasskeyLockPending: () => events.push(['clear-lock']),
+    loadProfile: async () => events.push(['load-profile']),
+    cachedUsername: 'apple-member',
+    WR: { ui: { notify: message => events.push(['notify', message]) } },
+  };
+  vm.createContext(appleContext);
+  vm.runInContext(functions.get('signInWithApple'), appleContext);
+  assert.equal(await appleContext.signInWithApple(), user);
+  assert.deepEqual(events, [['scope', 'email'], ['scope', 'name'], ['popup', 'apple.com'], ['clear-lock'], ['load-profile']]);
+  console.log('Apple sign-in requests email and name and completes Firebase profile initialization.');
+}
+checkAppleSignIn().catch(error => { console.error(error); process.exitCode = 1; });
 assert.match(html, /id="auth-form"/);
 assert.doesNotMatch(html, /id="auth-username-input"/, 'Signup must not require a username.');
 const emailInputMarkup = html.match(/<input\b[^>]*id="auth-email-input"[^>]*>/)?.[0];
@@ -536,7 +567,7 @@ assert.equal(context.passkeyErrorMessage({ name: 'NotAllowedError' }), 'Passkey 
 assert.equal(context.passkeyErrorMessage({ name: 'AbortError' }, 'registration'), 'No problem. No passkey was added; you can try again.');
 assert.equal(context.passkeyErrorMessage({ message: 'Worker unavailable' }), 'Worker unavailable');
 assert.match(context.passkeyErrorMessage({ name: 'TypeError', message: 'Type error' }, 'registration'), /screen lock and a passkey provider/);
-assert.match(context.passkeyErrorMessage({ name: 'NotSupportedError' }), /Google or email/);
+assert.match(context.passkeyErrorMessage({ name: 'NotSupportedError' }), /Apple, Google, or email/);
 assert.match(context.passkeyErrorMessage({ name: 'InvalidStateError' }, 'registration'), /existing passkey/);
 assert.match(context.passkeyErrorMessage({ name: 'SecurityError' }), /secure WealthRoute/);
 const passkeyDeviceContext = { window: { isSecureContext: true, PublicKeyCredential: function () {} }, navigator: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_8 like Mac OS X)', credentials: { create() {}, get() {} } }, getPasskeyWorkerUrl: () => 'https://passkeys.example.com' };

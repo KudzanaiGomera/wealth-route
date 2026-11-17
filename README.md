@@ -9,12 +9,12 @@ everything is inlined into a single `<script>`/`<style>` tag per file.
 Use npm for validation and to prepare the bundled DOMPurify dependency. GitHub Actions runs the same validation on pushes and pull requests so regressions are caught before deploy.
 
 **Architecture change in 2.0: real accounts, not local-only storage.**
-Every visitor signs up or logs in (email/password or Google) before seeing
-any data; all financial records live in Firestore under that account, not in
-this browser. Log into the same account from a phone, another computer, or
-after clearing browser data, and your data is exactly as you left it. See
-"Accounts, data, and privacy" below for the full picture, including what
-this means for offline use.
+Every visitor signs up or logs in (email/password, Google, or Apple) before
+seeing any data; all financial records live in Firestore under that account,
+not in this browser. Log into the same account from a phone, another computer,
+or after clearing browser data, and your data is exactly as you left it. See
+"Accounts, data, and privacy" below for the full picture, including what this
+means for offline use.
 
 User feedback and its implementation status are tracked in
 [FEEDBACK.md](FEEDBACK.md).
@@ -59,7 +59,7 @@ offers **Refresh now**. Users do not need to clear the app cache manually.
   Existing asset sources are not guessed or changed automatically. Historical
   net-worth snapshots remain as recorded; past reserve balances are not reconstructed.
 - **Version 3.1.0** is used in package metadata, Settings, and exported backups; the PWA shell cache is refreshed.
-- **Passkey-first fresh launches:** Firebase sign-in is memory-only, so each new page launch starts at login. Passkey is shown first, with email/password and Google available as recovery. Briefly switching apps does not itself sign the user out.
+- **Passkey-first fresh launches:** Firebase sign-in is memory-only, so each new page launch starts at login. Passkey is shown first, with Apple, email/password, and Google available as recovery. Briefly switching apps does not itself sign the user out.
 
 ## 3.0 Highlights
 
@@ -251,7 +251,7 @@ payday. Legacy general-savings entries are not automatically linked to pots.
 
 ### Previous release: 2.0
 
-- **Real accounts**: email/password and Google sign-in, a required unique
+- **Real accounts**: email/password, Google, and Apple sign-in, a required unique
   username, password reset, all backed by Firebase Auth.
 - **Firestore is the only data store.** IndexedDB is gone entirely \u2014 every
   account's data lives under its own path in Firestore, enforced by security
@@ -434,8 +434,13 @@ Firestore's offline cache keeps the app usable without a connection.
 
 1. Create a project at [console.firebase.google.com](https://console.firebase.google.com).
 2. **Authentication** \u2192 Sign-in method \u2192 enable **Email/Password** (and
-  **Google** if you want that option too). **Anonymous** is optional for
-  browser tests; the runner can use a disposable email/password account.
+  **Google** and **Apple** if you want those options too. Apple sign-in also
+  requires an Apple Developer Services ID, Sign in with Apple configuration,
+  and its key credentials in Firebase's Apple provider settings; use the
+  following URL as the Return URL when configuring the Apple Service ID:
+  `https://wealthroute-cabd6.firebaseapp.com/__/auth/handler`.
+  **Anonymous** is optional for browser tests; the runner can use a disposable
+  email/password account.
   Under **Authentication → Settings → Authorized domains**, add each deployed
   hostname (for example, `wealth-route.pages.dev`, without `https://`). Add
   `kudzanaigomera.github.io` too if you still use the GitHub Pages site.
@@ -658,7 +663,7 @@ call Gemini, or certify published Firebase settings.
 
 The same Worker can verify passkeys and issue Firebase sign-in tokens. This
 does not use AI credits. Cloudflare Worker and D1 usage has separate free-tier
-limits. Email and Google sign-in remain available as recovery methods.
+limits. Apple, email, and Google sign-in remain available as recovery methods.
 
 1. In Cloudflare, open **Storage & Databases > D1** and create a database named
   `wealthroute-passkeys`. Copy its database ID into the `database_id` field in
@@ -692,12 +697,12 @@ limits. Email and Google sign-in remain available as recovery methods.
   the first passkey is added; **Lock now** is also available there.
 
 Built-in Apple passkeys require iOS/iPadOS 16 or later. iPhone 7 is limited to
-iOS 15, so use Google or email/password on that phone. Settings explains this
+iOS 15, so use Apple, Google, or email/password on that phone. Settings explains this
 instead of offering an unsupported passkey prompt; the account's existing
 passkeys can still be listed and removed after signing in. Android support
 depends on the browser and passkey provider; use an up-to-date Chrome browser
 with a device screen lock and a passkey provider enabled. Unsupported browsers
-keep the Google and email/password alternatives.
+keep the Apple, Google, and email/password alternatives.
 
 Passkeys are registered to the account, not to the visible list's current phone.
 iCloud Keychain or another password manager may sync an existing passkey to a

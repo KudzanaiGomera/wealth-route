@@ -250,6 +250,10 @@ button, a, input, select, textarea {
 }
 .auth-google-btn:hover { background: var(--panel-alt); }
 .auth-google-btn:disabled { opacity: 0.6; }
+.auth-apple-btn,
+.auth-apple-btn:hover { background: #000; border-color: #000; color: #fff; }
+.auth-apple-btn { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18); }
+.auth-apple-btn:hover { background: #1d1d1f; border-color: #1d1d1f; }
 .auth-passkey-btn,
 .auth-passkey-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
 .auth-passkey-btn { min-height: 3.25rem; }
@@ -10488,6 +10492,9 @@ WR.ui = WR.ui || {};
     };
     const username = WR.account.getUsername();
     const displayIdentity = username || WR.account.getEmail() || '';
+    const accountProviderLabel = accountUser?.providerData?.some((provider) => provider.providerId === 'apple.com')
+      ? 'Apple'
+      : accountUser?.providerData?.some((provider) => provider.providerId === 'google.com') ? 'Google' : 'your sign-in provider';
 
     WR.ui.setHTML(container, `
       <div class="settings-header">
@@ -10538,14 +10545,14 @@ WR.ui = WR.ui || {};
           </form>
           <div class="settings-rows">
             <div class="settings-row">
-              <div class="settings-row-text"><strong>Password</strong><span>${WR.account.usesPasswordProvider() ? 'We\u2019ll email you a secure link to set a new password.' : 'Signed in with Google \u2014 manage your password in your Google account.'}</span></div>
+              <div class="settings-row-text"><strong>Password</strong><span>${WR.account.usesPasswordProvider() ? 'We\u2019ll email you a secure link to set a new password.' : `Signed in with ${accountProviderLabel} \u2014 manage your password with that provider.`}</span></div>
               ${WR.account.usesPasswordProvider() ? '<div class="settings-row-control"><button type="button" id="reset-password-btn" class="secondary">Send reset email</button></div>' : ''}
             </div>
             <p id="reset-password-result" class="fine-print settings-result"></p>
           </div>
           <form id="delete-account-form" class="danger-zone">
             <div><strong>Delete account</strong><span>Export a backup first. This permanently deletes your sign-in and all WealthRoute data.</span></div>
-            ${WR.account.usesPasswordProvider() ? '<label>Current password<input name="accountPassword" type="password" autocomplete="current-password" required></label>' : '<span>Google will ask you to confirm your identity.</span>'}
+            ${WR.account.usesPasswordProvider() ? '<label>Current password<input name="accountPassword" type="password" autocomplete="current-password" required></label>' : `<span>${accountProviderLabel} will ask you to confirm your identity.</span>`}
             <label>Type DELETE to confirm<input name="confirmation" autocomplete="off" required></label>
             <button type="submit" class="danger">Delete account</button>
             <p id="delete-account-result" class="fine-print settings-result span-2" role="status" aria-live="polite"></p>
@@ -10680,7 +10687,7 @@ WR.ui = WR.ui || {};
             <li>Hide or show dashboard balances, charts, and financial recommendation details with one privacy control. This device remembers the choice per account.</li>
             <li>Show or hide the password while logging in or signing up; passwords always start hidden.</li>
             <li>Responsive two-column balance rows and touch-friendly controls in light and dark mode.</li>
-            <li>Real accounts: email/password and Google sign-in, with a required unique username.</li>
+            <li>Real accounts: email/password, Google, and Apple sign-in, with a required unique username.</li>
             <li>Data now lives in your account (Firestore), not this browser — log in from any device to see the same data, fully isolated per account.</li>
             <li>Every page is gated behind sign-in; nothing renders until you're authenticated.</li>
             <li>Retired local-only backup mechanisms (folder auto-backup, passphrase cloud backup) now that your account is the durable store; manual JSON export/import kept for portability.</li>
@@ -11205,9 +11212,9 @@ WR.account = {};
     const userAgent = navigator.userAgent || '';
     const iosVersion = /(?:iPhone|iPad|iPod).*?OS (\d+)[_\d]*/i.exec(userAgent)
       || (/Macintosh/i.test(userAgent) && navigator.maxTouchPoints > 1 ? /Version\/(\d+)/i.exec(userAgent) : null);
-    if (iosVersion && Number(iosVersion[1]) < 16) return 'Built-in passkeys require iOS 16 or iPadOS 16 or later. Use Google or email and password on this device. Passkeys on your other devices are unchanged.';
-    if (!window.isSecureContext) return 'Passkeys require a secure HTTPS connection. Use Google or email and password until you open the secure app address.';
-    if (!window.PublicKeyCredential || typeof navigator.credentials?.create !== 'function' || typeof navigator.credentials?.get !== 'function') return 'This browser does not support passkeys. Use an up-to-date Safari or Chrome browser, or sign in with Google or email and password.';
+    if (iosVersion && Number(iosVersion[1]) < 16) return 'Built-in passkeys require iOS 16 or iPadOS 16 or later. Use Apple, Google, or email and password on this device. Passkeys on your other devices are unchanged.';
+    if (!window.isSecureContext) return 'Passkeys require a secure HTTPS connection. Use Apple, Google, or email and password until you open the secure app address.';
+    if (!window.PublicKeyCredential || typeof navigator.credentials?.create !== 'function' || typeof navigator.credentials?.get !== 'function') return 'This browser does not support passkeys. Use an up-to-date Safari or Chrome browser, or sign in with Apple, Google, or email and password.';
     return '';
   }
 
@@ -11261,7 +11268,7 @@ WR.account = {};
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       });
     } catch (_) {
-      throw new Error('Cannot reach the passkey service. Check your connection and try again, or use Google or email and password.');
+      throw new Error('Cannot reach the passkey service. Check your connection and try again, or use Apple, Google, or email and password.');
     }
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || 'Passkey service is unavailable.');
@@ -11319,8 +11326,8 @@ WR.account = {};
     }
     if (error?.name === 'InvalidStateError') return 'A passkey for this account may already be saved in your password manager. Use the existing passkey instead of adding it again.';
     if (error?.name === 'NotSupportedError' || error?.name === 'TypeError') return action === 'registration'
-      ? 'This device could not create a passkey. Use an up-to-date Safari or Chrome browser with a screen lock and a passkey provider enabled, or keep using Google or email and password.'
-      : 'This device could not use the passkey. Try an up-to-date Safari or Chrome browser, or sign in with Google or email and password.';
+      ? 'This device could not create a passkey. Use an up-to-date Safari or Chrome browser with a screen lock and a passkey provider enabled, or keep using Apple, Google, or email and password.'
+      : 'This device could not use the passkey. Try an up-to-date Safari or Chrome browser, or sign in with Apple, Google, or email and password.';
     if (error?.name === 'SecurityError') return 'Passkeys are not available at this address. Open the secure WealthRoute website in Safari or Chrome, or use another sign-in method.';
     return error?.message || 'The passkey request could not be completed.';
   }
@@ -11515,6 +11522,20 @@ WR.account = {};
     return cred.user;
   }
 
+  async function signInWithApple() {
+    await ensureInit();
+    const provider = new authApi.OAuthProvider('apple.com');
+    provider.addScope('email');
+    provider.addScope('name');
+    const cred = await authApi.signInWithPopup(auth, provider);
+    clearPasskeyLockPending();
+    await loadProfile();
+    if (!cachedUsername) {
+      WR.ui.notify('Welcome! Choose a username in Settings \u2192 Profile to finish setting up your account.', 'error');
+    }
+    return cred.user;
+  }
+
   async function signOutUser() {
     await ensureInit();
     await authApi.signOut(auth);
@@ -11539,6 +11560,11 @@ WR.account = {};
       await authApi.reauthenticateWithCredential(user, credential);
     } else if (providers.includes('google.com')) {
       await authApi.reauthenticateWithPopup(user, new authApi.GoogleAuthProvider());
+    } else if (providers.includes('apple.com')) {
+      const provider = new authApi.OAuthProvider('apple.com');
+      provider.addScope('email');
+      provider.addScope('name');
+      await authApi.reauthenticateWithPopup(user, provider);
     } else {
       throw new Error('This sign-in method cannot re-authenticate account deletion. Contact support.');
     }
@@ -11597,6 +11623,7 @@ WR.account = {};
   WR.account.signUp = signUp;
   WR.account.signIn = signIn;
   WR.account.signInWithGoogle = signInWithGoogle;
+  WR.account.signInWithApple = signInWithApple;
   WR.account.signOut = signOutUser;
   WR.account.deleteAccount = deleteAccount;
 })();
@@ -11622,7 +11649,7 @@ WR.ui = WR.ui || {};
       'auth/too-many-requests': 'Too many attempts. Wait a little before trying again.',
       'auth/popup-blocked': 'Allow the sign-in popup in your browser and try again.',
       'auth/popup-closed-by-user': 'Sign-in was cancelled. Try again when ready.',
-      'auth/operation-not-allowed': 'Sign-up is temporarily unavailable. Please try again later.',
+      'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase Authentication settings.',
       'auth/unauthorized-domain': 'This preview address is not authorized for sign-in. Add its hostname in Firebase Authentication settings.',
       'auth/invalid-api-key': 'The Firebase app configuration is invalid in this build. Contact support.',
       'auth/app-not-authorized': 'This app address is not authorized by Firebase. Contact support.',
@@ -11645,6 +11672,10 @@ WR.ui = WR.ui || {};
       return `<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.6 15.6 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4c-7.6 0-14.2 4.3-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.4C29.6 35.3 27 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.7 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.4C41.5 36 44 30.6 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>`;
     }
 
+    function appleIcon() {
+      return '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.37 12.1c.02 2.21 1.94 2.95 1.96 2.96-.02.05-.31 1.08-1.02 2.14-.62.92-1.27 1.83-2.29 1.85-1 .02-1.33-.6-2.48-.6s-1.52.58-2.47.62c-.99.04-1.75-.99-2.38-1.9-1.3-1.88-2.3-5.31-.96-7.63a3.68 3.68 0 0 1 3.1-1.88c.97-.02 1.88.66 2.48.66.6 0 1.72-.82 2.9-.7.49.02 1.87.2 2.76 1.5-.07.04-1.65.96-1.63 2.98ZM14.46 6.3a3.36 3.36 0 0 0 .78-2.42 3.42 3.42 0 0 0-2.22 1.18 3.12 3.12 0 0 0-.8 2.34 2.9 2.9 0 0 0 2.24-1.1Z"/></svg>';
+    }
+
     function render() {
       const isSignup = mode === 'signup';
       const isReset = mode === 'reset';
@@ -11665,7 +11696,7 @@ WR.ui = WR.ui || {};
             <p class="auth-subtitle">${isReset ? 'Request a secure reset link for your account.' : isSignup ? 'Track your money, debts, and net worth - synced to every device you use.' : 'Welcome back - log in to see your dashboard.'}</p>
 
             ${showPasskey ? `<button type="button" id="auth-passkey-btn" class="auth-google-btn auth-passkey-btn">${isPasskeyLocked ? 'Unlock with a passkey' : 'Use a passkey'}</button><div class="auth-divider"><span>or continue with</span></div>` : ''}
-            ${isReset ? '' : `<button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button>`}
+            ${isReset ? '' : `<button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button><button type="button" id="auth-apple-btn" class="auth-google-btn auth-apple-btn">${appleIcon()} Continue with Apple</button>`}
             ${isSignup ? '<div class="auth-divider"><span>or sign up with email</span></div>' : ''}
               <p id="auth-error" class="auth-error" role="alert"></p>
               ${!isSignup && !isReset ? '<details class="auth-email-recovery"><summary>Use email instead</summary>' : ''}
@@ -11764,6 +11795,18 @@ WR.ui = WR.ui || {};
         }
       });
 
+      document.getElementById('auth-apple-btn')?.addEventListener('click', async () => {
+        errorEl.textContent = '';
+        const appleBtn = document.getElementById('auth-apple-btn');
+        appleBtn.disabled = true;
+        try {
+          await WR.account.signInWithApple();
+        } catch (err) {
+          showError(err);
+          appleBtn.disabled = false;
+        }
+      });
+
       document.getElementById('auth-passkey-btn')?.addEventListener('click', async (event) => {
         const button = event.currentTarget;
         errorEl.classList.remove('auth-notice');
@@ -11775,7 +11818,7 @@ WR.ui = WR.ui || {};
         } catch (error) {
           if (WR.account.isPasskeyPromptCancellation(error)) {
             errorEl.classList.add('auth-notice');
-            errorEl.textContent = 'Passkey sign-in was canceled. Choose Google or email below, or try again.';
+            errorEl.textContent = 'Passkey sign-in was canceled. Choose Apple, Google, or email below, or try again.';
             document.querySelector('.auth-email-recovery')?.setAttribute('open', '');
           } else {
             errorEl.textContent = WR.account.passkeyErrorMessage(error);
