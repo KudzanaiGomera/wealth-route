@@ -20,7 +20,9 @@ User feedback and its implementation status are tracked in
 [FEEDBACK.md](FEEDBACK.md).
 
 When the service worker detects a newly deployed version, an update notice
-offers **Refresh now**. Users do not need to clear the app cache manually.
+offers **Refresh now**. Increment `CACHE_NAME` in `service-worker.js` for each
+app-shell release so open clients can detect the updated worker. Users do not
+need to clear the app cache manually.
 
 ## Feedback status
 
@@ -439,6 +441,8 @@ Firestore's offline cache keeps the app usable without a connection.
   and its key credentials in Firebase's Apple provider settings; use the
   following URL as the Return URL when configuring the Apple Service ID:
   `https://wealthroute-cabd6.firebaseapp.com/__/auth/handler`.
+  The Apple button stays hidden until its credentials are ready; then set
+  `APPLE_SIGN_IN_ENABLED` to `true` in `index.html`.
   **Anonymous** is optional for browser tests; the runner can use a disposable
   email/password account.
   Under **Authentication → Settings → Authorized domains**, add each deployed

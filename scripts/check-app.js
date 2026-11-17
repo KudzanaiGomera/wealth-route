@@ -85,7 +85,7 @@ assert.throws(() => usernameContext.normalizeUsername('name\nwith newline'), /Us
 assert.throws(() => usernameContext.normalizeUsername('a'.repeat(31)), /Username must be 3-30 characters/);
 
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
-assert.match(serviceWorkerSource, /wealthroute-shell-v202/);
+assert.match(serviceWorkerSource, /wealthroute-shell-v203/);
 const allocationContext = {};
 allocationContext.Date = class extends Date { constructor(...args) { super(...(args.length ? args : ['2026-11-02T12:00:00'])); } };
 allocationContext.WR = { financial: { convertCurrency: (value, from, to) => ({ converted: from === to, value }), monthlyMinPayment: debt => Number(debt.minPayment) || 0 } };
@@ -354,12 +354,14 @@ async function checkLogoutIsolation() {
 checkLogoutIsolation().catch(error => { console.error(error); process.exitCode = 1; });
 assert.ok(html.indexOf('id="auth-passkey-btn"') < html.indexOf('id="auth-google-btn"'), 'Passkey sign-in must appear before Apple, Google, and email/password recovery.');
 assert.match(html, /id="auth-apple-btn"[^>]*>[\s\S]*?Continue with Apple/, 'Login must offer Apple sign-in.');
+assert.match(html, /WR\.account\.appleSignInAvailable\(\)\s*\?/, 'Apple sign-in must stay hidden until configured.');
 assert.match(html, /async function signInWithApple\(\)[\s\S]*?new authApi\.OAuthProvider\('apple\.com'\)/, 'Apple sign-in must use Firebase OAuthProvider.');
 assert.match(functions.get('deleteAccount'), /providers\.includes\('apple\.com'\)[\s\S]*?reauthenticateWithPopup/, 'Apple accounts must reauthenticate before deletion.');
 async function checkAppleSignIn() {
   const events = [];
   const user = { uid: 'apple-user' };
   const appleContext = {
+    APPLE_SIGN_IN_ENABLED: false,
     auth: {},
     authApi: {
       OAuthProvider: class {
@@ -378,7 +380,12 @@ async function checkAppleSignIn() {
     WR: { ui: { notify: message => events.push(['notify', message]) } },
   };
   vm.createContext(appleContext);
+  vm.runInContext(functions.get('appleSignInAvailable'), appleContext);
+  assert.equal(appleContext.appleSignInAvailable(), false);
   vm.runInContext(functions.get('signInWithApple'), appleContext);
+  await assert.rejects(() => appleContext.signInWithApple(), /not configured/);
+  appleContext.APPLE_SIGN_IN_ENABLED = true;
+  assert.equal(appleContext.appleSignInAvailable(), true);
   assert.equal(await appleContext.signInWithApple(), user);
   assert.deepEqual(events, [['scope', 'email'], ['scope', 'name'], ['popup', 'apple.com'], ['clear-lock'], ['load-profile']]);
   console.log('Apple sign-in requests email and name and completes Firebase profile initialization.');

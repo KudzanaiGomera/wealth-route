@@ -11108,6 +11108,7 @@ WR.account = {};
     messagingSenderId: '978392756825',
     appId: '1:978392756825:web:5ae08cc9d3f859c0ca3748',
   };
+  const APPLE_SIGN_IN_ENABLED = false;
   const SDK_VERSION = '13.0.0';
   const PASSKEY_WORKER_URL = 'https://wealth-route.kudzanai-gomera.workers.dev';
 
@@ -11128,6 +11129,10 @@ WR.account = {};
 
   function isConfigured() {
     return !Object.values(FIREBASE_CONFIG).some((v) => !v || v.startsWith('REPLACE_ME'));
+  }
+
+  function appleSignInAvailable() {
+    return APPLE_SIGN_IN_ENABLED;
   }
 
   function ensureInit() {
@@ -11526,6 +11531,7 @@ WR.account = {};
   }
 
   async function signInWithApple() {
+    if (!APPLE_SIGN_IN_ENABLED) throw new Error('Apple sign-in is not configured for this app yet.');
     await ensureInit();
     const provider = new authApi.OAuthProvider('apple.com');
     provider.addScope('email');
@@ -11627,6 +11633,7 @@ WR.account = {};
   WR.account.signIn = signIn;
   WR.account.signInWithGoogle = signInWithGoogle;
   WR.account.signInWithApple = signInWithApple;
+  WR.account.appleSignInAvailable = appleSignInAvailable;
   WR.account.signOut = signOutUser;
   WR.account.deleteAccount = deleteAccount;
 })();
@@ -11699,7 +11706,7 @@ WR.ui = WR.ui || {};
             <p class="auth-subtitle">${isReset ? 'Request a secure reset link for your account.' : isSignup ? 'Track your money, debts, and net worth - synced to every device you use.' : 'Welcome back - log in to see your dashboard.'}</p>
 
             ${showPasskey ? `<button type="button" id="auth-passkey-btn" class="auth-google-btn auth-passkey-btn">${isPasskeyLocked ? 'Unlock with a passkey' : 'Use a passkey'}</button><div class="auth-divider"><span>or continue with</span></div>` : ''}
-            ${isReset ? '' : `<div class="auth-provider-buttons"><button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button><button type="button" id="auth-apple-btn" class="auth-google-btn auth-apple-btn">${appleIcon()} Continue with Apple</button></div>`}
+            ${isReset ? '' : `<div class="auth-provider-buttons"><button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button>${WR.account.appleSignInAvailable() ? `<button type="button" id="auth-apple-btn" class="auth-google-btn auth-apple-btn">${appleIcon()} Continue with Apple</button>` : ''}</div>`}
             ${isSignup ? '<div class="auth-divider"><span>or sign up with email</span></div>' : ''}
               <p id="auth-error" class="auth-error" role="alert"></p>
               ${!isSignup && !isReset ? '<details class="auth-email-recovery"><summary>Use email instead</summary>' : ''}
