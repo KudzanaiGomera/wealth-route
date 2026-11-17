@@ -232,6 +232,7 @@ button, a, input, select, textarea {
 .auth-brand .brand-mark circle { fill: var(--accent); }
 .auth-card h1 { margin: 0 0 0.35rem; font-size: 1.5rem; }
 .auth-subtitle { margin: 0 0 0.95rem; color: var(--muted); font-size: 0.9rem; line-height: 1.4; }
+.auth-provider-buttons { display: grid; gap: 0.65rem; }
 .auth-google-btn {
   width: 100%;
   min-height: 3rem;
@@ -338,6 +339,8 @@ button, a, input, select, textarea {
   .auth-brand { margin-bottom: 0.8rem; }
   .auth-card h1 { font-size: 1.4rem; }
   .auth-subtitle { margin-bottom: 0.8rem; }
+  .auth-provider-buttons { gap: 0.5rem; }
+  .auth-provider-buttons .auth-google-btn { min-height: 2.75rem; padding: 0.5rem 0.65rem; font-size: 0.875rem; }
 }
 
 /* ---------- Top bar ---------- */
@@ -11696,7 +11699,7 @@ WR.ui = WR.ui || {};
             <p class="auth-subtitle">${isReset ? 'Request a secure reset link for your account.' : isSignup ? 'Track your money, debts, and net worth - synced to every device you use.' : 'Welcome back - log in to see your dashboard.'}</p>
 
             ${showPasskey ? `<button type="button" id="auth-passkey-btn" class="auth-google-btn auth-passkey-btn">${isPasskeyLocked ? 'Unlock with a passkey' : 'Use a passkey'}</button><div class="auth-divider"><span>or continue with</span></div>` : ''}
-            ${isReset ? '' : `<button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button><button type="button" id="auth-apple-btn" class="auth-google-btn auth-apple-btn">${appleIcon()} Continue with Apple</button>`}
+            ${isReset ? '' : `<div class="auth-provider-buttons"><button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button><button type="button" id="auth-apple-btn" class="auth-google-btn auth-apple-btn">${appleIcon()} Continue with Apple</button></div>`}
             ${isSignup ? '<div class="auth-divider"><span>or sign up with email</span></div>' : ''}
               <p id="auth-error" class="auth-error" role="alert"></p>
               ${!isSignup && !isReset ? '<details class="auth-email-recovery"><summary>Use email instead</summary>' : ''}
