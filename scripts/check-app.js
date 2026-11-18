@@ -85,7 +85,7 @@ assert.throws(() => usernameContext.normalizeUsername('name\nwith newline'), /Us
 assert.throws(() => usernameContext.normalizeUsername('a'.repeat(31)), /Username must be 3-30 characters/);
 
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
-assert.match(serviceWorkerSource, /wealthroute-shell-v212/);
+assert.match(serviceWorkerSource, /wealthroute-shell-v213/);
 assert.match(html, /\.position-card::before\s*\{[\s\S]*?repeating-radial-gradient/);
 assert.match(html, /\.position-card\s*\{[\s\S]*?color-mix\(in srgb, var\(--accent\)/);
 assert.match(serviceWorkerSource, /notificationclick/);
@@ -2008,9 +2008,9 @@ async function checkBorrowingCorrections() {
 checkBorrowingCorrections().catch(error => { console.error(error); process.exitCode = 1; });
 
 function checkNavigationLayout() {
-  assert.match(html, /\.topbar #notification-shortcut \{ order: 2; margin-left: 0; \}/);
-  assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 3; margin-left: 0; \}/);
-  assert.match(html, /\.topbar \.nav-controls \{ order: 4; margin-left: auto; \}/);
+  assert.match(html, /\.topbar #notification-shortcut \{ order: 4; margin-left: auto; \}/);
+  assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 5; margin-left: 0; \}/);
+  assert.match(html, /\.topbar \.nav-controls \{ order: 6; margin-left: 0; \}/);
   assert.match(html, /\.topbar #notification-shortcut \{ order: 2; margin-left: auto; width: 44px; height: 44px; \}/);
   assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 3; margin-left: 0; width: 44px; height: 44px; \}/);
   const classes = new Set(['nav-expanded', 'nav-measuring']);

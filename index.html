@@ -2233,9 +2233,9 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .topbar .brand { flex-shrink: 0; }
   .topbar .nav-account { order: 0; margin-left: 0; }
   .topbar .nav-wide-actions { order: 1; }
-  .topbar #notification-shortcut { order: 2; margin-left: 0; }
-  .topbar #ask-ai-shortcut { order: 3; margin-left: 0; }
-  .topbar .nav-controls { order: 4; margin-left: auto; }
+  .topbar #notification-shortcut { order: 4; margin-left: auto; }
+  .topbar #ask-ai-shortcut { order: 5; margin-left: 0; }
+  .topbar .nav-controls { order: 6; margin-left: 0; }
   .topbar .nav-toggle, .topbar .assistant-shortcut, .topbar .notification-shortcut { width: 40px; height: 40px; }
   /* Same links are already on the horizontal bar at this width, so hide the
      duplicate entries in the dropdown; mobile (no horizontal bar) still needs them. */
@@ -2244,6 +2244,7 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
 
 @media (min-width: 1400px) {
   .topbar .nav-wide-actions { position: static; visibility: visible; pointer-events: auto; margin-left: auto; flex-shrink: 0; }
+  .topbar #notification-shortcut { margin-left: 0; }
   .topbar .nav-controls { margin-left: 0; }
 }
 
