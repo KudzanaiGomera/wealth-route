@@ -2146,8 +2146,8 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .topbar.nav-open .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(0, 0, 0, 0.5); touch-action: none; }
   #content { padding: 0.95rem 1rem calc(6.5rem + env(safe-area-inset-bottom)); min-width: 0; }
   .topbar .nav-controls { display: none; }
-  .topbar .notification-shortcut { margin-left: auto; width: 44px; height: 44px; }
-  .topbar .assistant-shortcut { margin-left: 0; width: 44px; height: 44px; }
+  .topbar #notification-shortcut { order: 2; margin-left: auto; width: 44px; height: 44px; }
+  .topbar #ask-ai-shortcut { order: 3; margin-left: 0; width: 44px; height: 44px; }
   #nav a.in-mobile-nav { display: none; }
   .mobile-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; padding: 0.3rem max(0.3rem, env(safe-area-inset-right)) calc(0.3rem + env(safe-area-inset-bottom)) max(0.3rem, env(safe-area-inset-left)); gap: 0.2rem; background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.14); }
   :root[data-editing="true"] .mobile-nav { display: none; }
@@ -2232,9 +2232,9 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .topbar .brand { flex-shrink: 0; }
   .topbar .nav-account { order: 0; margin-left: 0; }
   .topbar .nav-wide-actions { order: 1; }
-  .topbar .nav-controls { order: 2; margin-left: auto; }
-  .topbar .notification-shortcut { order: 3; margin-left: 0; }
-  .topbar .assistant-shortcut { order: 4; margin-left: 0; }
+  .topbar #notification-shortcut { order: 2; margin-left: 0; }
+  .topbar #ask-ai-shortcut { order: 3; margin-left: 0; }
+  .topbar .nav-controls { order: 4; margin-left: auto; }
   .topbar .nav-toggle, .topbar .assistant-shortcut, .topbar .notification-shortcut { width: 40px; height: 40px; }
   /* Same links are already on the horizontal bar at this width, so hide the
      duplicate entries in the dropdown; mobile (no horizontal bar) still needs them. */
