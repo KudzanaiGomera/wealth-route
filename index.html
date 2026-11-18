@@ -699,7 +699,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .position-summary-grid {
   display: grid;
   grid-template-columns: 1.2fr 0.9fr;
-  grid-template-areas: "position annual" "actions annual" "allocation allocation" "insights insights";
+  grid-template-areas: "position annual" "actions annual" "insights insights" "allocation allocation";
   gap: 1rem;
   margin: 0.3rem 0 1rem;
   align-items: start;
@@ -725,7 +725,27 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .dashboard-heading h1 { margin: 0; font-size: 1.6rem; }
 .dashboard-heading .month-label { margin: 0; font-size: 0.85rem; }
 .dashboard-heading-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.65rem; flex-shrink: 0; }
-.position-card { grid-area: position; background: var(--panel); border-top: 2px solid var(--accent); border-radius: 8px; color: var(--text); }
+.position-card {
+  grid-area: position;
+  background:
+    radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--panel)), var(--panel) 68%);
+  border-top: 2px solid var(--accent);
+  border-radius: 8px;
+  color: var(--text);
+}
+.position-card::before {
+  content: "";
+  position: absolute;
+  top: -58%;
+  right: -12%;
+  width: clamp(13rem, 34vw, 21rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: repeating-radial-gradient(circle, transparent 0 16px, color-mix(in srgb, var(--accent) 5%, transparent) 17px 18px, transparent 19px 31px);
+  opacity: 0.7;
+  pointer-events: none;
+}
 .position-card .stat-label { color: var(--muted); }
 .balance-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 .visibility-toggle { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-alt); color: var(--text); }
@@ -825,7 +845,6 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .dashboard-overview { grid-area: position; display: grid; gap: 0.85rem; min-width: 0; align-items: start; }
 .dashboard-overview > .dashboard-card, .reserve-balances > .dashboard-card, .dashboard-card.annual-card { padding: 1rem; }
 .dashboard-overview .position-card { grid-area: auto; }
-.dashboard-overview .position-card { background: linear-gradient(145deg, rgba(24, 143, 113, 0.09), transparent 75%), var(--panel); }
 .dashboard-overview .hero-headline { border: 0; padding: 0; margin: 0 0 0.8rem; }
 .dashboard-overview .hero-value { font-size: 2.35rem; }
 .networth-breakdown { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
@@ -855,7 +874,11 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .reserve-card .stat-value { font: 500 1.8rem/1.25 var(--font-serif); margin: 0; }
 .reserve-card p { margin: 0; color: var(--muted); font-size: 0.8rem; }
 .reserve-balances small { display: block; grid-column: 1 / -1; color: var(--muted); font-size: 0.75rem; }
-.budget-card { --budget-color: var(--accent); background: var(--panel-alt); }
+.budget-card {
+  --budget-color: var(--accent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--budget-color) 7%, var(--panel-alt)), var(--panel-alt) 70%);
+  border-top: 2px solid var(--budget-color);
+}
 .budget-card[data-state="near"] { --budget-color: var(--gold); }
 .budget-card[data-state="over"] { --budget-color: var(--danger); }
 .budget-card h2 { font: 600 0.9rem/1.4 var(--font-sans); margin: 0; }
@@ -1202,6 +1225,23 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
   margin: 1rem 0;
 }
 .health-score h2 { margin-top: 0; }
+.quick-setup { display: grid; gap: 0.85rem; border-left: 3px solid var(--accent); }
+.quick-setup-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.quick-setup-heading h2 { margin: 0; }
+.quick-setup-heading p { margin: 0.35rem 0 0; }
+.quick-setup-progress { height: 0.5rem; overflow: hidden; border-radius: 999px; background: var(--border); }
+.quick-setup-progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.2s ease; }
+.quick-setup-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; margin: 0; padding: 0; list-style: none; }
+.quick-setup-steps li { display: flex; align-items: flex-start; gap: 0.6rem; min-width: 0; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.quick-setup-step-marker { display: grid; flex: 0 0 1.5rem; width: 1.5rem; height: 1.5rem; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--muted); font-size: 0.8rem; font-weight: 700; }
+.quick-setup-steps .is-complete .quick-setup-step-marker { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent); }
+.quick-setup-steps li > span:last-child { display: grid; gap: 0.2rem; min-width: 0; }
+.quick-setup-steps strong { font-size: 0.84rem; }
+.quick-setup-steps small { color: var(--muted); font-size: 0.77rem; line-height: 1.4; }
+.quick-setup-progress-label { flex: 0 0 auto; color: var(--muted); font-size: 0.82rem; font-weight: 600; }
+.quick-setup-next { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; justify-self: start; min-height: 44px; padding: 0.6rem 0.9rem; border-radius: 8px; background: var(--accent); color: var(--accent-contrast); font-weight: 600; text-decoration: none; }
+.quick-setup-next:hover { filter: brightness(1.08); }
+.quick-setup-next:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .score-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.9rem; margin: 0.75rem 0; }
 .score-item-head { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.83rem; color: var(--muted); margin-bottom: 0.35rem; }
 .score-item-head strong { color: var(--text); font-weight: 600; }
@@ -1970,6 +2010,7 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
 
 /* ---------- Dashboard: debt-free + bills ---------- */
 .dashboard-insights-grid { grid-area: insights; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1rem; margin: 0; }
+.bills-card { border-top: 2px solid var(--accent); background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 5%, var(--panel)), var(--panel) 70%); }
 .debt-free-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.75rem 1rem; margin: 0.9rem 0 1rem; }
 .debt-free-head > div { display: grid; gap: 0.25rem; min-width: 0; }
 .debt-free-head > div:last-child { text-align: right; }
@@ -2119,7 +2160,9 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .mobile-nav a:focus-visible, .mobile-nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .toast-stack { bottom: calc(5rem + env(safe-area-inset-bottom)); }
   .update-banner { bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
-  .position-summary-grid { grid-template-columns: 1fr; grid-template-areas: "position" "actions" "allocation" "insights" "annual"; }
+  .position-summary-grid { grid-template-columns: 1fr; grid-template-areas: "position" "actions" "insights" "allocation" "annual"; }
+  .quick-setup-heading { flex-direction: column; gap: 0.3rem; }
+  .quick-setup-steps { grid-template-columns: minmax(0, 1fr); }
   .dashboard-card { padding: 1rem; }
   .dashboard-card .stat { min-height: 5rem; }
   .hero-headline { padding: 0 0 0.9rem; }
@@ -2399,6 +2442,12 @@ p.empty:not(:empty) {
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
 }
+@media (max-width: 900px) {
+  .topbar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
 .assistant-shortcut, .nav-toggle {
   transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
 }
@@ -2488,7 +2537,6 @@ function bindPasswordVisibility(input, button) {
     const label = visible ? 'Hide password' : 'Show password';
     button.setAttribute('aria-label', label);
     button.setAttribute('aria-pressed', String(visible));
-    button.title = label;
     setHTML(button, visibilityIcon(!visible));
   }
   input.type = 'password';
@@ -5801,24 +5849,30 @@ WR.ui = WR.ui || {};
     });
   }
 
-  const PRIMARY_NAV_ITEMS = [
+  const MONEY_NAV_ITEMS = [
     { hash: '#/dashboard', label: 'Dashboard' },
-    { hash: '#/notifications', label: 'Notifications' },
+    { hash: '#/transactions', label: 'Transactions' },
     { hash: '#/income', label: 'Income' },
     { hash: '#/fixed-expenses', label: 'Fixed Expenses' },
-    { hash: '#/savings', label: 'Savings' },
-    { hash: '#/transactions', label: 'Transactions' },
     { hash: '#/variable-expenses', label: 'Variable Expenses' },
     { hash: '#/debts', label: 'Debts' },
+    { hash: '#/savings', label: 'Savings' },
     { hash: '#/wealth', label: 'Wealth' },
+  ];
+
+  const PLANNING_NAV_ITEMS = [
     { hash: '#/goals', label: 'Goals' },
-    { hash: '#/reports', label: 'Reports' },
     { hash: '#/settings', label: 'Settings' },
   ];
 
-  const SECONDARY_NAV_ITEMS = [{ hash: '#/assistant', label: 'Ask AI' }];
+  const INSIGHT_NAV_ITEMS = [
+    { hash: '#/reports', label: 'Reports' },
+    { hash: '#/assistant', label: 'Ask AI' },
+  ];
 
-  const NAV_ITEMS = PRIMARY_NAV_ITEMS.concat(SECONDARY_NAV_ITEMS);
+  const NOTIFICATIONS_NAV_ITEM = { hash: '#/notifications', label: 'Notifications' };
+
+  const NAV_ITEMS = [...MONEY_NAV_ITEMS, ...PLANNING_NAV_ITEMS, ...INSIGHT_NAV_ITEMS, NOTIFICATIONS_NAV_ITEM];
 
   // A handful of the most-used destinations, always visible in the topbar on
   // wider screens. Everything else (including these, for keyboard/mobile
@@ -6059,12 +6113,12 @@ WR.ui = WR.ui || {};
       if (MOBILE_NAV_HASHES.includes(i.hash)) classes.push('in-mobile-nav');
       return `<a href="${i.hash}" data-hash="${i.hash}"${classes.length ? ` class="${classes.join(' ')}"` : ''}>${WR.ui.escapeText(i.label)}</a>`;
     };
-    const primaryNavLinks = PRIMARY_NAV_ITEMS.map(navLink).join('');
-    const secondaryNavLinks = SECONDARY_NAV_ITEMS.map(navLink).join('');
+    const navSection = (label, items) => `<div class="nav-section-title" role="heading" aria-level="2">${label}</div>${items.map(navLink).join('')}`;
     const nav = `
-      <div class="nav-section-title">Core</div>
-      ${primaryNavLinks}
-      ${secondaryNavLinks}
+      ${navSection('Money', MONEY_NAV_ITEMS)}
+      ${navSection('Planning', PLANNING_NAV_ITEMS)}
+      ${navSection('Insights', INSIGHT_NAV_ITEMS)}
+      ${navLink(NOTIFICATIONS_NAV_ITEM)}
       <div class="nav-divider"></div>
       <a href="${SUPPORT_WHATSAPP_URL}" target="_blank" rel="noopener noreferrer" class="nav-support-link">
         <svg class="nav-support-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.5-.2Z"/></svg>
@@ -6496,6 +6550,56 @@ WR.ui = WR.ui || {};
     </section>`;
   }
 
+  function getDashboardSetupSteps(snapshot) {
+    return [
+      {
+        title: 'Add income',
+        description: 'Add expected or recurring income.',
+        action: 'Add income',
+        href: '#/income',
+        complete: Number(snapshot.cashflow.income) > 0,
+      },
+      {
+        title: 'Record an expense',
+        description: 'Record an expense to reflect your spending.',
+        action: 'Record an expense',
+        href: '#/transactions',
+        complete: Number(snapshot.cashflow.totalExpenses) > 0,
+      },
+      {
+        title: 'Set a monthly budget',
+        description: 'Add a planned monthly spending amount.',
+        action: 'Set a budget',
+        href: '#/variable-expenses',
+        complete: snapshot.budgetLines.some((line) => line.type !== 'income' && Number(line.budgetAmount) > 0),
+      },
+    ];
+  }
+
+  function renderDashboardSetupChecklist(steps) {
+    const completedSteps = steps.filter((step) => step.complete).length;
+    const nextStep = steps.find((step) => !step.complete);
+    if (!nextStep) return '';
+    return `
+      <section class="health-score quick-setup" aria-labelledby="quick-setup-title">
+        <div class="quick-setup-heading">
+          <div><h2 id="quick-setup-title">Get started</h2><p class="fine-print">A few basics help make your dashboard more useful.</p></div>
+          <span class="quick-setup-progress-label" aria-live="polite">${completedSteps} of ${steps.length} complete</span>
+        </div>
+        <div class="quick-setup-progress" role="progressbar" aria-label="Getting started progress" aria-valuemin="0" aria-valuemax="${steps.length}" aria-valuenow="${completedSteps}" aria-valuetext="${completedSteps} of ${steps.length} steps complete">
+          <span style="width: ${completedSteps / steps.length * 100}%"></span>
+        </div>
+        <ol class="quick-setup-steps" aria-label="Getting started checklist">
+          ${steps.map((step, index) => `
+            <li class="${step.complete ? 'is-complete' : ''}">
+              <span class="quick-setup-step-marker" aria-hidden="true">${step.complete ? '✓' : index + 1}</span>
+              <span><strong>${escapeText(step.title)}</strong><small>${step.complete ? 'Complete' : escapeText(step.description)}</small></span>
+            </li>`).join('')}
+        </ol>
+        <a class="quick-setup-next" href="${escapeText(nextStep.href)}">Next: ${escapeText(nextStep.action)} <span aria-hidden="true">→</span></a>
+      </section>`;
+  }
+
   async function renderDashboard(container, options = {}) {
     const [paydayProfile, paydayCycles] = await Promise.all([WR.ui.getOrCreateProfile(), WR.repos.payCycles.getAll()]);
     WR.ui.assertActiveView(container);
@@ -6505,6 +6609,7 @@ WR.ui = WR.ui || {};
     WR.ui.assertActiveView(container);
     const currency = s.profile.baseCurrency;
     const setupComplete = WR.ui.hasEnoughFinancialData(s);
+    const setupSteps = getDashboardSetupSteps(s);
     await ensureMonthlyNetWorthSnapshot(s);
     const debtProgress = calculateDebtFreeProgress(s);
     const hasDueDays = s.fixedExpenses.some((e) => Number(e.dueDay) > 0) || s.debts.some((d) => Number(d.dueDay) > 0);
@@ -6614,18 +6719,7 @@ WR.ui = WR.ui || {};
 
     WR.ui.setHTML(container, `
       ${s.currencyWarnings.length ? `<p class="warning">Totals are incomplete. Add exchange rates from ${escapeText(s.currencyWarnings.join(', '))} to ${escapeText(currency)} in <a href="#/settings">Settings</a>.</p>` : ''}
-      ${setupComplete ? '' : `
-      <section class="health-score">
-        <h2>Quick Setup</h2>
-        <p class="fine-print">Your financial summary starts with income and expenses.</p>
-        <div class="toolbar">
-          <button id="setup-go-transactions">Set Monthly Budget</button>
-          <button id="setup-go-debts" class="secondary">Add Debt</button>
-          <button id="setup-go-assets" class="secondary">Add Asset</button>
-          <button id="setup-go-settings" class="secondary">Open Settings</button>
-        </div>
-      </section>
-      `}
+      ${renderDashboardSetupChecklist(setupSteps)}
 
       <header class="dashboard-heading">
         <div><p class="greeting">${escapeText(greeting(s.profile.displayName || WR.account.getUsername()))}</p><h1>Your money at a glance</h1></div>
@@ -6860,12 +6954,6 @@ WR.ui = WR.ui || {};
       }
     });
 
-    if (!setupComplete) {
-      document.getElementById('setup-go-transactions')?.addEventListener('click', () => { window.location.hash = '#/variable-expenses'; });
-      document.getElementById('setup-go-debts')?.addEventListener('click', () => { window.location.hash = '#/debts'; });
-      document.getElementById('setup-go-assets')?.addEventListener('click', () => { window.location.hash = '#/assets'; });
-      document.getElementById('setup-go-settings')?.addEventListener('click', () => { window.location.hash = '#/settings'; });
-    }
   }
 
   WR.ui.fmt = fmt;
@@ -12339,7 +12427,7 @@ WR.ui = WR.ui || {};
             ${isReset ? '' : `<div class="auth-provider-buttons"><button type="button" id="auth-google-btn" class="auth-google-btn">${googleIcon()} Continue with Google</button>${WR.account.appleSignInAvailable() ? `<button type="button" id="auth-apple-btn" class="auth-google-btn auth-apple-btn">${appleIcon()} Continue with Apple</button>` : ''}</div>`}
             ${isSignup ? '<div class="auth-divider"><span>or sign up with email</span></div>' : ''}
               <p id="auth-error" class="auth-error" role="alert"></p>
-              ${!isSignup && !isReset ? '<details class="auth-email-recovery"><summary>Use email instead</summary>' : ''}
+              ${!isSignup && !isReset ? '<details class="auth-email-recovery"><summary>Use email and password</summary>' : ''}
 
             <form id="auth-form" class="auth-form" novalidate>
               <label>Email
@@ -12348,7 +12436,7 @@ WR.ui = WR.ui || {};
               ${isReset ? '' : `<label for="auth-password-input">Password</label>
               <div class="password-field">
                 <input type="password" id="auth-password-input" autocomplete="${isSignup ? 'new-password' : 'current-password'}" ${isSignup ? 'aria-describedby="auth-password-help" title="Use at least 8 characters, including a lowercase letter and a number."' : ''} required>
-                <button type="button" id="auth-password-toggle" class="visibility-toggle" aria-controls="auth-password-input" aria-label="Show password" title="Show password">${WR.ui.visibilityIcon(true)}</button>
+                <button type="button" id="auth-password-toggle" class="visibility-toggle" aria-controls="auth-password-input" aria-label="Show password">${WR.ui.visibilityIcon(true)}</button>
               </div>${isSignup ? '<p id="auth-password-help" class="fine-print">At least 8 characters, including a lowercase letter and a number. Symbols are welcome.</p>' : ''}`}
               <p id="auth-reset-status" class="fine-print" role="status"></p>
               <button type="submit" id="auth-submit-btn">${isReset ? 'Send reset link' : isSignup ? 'Sign up' : 'Log in'}</button>
