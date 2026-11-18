@@ -1,14 +1,17 @@
 {
   "name": "wealth-route",
-  "version": "3.1.0",
+  "version": "3.3.0",
   "scripts": {
     "build": "node scripts/check-app.js --prepare",
     "test": "node scripts/check-app.js",
+    "push:keys": "node scripts/generate-vapid-keys.mjs",
+    "push:keys:check": "node scripts/generate-vapid-keys.mjs --check",
     "test:rules": "firebase emulators:exec --project demo-wealthroute --only firestore \"node scripts/test-firestore-rules.js\""
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.2.2",
-    "jose": "^6.1.0"
+    "jose": "^6.1.0",
+    "webpush-webcrypto": "^1.0.5"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",

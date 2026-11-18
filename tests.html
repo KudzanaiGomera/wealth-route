@@ -7,7 +7,7 @@
     <style>body { font-family: system-ui, -apple-system, sans-serif; max-width: 700px; margin: 3rem auto; padding: 0 1.5rem; color: #1a1a1a; }</style>
   </head>
   <body>
-    <h1>WealthRoute 3.1 &mdash; Full test suite</h1>
+    <h1>WealthRoute 3.3 &mdash; Full test suite</h1>
     <div id="results"></div>
     <script src="vendor/purify.min.js"></script>
     <script>
@@ -161,6 +161,7 @@ window.WR = window.WR || {};
     investments: createRepository('investments'),
     netWorthSnapshots: createRepository('netWorthSnapshots'),
     exchangeRates: createRepository('exchangeRates'),
+    notifications: createRepository('notifications'),
   };
 
   WR.queries = {
@@ -1868,6 +1869,17 @@ WR.testRuns.push(
 
     const all = await WR.repos.incomeSources.getAll();
     expect(all).toHaveLength(0);
+  });
+
+  await resetDB();
+  await test('notifications > persists, marks read, and removes an account notification', async () => {
+    const item = { id: 'test-notification', title: 'Bill due soon', message: 'A payment is due shortly.', createdAt: new Date().toISOString(), readAt: null };
+    await WR.repos.notifications.add(item);
+    expect((await WR.repos.notifications.getById(item.id)).readAt).toBe(null);
+    await WR.repos.notifications.update({ ...item, readAt: new Date().toISOString() });
+    expect((await WR.repos.notifications.getById(item.id)).readAt).toBeTruthy();
+    await WR.repos.notifications.remove(item.id);
+    expect(await WR.repos.notifications.getById(item.id)).toBeUndefined();
   });
 
   // --- debt payments by debt (index query) ------------------------------

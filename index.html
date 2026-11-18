@@ -41,7 +41,7 @@
   --gold: #8a6018;
   --danger: #a6332b;
   --success: #2e7d4f;
-  --shadow: 0 1px 2px rgba(23, 26, 25, 0.04);
+  --shadow: 0 8px 24px rgba(23, 26, 25, 0.055);
   --radius-control: 8px;
   --radius-card: 12px;
   --surface-gap: 1rem;
@@ -65,7 +65,7 @@
   --gold: #dcab52;
   --danger: #e2685f;
   --success: #59c48a;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
 
   --chart-1: #34b493;
   --chart-2: #dcab52;
@@ -602,6 +602,27 @@ button, a, input, select, textarea {
   text-decoration: none;
 }
 .assistant-shortcut:hover { border-color: var(--accent); }
+.assistant-shortcut.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); background: color-mix(in srgb, var(--accent) 9%, var(--panel)); }
+.notification-shortcut { position: relative; }
+.notification-shortcut svg { width: 19px; height: 19px; }
+.notification-count {
+  position: absolute;
+  top: -0.28rem;
+  right: -0.3rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.25rem;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--panel);
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.notification-count[hidden] { display: none; }
 
 #content { width: 100%; max-width: 1280px; margin: 0 auto; padding: 1.35rem clamp(1rem, 3vw, 2rem) 2.5rem; }
 #content > section { animation: sectionIn 220ms ease-out; }
@@ -2084,7 +2105,8 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .topbar.nav-open .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(0, 0, 0, 0.5); touch-action: none; }
   #content { padding: 0.95rem 1rem calc(6.5rem + env(safe-area-inset-bottom)); min-width: 0; }
   .topbar .nav-controls { display: none; }
-  .topbar .assistant-shortcut { margin-left: auto; width: 44px; height: 44px; }
+  .topbar .notification-shortcut { margin-left: auto; width: 44px; height: 44px; }
+  .topbar .assistant-shortcut { margin-left: 0; width: 44px; height: 44px; }
   #nav a.in-mobile-nav { display: none; }
   .mobile-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; padding: 0.3rem max(0.3rem, env(safe-area-inset-right)) calc(0.3rem + env(safe-area-inset-bottom)) max(0.3rem, env(safe-area-inset-left)); gap: 0.2rem; background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.14); }
   :root[data-editing="true"] .mobile-nav { display: none; }
@@ -2168,8 +2190,9 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .topbar .nav-account { order: 0; margin-left: 0; }
   .topbar .nav-wide-actions { order: 1; }
   .topbar .nav-controls { order: 2; margin-left: auto; }
-  .topbar .assistant-shortcut { order: 3; margin-left: 0; }
-  .topbar .nav-toggle, .topbar .assistant-shortcut { width: 40px; height: 40px; }
+  .topbar .notification-shortcut { order: 3; margin-left: 0; }
+  .topbar .assistant-shortcut { order: 4; margin-left: 0; }
+  .topbar .nav-toggle, .topbar .assistant-shortcut, .topbar .notification-shortcut { width: 40px; height: 40px; }
   /* Same links are already on the horizontal bar at this width, so hide the
      duplicate entries in the dropdown; mobile (no horizontal bar) still needs them. */
   #nav a.in-horizontal-nav { display: none; }
@@ -2358,6 +2381,79 @@ p.empty:not(:empty) {
   button:not(:disabled):not(.link-btn):hover, .dashboard-actions a:hover {
     transform: translateY(-1px);
   }
+}
+/* Shared, theme-aware surfaces keep the many financial sections visually related. */
+.dashboard-card, .chart-block, .pie-card, .health-score, .suggestions-card,
+.debt-calendar-card, .report-card, .settings-page > .settings-card,
+.savings-total-card, .account-summary, .ef-summary, .money-owed-card,
+.debt-list-card, .goal-card, .pot-card, .ef-account-card,
+.day-suggestion-card, .copy-budget-card, .payoff-results {
+  border-color: color-mix(in srgb, var(--accent) 12%, var(--border));
+  border-radius: 16px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 3%, var(--panel)), var(--panel) 58%);
+  box-shadow: var(--shadow);
+}
+.topbar {
+  background: color-mix(in srgb, var(--panel) 92%, var(--bg));
+  border-bottom-color: color-mix(in srgb, var(--accent) 12%, var(--border));
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.assistant-shortcut, .nav-toggle {
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.assistant-shortcut:hover, .nav-toggle:hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  transform: translateY(-1px);
+}
+
+.notifications-page { max-width: 920px; margin: 0 auto; }
+.notifications-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.notifications-heading h1 { margin: 0; font-family: var(--font-serif); font-size: clamp(1.7rem, 3vw, 2.25rem); }
+.notifications-heading > div:first-child > p:last-child { margin: 0.35rem 0 0; color: var(--muted); line-height: 1.5; }
+.page-eyebrow, .notification-eyebrow { margin: 0 0 0.35rem; color: var(--accent); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.notifications-actions, .notification-item-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.notification-preferences { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; padding: 1rem 1.1rem; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border)); border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--panel)), var(--panel)); }
+.notification-preferences h2 { margin: 0; font-size: 1rem; }
+.notification-preferences p { margin: 0.35rem 0 0; color: var(--muted); font-size: 0.86rem; line-height: 1.5; }
+.notification-preferences .fine-print { font-size: 0.76rem; }
+.notification-preferences button, .notifications-actions button, .notification-item-actions button { min-height: 42px; }
+.notification-preference-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem 1.5rem; margin-bottom: 1rem; padding: 1rem 1.1rem; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); }
+.notification-preference-heading h2 { margin: 0; font-size: 1rem; }
+.notification-preference-heading p { margin: 0.35rem 0 0; color: var(--muted); font-size: 0.86rem; line-height: 1.45; }
+.notification-preference-options { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; }
+.notification-preference-options label, .notification-quiet-toggle { display: inline-flex; align-items: center; gap: 0.55rem; min-height: 44px; color: var(--text); font-size: 0.88rem; cursor: pointer; }
+.notification-preference-options input, .notification-quiet-toggle input { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); }
+.notification-quiet-hours { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, minmax(7rem, 0.35fr)); align-items: center; gap: 0.65rem 1rem; padding-top: 0.8rem; border-top: 1px solid var(--border); }
+.notification-quiet-hours > label:not(.notification-quiet-toggle) { display: grid; gap: 0.3rem; color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+.notification-quiet-hours input[type="time"] { width: 100%; min-height: 42px; }
+.notification-quiet-hours .fine-print { grid-column: 1 / -1; margin: 0; }
+.notification-list { display: grid; gap: 0.7rem; margin: 0; padding: 0; list-style: none; }
+.notification-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; border: 1px solid var(--border); border-radius: 15px; background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 2%, var(--panel)), var(--panel)); box-shadow: var(--shadow); }
+.notification-item.is-unread { border-inline-start: 4px solid var(--accent); background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 8%, var(--panel)), var(--panel) 70%); }
+.notification-item-copy { min-width: 0; }
+.notification-item-copy h2 { margin: 0; font-size: 1rem; }
+.notification-item-copy h2 a { color: var(--text); text-decoration: none; }
+.notification-item-copy h2 a:hover { color: var(--accent); }
+.notification-item-copy > p:last-child { margin: 0.3rem 0 0; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
+.notification-eyebrow { color: var(--muted); font-size: 0.68rem; }
+.notification-item-actions { flex: 0 0 auto; }
+.notification-empty { display: grid; justify-items: center; padding: clamp(2rem, 8vw, 4rem) 1rem; border: 1px dashed var(--border); border-radius: 16px; background: var(--panel); text-align: center; }
+.notification-empty-icon { display: grid; place-items: center; width: 2.8rem; height: 2.8rem; margin-bottom: 0.8rem; border-radius: 50%; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent); font-size: 1.2rem; font-weight: 700; }
+.notification-empty h2 { margin: 0; font-size: 1.05rem; }
+.notification-empty p { max-width: 28rem; margin: 0.4rem 0 0; color: var(--muted); line-height: 1.5; }
+
+@media (max-width: 680px) {
+  .notifications-heading { align-items: flex-start; flex-direction: column; }
+  .notifications-actions { width: 100%; }
+  .notifications-actions button { flex: 1 1 8rem; }
+  .notification-preferences, .notification-item { align-items: stretch; flex-direction: column; }
+  .notification-preference-card { grid-template-columns: 1fr; gap: 0.65rem; }
+  .notification-quiet-hours { grid-template-columns: 1fr 1fr; }
+  .notification-quiet-toggle { grid-column: 1 / -1; }
+  .notification-preferences button { width: 100%; }
+  .notification-item-actions button { flex: 1 1 8rem; }
+  .notification-item, .notification-preferences { border-radius: 13px; }
 }
     </style>
   </head>
@@ -2644,6 +2740,7 @@ window.WR = window.WR || {};
     netWorthSnapshots: createRepository('netWorthSnapshots'),
     exchangeRates: createRepository('exchangeRates'),
     assistantChats: createRepository('assistantChats'),
+    notifications: createRepository('notifications'),
   };
 
   WR.queries = {
@@ -2669,6 +2766,433 @@ window.WR = window.WR || {};
       const snap = fresh ? await api.getDocsFromServer(ref).catch(() => readDocs(api, ref, key)) : await readDocs(api, ref, key);
       return snap.docs.map((d) => d.data());
     },
+  };
+})();
+
+// Account-scoped notification storage and the foreground browser alert bridge.
+window.WR = window.WR || {};
+(function () {
+  const STORAGE_PREFIX = 'wr_notification_preferences_';
+  let userId = null;
+  let unsubscribe = null;
+  let records = [];
+  let initialized = false;
+  const listeners = new Set();
+  const deferredAlerts = new Map();
+  let deferredAlertTimer = null;
+
+  function defaultPreferences() {
+    return { enabled: false, bills: true, debtPayments: true, quietHours: false, quietStart: '22:00', quietEnd: '07:00' };
+  }
+
+  function getPreferences() {
+    const user = WR.account.getCurrentUser();
+    if (!user) return defaultPreferences();
+    try {
+      const key = `${STORAGE_PREFIX}${user.uid}`;
+      const stored = localStorage.getItem(key);
+      if (!stored && localStorage.getItem(`wr_notification_alerts_${user.uid}`) === '1') {
+        return { ...defaultPreferences(), enabled: true };
+      }
+      const saved = stored === '1' ? { enabled: true } : JSON.parse(stored || '{}');
+      return {
+        ...defaultPreferences(),
+        ...saved,
+        enabled: saved.enabled === true,
+        bills: saved.bills !== false,
+        debtPayments: saved.debtPayments !== false,
+        quietHours: saved.quietHours === true,
+        quietStart: /^([01]\d|2[0-3]):[0-5]\d$/.test(saved.quietStart) ? saved.quietStart : '22:00',
+        quietEnd: /^([01]\d|2[0-3]):[0-5]\d$/.test(saved.quietEnd) ? saved.quietEnd : '07:00',
+      };
+    } catch (error) {
+      console.warn('Notification preferences could not be read', error);
+      return defaultPreferences();
+    }
+  }
+
+  function savePreferences(preferences) {
+    const user = WR.account.getCurrentUser();
+    if (!user) throw new Error('Sign in to update notification preferences.');
+    localStorage.setItem(`${STORAGE_PREFIX}${user.uid}`, JSON.stringify(preferences));
+    localStorage.removeItem(`wr_notification_alerts_${user.uid}`);
+  }
+
+  function alertTypeEnabled(item, preferences = getPreferences()) {
+    if (item.type === 'debt-payment') return preferences.debtPayments;
+    if (item.type === 'bill') return preferences.bills;
+    return false;
+  }
+
+  function quietHoursDelay(preferences, now = new Date()) {
+    if (!preferences.quietHours) return 0;
+    const [startHour, startMinute] = preferences.quietStart.split(':').map(Number);
+    const [endHour, endMinute] = preferences.quietEnd.split(':').map(Number);
+    const start = startHour * 60 + startMinute;
+    const end = endHour * 60 + endMinute;
+    if (start === end) return 24 * 60 * 60 * 1000;
+    const current = now.getHours() * 60 + now.getMinutes();
+    const inQuietPeriod = start < end ? current >= start && current < end : current >= start || current < end;
+    if (!inQuietPeriod) return 0;
+    const endDate = new Date(now);
+    endDate.setHours(endHour, endMinute, 0, 0);
+    if (endDate <= now) endDate.setDate(endDate.getDate() + 1);
+    return endDate.getTime() - now.getTime();
+  }
+
+  function scheduleDeferredAlerts() {
+    clearTimeout(deferredAlertTimer);
+    if (!deferredAlerts.size) return;
+    const preferences = getPreferences();
+    const delay = quietHoursDelay(preferences);
+    if (!preferences.enabled || !('Notification' in window) || Notification.permission !== 'granted') {
+      deferredAlerts.clear();
+      return;
+    }
+    if (!delay) {
+      const pending = [...deferredAlerts.values()];
+      deferredAlerts.clear();
+      pending.forEach((item) => showSystemAlertNow(item));
+      return;
+    }
+    deferredAlertTimer = setTimeout(scheduleDeferredAlerts, delay);
+  }
+
+  function emit() {
+    listeners.forEach((listener) => listener(records));
+    const badge = document.getElementById('notification-count');
+    if (!badge) return;
+    const unread = records.reduce((count, item) => count + (item.readAt ? 0 : 1), 0);
+    badge.textContent = unread > 99 ? '99+' : String(unread);
+    badge.hidden = unread === 0;
+    badge.setAttribute('aria-label', `${unread} unread notification${unread === 1 ? '' : 's'}`);
+  }
+
+  function isAlertEnabled() {
+    const user = WR.account.getCurrentUser();
+    return !!user && getPreferences().enabled
+      && 'Notification' in window && Notification.permission === 'granted';
+  }
+
+  async function showSystemAlert(item) {
+    const preferences = getPreferences();
+    if (!isAlertEnabled() || !alertTypeEnabled(item, preferences) || !('serviceWorker' in navigator)) return;
+    if (quietHoursDelay(preferences)) {
+      deferredAlerts.set(item.id, item);
+      scheduleDeferredAlerts();
+      return;
+    }
+    await showSystemAlertNow(item);
+  }
+
+  async function showSystemAlertNow(item) {
+    if (!isAlertEnabled() || !alertTypeEnabled(item) || !('serviceWorker' in navigator)) return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification(item.title, {
+        body: 'You have an upcoming payment. Open WealthRoute to review it.',
+        tag: `wealthroute-${item.id}`,
+        icon: './icon-192.png',
+        badge: './favicon-32.png',
+        data: { url: './#/notifications' },
+      });
+    } catch (error) {
+      console.warn('System notification could not be displayed', error);
+      WR.ui.notify('A device alert could not be displayed. Check your browser notification settings.', 'error');
+    }
+  }
+
+  function start() {
+    const user = WR.account.getCurrentUser();
+    if (!user) { stop(); return; }
+    if (userId === user.uid && unsubscribe) return;
+    stop();
+    userId = user.uid;
+    initialized = false;
+    records = [];
+    const api = WR.account.getFirestoreApi();
+    const db = WR.account.getDb();
+    const ref = api.collection(db, 'users', user.uid, 'notifications');
+    unsubscribe = api.onSnapshot(ref, (snapshot) => {
+      const added = initialized
+        ? snapshot.docChanges().filter((change) => change.type === 'added').map((change) => ({ ...change.doc.data(), id: change.doc.id }))
+        : [];
+      records = snapshot.docs.map((document) => ({ ...document.data(), id: document.id }))
+        .sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')));
+      initialized = true;
+      emit();
+      added.forEach((item) => { showSystemAlert(item); });
+    }, (error) => {
+      console.error('Notification listener failed', error);
+      WR.ui.notify('Could not refresh notifications. Please reload or check your connection.', 'error');
+    });
+  }
+
+  function stop() {
+    unsubscribe?.();
+    unsubscribe = null;
+    userId = null;
+    initialized = false;
+    records = [];
+    deferredAlerts.clear();
+    clearTimeout(deferredAlertTimer);
+    deferredAlertTimer = null;
+    emit();
+  }
+
+  function subscribe(listener) {
+    listeners.add(listener);
+    listener(records);
+    return () => listeners.delete(listener);
+  }
+
+  function getAll() {
+    return records.slice();
+  }
+
+  async function pushApi(path, method = 'POST', body) {
+    const user = WR.account.getCurrentUser();
+    const workerUrl = WR.account.getPasskeyWorkerUrl();
+    if (!user || !workerUrl) throw new Error('Background notifications are not configured for this account.');
+    const headers = { Authorization: `Bearer ${await user.getIdToken()}` };
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    let response;
+    try {
+      response = await fetch(`${workerUrl}${path}`, {
+        method,
+        headers,
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      });
+    } catch (error) {
+      throw new Error('Cannot reach the background notification service. Check your connection and try again.');
+    }
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Background notification service is unavailable.');
+    return result;
+  }
+
+  function decodePushKey(value) {
+    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(base64 + '='.repeat((4 - base64.length % 4) % 4));
+    return Uint8Array.from(binary, character => character.charCodeAt(0));
+  }
+
+  function pushPreferencesPayload() {
+    return {
+      ...getPreferences(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    };
+  }
+
+  async function getPushSubscription() {
+    if (!('PushManager' in window) || !('serviceWorker' in navigator)) return null;
+    const registration = await navigator.serviceWorker.ready;
+    return registration.pushManager.getSubscription();
+  }
+
+  async function enablePush() {
+    if (!('PushManager' in window) || !('serviceWorker' in navigator) || !('Notification' in window)) {
+      throw new Error('Background notifications are not supported in this browser.');
+    }
+    if (Notification.permission === 'default' && await Notification.requestPermission() !== 'granted') {
+      throw new Error('Notification permission was not granted. Change it in your browser or device settings.');
+    }
+    if (Notification.permission !== 'granted') throw new Error('Notification permission is blocked in your browser or device settings.');
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    let createdSubscription = false;
+    try {
+      if (!subscription) {
+        const { publicKey } = await pushApi('/notifications/config', 'GET');
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: decodePushKey(publicKey),
+        });
+        createdSubscription = true;
+      }
+      await pushApi('/notifications/subscriptions', 'POST', {
+        subscription: subscription.toJSON(),
+        preferences: pushPreferencesPayload(),
+      });
+      return true;
+    } catch (error) {
+      if (createdSubscription && subscription) {
+        try { await subscription.unsubscribe(); }
+        catch (cleanupError) { console.warn('Unregistered push subscription cleanup failed', cleanupError); }
+      }
+      throw error;
+    }
+  }
+
+  async function disablePush() {
+    const subscription = await getPushSubscription();
+    if (!subscription) return;
+    await pushApi('/notifications/subscriptions', 'DELETE', { endpoint: subscription.endpoint });
+    await subscription.unsubscribe();
+  }
+
+  async function removePushOnSignOut() {
+    let subscription;
+    try { subscription = await getPushSubscription(); }
+    catch (error) {
+      console.warn('Could not inspect push subscription during sign-out', error);
+      return;
+    }
+    if (!subscription) return;
+    try { await pushApi('/notifications/subscriptions', 'DELETE', { endpoint: subscription.endpoint }); }
+    catch (error) { console.warn('Could not remove push subscription during sign-out', error); }
+    try { await subscription.unsubscribe(); }
+    catch (error) { console.warn('Could not unsubscribe push subscription during sign-out', error); }
+  }
+
+  async function syncPushPreferences() {
+    if (await getPushSubscription()) await pushApi('/notifications/preferences', 'POST', pushPreferencesPayload());
+  }
+
+  async function queuePushReminders(bills) {
+    const subscription = await getPushSubscription();
+    if (!subscription) return;
+    const now = Date.now();
+    const dueSoon = bills.filter(bill => !bill.paid && bill.daysAway <= 3 && bill.daysAway >= 0);
+    const reminders = dueSoon.map(bill => {
+      const dueAt = new Date(bill.due);
+      dueAt.setHours(9, 0, 0, 0);
+      const expiresAt = new Date(bill.due);
+      expiresAt.setHours(23, 59, 0, 0);
+      expiresAt.setDate(expiresAt.getDate() + 2);
+      return {
+        id: `bill-${bill.repo}-${bill.id}-${bill.monthKey}`,
+        type: bill.repo === 'debts' ? 'debt-payment' : 'bill',
+        dueAt: Math.max(Math.floor(dueAt.getTime() / 1000), Math.floor((now + 60_000) / 1000)),
+        expiresAt: Math.floor(expiresAt.getTime() / 1000),
+      };
+    });
+    const cancelIds = bills.filter(bill => bill.paid && bill.daysAway <= 3 && bill.daysAway >= -7)
+      .map(bill => `bill-${bill.repo}-${bill.id}-${bill.monthKey}`);
+    if (reminders.length || cancelIds.length) {
+      await pushApi('/notifications/reminders', 'POST', { reminders, cancelIds });
+    }
+  }
+
+  async function updateRead(id, readAt) {
+    const user = WR.account.getCurrentUser();
+    if (!user || user.uid !== userId) throw new Error('Sign in again to update notifications.');
+    const api = WR.account.getFirestoreApi();
+    const ref = api.doc(WR.account.getDb(), 'users', user.uid, 'notifications', id);
+    await WR.saves.trackSave(() => api.updateDoc(ref, { readAt }));
+  }
+
+  async function markRead(id) {
+    await updateRead(id, new Date().toISOString());
+  }
+
+  async function markUnread(id) {
+    await updateRead(id, null);
+  }
+
+  async function markAllRead() {
+    const unread = records.filter((item) => !item.readAt);
+    for (const item of unread) await markRead(item.id);
+  }
+
+  async function remove(id) {
+    const user = WR.account.getCurrentUser();
+    if (!user || user.uid !== userId) throw new Error('Sign in again to remove notifications.');
+    const api = WR.account.getFirestoreApi();
+    const ref = api.doc(WR.account.getDb(), 'users', user.uid, 'notifications', id);
+    await WR.saves.trackSave(() => api.deleteDoc(ref));
+  }
+
+  async function clearRead() {
+    const read = records.filter((item) => item.readAt);
+    for (const item of read) await remove(item.id);
+  }
+
+  async function enableSystemAlerts() {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      throw new Error('This browser does not support system notifications.');
+    }
+    const permission = Notification.permission === 'default'
+      ? await Notification.requestPermission()
+      : Notification.permission;
+    if (permission !== 'granted') throw new Error('Notification permission was not granted. Change it in your browser or device settings.');
+    savePreferences({ ...getPreferences(), enabled: true });
+  }
+
+  async function disableSystemAlerts() {
+    savePreferences({ ...getPreferences(), enabled: false });
+    deferredAlerts.clear();
+    clearTimeout(deferredAlertTimer);
+    deferredAlertTimer = null;
+  }
+
+  function systemAlertsEnabled() {
+    return isAlertEnabled();
+  }
+
+  function updatePreferences(changes) {
+    const next = { ...getPreferences(), ...changes };
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(next.quietStart) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(next.quietEnd)) {
+      throw new Error('Choose a valid quiet-hours start and end time.');
+    }
+    savePreferences(next);
+    scheduleDeferredAlerts();
+    return next;
+  }
+
+  async function syncBillReminders(bills) {
+    const user = WR.account.getCurrentUser();
+    if (!user || user.uid !== userId) return;
+    const api = WR.account.getFirestoreApi();
+    const db = WR.account.getDb();
+    const reminders = bills.filter((bill) => !bill.paid && bill.daysAway <= 3 && bill.daysAway >= -7);
+    for (const bill of reminders) {
+      if (WR.account.getCurrentUser()?.uid !== user.uid) return;
+      const id = `bill-${bill.repo}-${bill.id}-${bill.monthKey}`;
+      const ref = api.doc(db, 'users', user.uid, 'notifications', id);
+      if ((await api.getDoc(ref)).exists()) continue;
+      if (WR.account.getCurrentUser()?.uid !== user.uid) return;
+      const dueDate = `${bill.monthKey}-${String(bill.due.getDate()).padStart(2, '0')}`;
+      const when = bill.daysAway < 0 ? `overdue by ${Math.abs(bill.daysAway)} days`
+        : bill.daysAway === 0 ? 'due today'
+          : bill.daysAway === 1 ? 'due tomorrow' : `due in ${bill.daysAway} days`;
+      await api.runTransaction(db, async (transaction) => {
+        const existing = await transaction.get(ref);
+        if (existing.exists()) return;
+        transaction.set(ref, {
+          title: `${bill.kind} ${when}`,
+          message: `${bill.name} · ${bill.currency} ${Number(bill.amount).toFixed(2)} · ${dueDate}`,
+          type: bill.repo === 'debts' ? 'debt-payment' : 'bill',
+          href: '#/dashboard',
+          createdAt: new Date().toISOString(),
+          readAt: null,
+        });
+      });
+    }
+    await queuePushReminders(bills);
+  }
+
+  WR.notifications = {
+    start,
+    stop,
+    subscribe,
+    getAll,
+    getPushSubscription,
+    enablePush,
+    disablePush,
+    removePushOnSignOut,
+    syncPushPreferences,
+    markRead,
+    markUnread,
+    markAllRead,
+    remove,
+    clearRead,
+    getPreferences,
+    updatePreferences,
+    enableSystemAlerts,
+    disableSystemAlerts,
+    systemAlertsEnabled,
+    syncBillReminders,
   };
 })();
 // Core WealthRoute data model.
@@ -5279,6 +5803,7 @@ WR.ui = WR.ui || {};
 
   const PRIMARY_NAV_ITEMS = [
     { hash: '#/dashboard', label: 'Dashboard' },
+    { hash: '#/notifications', label: 'Notifications' },
     { hash: '#/income', label: 'Income' },
     { hash: '#/fixed-expenses', label: 'Fixed Expenses' },
     { hash: '#/savings', label: 'Savings' },
@@ -5576,6 +6101,10 @@ WR.ui = WR.ui || {};
             <span class="nav-toggle-bars"><span></span><span></span><span></span></span>
           </button>
         </div>
+        <a id="notification-shortcut" class="assistant-shortcut notification-shortcut" href="#/notifications" data-hash="#/notifications" aria-label="Notifications" title="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+          <span id="notification-count" class="notification-count" hidden></span>
+        </a>
         <a id="ask-ai-shortcut" class="assistant-shortcut" href="#/assistant" data-hash="#/assistant" aria-label="Ask AI" title="Ask AI">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"/></svg>
         </a>
@@ -5980,6 +6509,10 @@ WR.ui = WR.ui || {};
     const debtProgress = calculateDebtFreeProgress(s);
     const hasDueDays = s.fixedExpenses.some((e) => Number(e.dueDay) > 0) || s.debts.some((d) => Number(d.dueDay) > 0);
     const billOccurrences = upcomingBills(s, 7);
+    WR.notifications.syncBillReminders(billOccurrences).catch((error) => {
+      console.error('Could not create bill reminders', error);
+      WR.ui.notify('Could not save an upcoming-payment notification.', 'error');
+    });
     for (const bill of billOccurrences.filter((item) => !item.billStatuses[item.monthKey])) {
       const repo = WR.repos[bill.repo];
       const record = await repo.getById(bill.id);
@@ -10494,7 +11027,7 @@ window.WR = window.WR || {};
 WR.ui = WR.ui || {};
 
 (function () {
-  const APP_VERSION = '3.1.0';
+  const APP_VERSION = '3.3.0';
 
   function hardConfirm(actionLabel) {
     return new Promise((resolve) => {
@@ -10777,6 +11310,7 @@ WR.ui = WR.ui || {};
         <details class="settings-details">
           <summary>Release notes</summary>
           <ul>
+            <li>Version 3.3: Background push can deliver generic payment reminders while the app is closed, with per-type preferences and quiet hours. Device sound and display follow browser and operating-system settings.</li>
             <li>Version 3.1: Import CSV statements with editable review, duplicate detection, transfer warnings, spend-only imports, and whole-import Undo. Direct bank feeds are not connected.</li>
             <li>Possible recurring charges and budget-cycle reviews are suggestions only; they never change budgets automatically.</li>
             <li>Assets and Investments now use the shared sortable, filterable tables and render correctly.</li>
@@ -10784,7 +11318,7 @@ WR.ui = WR.ui || {};
             <li>Income retains Advance and Savings taken amounts. Spending budget on Transactions separates buffer allocations and dated top-ups from earnings.</li>
             <li>Hide or show dashboard balances, charts, and financial recommendation details with one privacy control. This device remembers the choice per account.</li>
             <li>Show or hide the password while logging in or signing up; passwords always start hidden.</li>
-            <li>Responsive two-column balance rows and touch-friendly controls in light and dark mode.</li>
+            <li>Theme-matched cards and touch-friendly controls in light and dark mode.</li>
             <li>Real accounts: email/password, Google, and Apple sign-in, with a required unique username.</li>
             <li>Data now lives in your account (Firestore), not this browser — log in from any device to see the same data, fully isolated per account.</li>
             <li>Every page is gated behind sign-in; nothing renders until you're authenticated.</li>
@@ -11642,6 +12176,7 @@ WR.account = {};
 
   async function signOutUser() {
     await ensureInit();
+    await WR.notifications.removePushOnSignOut();
     await authApi.signOut(auth);
     // Wipe Firestore's offline cache so the next person on this browser can't see this account's data.
     try {
@@ -12709,6 +13244,142 @@ WR.ui = WR.ui || {};
   WR.ui.renderSavingsPage = renderSavingsPage;
   WR.ui.renderWealth = renderWealth;
 })();
+// Notification center: Firestore-backed inbox plus browser-controlled OS alerts.
+window.WR = window.WR || {};
+WR.ui = WR.ui || {};
+(function () {
+  function renderItems(host) {
+    if (!host) return;
+    const items = WR.notifications.getAll();
+    WR.ui.setHTML(host, items.length
+      ? `<ul class="notification-list">${items.map((item) => {
+        const href = typeof item.href === 'string' && item.href.startsWith('#/') ? item.href : '#/dashboard';
+        const created = new Date(item.createdAt);
+        const dateLabel = Number.isNaN(created.getTime()) ? '' : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(created);
+        return `<li class="notification-item${item.readAt ? '' : ' is-unread'}">
+          <div class="notification-item-copy">
+            <p class="notification-eyebrow">${item.readAt ? 'Read' : 'Unread'}${dateLabel ? ` · <time datetime="${WR.ui.escapeText(item.createdAt)}">${WR.ui.escapeText(dateLabel)}</time>` : ''}</p>
+            <h2><a href="${WR.ui.escapeText(href)}">${WR.ui.escapeText(item.title || 'Notification')}</a></h2>
+            <p>${WR.ui.escapeText(item.message || '')}</p>
+          </div>
+          <div class="notification-item-actions">
+            <button type="button" class="secondary" data-notification-action="${item.readAt ? 'unread' : 'read'}" data-notification-id="${WR.ui.escapeText(item.id)}">${item.readAt ? 'Mark unread' : 'Mark read'}</button>
+            <button type="button" class="secondary" data-notification-action="delete" data-notification-id="${WR.ui.escapeText(item.id)}">Delete</button>
+          </div>
+        </li>`;
+      }).join('')}</ul>`
+      : '<div class="notification-empty"><span class="notification-empty-icon" aria-hidden="true">✓</span><h2>You’re all caught up</h2><p>No notifications yet. Upcoming unpaid bills and debt payments will appear here.</p></div>');
+  }
+
+  async function renderNotifications(container) {
+    const supportsAlerts = 'Notification' in window && 'serviceWorker' in navigator;
+    const alertsEnabled = WR.notifications.systemAlertsEnabled();
+    const preferences = WR.notifications.getPreferences();
+    const supportsPush = supportsAlerts && 'PushManager' in window;
+    const pushEnabled = supportsPush && !!await WR.notifications.getPushSubscription();
+    WR.ui.setHTML(container, `
+      <section class="notifications-page" aria-labelledby="notifications-title">
+        <header class="notifications-heading">
+          <div><p class="page-eyebrow">Your account</p><h1 id="notifications-title">Notifications</h1><p>Payment reminders, synced across your devices.</p></div>
+          <div class="notifications-actions">
+            <button type="button" id="notifications-mark-all" class="secondary">Mark all read</button>
+            <button type="button" id="notifications-clear-read" class="secondary">Clear read</button>
+          </div>
+        </header>
+        <section class="notification-preferences" aria-labelledby="notification-preferences-title">
+          <div><h2 id="notification-preferences-title">Device alerts</h2><p>${supportsAlerts ? 'Use your browser or device notification style and default sound for payment reminders.' : 'System notifications are not supported in this browser.'}</p><p class="fine-print">The dashboard creates reminders for payments due within three days or overdue by up to seven days. Alerts only arrive while WealthRoute is open; your device controls sound and lock-screen visibility.</p></div>
+          ${supportsAlerts ? `<button type="button" id="notifications-system-toggle" ${alertsEnabled ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${alertsEnabled ? 'Turn off device alerts' : 'Enable device alerts'}</button>` : ''}
+        </section>
+        <section class="notification-preferences" aria-labelledby="notification-push-title">
+          <div><h2 id="notification-push-title">Background delivery</h2><p>${supportsPush ? 'Receive scheduled payment reminders when WealthRoute is closed. Reminder text stays private on your lock screen.' : 'Background push is not supported in this browser or device.'}</p><p class="fine-print">Requires browser permission and the app’s push service configuration.</p></div>
+          ${supportsPush ? `<button type="button" id="notifications-push-toggle" aria-pressed="${pushEnabled}">${pushEnabled ? 'Turn off background delivery' : 'Enable background delivery'}</button>` : ''}
+        </section>
+        <section class="notification-preference-card" aria-labelledby="notification-types-title">
+          <div class="notification-preference-heading"><h2 id="notification-types-title">Alert types</h2><p>Choose which payment reminders can use device alerts.</p></div>
+          <div class="notification-preference-options">
+            <label><input id="notification-bills" type="checkbox" ${preferences.bills ? 'checked' : ''}><span>Bills</span></label>
+            <label><input id="notification-debt-payments" type="checkbox" ${preferences.debtPayments ? 'checked' : ''}><span>Debt payments</span></label>
+          </div>
+          <div class="notification-quiet-hours">
+            <label class="notification-quiet-toggle"><input id="notification-quiet-enabled" type="checkbox" ${preferences.quietHours ? 'checked' : ''}><span>Pause device alerts during quiet hours</span></label>
+            <label for="notification-quiet-start">From<input id="notification-quiet-start" type="time" value="${preferences.quietStart}" ${preferences.quietHours ? '' : 'disabled'}></label>
+            <label for="notification-quiet-end">Until<input id="notification-quiet-end" type="time" value="${preferences.quietEnd}" ${preferences.quietHours ? '' : 'disabled'}></label>
+            <p class="fine-print span-2">Quiet hours use this device’s local time. Suppressed reminders are delivered after quiet hours end while the app remains open.</p>
+          </div>
+        </section>
+        <div id="notification-list-region" aria-live="polite"></div>
+      </section>
+    `);
+    const listHost = container.querySelector('#notification-list-region');
+    renderItems(listHost);
+    container.addEventListener('click', async (event) => {
+      const target = event.target.closest('button');
+      if (!target || !container.contains(target)) return;
+      try {
+        if (target.id === 'notifications-system-toggle') {
+          target.disabled = true;
+          if (WR.notifications.systemAlertsEnabled()) await WR.notifications.disableSystemAlerts();
+          else await WR.notifications.enableSystemAlerts();
+          await WR.ui.reRenderCurrentRoute();
+        } else if (target.id === 'notifications-push-toggle') {
+          target.disabled = true;
+          if (await WR.notifications.getPushSubscription()) await WR.notifications.disablePush();
+          else await WR.notifications.enablePush();
+          await WR.ui.reRenderCurrentRoute();
+        } else if (target.id === 'notifications-mark-all') {
+          target.disabled = true;
+          await WR.notifications.markAllRead();
+          renderItems(listHost);
+        } else if (target.id === 'notifications-clear-read') {
+          target.disabled = true;
+          await WR.notifications.clearRead();
+          renderItems(listHost);
+        } else if (target.dataset.notificationAction) {
+          target.disabled = true;
+          const { notificationAction: action, notificationId: id } = target.dataset;
+          if (action === 'read') await WR.notifications.markRead(id);
+          else if (action === 'unread') await WR.notifications.markUnread(id);
+          else if (action === 'delete') await WR.notifications.remove(id);
+          renderItems(listHost);
+        }
+      } catch (error) {
+        WR.ui.notify(error.message || 'Could not update notifications.', 'error');
+        target.disabled = false;
+      }
+    });
+    container.addEventListener('change', async (event) => {
+      if (!event.target.matches('#notification-bills, #notification-debt-payments, #notification-quiet-enabled, #notification-quiet-start, #notification-quiet-end')) return;
+      const current = WR.notifications.getPreferences();
+      const changes = {
+        bills: container.querySelector('#notification-bills').checked,
+        debtPayments: container.querySelector('#notification-debt-payments').checked,
+        quietHours: container.querySelector('#notification-quiet-enabled').checked,
+        quietStart: container.querySelector('#notification-quiet-start').value,
+        quietEnd: container.querySelector('#notification-quiet-end').value,
+      };
+      try {
+        WR.notifications.updatePreferences(changes);
+        await WR.notifications.syncPushPreferences();
+        container.querySelector('#notification-quiet-start').disabled = !changes.quietHours;
+        container.querySelector('#notification-quiet-end').disabled = !changes.quietHours;
+      } catch (error) {
+        container.querySelector('#notification-bills').checked = current.bills;
+        container.querySelector('#notification-debt-payments').checked = current.debtPayments;
+        container.querySelector('#notification-quiet-enabled').checked = current.quietHours;
+        container.querySelector('#notification-quiet-start').value = current.quietStart;
+        container.querySelector('#notification-quiet-end').value = current.quietEnd;
+        container.querySelector('#notification-quiet-start').disabled = !current.quietHours;
+        container.querySelector('#notification-quiet-end').disabled = !current.quietHours;
+        WR.ui.notify(error.message || 'Could not save notification preferences.', 'error');
+      }
+    });
+  }
+
+  WR.ui.renderNotifications = renderNotifications;
+  WR.notifications.subscribe(() => {
+    if (window.location.hash === '#/notifications') renderItems(document.getElementById('notification-list-region'));
+  });
+})();
 // Hash-based router. No history API complexity needed for a single-page
 // local app \u2014 #/dashboard, #/transactions, etc. map directly to render
 // functions.
@@ -12719,6 +13390,7 @@ WR.ui = WR.ui || {};
 (function () {
   const ROUTES = {
     '#/dashboard': 'renderDashboard',
+    '#/notifications': 'renderNotifications',
     '#/income': 'renderIncome',
     '#/fixed-expenses': 'renderFixedExpenses',
     '#/savings': 'renderSavingsPage',
@@ -12972,6 +13644,7 @@ function bootApp() {
   }
   resetViewportZoom();
   WR.ui.renderShell();
+  WR.notifications.start();
   WR.ui.initRouter();
   schedulePasskeyLock();
   WR.ui.startTutorial();
@@ -13148,6 +13821,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // username that finishes loading a moment after sign-in resolves).
   let draftAccountUid = initialUser?.uid || null;
   WR.account.onAuthChange((user) => {
+    if (user) WR.notifications.start();
+    else WR.notifications.stop();
     if (!user || WR.ui._tutorialSession?.uid !== user.uid) WR.ui.closeTutorial();
     if ((user?.uid || null) !== draftAccountUid) {
       WR.ui.clearFormDrafts?.();

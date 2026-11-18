@@ -4,11 +4,13 @@ compatibility_date = "2026-09-18"
 compatibility_flags = ["nodejs_compat"]
 
 # Public CORS origins for the WealthRoute site and local development. Keep
-# GEMINI_API_KEY and FIREBASE_SERVICE_ACCOUNT_JSON as Cloudflare secrets.
+# GEMINI_API_KEY, FIREBASE_SERVICE_ACCOUNT_JSON, and WEB_PUSH_VAPID_KEYS are
+# Cloudflare secrets. Never place their values in this file or source control.
 [vars]
-ALLOWED_ORIGINS = "https://wealth-route.pages.dev,https://kudzanaigomera.github.io,http://localhost:8000"
+ALLOWED_ORIGINS = "https://wealth-route.pages.dev,https://kudzanaigomera.github.io,http://localhost:8000,http://localhost:4173,http://127.0.0.1:4173"
 FIREBASE_PROJECT_ID = "wealthroute-cabd6"
 GEMINI_MODEL = "gemini-3.5-flash-lite"
+WEB_PUSH_ADMIN_CONTACT = "https://wealth-route.pages.dev/"
 PASSKEY_RP_NAME = "WealthRoute"
 PASSKEY_RP_ID = "wealth-route.pages.dev"
 PASSKEY_ORIGIN = "https://wealth-route.pages.dev"
@@ -18,3 +20,6 @@ binding = "PASSKEY_DB"
 database_name = "wealthroute-passkeys"
 database_id = "3e1ca23a-e9f4-48fc-abc8-5d701bbd4b70"
 migrations_dir = "migrations"
+
+[triggers]
+crons = ["*/5 * * * *"]

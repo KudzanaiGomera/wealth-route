@@ -5,6 +5,7 @@ import {
   verifyRegistrationResponse,
 } from '@simplewebauthn/server';
 import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
+import { ApplicationServerKeys, generatePushHTTPRequest } from 'webpush-webcrypto';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
@@ -14,6 +15,9 @@ const CORS_HEADERS = {
 const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 const PASSKEY_CHALLENGE_TTL_SECONDS = 300;
 const firebaseJwks = createRemoteJWKSet(new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'));
+const PUSH_ENDPOINT_HOSTS = ['fcm.googleapis.com', 'push.services.mozilla.com', 'updates.push.services.mozilla.com', 'web.push.apple.com', 'notify.windows.com'];
+let cachedPushKeys = null;
+let cachedPushKeyJson = null;
 
 function json(body, status = 200, origin) {
   return new Response(JSON.stringify(body), {
@@ -183,6 +187,221 @@ async function getSignedInUser(request, env) {
   }
 }
 
+  function isAllowedPushEndpoint(value) {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' && !url.username && !url.password
+        && PUSH_ENDPOINT_HOSTS.some(host => url.hostname === host || url.hostname.endsWith(`.${host}`));
+    } catch {
+      return false;
+    }
+  }
+
+  async function hashPushEndpoint(endpoint) {
+    return encodeBase64Url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint)));
+  }
+
+  function validatePushPreferences(value) {
+    const preferences = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+    const quietStart = preferences.quietStart || '22:00';
+    const quietEnd = preferences.quietEnd || '07:00';
+    const timeZone = typeof preferences.timeZone === 'string' ? preferences.timeZone : 'UTC';
+    if (!timePattern.test(quietStart) || !timePattern.test(quietEnd)) throw passkeyError('Invalid quiet-hours time.');
+    try {
+      new Intl.DateTimeFormat('en', { timeZone }).format();
+    } catch {
+      throw passkeyError('Invalid quiet-hours time zone.');
+    }
+    return {
+      bills: preferences.bills !== false,
+      debtPayments: preferences.debtPayments !== false,
+      quietHours: preferences.quietHours === true,
+      quietStart,
+      quietEnd,
+      timeZone,
+    };
+  }
+
+  async function getPushKeys(env) {
+    if (!env.WEB_PUSH_VAPID_KEYS) throw passkeyError('Background push is not configured on this service yet.', 503);
+    if (cachedPushKeyJson !== env.WEB_PUSH_VAPID_KEYS) {
+      let parsed;
+      try {
+        parsed = JSON.parse(env.WEB_PUSH_VAPID_KEYS);
+        if (typeof parsed.publicKey !== 'string' || typeof parsed.privateKey !== 'string') throw new Error('Invalid VAPID key pair.');
+        cachedPushKeys = await ApplicationServerKeys.fromJSON(parsed);
+        cachedPushKeyJson = env.WEB_PUSH_VAPID_KEYS;
+      } catch {
+        throw passkeyError('Background push key configuration is invalid.', 503);
+      }
+    }
+    return cachedPushKeys;
+  }
+
+  async function handlePushRequest(request, env, url, origin) {
+    try {
+      if (!env.PASSKEY_DB) throw passkeyError('Background push storage is not configured.', 503);
+      const user = await getSignedInUser(request, env);
+      if (request.method === 'GET' && url.pathname === '/notifications/config') {
+        const keys = await getPushKeys(env);
+        return json({ publicKey: (await keys.toJSON()).publicKey }, 200, origin);
+      }
+      if (request.method === 'POST' && url.pathname === '/notifications/subscriptions') {
+        const keys = await getPushKeys(env);
+        const body = await readJson(request);
+        const subscription = body?.subscription;
+        if (!subscription || !isAllowedPushEndpoint(subscription.endpoint)
+          || typeof subscription.keys?.p256dh !== 'string' || subscription.keys.p256dh.length > 200
+          || typeof subscription.keys?.auth !== 'string' || subscription.keys.auth.length > 100) {
+          throw passkeyError('Invalid browser push subscription.');
+        }
+        const endpointHash = await hashPushEndpoint(subscription.endpoint);
+        const preferences = JSON.stringify(validatePushPreferences(body.preferences));
+        const now = Math.floor(Date.now() / 1000);
+        const count = await env.PASSKEY_DB.prepare('SELECT COUNT(*) AS count FROM notification_push_subscriptions WHERE uid = ?').bind(user.uid).first();
+        const existing = await env.PASSKEY_DB.prepare('SELECT uid FROM notification_push_subscriptions WHERE endpoint_hash = ?').bind(endpointHash).first();
+        if (count?.count >= 10 && existing?.uid !== user.uid) throw passkeyError('This account already has ten notification devices.', 429);
+        await env.PASSKEY_DB.prepare(
+          `INSERT INTO notification_push_subscriptions (endpoint_hash, uid, endpoint, p256dh, auth, preferences, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(endpoint_hash) DO UPDATE SET uid = excluded.uid, endpoint = excluded.endpoint, p256dh = excluded.p256dh,
+             auth = excluded.auth, preferences = excluded.preferences, updated_at = excluded.updated_at`,
+        ).bind(endpointHash, user.uid, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth, preferences, now, now).run();
+        return json({ subscribed: true }, 201, origin);
+      }
+      if (request.method === 'POST' && url.pathname === '/notifications/preferences') {
+        const preferences = JSON.stringify(validatePushPreferences(await readJson(request)));
+        await env.PASSKEY_DB.prepare('UPDATE notification_push_subscriptions SET preferences = ?, updated_at = ? WHERE uid = ?')
+          .bind(preferences, Math.floor(Date.now() / 1000), user.uid).run();
+        return json({ updated: true }, 200, origin);
+      }
+      if (request.method === 'DELETE' && url.pathname === '/notifications/subscriptions') {
+        const body = await readJson(request);
+        if (!isAllowedPushEndpoint(body?.endpoint)) throw passkeyError('Invalid browser push subscription.');
+        const endpointHash = await hashPushEndpoint(body.endpoint);
+        await env.PASSKEY_DB.prepare('DELETE FROM notification_push_subscriptions WHERE uid = ? AND endpoint_hash = ?').bind(user.uid, endpointHash).run();
+        return json({ removed: true }, 200, origin);
+      }
+      if (request.method === 'POST' && url.pathname === '/notifications/reminders') {
+        const body = await readJson(request);
+        if (!Array.isArray(body?.reminders) || body.reminders.length > 100) throw passkeyError('Provide up to 100 scheduled reminders.');
+        if (body.cancelIds !== undefined && (!Array.isArray(body.cancelIds) || body.cancelIds.length > 100
+          || body.cancelIds.some(id => typeof id !== 'string' || !/^[A-Za-z0-9._-]{1,200}$/.test(id)))) {
+          throw passkeyError('Invalid scheduled reminder cancellation.');
+        }
+        const now = Math.floor(Date.now() / 1000);
+        const statements = body.reminders.map(reminder => {
+          if (!reminder || !/^[A-Za-z0-9._-]{1,200}$/.test(reminder.id)
+            || !['bill', 'debt-payment'].includes(reminder.type)
+            || !Number.isInteger(reminder.dueAt) || reminder.dueAt < now - 60 || reminder.dueAt > now + 31 * 86400
+            || !Number.isInteger(reminder.expiresAt) || reminder.expiresAt <= reminder.dueAt || reminder.expiresAt > reminder.dueAt + 7 * 86400) {
+            throw passkeyError('Invalid scheduled payment reminder.');
+          }
+          return env.PASSKEY_DB.prepare(
+            `INSERT INTO notification_push_reminders (uid, reminder_id, type, due_at, expires_at, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON CONFLICT(uid, reminder_id) DO UPDATE SET type = excluded.type, due_at = excluded.due_at, expires_at = excluded.expires_at`,
+          ).bind(user.uid, reminder.id, reminder.type, reminder.dueAt, reminder.expiresAt, now);
+        });
+        if (statements.length) await env.PASSKEY_DB.batch(statements);
+        if (body.cancelIds?.length) {
+          const cancel = body.cancelIds.map(id => env.PASSKEY_DB.prepare('DELETE FROM notification_push_reminders WHERE uid = ? AND reminder_id = ?').bind(user.uid, id));
+          await env.PASSKEY_DB.batch(cancel);
+        }
+        return json({ scheduled: statements.length }, 200, origin);
+      }
+      return json({ error: 'Not found.' }, 404, origin);
+    } catch (error) {
+      if ((error.status || 500) >= 500) console.error('Background push request failed', error);
+      return json({ error: error.status ? error.message : 'Background push request failed.' }, error.status || 500, origin);
+    }
+  }
+
+  function isInQuietHours(preferences, now) {
+    if (!preferences.quietHours) return false;
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: preferences.timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(now);
+    const current = Number(parts.find(part => part.type === 'hour')?.value) * 60
+      + Number(parts.find(part => part.type === 'minute')?.value);
+    const [startHour, startMinute] = preferences.quietStart.split(':').map(Number);
+    const [endHour, endMinute] = preferences.quietEnd.split(':').map(Number);
+    const start = startHour * 60 + startMinute;
+    const end = endHour * 60 + endMinute;
+    if (start === end) return true;
+    return start < end ? current >= start && current < end : current >= start || current < end;
+  }
+
+  async function deliverDuePushNotifications(env, now = new Date()) {
+    if (!env.PASSKEY_DB || !env.WEB_PUSH_VAPID_KEYS) return;
+    const nowSeconds = Math.floor(now.getTime() / 1000);
+    const reminders = await env.PASSKEY_DB.prepare(
+      `SELECT r.uid, r.reminder_id, r.type
+       FROM notification_push_reminders r
+       WHERE r.due_at <= ? AND r.expires_at > ?
+         AND EXISTS (SELECT 1 FROM notification_push_subscriptions s WHERE s.uid = r.uid)
+       ORDER BY r.due_at LIMIT 100`,
+    ).bind(nowSeconds, nowSeconds).all();
+    const keys = await getPushKeys(env);
+    for (const reminder of reminders.results || []) {
+      const subscriptions = await env.PASSKEY_DB.prepare(
+        `SELECT s.endpoint_hash, s.endpoint, s.p256dh, s.auth, s.preferences
+         FROM notification_push_subscriptions s
+         LEFT JOIN notification_push_deliveries d
+           ON d.uid = ? AND d.reminder_id = ? AND d.endpoint_hash = s.endpoint_hash
+         WHERE s.uid = ? AND d.endpoint_hash IS NULL`,
+      ).bind(reminder.uid, reminder.reminder_id, reminder.uid).all();
+      for (const subscription of subscriptions.results || []) {
+        let preferences;
+        try { preferences = validatePushPreferences(JSON.parse(subscription.preferences)); }
+        catch (error) {
+          console.error('Invalid stored push preferences', { endpointHash: subscription.endpoint_hash, error });
+          continue;
+        }
+        const enabled = reminder.type === 'bill' ? preferences.bills : preferences.debtPayments;
+        if (!enabled || isInQuietHours(preferences, now)) continue;
+        if (!isAllowedPushEndpoint(subscription.endpoint)) {
+          await env.PASSKEY_DB.prepare('DELETE FROM notification_push_subscriptions WHERE endpoint_hash = ?').bind(subscription.endpoint_hash).run();
+          continue;
+        }
+        let response;
+        try {
+          const push = await generatePushHTTPRequest({
+            applicationServerKeys: keys,
+            payload: JSON.stringify({
+              title: 'Payment reminder',
+              body: 'An upcoming payment is due. Open WealthRoute to review it.',
+              tag: `wealthroute-${reminder.reminder_id}`,
+              data: { url: './#/notifications' },
+            }),
+            target: { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
+            adminContact: env.WEB_PUSH_ADMIN_CONTACT || 'https://wealth-route.pages.dev/',
+            ttl: 86400,
+            urgency: 'normal',
+          });
+          response = await fetch(push.endpoint, { method: 'POST', headers: push.headers, body: push.body });
+        } catch (error) {
+          console.warn('Push provider request failed', { endpointHash: subscription.endpoint_hash, error });
+          continue;
+        }
+        if (response.status === 404 || response.status === 410) {
+          await env.PASSKEY_DB.prepare('DELETE FROM notification_push_subscriptions WHERE endpoint_hash = ?').bind(subscription.endpoint_hash).run();
+        } else if (response.ok) {
+          await env.PASSKEY_DB.prepare(
+            'INSERT OR IGNORE INTO notification_push_deliveries (uid, reminder_id, endpoint_hash, sent_at) VALUES (?, ?, ?, ?)',
+          ).bind(reminder.uid, reminder.reminder_id, subscription.endpoint_hash, nowSeconds).run();
+        } else {
+          console.warn('Push provider rejected a notification', { status: response.status, endpointHash: subscription.endpoint_hash });
+        }
+      }
+    }
+    await env.PASSKEY_DB.prepare('DELETE FROM notification_push_reminders WHERE expires_at <= ?').bind(nowSeconds).run();
+  }
+
 async function saveChallenge(env, challenge, uid, purpose) {
   const now = Math.floor(Date.now() / 1000);
   const challengeId = crypto.randomUUID();
@@ -350,6 +569,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { headers: { ...CORS_HEADERS, 'Access-Control-Allow-Origin': origin } });
 
     if (url.pathname.startsWith('/passkeys')) return handlePasskeyRequest(request, env, url, origin);
+    if (url.pathname.startsWith('/notifications/')) return handlePushRequest(request, env, url, origin);
 
     if (url.pathname === '/rates' && request.method === 'GET') {
       const from = (url.searchParams.get('from') || '').toUpperCase();
@@ -367,5 +587,10 @@ export default {
     }
 
     return json({ error: 'Not found.' }, 404, origin);
+  },
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(deliverDuePushNotifications(env).catch((error) => {
+      console.error('Scheduled push delivery failed', error);
+    }));
   },
 };
