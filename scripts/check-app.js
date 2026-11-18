@@ -85,7 +85,7 @@ assert.throws(() => usernameContext.normalizeUsername('name\nwith newline'), /Us
 assert.throws(() => usernameContext.normalizeUsername('a'.repeat(31)), /Username must be 3-30 characters/);
 
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
-assert.match(serviceWorkerSource, /wealthroute-shell-v210/);
+assert.match(serviceWorkerSource, /wealthroute-shell-v211/);
 assert.match(html, /\.position-card::before\s*\{[\s\S]*?repeating-radial-gradient/);
 assert.match(html, /\.position-card\s*\{[\s\S]*?color-mix\(in srgb, var\(--accent\)/);
 assert.match(serviceWorkerSource, /notificationclick/);
@@ -124,10 +124,13 @@ assert.equal(completedSetup.every(step => step.complete), true);
 assert.equal(setupContext.renderDashboardSetupChecklist(completedSetup), '');
 assert.match(functions.get('renderNotifications'), /notifications-mark-all/);
 assert.match(functions.get('renderNotifications'), /notifications-clear-read/);
+assert.doesNotMatch(functions.get('renderNotifications'), /notifications-system-toggle|notifications-push-toggle|notification-quiet-start|notification-bills/);
+assert.match(functions.get('renderNotificationSettings'), /notifications-system-toggle/);
+assert.match(functions.get('renderNotificationSettings'), /notifications-push-toggle/);
+assert.match(functions.get('renderNotificationSettings'), /notification-quiet-start/);
+assert.match(functions.get('renderNotificationSettings'), /notification-bills/);
+assert.match(functions.get('renderNotificationSettings'), /Settings saved on this device, but background delivery could not be updated/);
 assert.match(functions.get('syncBillReminders'), /daysAway >= -7/);
-assert.match(functions.get('renderNotifications'), /notification-quiet-start/);
-assert.match(functions.get('renderNotifications'), /notification-bills/);
-assert.match(functions.get('renderNotifications'), /notification-debt-payments/);
 const notificationContext = { Date, setTimeout, clearTimeout, WR: { account: { getCurrentUser: () => ({ uid: 'test-user' }) } }, localStorage: { getItem: () => null, setItem() {}, removeItem() {} } };
 const storedPreferences = new Map();
 notificationContext.STORAGE_PREFIX = 'wr_notification_preferences_';
@@ -303,6 +306,7 @@ if (!process.argv.includes('--tutorial-only')) {
   assert.match(functions.get('getOrCreateProfile'), /if \(!options\.readOnly\) await WR\.repos\.userProfile\.add/);
   assert.match(functions.get('renderAssistant'), /buildSnapshot\(WR\.ui\.currentBudgetMonth\(\), \{ readOnly: true \}\)/);
   const workerSource = fs.readFileSync(path.join(root, 'worker.js'), 'utf8');
+  assert.match(workerSource, /WEB_PUSH_VAPID_KEYS secret to the production Worker/);
   assert.match(workerSource, /const GEMINI_MODEL = 'gemini-3\.5-flash-lite'/);
   assert.match(fs.readFileSync(path.join(root, 'wrangler.toml'), 'utf8'), /GEMINI_MODEL = "gemini-3\.5-flash-lite"/);
   const workerTree = acorn.parse(workerSource, { ecmaVersion: 'latest', sourceType: 'module' });

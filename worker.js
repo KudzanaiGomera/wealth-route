@@ -224,7 +224,7 @@ async function getSignedInUser(request, env) {
   }
 
   async function getPushKeys(env) {
-    if (!env.WEB_PUSH_VAPID_KEYS) throw passkeyError('Background push is not configured on this service yet.', 503);
+    if (!env.WEB_PUSH_VAPID_KEYS) throw passkeyError('Background push is not configured on this service. Add the WEB_PUSH_VAPID_KEYS secret to the production Worker.', 503);
     if (cachedPushKeyJson !== env.WEB_PUSH_VAPID_KEYS) {
       let parsed;
       try {
