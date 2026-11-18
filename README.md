@@ -1,6 +1,6 @@
 # WealthRoute
 
-Personal finance & wealth planning assistant, version **3.1**. Core files:
+Personal finance & wealth planning assistant, version **3.3**. Core files:
 `index.html` (the whole app), `tests.html` (test suite),
 `manifest.webmanifest`, `service-worker.js` (PWA install/offline shell), and
 `worker.js`/`wrangler.toml` (optional Cloudflare Worker for live rates and the
@@ -40,6 +40,17 @@ need to clear the app cache manually.
 | 2026-11-15 | Google sign-in domain authorization | Fixed and verified on the Pages deployment; the unauthorized-domain sign-in error no longer appears. |
 | 2026-11-16 | Signup format popup | Fixed and verified; signup no longer asks for a username field and auto-creates a temporary member username instead. |
 
+## What's new in 3.3
+
+- **Background payment push:** opted-in browser subscriptions can receive generic bill and debt-payment reminders while WealthRoute is closed. Push is scheduled by the Cloudflare Worker and respects per-type choices and quiet hours. VAPID keys, D1 migration 0003, and Worker deployment are required; see setup below. Device sound and display are controlled by the browser and operating system.
+- **Version 3.3.0** is used in package metadata, Settings, and exported backups; the PWA shell cache is refreshed.
+
+## What's new in 3.2
+
+- **Notifications:** a per-account Firestore notification center adds deduplicated reminders for bills and debt payments due within three days or overdue by up to seven days when the dashboard is opened. It includes unread counts, mark-read/unread, delete, and clear-read actions. Optional browser notifications have bill/debt type preferences and local-time quiet hours, and use the device's default notification behavior while the app is open. The app does not yet deliver push notifications while closed.
+- **Theme polish:** shared financial cards now use consistent theme-aware surfaces, softer depth, and responsive notification controls.
+- **Version 3.2.0** is used in package metadata, Settings, and exported backups; the PWA shell cache is refreshed.
+
 ## What's new in 3.1
 
 - **Quick expense entry:** Dashboard and Activity open the same accessible expense sheet. Enter amount, category and date; description is optional in quick entry. The last category is remembered per account on this browser. Failed entries stay editable, and retries reuse the same transaction ID.
@@ -60,7 +71,6 @@ need to clear the app cache manually.
   **Counted in** source on Wealth to prevent counting the manual asset value twice.
   Existing asset sources are not guessed or changed automatically. Historical
   net-worth snapshots remain as recorded; past reserve balances are not reconstructed.
-- **Version 3.1.0** is used in package metadata, Settings, and exported backups; the PWA shell cache is refreshed.
 - **Passkey-first fresh launches:** Firebase sign-in is memory-only, so each new page launch starts at login. Passkey is shown first, with Apple, email/password, and Google available as recovery. Briefly switching apps does not itself sign the user out.
 
 ## 3.0 Highlights
@@ -662,6 +672,44 @@ Run `node scripts/check-app.js --improvements-only` for focused production
 parsing, password, insufficient-data, import-suggestion and mocked Worker
 authentication/consent/quota regressions. These tests do not deploy the Worker,
 call Gemini, or certify published Firebase settings.
+
+### Background push delivery
+
+Background push is optional. It sends a generic payment reminder (no bill name
+or amount) through the browser's push provider; the app's notification inbox
+remains in Firestore. Browser and operating-system settings determine sound and
+presentation. Alerts use the selected bill/debt categories and quiet hours.
+Subscriptions are removed on sign-out where the browser and Worker are
+reachable; a provider may retain an unreachable subscription until it expires.
+
+1. Apply D1 migration `0003_notifications.sql` to the existing
+   `wealthroute-passkeys` database and configure the Worker:
+   ```bash
+   npx wrangler d1 migrations apply wealthroute-passkeys --remote
+   npm run push:keys:check
+   npm run push:keys
+   npx wrangler secret put WEB_PUSH_VAPID_KEYS
+   npx wrangler deploy
+   ```
+   Paste the JSON printed by `push:keys` directly into Wrangler's local prompt.
+   The command generates a private key, so do not share its output in chat,
+   commit it, or add it to logs. Save the generated pair securely and reuse the
+   same pair for future deployments; rotating it requires users to subscribe
+   again. `WEB_PUSH_ADMIN_CONTACT` is already set as a public Worker variable.
+2. Deploy the site with the matching Worker URL in `PASSKEY_WORKER_URL` and
+   ensure the site origin appears in `ALLOWED_ORIGINS`. Users can then enable
+   push under **Notifications** in Settings. The dashboard registers reminders
+   for payment dates up to three days ahead; the Worker sends due reminders
+   every five minutes.
+3. Before production, verify subscription, reminder scheduling, preference
+   updates, cancellation, and delivery using a non-production D1 database and
+   test account. Do not apply remote migrations or deploy from a local test.
+
+Run `npm run push:keys:check` to verify local key generation without printing
+the generated keys. `npm test` includes static Worker, quiet-hour, endpoint,
+and D1 schema regressions. Real push delivery and sound are not simulated by
+these checks. Physical iOS/Android testing is still required; iOS Web Push
+requires an eligible iOS version and an installed Home Screen web app.
 
 ### Passkey sign-in and automatic device lock
 

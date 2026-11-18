@@ -85,7 +85,51 @@ assert.throws(() => usernameContext.normalizeUsername('name\nwith newline'), /Us
 assert.throws(() => usernameContext.normalizeUsername('a'.repeat(31)), /Username must be 3-30 characters/);
 
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
-assert.match(serviceWorkerSource, /wealthroute-shell-v203/);
+assert.match(serviceWorkerSource, /wealthroute-shell-v206/);
+assert.match(serviceWorkerSource, /notificationclick/);
+assert.match(serviceWorkerSource, /addEventListener\('push'/);
+assert.match(html, /id="notification-shortcut"[^>]+href="#\/notifications"/);
+assert.match(functions.get('renderNotifications'), /notifications-mark-all/);
+assert.match(functions.get('renderNotifications'), /notifications-clear-read/);
+assert.match(functions.get('syncBillReminders'), /daysAway >= -7/);
+assert.match(functions.get('renderNotifications'), /notification-quiet-start/);
+assert.match(functions.get('renderNotifications'), /notification-bills/);
+assert.match(functions.get('renderNotifications'), /notification-debt-payments/);
+const notificationContext = { Date, setTimeout, clearTimeout, WR: { account: { getCurrentUser: () => ({ uid: 'test-user' }) } }, localStorage: { getItem: () => null, setItem() {}, removeItem() {} } };
+const storedPreferences = new Map();
+notificationContext.STORAGE_PREFIX = 'wr_notification_preferences_';
+notificationContext.localStorage = {
+  getItem: key => storedPreferences.get(key) ?? null,
+  setItem: (key, value) => storedPreferences.set(key, value),
+  removeItem: key => storedPreferences.delete(key),
+};
+notificationContext.scheduleDeferredAlerts = () => {};
+vm.runInNewContext([
+  functions.get('defaultPreferences'),
+  functions.get('getPreferences'),
+  functions.get('savePreferences'),
+  functions.get('updatePreferences'),
+  functions.get('alertTypeEnabled'),
+  functions.get('quietHoursDelay'),
+].join('\n'), notificationContext);
+assert.equal(notificationContext.getPreferences().quietHours, false);
+notificationContext.updatePreferences({ quietHours: true, quietStart: '21:30', quietEnd: '06:45', bills: false });
+assert.deepEqual(
+  JSON.parse(storedPreferences.get('wr_notification_preferences_test-user')),
+  { enabled: false, bills: false, debtPayments: true, quietHours: true, quietStart: '21:30', quietEnd: '06:45' }
+);
+assert.throws(() => notificationContext.updatePreferences({ quietStart: '25:00' }), /valid quiet-hours/);
+assert.equal(notificationContext.alertTypeEnabled({ type: 'bill' }, { bills: true, debtPayments: false }), true);
+assert.equal(notificationContext.alertTypeEnabled({ type: 'debt-payment' }, { bills: true, debtPayments: false }), false);
+assert.equal(notificationContext.alertTypeEnabled({ type: 'unknown' }, { bills: true, debtPayments: true }), false);
+const quietHours = { quietHours: true, quietStart: '22:00', quietEnd: '07:00' };
+const night = new Date(2026, 10, 18, 23, 0, 0);
+const afternoon = new Date(2026, 10, 18, 12, 0, 0);
+assert.equal(notificationContext.quietHoursDelay(quietHours, night), 8 * 60 * 60 * 1000);
+assert.equal(notificationContext.quietHoursDelay(quietHours, afternoon), 0);
+assert.equal(notificationContext.quietHoursDelay({ ...quietHours, quietStart: '07:00', quietEnd: '22:00' }, afternoon), 10 * 60 * 60 * 1000);
+assert.equal(notificationContext.quietHoursDelay({ ...quietHours, quietStart: '22:00', quietEnd: '22:00' }, afternoon), 24 * 60 * 60 * 1000);
+console.log('Notification categories, overnight/daytime quiet hours, full-day quiet hours, and preference controls passed.');
 const allocationContext = {};
 allocationContext.Date = class extends Date { constructor(...args) { super(...(args.length ? args : ['2026-11-02T12:00:00'])); } };
 allocationContext.WR = { financial: { convertCurrency: (value, from, to) => ({ converted: from === to, value }), monthlyMinPayment: debt => Number(debt.minPayment) || 0 } };
@@ -231,7 +275,72 @@ if (!process.argv.includes('--tutorial-only')) {
   const workerTree = acorn.parse(workerSource, { ecmaVersion: 'latest', sourceType: 'module' });
   const workerFunctions = new Map();
   walk(workerTree, node => { if (node.type === 'FunctionDeclaration') workerFunctions.set(node.id.name, workerSource.slice(node.start, node.end)); });
+  for (const name of ['isAllowedPushEndpoint', 'validatePushPreferences', 'handlePushRequest', 'isInQuietHours', 'deliverDuePushNotifications']) {
+    assert.ok(workerTree.body.some(node => node.type === 'FunctionDeclaration' && node.id.name === name), `${name} must be a top-level Worker function`);
+  }
+  assert.match(workerSource, /async scheduled\(controller, env, ctx\)/);
+  assert.match(workerSource, /\/notifications\/subscriptions/);
+  assert.match(workerSource, /\/notifications\/reminders/);
+  assert.match(workerSource, /PUSH_ENDPOINT_HOSTS/);
+  const pushContext = {
+    URL, Intl, Date,
+    PUSH_ENDPOINT_HOSTS: ['fcm.googleapis.com', 'push.services.mozilla.com', 'updates.push.services.mozilla.com', 'web.push.apple.com', 'notify.windows.com'],
+    passkeyError: (message, status = 400) => Object.assign(new Error(message), { status }),
+  };
+  vm.runInNewContext([
+    workerFunctions.get('isAllowedPushEndpoint'),
+    workerFunctions.get('validatePushPreferences'),
+    workerFunctions.get('isInQuietHours'),
+  ].join('\n'), pushContext);
+  assert.equal(pushContext.isAllowedPushEndpoint('https://fcm.googleapis.com/fcm/send/test'), true);
+  assert.equal(pushContext.isAllowedPushEndpoint('http://fcm.googleapis.com/test'), false);
+  assert.equal(pushContext.isAllowedPushEndpoint('https://127.0.0.1/admin'), false);
+  assert.throws(() => pushContext.validatePushPreferences({ timeZone: '../UTC' }), /time zone/);
+  const overnightPushPrefs = pushContext.validatePushPreferences({ quietHours: true, quietStart: '22:00', quietEnd: '07:00', timeZone: 'Africa/Johannesburg' });
+  assert.equal(pushContext.isInQuietHours(overnightPushPrefs, new Date('2026-11-18T22:30:00+02:00')), true);
+  assert.equal(pushContext.isInQuietHours(overnightPushPrefs, new Date('2026-11-18T12:30:00+02:00')), false);
+  async function checkPushRequestValidation() {
+  let pushWrites = 0;
+  const pushRequestContext = {
+    URL, Response, Date,
+    PUSH_ENDPOINT_HOSTS: pushContext.PUSH_ENDPOINT_HOSTS,
+    getSignedInUser: async () => ({ uid: 'fixture-user' }),
+    json: (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }),
+    PASSKEY_DB: null,
+  };
+  vm.createContext(pushRequestContext);
+  vm.runInContext([
+    workerFunctions.get('passkeyError'),
+    workerFunctions.get('readJson'),
+    workerFunctions.get('isAllowedPushEndpoint'),
+    workerFunctions.get('validatePushPreferences'),
+    workerFunctions.get('handlePushRequest'),
+  ].join('\n'), pushRequestContext);
+  const pushDatabase = {
+    prepare: () => ({ bind: () => ({}) }),
+    batch: async statements => { pushWrites += statements.length; },
+  };
+  const sendPushReminders = body => pushRequestContext.handlePushRequest(
+    new Request('https://worker.example/notifications/reminders', { method: 'POST', body: JSON.stringify(body) }),
+    { PASSKEY_DB: pushDatabase },
+    new URL('https://worker.example/notifications/reminders'),
+    'https://app.example',
+  );
+  const reminder = { id: 'bill-fixture-2026-11', type: 'bill', dueAt: Math.floor(Date.now() / 1000) + 120, expiresAt: Math.floor(Date.now() / 1000) + 3600 };
+  assert.equal((await sendPushReminders({ reminders: [reminder], cancelIds: ['invalid id'] })).status, 400);
+  assert.equal(pushWrites, 0, 'Invalid cancellation IDs must be rejected before scheduled reminders are written');
+  assert.equal((await sendPushReminders({ reminders: [reminder, { ...reminder, id: 'bad/id' }] })).status, 400);
+  assert.equal(pushWrites, 0, 'All reminders must be validated before any scheduled reminder is written');
+  assert.equal((await sendPushReminders({ reminders: [reminder], cancelIds: [] })).status, 200);
+  assert.equal(pushWrites, 1);
+  }
+  const pushMigration = fs.readFileSync(path.join(root, 'migrations/0003_notifications.sql'), 'utf8');
+  assert.match(pushMigration, /notification_push_subscriptions/);
+  assert.match(pushMigration, /PRIMARY KEY \(uid, reminder_id\)/);
+  assert.match(pushMigration, /notification_push_deliveries/);
+  console.log('Background push endpoint validation, quiet hours, scheduled delivery and D1 schema checks passed.');
   async function checkAssistantProtection() {
+    await checkPushRequestValidation();
     let calls = 0;
     const usage = new Map();
     let providerText = 'Your budget explanation.';
@@ -334,6 +443,7 @@ async function checkLogoutIsolation() {
   const events = [];
   const logoutContext = {
     ensureInit: async () => {}, auth: {}, db: {},
+    WR: { notifications: { removePushOnSignOut: async () => { events.push('remove-push'); } } },
     authApi: { signOut: async () => { events.push('sign-out'); } },
     firestoreApi: {
       terminate: async () => { events.push('terminate'); },
@@ -344,11 +454,11 @@ async function checkLogoutIsolation() {
   };
   const logout = vm.runInNewContext(`(${functions.get('signOutUser')})`, logoutContext);
   await logout();
-  assert.deepEqual(events, ['sign-out', 'terminate', 'clear-cache', 'reload']);
+  assert.deepEqual(events, ['remove-push', 'sign-out', 'terminate', 'clear-cache', 'reload']);
   events.length = 0;
   logoutContext.authApi.signOut = async () => { throw new Error('Sign-out failed'); };
   await assert.rejects(logout, /Sign-out failed/);
-  assert.deepEqual(events, [], 'Failed sign-out must not falsely reload or clear the active session');
+  assert.deepEqual(events, ['remove-push'], 'Failed sign-out must not falsely reload or clear the active session');
   console.log('Persistent login and explicit logout/cache-isolation regressions passed.');
 }
 checkLogoutIsolation().catch(error => { console.error(error); process.exitCode = 1; });
@@ -1465,8 +1575,8 @@ function checkVisibility() {
   const restricted = dashboard();
   assert.doesNotThrow(() => restricted.button.events.click());
   assert.equal(restricted.amount.childNodes[0].textContent, '****');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version, '3.1.0');
-  assert.ok(html.includes("const APP_VERSION = '3.1.0'"));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'package.json'))).version, '3.3.0');
+  assert.ok(html.includes("const APP_VERSION = '3.3.0'"));
   console.log('Balance masking/restoration, per-account preferences, unavailable storage, password visibility, and version checks passed.');
 }
 checkVisibility();

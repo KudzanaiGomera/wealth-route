@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wealthroute-shell-v203';
+const CACHE_NAME = 'wealthroute-shell-v206';
 const APP_SHELL = [
   './',
   './index.html',
@@ -70,4 +70,32 @@ self.addEventListener('fetch', (event) => {
       return cached || networkFetch;
     })
   );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const destination = new URL('./#/notifications', self.registration.scope).href;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+    const appClient = clients.find((client) => new URL(client.url).origin === self.location.origin);
+    if (appClient) {
+      await appClient.navigate(destination);
+      return appClient.focus();
+    }
+    return self.clients.openWindow(destination);
+  }));
+});
+
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try { payload = event.data?.json() || {}; } catch (_) {}
+  event.waitUntil(self.registration.showNotification(
+    typeof payload.title === 'string' ? payload.title : 'WealthRoute reminder',
+    {
+      body: typeof payload.body === 'string' ? payload.body : 'You have an upcoming payment reminder.',
+      tag: typeof payload.tag === 'string' ? payload.tag : 'wealthroute-reminder',
+      icon: './icon-192.png',
+      badge: './favicon-32.png',
+      data: { url: './#/notifications' },
+    },
+  ));
 });
