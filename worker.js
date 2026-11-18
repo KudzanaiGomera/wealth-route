@@ -198,7 +198,8 @@ async function getSignedInUser(request, env) {
   }
 
   async function hashPushEndpoint(endpoint) {
-    return encodeBase64Url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint)));
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint));
+    return encodeBase64Url(new Uint8Array(digest));
   }
 
   function validatePushPreferences(value) {

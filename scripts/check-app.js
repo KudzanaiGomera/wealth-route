@@ -3,6 +3,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const acorn = require('acorn');
+const { createHash, webcrypto } = require('node:crypto');
 
 const root = path.resolve(__dirname, '..');
 if (process.argv.includes('--prepare')) {
@@ -320,11 +321,14 @@ if (!process.argv.includes('--tutorial-only')) {
   assert.match(workerSource, /\/notifications\/reminders/);
   assert.match(workerSource, /PUSH_ENDPOINT_HOSTS/);
   const pushContext = {
-    URL, Intl, Date,
+    URL, Intl, Date, crypto: webcrypto, TextEncoder,
+    btoa: value => Buffer.from(value, 'binary').toString('base64'),
     PUSH_ENDPOINT_HOSTS: ['fcm.googleapis.com', 'push.services.mozilla.com', 'updates.push.services.mozilla.com', 'web.push.apple.com', 'notify.windows.com'],
     passkeyError: (message, status = 400) => Object.assign(new Error(message), { status }),
   };
   vm.runInNewContext([
+    workerFunctions.get('encodeBase64Url'),
+    workerFunctions.get('hashPushEndpoint'),
     workerFunctions.get('isAllowedPushEndpoint'),
     workerFunctions.get('validatePushPreferences'),
     workerFunctions.get('isInQuietHours'),
@@ -337,6 +341,10 @@ if (!process.argv.includes('--tutorial-only')) {
   assert.equal(pushContext.isInQuietHours(overnightPushPrefs, new Date('2026-11-18T22:30:00+02:00')), true);
   assert.equal(pushContext.isInQuietHours(overnightPushPrefs, new Date('2026-11-18T12:30:00+02:00')), false);
   async function checkPushRequestValidation() {
+  const hashedEndpoint = 'https://fcm.googleapis.com/fcm/send/test';
+  const expectedEndpointHash = createHash('sha256').update(hashedEndpoint).digest('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  assert.equal(await pushContext.hashPushEndpoint(hashedEndpoint), expectedEndpointHash);
   let pushWrites = 0;
   const pushRequestContext = {
     URL, Response, Date,
