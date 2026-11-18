@@ -2141,13 +2141,14 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   #nav::-webkit-scrollbar { display: none; width: 0; height: 0; }
   #nav a, #nav .nav-action-item { min-height: 44px; display: flex; align-items: center; flex-shrink: 0; }
   #nav a.in-mobile-nav { display: none; }
+  #nav .nav-section-title { display: none; }
   .topbar.nav-open { z-index: 40; }
   .topbar.nav-open #nav { visibility: visible; }
   .topbar.nav-open .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(0, 0, 0, 0.5); touch-action: none; }
   #content { padding: 0.95rem 1rem calc(6.5rem + env(safe-area-inset-bottom)); min-width: 0; }
   .topbar .nav-controls { display: none; }
-  .topbar .notification-shortcut { margin-left: auto; width: 44px; height: 44px; }
-  .topbar .assistant-shortcut { margin-left: 0; width: 44px; height: 44px; }
+  .topbar #notification-shortcut { order: 2; margin-left: auto; width: 44px; height: 44px; }
+  .topbar #ask-ai-shortcut { order: 3; margin-left: 0; width: 44px; height: 44px; }
   #nav a.in-mobile-nav { display: none; }
   .mobile-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; padding: 0.3rem max(0.3rem, env(safe-area-inset-right)) calc(0.3rem + env(safe-area-inset-bottom)) max(0.3rem, env(safe-area-inset-left)); gap: 0.2rem; background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.14); }
   :root[data-editing="true"] .mobile-nav { display: none; }
@@ -2232,9 +2233,9 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .topbar .brand { flex-shrink: 0; }
   .topbar .nav-account { order: 0; margin-left: 0; }
   .topbar .nav-wide-actions { order: 1; }
-  .topbar .nav-controls { order: 2; margin-left: auto; }
-  .topbar .notification-shortcut { order: 3; margin-left: 0; }
-  .topbar .assistant-shortcut { order: 4; margin-left: 0; }
+  .topbar #notification-shortcut { order: 2; margin-left: 0; }
+  .topbar #ask-ai-shortcut { order: 3; margin-left: 0; }
+  .topbar .nav-controls { order: 4; margin-left: auto; }
   .topbar .nav-toggle, .topbar .assistant-shortcut, .topbar .notification-shortcut { width: 40px; height: 40px; }
   /* Same links are already on the horizontal bar at this width, so hide the
      duplicate entries in the dropdown; mobile (no horizontal bar) still needs them. */
@@ -11220,7 +11221,7 @@ WR.ui = WR.ui || {};
         <h1>Settings</h1>
         <p class="fine-print">Manage your account, preferences and data.</p>
         <div class="settings-jump" role="navigation" aria-label="Settings sections">
-          ${[['settings-account', 'Account'], ['settings-preferences', 'Preferences'], ['settings-payday', 'Payday'], ['settings-rates', 'Exchange rates'], ['settings-categories', 'Categories'], ['settings-data', 'Data'], ['settings-about', 'About']]
+          ${[['settings-account', 'Account'], ['settings-preferences', 'Preferences'], ['settings-notifications', 'Notifications'], ['settings-payday', 'Payday'], ['settings-rates', 'Exchange rates'], ['settings-categories', 'Categories'], ['settings-data', 'Data'], ['settings-about', 'About']]
             .map(([id, label]) => `<button type="button" class="settings-chip" data-target="${id}">${label}</button>`).join('')}
         </div>
       </div>
@@ -11305,6 +11306,11 @@ WR.ui = WR.ui || {};
           </label>
           <div class="settings-actions span-2"><button type="submit">Save preferences</button></div>
         </form>
+      </section>
+
+      <section id="settings-notifications" class="settings-card">
+        ${cardHead(ICONS.sliders, 'Notifications', 'Choose device alerts, background delivery, alert types and quiet hours.')}
+        <div id="settings-notification-controls"></div>
       </section>
 
       <section id="settings-payday" class="settings-card">
@@ -11428,6 +11434,9 @@ WR.ui = WR.ui || {};
         </details>
       </section>
     `);
+
+    await WR.ui.renderNotificationSettings(container.querySelector('#settings-notification-controls'));
+    if (!container.isConnected) return;
 
     document.getElementById('theme-preference').addEventListener('change', (event) => {
       WR.ui.setThemePreference(event.target.value);
@@ -13359,47 +13368,36 @@ WR.ui = WR.ui || {};
       : '<div class="notification-empty"><span class="notification-empty-icon" aria-hidden="true">✓</span><h2>You’re all caught up</h2><p>No notifications yet. Upcoming unpaid bills and debt payments will appear here.</p></div>');
   }
 
-  async function renderNotifications(container) {
+  async function renderNotificationSettings(container) {
+    if (!container) throw new Error('Notification settings container is missing.');
     const supportsAlerts = 'Notification' in window && 'serviceWorker' in navigator;
     const alertsEnabled = WR.notifications.systemAlertsEnabled();
     const preferences = WR.notifications.getPreferences();
     const supportsPush = supportsAlerts && 'PushManager' in window;
     const pushEnabled = supportsPush && !!await WR.notifications.getPushSubscription();
     WR.ui.setHTML(container, `
-      <section class="notifications-page" aria-labelledby="notifications-title">
-        <header class="notifications-heading">
-          <div><p class="page-eyebrow">Your account</p><h1 id="notifications-title">Notifications</h1><p>Payment reminders, synced across your devices.</p></div>
-          <div class="notifications-actions">
-            <button type="button" id="notifications-mark-all" class="secondary">Mark all read</button>
-            <button type="button" id="notifications-clear-read" class="secondary">Clear read</button>
-          </div>
-        </header>
-        <section class="notification-preferences" aria-labelledby="notification-preferences-title">
-          <div><h2 id="notification-preferences-title">Device alerts</h2><p>${supportsAlerts ? 'Use your browser or device notification style and default sound for payment reminders.' : 'System notifications are not supported in this browser.'}</p><p class="fine-print">The dashboard creates reminders for payments due within three days or overdue by up to seven days. Alerts only arrive while WealthRoute is open; your device controls sound and lock-screen visibility.</p></div>
-          ${supportsAlerts ? `<button type="button" id="notifications-system-toggle" ${alertsEnabled ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${alertsEnabled ? 'Turn off device alerts' : 'Enable device alerts'}</button>` : ''}
-        </section>
-        <section class="notification-preferences" aria-labelledby="notification-push-title">
-          <div><h2 id="notification-push-title">Background delivery</h2><p>${supportsPush ? 'Receive scheduled payment reminders when WealthRoute is closed. Reminder text stays private on your lock screen.' : 'Background push is not supported in this browser or device.'}</p><p class="fine-print">Requires browser permission and the app’s push service configuration.</p></div>
-          ${supportsPush ? `<button type="button" id="notifications-push-toggle" aria-pressed="${pushEnabled}">${pushEnabled ? 'Turn off background delivery' : 'Enable background delivery'}</button>` : ''}
-        </section>
-        <section class="notification-preference-card" aria-labelledby="notification-types-title">
-          <div class="notification-preference-heading"><h2 id="notification-types-title">Alert types</h2><p>Choose which payment reminders can use device alerts.</p></div>
-          <div class="notification-preference-options">
-            <label><input id="notification-bills" type="checkbox" ${preferences.bills ? 'checked' : ''}><span>Bills</span></label>
-            <label><input id="notification-debt-payments" type="checkbox" ${preferences.debtPayments ? 'checked' : ''}><span>Debt payments</span></label>
-          </div>
-          <div class="notification-quiet-hours">
-            <label class="notification-quiet-toggle"><input id="notification-quiet-enabled" type="checkbox" ${preferences.quietHours ? 'checked' : ''}><span>Pause device alerts during quiet hours</span></label>
-            <label for="notification-quiet-start">From<input id="notification-quiet-start" type="time" value="${preferences.quietStart}" ${preferences.quietHours ? '' : 'disabled'}></label>
-            <label for="notification-quiet-end">Until<input id="notification-quiet-end" type="time" value="${preferences.quietEnd}" ${preferences.quietHours ? '' : 'disabled'}></label>
-            <p class="fine-print span-2">Quiet hours use this device’s local time. Suppressed reminders are delivered after quiet hours end while the app remains open.</p>
-          </div>
-        </section>
-        <div id="notification-list-region" aria-live="polite"></div>
+      <section class="notification-preferences" aria-labelledby="notification-preferences-title">
+        <div><h2 id="notification-preferences-title">Device alerts</h2><p>${supportsAlerts ? 'Use your browser or device notification style and default sound for payment reminders.' : 'System notifications are not supported in this browser.'}</p><p class="fine-print">The dashboard creates reminders for payments due within three days or overdue by up to seven days. While WealthRoute is open, your device controls sound and lock-screen visibility.</p></div>
+        ${supportsAlerts ? `<button type="button" id="notifications-system-toggle" ${alertsEnabled ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${alertsEnabled ? 'Turn off device alerts' : 'Enable device alerts'}</button>` : ''}
+      </section>
+      <section class="notification-preferences" aria-labelledby="notification-push-title">
+        <div><h2 id="notification-push-title">Background delivery</h2><p>${supportsPush ? 'Receive scheduled payment reminders when WealthRoute is closed. Reminder text stays private on your lock screen.' : 'Background push is not supported in this browser or device.'}</p><p class="fine-print">Requires browser permission and the app’s push service configuration.</p></div>
+        ${supportsPush ? `<button type="button" id="notifications-push-toggle" aria-pressed="${pushEnabled}">${pushEnabled ? 'Turn off background delivery' : 'Enable background delivery'}</button>` : ''}
+      </section>
+      <section class="notification-preference-card" aria-labelledby="notification-types-title">
+        <div class="notification-preference-heading"><h2 id="notification-types-title">Alert types</h2><p>Choose which payment reminders can use device alerts.</p></div>
+        <div class="notification-preference-options">
+          <label><input id="notification-bills" type="checkbox" ${preferences.bills ? 'checked' : ''}><span>Bills</span></label>
+          <label><input id="notification-debt-payments" type="checkbox" ${preferences.debtPayments ? 'checked' : ''}><span>Debt payments</span></label>
+        </div>
+        <div class="notification-quiet-hours">
+          <label class="notification-quiet-toggle"><input id="notification-quiet-enabled" type="checkbox" ${preferences.quietHours ? 'checked' : ''}><span>Pause alerts during quiet hours</span></label>
+          <label for="notification-quiet-start">From<input id="notification-quiet-start" type="time" value="${preferences.quietStart}" ${preferences.quietHours ? '' : 'disabled'}></label>
+          <label for="notification-quiet-end">Until<input id="notification-quiet-end" type="time" value="${preferences.quietEnd}" ${preferences.quietHours ? '' : 'disabled'}></label>
+          <p class="fine-print span-2">Times use this device’s local time. Foreground alerts wait until quiet hours end while the app is open. Background reminders are held while quiet hours are active.</p>
+        </div>
       </section>
     `);
-    const listHost = container.querySelector('#notification-list-region');
-    renderItems(listHost);
     container.addEventListener('click', async (event) => {
       const target = event.target.closest('button');
       if (!target || !container.contains(target)) return;
@@ -13414,7 +13412,63 @@ WR.ui = WR.ui || {};
           if (await WR.notifications.getPushSubscription()) await WR.notifications.disablePush();
           else await WR.notifications.enablePush();
           await WR.ui.reRenderCurrentRoute();
-        } else if (target.id === 'notifications-mark-all') {
+        }
+      } catch (error) {
+        WR.ui.notify(error.message || 'Could not update notification settings.', 'error');
+        target.disabled = false;
+      }
+    });
+    container.addEventListener('change', async (event) => {
+      if (!event.target.matches('#notification-bills, #notification-debt-payments, #notification-quiet-enabled, #notification-quiet-start, #notification-quiet-end')) return;
+      const current = WR.notifications.getPreferences();
+      const changes = {
+        bills: container.querySelector('#notification-bills').checked,
+        debtPayments: container.querySelector('#notification-debt-payments').checked,
+        quietHours: container.querySelector('#notification-quiet-enabled').checked,
+        quietStart: container.querySelector('#notification-quiet-start').value,
+        quietEnd: container.querySelector('#notification-quiet-end').value,
+      };
+      try {
+        WR.notifications.updatePreferences(changes);
+      } catch (error) {
+        container.querySelector('#notification-bills').checked = current.bills;
+        container.querySelector('#notification-debt-payments').checked = current.debtPayments;
+        container.querySelector('#notification-quiet-enabled').checked = current.quietHours;
+        container.querySelector('#notification-quiet-start').value = current.quietStart;
+        container.querySelector('#notification-quiet-end').value = current.quietEnd;
+        WR.ui.notify(error.message || 'Could not save notification settings.', 'error');
+        return;
+      }
+      container.querySelector('#notification-quiet-start').disabled = !changes.quietHours;
+      container.querySelector('#notification-quiet-end').disabled = !changes.quietHours;
+      try {
+        await WR.notifications.syncPushPreferences();
+      } catch (error) {
+        WR.ui.notify(`Settings saved on this device, but background delivery could not be updated: ${error.message}`, 'error');
+      }
+    });
+  }
+
+  async function renderNotifications(container) {
+    WR.ui.setHTML(container, `
+      <section class="notifications-page" aria-labelledby="notifications-title">
+        <header class="notifications-heading">
+          <div><p class="page-eyebrow">Your account</p><h1 id="notifications-title">Notifications</h1><p>Payment reminders, synced across your devices.</p></div>
+          <div class="notifications-actions">
+            <button type="button" id="notifications-mark-all" class="secondary">Mark all read</button>
+            <button type="button" id="notifications-clear-read" class="secondary">Clear read</button>
+          </div>
+        </header>
+        <div id="notification-list-region" aria-live="polite"></div>
+      </section>
+    `);
+    const listHost = container.querySelector('#notification-list-region');
+    renderItems(listHost);
+    container.addEventListener('click', async (event) => {
+      const target = event.target.closest('button');
+      if (!target || !container.contains(target)) return;
+      try {
+        if (target.id === 'notifications-mark-all') {
           target.disabled = true;
           await WR.notifications.markAllRead();
           renderItems(listHost);
@@ -13435,34 +13489,9 @@ WR.ui = WR.ui || {};
         target.disabled = false;
       }
     });
-    container.addEventListener('change', async (event) => {
-      if (!event.target.matches('#notification-bills, #notification-debt-payments, #notification-quiet-enabled, #notification-quiet-start, #notification-quiet-end')) return;
-      const current = WR.notifications.getPreferences();
-      const changes = {
-        bills: container.querySelector('#notification-bills').checked,
-        debtPayments: container.querySelector('#notification-debt-payments').checked,
-        quietHours: container.querySelector('#notification-quiet-enabled').checked,
-        quietStart: container.querySelector('#notification-quiet-start').value,
-        quietEnd: container.querySelector('#notification-quiet-end').value,
-      };
-      try {
-        WR.notifications.updatePreferences(changes);
-        await WR.notifications.syncPushPreferences();
-        container.querySelector('#notification-quiet-start').disabled = !changes.quietHours;
-        container.querySelector('#notification-quiet-end').disabled = !changes.quietHours;
-      } catch (error) {
-        container.querySelector('#notification-bills').checked = current.bills;
-        container.querySelector('#notification-debt-payments').checked = current.debtPayments;
-        container.querySelector('#notification-quiet-enabled').checked = current.quietHours;
-        container.querySelector('#notification-quiet-start').value = current.quietStart;
-        container.querySelector('#notification-quiet-end').value = current.quietEnd;
-        container.querySelector('#notification-quiet-start').disabled = !current.quietHours;
-        container.querySelector('#notification-quiet-end').disabled = !current.quietHours;
-        WR.ui.notify(error.message || 'Could not save notification preferences.', 'error');
-      }
-    });
   }
 
+  WR.ui.renderNotificationSettings = renderNotificationSettings;
   WR.ui.renderNotifications = renderNotifications;
   WR.notifications.subscribe(() => {
     if (window.location.hash === '#/notifications') renderItems(document.getElementById('notification-list-region'));

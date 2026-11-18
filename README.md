@@ -696,9 +696,16 @@ reachable; a provider may retain an unreachable subscription until it expires.
    commit it, or add it to logs. Save the generated pair securely and reuse the
    same pair for future deployments; rotating it requires users to subscribe
    again. `WEB_PUSH_ADMIN_CONTACT` is already set as a public Worker variable.
+   To set the secret in Cloudflare instead of Wrangler, open **Workers & Pages >
+   wealth-route > Settings > Variables and Secrets**, add a secret named
+   `WEB_PUSH_VAPID_KEYS`, paste the generated JSON as its value, then deploy the
+   Worker. Do not add this secret only to the Pages project.
 2. Deploy the site with the matching Worker URL in `PASSKEY_WORKER_URL` and
-   ensure the site origin appears in `ALLOWED_ORIGINS`. Users can then enable
-   push under **Notifications** in Settings. The dashboard registers reminders
+   ensure the site origin appears in `ALLOWED_ORIGINS`. Confirm
+   `WEB_PUSH_VAPID_KEYS` is configured as a secret on that production Worker,
+   not only on the Pages project. Users can then enable push under
+   **Settings > Notifications**. The inbox at **Notifications** shows only
+   reminders and read/delete actions. The dashboard registers reminders
    for payment dates up to three days ahead; the Worker sends due reminders
    every five minutes.
 3. Before production, verify subscription, reminder scheduling, preference
