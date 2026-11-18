@@ -85,7 +85,7 @@ assert.throws(() => usernameContext.normalizeUsername('name\nwith newline'), /Us
 assert.throws(() => usernameContext.normalizeUsername('a'.repeat(31)), /Username must be 3-30 characters/);
 
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
-assert.match(serviceWorkerSource, /wealthroute-shell-v211/);
+assert.match(serviceWorkerSource, /wealthroute-shell-v212/);
 assert.match(html, /\.position-card::before\s*\{[\s\S]*?repeating-radial-gradient/);
 assert.match(html, /\.position-card\s*\{[\s\S]*?color-mix\(in srgb, var\(--accent\)/);
 assert.match(serviceWorkerSource, /notificationclick/);
@@ -2030,6 +2030,7 @@ checkNavigationLayout();
 
 function checkMobileNavigation() {
   assert.match(html, /\.mobile-nav \{[^}]*position: fixed; bottom: 0;/);
+  assert.match(html, /#nav \.nav-section-title \{ display: none; \}/);
   assert.match(html, /@media \(max-width: 900px\) \{\s*\.topbar \{\s*-webkit-backdrop-filter: none;\s*backdrop-filter: none;\s*\}\s*\}/);
   const makeElement = () => {
     const classes = new Set();
