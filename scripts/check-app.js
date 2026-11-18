@@ -85,10 +85,43 @@ assert.throws(() => usernameContext.normalizeUsername('name\nwith newline'), /Us
 assert.throws(() => usernameContext.normalizeUsername('a'.repeat(31)), /Username must be 3-30 characters/);
 
 const serviceWorkerSource = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
-assert.match(serviceWorkerSource, /wealthroute-shell-v206/);
+assert.match(serviceWorkerSource, /wealthroute-shell-v209/);
+assert.match(html, /\.position-card::before\s*\{[\s\S]*?repeating-radial-gradient/);
+assert.match(html, /\.position-card\s*\{[\s\S]*?color-mix\(in srgb, var\(--accent\)/);
 assert.match(serviceWorkerSource, /notificationclick/);
 assert.match(serviceWorkerSource, /addEventListener\('push'/);
 assert.match(html, /id="notification-shortcut"[^>]+href="#\/notifications"/);
+assert.match(html, /const MONEY_NAV_ITEMS = \[/);
+assert.match(html, /const PLANNING_NAV_ITEMS = \[/);
+assert.match(html, /const INSIGHT_NAV_ITEMS = \[/);
+assert.match(html, /const NAV_ITEMS = \[\.\.\.MONEY_NAV_ITEMS, \.\.\.PLANNING_NAV_ITEMS, \.\.\.INSIGHT_NAV_ITEMS, NOTIFICATIONS_NAV_ITEM\]/);
+assert.match(html, /navSection\('Money', MONEY_NAV_ITEMS\)[\s\S]*navSection\('Planning', PLANNING_NAV_ITEMS\)[\s\S]*navSection\('Insights', INSIGHT_NAV_ITEMS\)[\s\S]*navLink\(NOTIFICATIONS_NAV_ITEM\)[\s\S]*nav-divider/);
+assert.match(html, /<summary>Use email and password<\/summary>/);
+const setupContext = {};
+setupContext.escapeText = value => String(value);
+vm.runInNewContext(functions.get('getDashboardSetupSteps'), setupContext);
+vm.runInNewContext(functions.get('renderDashboardSetupChecklist'), setupContext);
+const emptySetup = setupContext.getDashboardSetupSteps({ cashflow: {}, budgetLines: [] });
+assert.equal(emptySetup.length, 3);
+assert.equal(emptySetup.map(step => step.complete).join(','), 'false,false,false');
+assert.equal(emptySetup[0].href, '#/income');
+assert.equal(emptySetup[1].href, '#/transactions');
+assert.equal(emptySetup[2].href, '#/variable-expenses');
+const checklistMarkup = setupContext.renderDashboardSetupChecklist(emptySetup);
+assert.match(checklistMarkup, /role="progressbar" aria-label="Getting started progress"/);
+assert.match(checklistMarkup, /class="quick-setup-steps" aria-label="Getting started checklist"/);
+assert.match(checklistMarkup, /href="#\/income">Next: Add income/);
+const partialSetup = setupContext.getDashboardSetupSteps({
+  cashflow: { income: 2500, totalExpenses: 0 },
+  budgetLines: [{ type: 'income', budgetAmount: 2500 }, { type: 'variable', budgetAmount: 0 }],
+});
+assert.equal(partialSetup.map(step => step.complete).join(','), 'true,false,false');
+const completedSetup = setupContext.getDashboardSetupSteps({
+  cashflow: { income: 2500, totalExpenses: 800 },
+  budgetLines: [{ type: 'income', budgetAmount: 2500 }, { type: 'variable', budgetAmount: 1000 }],
+});
+assert.equal(completedSetup.every(step => step.complete), true);
+assert.equal(setupContext.renderDashboardSetupChecklist(completedSetup), '');
 assert.match(functions.get('renderNotifications'), /notifications-mark-all/);
 assert.match(functions.get('renderNotifications'), /notifications-clear-read/);
 assert.match(functions.get('syncBillReminders'), /daysAway >= -7/);
@@ -195,7 +228,7 @@ assert.match(allocationMarkup, /Savings target remaining: ZAR 2000.00/);
 assert.match(allocationOverMarkup, /Needs above target by ZAR 10000.00/);
 assert.doesNotMatch(allocationEmptyMarkup, /class="allocation-guidance"/);
 assert.match(allocationMarkup, /Targets are a guide, not a financial score/);
-assert.match(html, /grid-template-areas: "position" "actions" "allocation" "insights" "annual"/);
+assert.match(html, /grid-template-areas: "position" "actions" "insights" "allocation" "annual"/);
 assert.match(html, /\.allocation-legend li \{ grid-template-columns: minmax\(0, 1fr\);/);
 assert.match(allocationContext.render503020({ ...allocationFixture, dayToDayTransactions: [{ date: '2026-11-01', kind: 'spend', amount: 11000 }], currencyWarnings: [], monthLabel: 'November 2026' }, 'ZAR', '25 Oct - 24 Nov'), /ZAR 1000.00 above income/);
 if (process.argv.includes('--allocation-only')) { console.log('Payday actual allocation, categories, unknown spending, paid bills, linked deduplication, savings and extra debt passed.'); process.exit(0); }
@@ -1544,9 +1577,12 @@ function checkVisibility() {
   context.bindPasswordVisibility(input, passwordButton);
   assert.equal(input.type, 'password');
   assert.equal(passwordButton.attributes['aria-label'], 'Show password');
+  assert.equal(passwordButton.title, undefined, 'Password visibility must not show a moving native title tooltip');
+  assert.doesNotMatch(html, /id="auth-password-toggle"[^>]*title=/);
   passwordButton.events.click();
   assert.equal(input.type, 'text');
   assert.equal(passwordButton.attributes['aria-pressed'], 'true');
+  assert.equal(passwordButton.title, undefined);
   passwordButton.events.click();
   assert.equal(input.type, 'password');
   assert.equal(input.value, 'test-only-value');
@@ -1984,6 +2020,8 @@ function checkNavigationLayout() {
 checkNavigationLayout();
 
 function checkMobileNavigation() {
+  assert.match(html, /\.mobile-nav \{[^}]*position: fixed; bottom: 0;/);
+  assert.match(html, /@media \(max-width: 900px\) \{\s*\.topbar \{\s*-webkit-backdrop-filter: none;\s*backdrop-filter: none;\s*\}\s*\}/);
   const makeElement = () => {
     const classes = new Set();
     const attributes = new Map();
