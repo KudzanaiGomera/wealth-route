@@ -97,6 +97,9 @@ assert.match(html, /const PLANNING_NAV_ITEMS = \[/);
 assert.match(html, /const INSIGHT_NAV_ITEMS = \[/);
 assert.match(html, /const NAV_ITEMS = \[\.\.\.MONEY_NAV_ITEMS, \.\.\.PLANNING_NAV_ITEMS, \.\.\.INSIGHT_NAV_ITEMS, NOTIFICATIONS_NAV_ITEM\]/);
 assert.match(html, /navSection\('Money', MONEY_NAV_ITEMS\)[\s\S]*navSection\('Planning', PLANNING_NAV_ITEMS\)[\s\S]*navSection\('Insights', INSIGHT_NAV_ITEMS\)[\s\S]*navLink\(NOTIFICATIONS_NAV_ITEM\)[\s\S]*nav-divider/);
+assert.match(html, /@media \(min-width: 901px\) \{[\s\S]*#nav \.nav-section-title,[\s\S]*#nav \.nav-divider,[\s\S]*#nav \.nav-support-link,[\s\S]*#nav #nav-install,[\s\S]*#nav \.nav-action-item \{ display: none; \}/);
+assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 2;[\s\S]*\.topbar #notification-shortcut \{ order: 3;/);
+assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 4;[\s\S]*\.topbar #notification-shortcut \{ order: 5;[\s\S]*\.topbar \.nav-controls \{ order: 6;/);
 assert.match(html, /<summary>Use email and password<\/summary>/);
 const setupContext = {};
 setupContext.escapeText = value => String(value);
@@ -2016,11 +2019,11 @@ async function checkBorrowingCorrections() {
 checkBorrowingCorrections().catch(error => { console.error(error); process.exitCode = 1; });
 
 function checkNavigationLayout() {
-  assert.match(html, /\.topbar #notification-shortcut \{ order: 4; margin-left: auto; \}/);
-  assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 5; margin-left: 0; \}/);
+  assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 4; margin-left: auto; \}/);
+  assert.match(html, /\.topbar #notification-shortcut \{ order: 5; margin-left: 0; \}/);
   assert.match(html, /\.topbar \.nav-controls \{ order: 6; margin-left: 0; \}/);
-  assert.match(html, /\.topbar #notification-shortcut \{ order: 2; margin-left: auto; width: 44px; height: 44px; \}/);
-  assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 3; margin-left: 0; width: 44px; height: 44px; \}/);
+  assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 2; margin-left: auto; width: 44px; height: 44px; \}/);
+  assert.match(html, /\.topbar #notification-shortcut \{ order: 3; margin-left: 0; width: 44px; height: 44px; \}/);
   const classes = new Set(['nav-expanded', 'nav-measuring']);
   const topbar = {
     isConnected: true,

@@ -2147,8 +2147,8 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .topbar.nav-open .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(0, 0, 0, 0.5); touch-action: none; }
   #content { padding: 0.95rem 1rem calc(6.5rem + env(safe-area-inset-bottom)); min-width: 0; }
   .topbar .nav-controls { display: none; }
-  .topbar #notification-shortcut { order: 2; margin-left: auto; width: 44px; height: 44px; }
-  .topbar #ask-ai-shortcut { order: 3; margin-left: 0; width: 44px; height: 44px; }
+  .topbar #ask-ai-shortcut { order: 2; margin-left: auto; width: 44px; height: 44px; }
+  .topbar #notification-shortcut { order: 3; margin-left: 0; width: 44px; height: 44px; }
   #nav a.in-mobile-nav { display: none; }
   .mobile-nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; padding: 0.3rem max(0.3rem, env(safe-area-inset-right)) calc(0.3rem + env(safe-area-inset-bottom)) max(0.3rem, env(safe-area-inset-left)); gap: 0.2rem; background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.14); }
   :root[data-editing="true"] .mobile-nav { display: none; }
@@ -2233,13 +2233,20 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .topbar .brand { flex-shrink: 0; }
   .topbar .nav-account { order: 0; margin-left: 0; }
   .topbar .nav-wide-actions { order: 1; }
-  .topbar #notification-shortcut { order: 4; margin-left: auto; }
-  .topbar #ask-ai-shortcut { order: 5; margin-left: 0; }
+  .topbar #ask-ai-shortcut { order: 4; margin-left: auto; }
+  .topbar #notification-shortcut { order: 5; margin-left: 0; }
   .topbar .nav-controls { order: 6; margin-left: 0; }
   .topbar .nav-toggle, .topbar .assistant-shortcut, .topbar .notification-shortcut { width: 40px; height: 40px; }
   /* Same links are already on the horizontal bar at this width, so hide the
      duplicate entries in the dropdown; mobile (no horizontal bar) still needs them. */
   #nav a.in-horizontal-nav { display: none; }
+  /* Desktop navigation is route-only. Supporting and account actions stay
+     available in the topbar or mobile sheet rather than in this dropdown. */
+  #nav .nav-section-title,
+  #nav .nav-divider,
+  #nav .nav-support-link,
+  #nav #nav-install,
+  #nav .nav-action-item { display: none; }
 }
 
 @media (min-width: 1400px) {
@@ -6152,18 +6159,18 @@ WR.ui = WR.ui || {};
         </nav>
         <div id="nav-account" class="nav-account"></div>
         <div class="nav-wide-actions"><span id="nav-wide-support"></span><div id="nav-install-wide"></div>${WR.account.isConfigured() && WR.account.getCurrentUser() ? '<button type="button" id="nav-logout-wide" class="secondary">Log out</button>' : ''}</div>
+        <a id="ask-ai-shortcut" class="assistant-shortcut" href="#/assistant" data-hash="#/assistant" aria-label="Ask AI" title="Ask AI">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"/></svg>
+        </a>
+        <a id="notification-shortcut" class="assistant-shortcut notification-shortcut" href="#/notifications" data-hash="#/notifications" aria-label="Notifications" title="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+          <span id="notification-count" class="notification-count" hidden></span>
+        </a>
         <div class="nav-controls">
           <button id="nav-toggle-btn" class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav" aria-label="Open navigation">
             <span class="nav-toggle-bars"><span></span><span></span><span></span></span>
           </button>
         </div>
-        <a id="notification-shortcut" class="assistant-shortcut notification-shortcut" href="#/notifications" data-hash="#/notifications" aria-label="Notifications" title="Notifications">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
-          <span id="notification-count" class="notification-count" hidden></span>
-        </a>
-        <a id="ask-ai-shortcut" class="assistant-shortcut" href="#/assistant" data-hash="#/assistant" aria-label="Ask AI" title="Ask AI">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"/></svg>
-        </a>
       </header>
       <div id="pull-refresh" class="pull-refresh" data-state="idle" role="status" aria-label="Refresh" aria-busy="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 11.5-1L20 9M4 15l2.5 3A7 7 0 0 0 18 17"/></svg></div>
       <div id="global-notice" class="global-notice"></div>
