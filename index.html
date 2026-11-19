@@ -855,9 +855,9 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .networth-date { margin: 0.7rem 0 0; font-size: 0.78rem; color: var(--muted); }
 .reserve-balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
 .reserve-card { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
-.reserve-card.emergency-card { background: linear-gradient(145deg, rgba(24, 143, 113, 0.08), transparent 85%), var(--panel); }
-.reserve-card.savings-card { background: linear-gradient(145deg, rgba(180, 143, 54, 0.10), transparent 85%), var(--panel); }
-.reserve-card.borrowing-card { grid-column: 1 / -1; border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
+.reserve-card.emergency-card { --reserve-color: var(--accent); border-top: 2px solid var(--reserve-color); background: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--reserve-color) 17%, transparent), transparent 62%), linear-gradient(135deg, color-mix(in srgb, var(--reserve-color) 6%, var(--panel)), var(--panel) 76%); }
+.reserve-card.savings-card { --reserve-color: var(--chart-2); border-top: 2px solid var(--reserve-color); background: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--reserve-color) 20%, transparent), transparent 58%), linear-gradient(135deg, color-mix(in srgb, var(--reserve-color) 8%, var(--panel)), var(--panel) 74%); }
+.reserve-card.borrowing-card { --reserve-color: var(--danger); grid-column: 1 / -1; border-color: color-mix(in srgb, var(--reserve-color) 55%, var(--border)); border-top: 2px solid var(--reserve-color); background: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--reserve-color) 13%, transparent), transparent 60%), linear-gradient(135deg, color-mix(in srgb, var(--reserve-color) 5%, var(--panel)), var(--panel) 76%); }
 .borrowing-empty { grid-column: 1 / -1; min-width: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .borrowing-empty summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 44px; padding: 0.5rem 0; cursor: pointer; color: var(--muted); font-size: 0.85rem; list-style: none; }
 .borrowing-empty summary::-webkit-details-marker { display: none; }
@@ -985,6 +985,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .budget-card .day-category-meter { height: 8px; margin: 0.85rem 0 0; border-radius: 4px; overflow: hidden; }
 .budget-card .day-category-meter span { border-radius: inherit; background: var(--budget-color); }
 @media (min-width: 1200px) {
+  #content:has(.position-summary-grid) { width: min(1600px, calc(100vw - 2rem)); max-width: none; }
   .position-summary-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
   .dashboard-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .reserve-balances { grid-column: 1 / -1; }
@@ -2250,7 +2251,7 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
 }
 
 @media (min-width: 1400px) {
-  .topbar .nav-wide-actions { position: static; visibility: visible; pointer-events: auto; margin-left: auto; flex-shrink: 0; }
+  .topbar .nav-wide-actions { position: static; visibility: visible; pointer-events: auto; margin-left: 0; flex-shrink: 0; }
   .topbar #notification-shortcut { margin-left: 0; }
   .topbar .nav-controls { margin-left: 0; }
 }
@@ -2365,7 +2366,18 @@ button, .dashboard-actions a { border-radius: var(--radius-control); }
 }
 .dashboard-overview > .budget-card {
   border-left: 3px solid var(--budget-color);
-  background: linear-gradient(140deg, color-mix(in srgb, var(--budget-color) 7%, transparent), transparent 62%), var(--panel);
+  background: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--budget-color) 16%, transparent), transparent 58%), linear-gradient(140deg, color-mix(in srgb, var(--budget-color) 7%, var(--panel)), var(--panel) 72%);
+}
+.dashboard-overview > .position-card {
+  background:
+    radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--accent) 17%, transparent), transparent 58%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--panel)), var(--panel) 72%);
+}
+.annual-card {
+  border-top-color: var(--gold);
+  background:
+    radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--chart-4) 24%, transparent), transparent 56%),
+    linear-gradient(145deg, color-mix(in srgb, var(--chart-4) 9%, var(--panel)), var(--panel) 72%);
 }
 .dashboard-overview > .budget-card .hero-value {
   font-size: clamp(1.9rem, 2.8vw, 2.25rem);
