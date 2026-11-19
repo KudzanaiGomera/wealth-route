@@ -97,7 +97,13 @@ assert.match(html, /const PLANNING_NAV_ITEMS = \[/);
 assert.match(html, /const INSIGHT_NAV_ITEMS = \[/);
 assert.match(html, /const NAV_ITEMS = \[\.\.\.MONEY_NAV_ITEMS, \.\.\.PLANNING_NAV_ITEMS, \.\.\.INSIGHT_NAV_ITEMS, NOTIFICATIONS_NAV_ITEM\]/);
 assert.match(html, /navSection\('Money', MONEY_NAV_ITEMS\)[\s\S]*navSection\('Planning', PLANNING_NAV_ITEMS\)[\s\S]*navSection\('Insights', INSIGHT_NAV_ITEMS\)[\s\S]*navLink\(NOTIFICATIONS_NAV_ITEM\)[\s\S]*nav-divider/);
-assert.match(html, /@media \(min-width: 901px\) \{[\s\S]*#nav \.nav-section-title,[\s\S]*#nav \.nav-divider,[\s\S]*#nav \.nav-support-link,[\s\S]*#nav #nav-install,[\s\S]*#nav \.nav-action-item \{ display: none; \}/);
+assert.match(html, /@media \(min-width: 901px\) \{[\s\S]*#nav \.nav-section-title,[\s\S]*#nav \.nav-divider \{ display: none; \}/);
+assert.ok(!functions.get('renderShell').includes('nav-wide-actions'));
+assert.ok(!functions.get('renderShell').includes('nav-logout-btn'));
+assert.ok(!functions.get('renderShell').includes('nav-logout-wide'));
+assert.ok(functions.get('renderShell').includes('class="nav-support-link"'));
+assert.ok(functions.get('renderShell').includes('<div id="nav-install"></div>'));
+assert.ok(html.includes('id="account-logout-btn"'));
 assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 2;[\s\S]*\.topbar #notification-shortcut \{ order: 3;/);
 assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 4;[\s\S]*\.topbar #notification-shortcut \{ order: 5;[\s\S]*\.topbar \.nav-controls \{ order: 6;/);
 assert.match(html, /<summary>Use email and password<\/summary>/);
@@ -2035,7 +2041,7 @@ function checkNavigationLayout() {
   navContext.updateNavigationLayout(topbar);
   assert.equal(classes.has('nav-expanded'), false);
   assert.equal(classes.has('nav-measuring'), false);
-  console.log('Desktop navigation stays fixed at five horizontal links with remaining sections in the hamburger menu.');
+  console.log('Desktop routes stay horizontal while support and install remain in the hamburger menu.');
 }
 checkNavigationLayout();
 
@@ -2094,7 +2100,7 @@ function checkMobileNavigation() {
   assert.equal(body.classes.has('nav-scroll-locked'), false);
   navContext.setNavigationOpen(true);
   assert.equal(body.classes.has('nav-scroll-locked'), false);
-  assert.ok(functions.get('renderShell').includes("event.target.closest('a, #nav-logout-btn, #nav-logout-wide')"));
+  assert.ok(functions.get('renderShell').includes("event.target.closest('a')"));
   assert.ok(html.includes('body, .app-splash, .auth-screen { background: var(--bg); }'));
   console.log('Mobile menu locks and restores page scrolling, hides closed links, and leaves desktop scrolling unlocked.');
 }

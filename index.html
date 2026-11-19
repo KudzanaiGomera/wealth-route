@@ -404,10 +404,6 @@ button, a, input, select, textarea {
   font-weight: 600;
 }
 .nav-horizontal a:hover { background: var(--panel-alt); }
-.nav-wide-actions { display: flex; align-items: center; gap: 0.5rem; position: absolute; visibility: hidden; pointer-events: none; }
-.nav-wide-actions .nav-install-btn { min-height: 44px; padding: 0.45rem 0.7rem; font-size: 0.8rem; white-space: nowrap; }
-.nav-wide-actions .nav-wide-support { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-alt); color: var(--muted); }
-.nav-wide-actions .nav-support-icon { width: 20px; height: 20px; fill: currentColor; }
 .nav-account:empty { display: none; }
 
 .nav-account {
@@ -858,6 +854,11 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .reserve-card.emergency-card { --reserve-color: var(--accent); border-top: 2px solid var(--reserve-color); background: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--reserve-color) 17%, transparent), transparent 62%), linear-gradient(135deg, color-mix(in srgb, var(--reserve-color) 6%, var(--panel)), var(--panel) 76%); }
 .reserve-card.savings-card { --reserve-color: var(--chart-2); border-top: 2px solid var(--reserve-color); background: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--reserve-color) 20%, transparent), transparent 58%), linear-gradient(135deg, color-mix(in srgb, var(--reserve-color) 8%, var(--panel)), var(--panel) 74%); }
 .reserve-card.borrowing-card { --reserve-color: var(--danger); grid-column: 1 / -1; border-color: color-mix(in srgb, var(--reserve-color) 55%, var(--border)); border-top: 2px solid var(--reserve-color); background: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--reserve-color) 13%, transparent), transparent 60%), linear-gradient(135deg, color-mix(in srgb, var(--reserve-color) 5%, var(--panel)), var(--panel) 76%); }
+.dashboard-card.budget-card::before { content: ""; position: absolute; top: 0; right: 0; width: 32%; height: 100%; background: repeating-linear-gradient(135deg, transparent 0 9px, color-mix(in srgb, var(--budget-color) 9%, transparent) 9px 10px); opacity: 0.8; pointer-events: none; }
+.dashboard-card.annual-card::before { content: ""; position: absolute; top: 0.5rem; right: 0.65rem; width: 7rem; height: 7rem; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--chart-4) 30%, transparent) 1.2px, transparent 1.7px); background-size: 12px 12px; opacity: 0.7; pointer-events: none; }
+.dashboard-card.emergency-card::before { content: ""; position: absolute; top: -55%; right: -14%; width: clamp(9rem, 36%, 13rem); aspect-ratio: 1; border-radius: 50%; background: repeating-radial-gradient(circle, transparent 0 10px, color-mix(in srgb, var(--reserve-color) 11%, transparent) 11px 12px, transparent 13px 21px); opacity: 0.8; pointer-events: none; }
+.dashboard-card.savings-card::before { content: ""; position: absolute; top: -1.6rem; right: 0.8rem; width: 6rem; height: 6rem; border-radius: 50%; background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--reserve-color) 11%, transparent) 0 1px, transparent 1px 8px); opacity: 0.8; pointer-events: none; }
+.dashboard-card.borrowing-card::before { content: ""; position: absolute; top: 0; right: 0; width: 24%; height: 100%; background: repeating-linear-gradient(135deg, transparent 0 9px, color-mix(in srgb, var(--reserve-color) 9%, transparent) 9px 10px), repeating-linear-gradient(45deg, transparent 0 9px, color-mix(in srgb, var(--reserve-color) 7%, transparent) 9px 10px); opacity: 0.75; pointer-events: none; }
 .borrowing-empty { grid-column: 1 / -1; min-width: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .borrowing-empty summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 44px; padding: 0.5rem 0; cursor: pointer; color: var(--muted); font-size: 0.85rem; list-style: none; }
 .borrowing-empty summary::-webkit-details-marker { display: none; }
@@ -2233,7 +2234,6 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .nav-horizontal { flex: 0 1 auto; overflow: visible; }
   .topbar .brand { flex-shrink: 0; }
   .topbar .nav-account { order: 0; margin-left: 0; }
-  .topbar .nav-wide-actions { order: 1; }
   .topbar #ask-ai-shortcut { order: 4; margin-left: auto; }
   .topbar #notification-shortcut { order: 5; margin-left: 0; }
   .topbar .nav-controls { order: 6; margin-left: 0; }
@@ -2241,19 +2241,9 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   /* Same links are already on the horizontal bar at this width, so hide the
      duplicate entries in the dropdown; mobile (no horizontal bar) still needs them. */
   #nav a.in-horizontal-nav { display: none; }
-  /* Desktop navigation is route-only. Supporting and account actions stay
-     available in the topbar or mobile sheet rather than in this dropdown. */
+  /* Secondary actions stay in the hamburger menu on every screen size. */
   #nav .nav-section-title,
-  #nav .nav-divider,
-  #nav .nav-support-link,
-  #nav #nav-install,
-  #nav .nav-action-item { display: none; }
-}
-
-@media (min-width: 1400px) {
-  .topbar .nav-wide-actions { position: static; visibility: visible; pointer-events: auto; margin-left: 0; flex-shrink: 0; }
-  .topbar #notification-shortcut { margin-left: 0; }
-  .topbar .nav-controls { margin-left: 0; }
+  #nav .nav-divider { display: none; }
 }
 
 /* ---------- Cross-screen interaction and layout polish ---------- */
@@ -5934,9 +5924,7 @@ WR.ui = WR.ui || {};
   }
 
   function renderNavInstall() {
-    for (const hostId of ['nav-install', 'nav-install-wide']) renderInstallControl(hostId);
-    const topbar = document.querySelector('.topbar');
-    if (topbar) updateNavigationLayout(topbar);
+    renderInstallControl('nav-install');
   }
 
   function renderInstallControl(hostId) {
@@ -6146,9 +6134,6 @@ WR.ui = WR.ui || {};
         Contact support
       </a>
       <div id="nav-install"></div>
-      ${WR.account.isConfigured() && WR.account.getCurrentUser() ? `
-        <button type="button" id="nav-logout-btn" class="nav-action-item nav-action-danger">Log out</button>
-      ` : ''}
     `;
     WR.ui.setHTML(document.getElementById('app'), `
       <header class="topbar">
@@ -6170,7 +6155,6 @@ WR.ui = WR.ui || {};
           <button id="mobile-more-btn" type="button" aria-label="More navigation" aria-controls="nav" aria-expanded="false" title="More navigation"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg><small>More</small></button>
         </nav>
         <div id="nav-account" class="nav-account"></div>
-        <div class="nav-wide-actions"><span id="nav-wide-support"></span><div id="nav-install-wide"></div>${WR.account.isConfigured() && WR.account.getCurrentUser() ? '<button type="button" id="nav-logout-wide" class="secondary">Log out</button>' : ''}</div>
         <a id="ask-ai-shortcut" class="assistant-shortcut" href="#/assistant" data-hash="#/assistant" aria-label="Ask AI" title="Ask AI">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z"/></svg>
         </a>
@@ -6201,7 +6185,7 @@ WR.ui = WR.ui || {};
     document.getElementById('mobile-more-btn').addEventListener('click', toggleNavigation);
     document.querySelector('.nav-backdrop').addEventListener('click', () => setNavigationOpen(false, true));
     document.querySelector('.topbar').addEventListener('click', event => {
-      if (event.target.closest('a, #nav-logout-btn, #nav-logout-wide')) setNavigationOpen(false);
+      if (event.target.closest('a')) setNavigationOpen(false);
     });
     document.querySelector('.topbar').addEventListener('keydown', event => {
       if (!document.querySelector('.topbar').classList.contains('nav-open')) return;
@@ -6216,24 +6200,6 @@ WR.ui = WR.ui || {};
         controls[next]?.focus({ preventScroll: true });
       }
     });
-    document.querySelectorAll('#nav-logout-btn, #nav-logout-wide').forEach(logoutBtn => {
-      logoutBtn.addEventListener('click', async () => {
-        logoutBtn.disabled = true;
-        try {
-          await WR.account.signOut();
-          WR.ui.notify('Logged out.', 'success');
-        } catch (err) {
-          WR.ui.notify(`Log out failed: ${err.message}`, 'error');
-          logoutBtn.disabled = false;
-        }
-      });
-    });
-    const support = document.querySelector('#nav .nav-support-link').cloneNode(true);
-    support.classList.add('nav-wide-support');
-    support.setAttribute('aria-label', 'Contact support');
-    support.title = 'Contact support';
-    support.replaceChildren(support.querySelector('svg'));
-    document.getElementById('nav-wide-support').appendChild(support);
     renderNavAccount();
     renderNavInstall();
     const topbar = document.querySelector('.topbar');
