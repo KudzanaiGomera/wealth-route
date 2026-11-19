@@ -2448,10 +2448,26 @@ p.empty:not(:empty) {
   box-shadow: var(--shadow);
 }
 .topbar {
-  background: color-mix(in srgb, var(--panel) 92%, var(--bg));
   border-bottom-color: color-mix(in srgb, var(--accent) 12%, var(--border));
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
+}
+@media (min-width: 901px) {
+  .topbar {
+    background: color-mix(in srgb, var(--panel) 92%, var(--bg));
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
+}
+@media (max-width: 900px) {
+  .topbar {
+    background: var(--panel);
+    background-color: var(--panel);
+    background-image: none;
+  }
+  .mobile-nav {
+    background: var(--panel);
+    background-color: var(--panel);
+    background-image: none;
+  }
 }
 @media (max-width: 900px) {
   .topbar {
