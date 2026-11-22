@@ -109,11 +109,15 @@ need to clear the app cache manually.
   buffer allocations, and extra spending funds affect the spending budget,
   not reported earnings. Manage spending funds on Activity; savings pots are
   updated separately.
-- **Responsive navigation:** all page links appear horizontally when the
-  header has enough room, with Settings last. Smaller desktops use the compact
-  links and hamburger; phones retain bottom navigation and a header hamburger.
-  Fit is measured from the actual links and actions rather than a fixed desktop
-  breakpoint. Support, installation, and logout remain available in both layouts.
+- **Dashboard and reports:** the Dashboard focuses on the current budget
+  period. Use **Reports** to review other months and years.
+- **Responsive navigation:** the primary links appear horizontally when the
+  header has enough room: Dashboard, Transactions, Debts, Savings, and Wealth.
+  Settings is the last item in the hamburger menu on desktop and mobile. Smaller
+  desktops use compact links and the hamburger; phones retain bottom navigation
+  and a header hamburger. Fit is measured from actual links and actions rather
+  than a fixed desktop breakpoint. Support, installation, and logout remain
+  available in both layouts.
 
 ### Payday Budgeting
 
