@@ -77,7 +77,9 @@ need to clear the app cache manually.
 
 - **Balance-first dashboard:** a subtly accent-tinted net-worth card with two-column
   balance rows, emergency fund and total assets, a compact annual overview,
-  and direct links to Transactions, Budget, Savings, and Goals.
+  and direct links to Transactions, Budget, Savings, and Goals. A responsive
+  month selector browses past records and future estimates; balances remain
+  current, and future cash-flow figures are identified as estimates.
 - **50/30/20 actuals:** the dashboard follows the same payday-to-payday period as
   Activity. Needs are essential spending and debt minimums paid; wants are
   discretionary spending; the 20% group is recorded savings/investment
