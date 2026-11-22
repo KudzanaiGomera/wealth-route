@@ -2460,6 +2460,16 @@ async function checkPaydayBudget() {
   assert.equal(negativeRollover.bufferAmount, 0);
   assert.equal(negativeRollover.shortfallAmount, 500);
   assert.equal(paydayContext.calculatePayCycleFunding(negativeRollover).budget, 9500);
+  documents.delete(base + 'payCycles/2026-11');
+  const correctedRollover = await paydayContext.ensurePaydayRollover({
+    ...rolloverData,
+    transactions: [{ date: '2026-10-24', kind: 'spend', amount: 4500 }],
+    cycles: [{ ...funding, extraFundsAdjustment: -2150, month: '2026-10', payDate: '2026-09-25', confirmed: true }],
+  }, '2026-11', '2026-10-25');
+  assert.equal(correctedRollover.rolloverAvailable, -2650);
+  assert.equal(correctedRollover.shortfallAmount, 2650);
+  assert.equal(paydayContext.calculatePayCycleFunding(correctedRollover).budget, 7350);
+  documents.delete(base + 'payCycles/2026-11');
   const yearRollover = await paydayContext.ensurePaydayRollover({ ...rolloverData, incomeSources: [{ id: 'new-year-salary', year: 2027, amount: 10000, frequency: 'monthly' }], transactions: [], cycles: [{ ...funding, month: '2026-12', payDate: '2026-11-25', confirmed: true }] }, '2027-01', '2026-12-25');
   assert.equal(yearRollover.rolloverSourceMonth, '2026-12');
   assert.equal(yearRollover.rolloverAvailable, 4000);
@@ -2511,6 +2521,11 @@ async function checkPaydayBudget() {
   documents.set(base + 'userProfile/profile', receiptProfile);
   const earlyMonth = paydayContext.currentMonthKey(new Date(today.getFullYear(), today.getMonth() + 1, 1));
   const precedingMonth = paydayContext.previousMonthKey(earlyMonth);
+  const receiptSources = [
+    { id: 'receipt-salary', year: Number(earlyMonth.slice(0, 4)), amount: 30570.52, frequency: 'monthly', startMonth: earlyMonth, endMonth: earlyMonth },
+    { id: 'receipt-claim', year: Number(earlyMonth.slice(0, 4)), amount: 799, frequency: 'monthly', startMonth: earlyMonth, endMonth: earlyMonth },
+  ];
+  receiptSources.forEach(source => documents.set(base + 'incomeSources/' + source.id, source));
   documents.set(base + 'payCycles/' + precedingMonth, { id: precedingMonth, month: precedingMonth, payDate: paydayContext.payCycleDates(precedingMonth, receiptProfile).start, ...funding, allocations: [], confirmed: true, rolloverApplied: true, rolloverAvailable: 0 });
   const receipt = await paydayContext.confirmPayday(earlyMonth, receiptDate, 8500);
   assert.equal(receipt.receivedDate, receiptDate);
@@ -2518,6 +2533,16 @@ async function checkPaydayBudget() {
   assert.equal(receipt.payDate, receiptDate);
   assert.equal(receipt.scheduledPayDate, paydayContext.payCycleDates(earlyMonth, receiptProfile, []).start);
   assert.equal(receipt.expectedIncome, 8500);
+  await paydayContext.savePayCycle(earlyMonth, {
+    fixedAmount: 0, variableAmount: 0, debtAmount: 0,
+    incomeTable: { sources: receiptSources, profileId: 'profile', availableBuffer: 0, openingBuffer: -1557 },
+  });
+  const correctedReceipt = documents.get(base + 'payCycles/' + earlyMonth);
+  assert.equal(correctedReceipt.expectedIncome, 8500);
+  assert.equal(correctedReceipt.advanceAmount, 0);
+  assert.equal(paydayContext.calculatePayCycleFunding(correctedReceipt).salary, 8500);
+  assert.equal(correctedReceipt.rolloverAvailable, -1557);
+  assert.equal(correctedReceipt.shortfallAmount, 1557);
   assert.equal(paydayContext.currentBudgetMonth(today), earlyMonth);
   assert.equal(paydayContext.payCycleDates(precedingMonth).endExclusive, receiptDate);
   const beforeRepeat = copy([...documents.entries()]);
