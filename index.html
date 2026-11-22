@@ -721,11 +721,17 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .dashboard-heading h1 { margin: 0; font-size: 1.6rem; }
 .dashboard-heading .month-label { margin: 0; font-size: 0.85rem; }
 .dashboard-heading-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.65rem; flex-shrink: 0; }
-.dashboard-month-controls { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px auto; align-items: center; gap: 0.4rem; }
-.dashboard-month-picker { width: 10.5rem; min-width: 9rem !important; min-height: 44px; padding: 0.4rem 0.55rem !important; font-family: var(--font-sans) !important; font-size: 0.92rem !important; }
-.dashboard-month-step { display: inline-flex; align-items: center; justify-content: center; width: 44px; min-height: 44px; padding: 0; }
+.dashboard-month-controls { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px auto; align-items: center; gap: 0.3rem; padding: 0.3rem; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border)); border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--panel)), var(--panel) 75%); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 9%, transparent); }
+.dashboard-month-picker { width: 10.5rem; min-width: 9rem !important; min-height: 42px; padding: 0.4rem 0.55rem !important; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border)); border-radius: 11px; background-color: var(--panel); color: var(--text); font-family: var(--font-sans) !important; font-size: 0.92rem !important; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.dashboard-month-picker:hover { border-color: var(--accent); }
+.dashboard-month-picker:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
+.dashboard-month-step { display: inline-flex; align-items: center; justify-content: center; width: 42px; min-height: 42px; padding: 0; border: 1px solid transparent; border-radius: 11px; background: transparent; color: var(--accent); }
+.dashboard-month-step:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 18%, transparent); background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent); filter: none; }
 .dashboard-month-step svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-.dashboard-month-current { min-height: 44px; white-space: nowrap; }
+.dashboard-month-current { min-height: 42px; padding: 0.45rem 0.8rem; border: 0; border-radius: 11px; background: var(--accent); color: var(--accent-contrast); box-shadow: 0 2px 7px color-mix(in srgb, var(--accent) 28%, transparent); white-space: nowrap; }
+.dashboard-month-current:hover:not(:disabled) { filter: brightness(1.08); }
+.dashboard-heading-actions > [data-quick-expense] { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 44px; border-radius: 12px; box-shadow: 0 3px 9px color-mix(in srgb, var(--accent) 22%, transparent); }
+.dashboard-heading-actions > [data-quick-expense] span { display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 50%; background: color-mix(in srgb, var(--accent-contrast) 18%, transparent); font-size: 1.1rem; line-height: 1; }
 .dashboard-month-notice { margin: -0.3rem 0 1rem; padding: 0.65rem 0.8rem; border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border)); border-radius: var(--radius-control); background: color-mix(in srgb, var(--accent) 5%, var(--panel)); color: var(--muted); font-size: 0.85rem; line-height: 1.45; }
 .position-card {
   grid-area: position;
@@ -6758,10 +6764,10 @@ WR.ui = WR.ui || {};
         <div><p class="greeting">${escapeText(greeting(s.profile.displayName || WR.account.getUsername()))}</p><h1>Your money at a glance</h1></div>
         <div class="dashboard-heading-actions">
           <div class="dashboard-month-controls" role="group" aria-label="Select dashboard month">
-            <button type="button" class="secondary dashboard-month-step" data-dashboard-month-step="-1" data-dashboard-month-control aria-label="Previous month" title="Previous month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+            <button type="button" class="dashboard-month-step" data-dashboard-month-step="-1" data-dashboard-month-control aria-label="Previous month" title="Previous month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
             <input id="dashboard-month-picker" class="dashboard-month-picker" data-dashboard-month-control type="month" value="${escapeText(s.month)}" aria-label="Dashboard month">
-            <button type="button" class="secondary dashboard-month-step" data-dashboard-month-step="1" data-dashboard-month-control aria-label="Next month" title="Next month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
-            <button type="button" class="secondary dashboard-month-current" data-dashboard-current-month data-dashboard-month-control ${s.month === activeMonth ? 'disabled' : ''}>This month</button>
+            <button type="button" class="dashboard-month-step" data-dashboard-month-step="1" data-dashboard-month-control aria-label="Next month" title="Next month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+            <button type="button" class="dashboard-month-current" data-dashboard-current-month data-dashboard-month-control ${s.month === activeMonth ? 'disabled' : ''}>This month</button>
           </div>
           <button type="button" class="quick-expense-action" data-quick-expense><span aria-hidden="true">+</span>Add expense</button>
         </div>
