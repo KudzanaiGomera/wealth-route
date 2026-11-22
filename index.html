@@ -5069,7 +5069,7 @@ WR.ui = WR.ui || {};
     const dates = payCycleDates(month, payday, cycles);
     const confirmed = cycles.filter(cycle => cycle.confirmed && cycle.payDate <= today);
     const events = transactions.map(item => ({ date: item.date, amount: (item.kind === 'add' ? 1 : -1) * (Number(item.amount) || 0), kind: item.kind === 'add' ? 'add' : 'spend' }));
-    confirmed.forEach(cycle => events.push({ date: cycle.payDate, amount: calculatePayCycleFunding(cycle).budget - (Number(cycle.bufferAmount) || 0) + (Number(cycle.shortfallAmount) || 0), kind: 'funding' }));
+    confirmed.forEach(cycle => events.push({ date: cycle.payDate, amount: calculatePayCycleFunding(cycle).budget - (Number(cycle.bufferAmount) || 0) + (Number(cycle.shortfallAmount) || 0) + (Number(cycle.extraFundsAdjustment) || 0), kind: 'funding' }));
     advances.filter(item => !item.transactionId).forEach(item => events.push({ date: item.receivedDate, amount: Number(item.amount) || 0, kind: 'add' }));
     const opening = Number(accounts.slice().sort((left, right) => Number(left.year) - Number(right.year))[0]?.startingBalance) || 0;
     const enabledFrom = confirmed.slice().sort((left, right) => left.payDate.localeCompare(right.payDate))[0]?.payDate;
@@ -7341,6 +7341,8 @@ WR.ui = WR.ui || {};
       let profileChange;
       if (fields.incomeTable) {
         const settings = fields.incomeTable;
+        const preservesReceivedIncome = !!old.receivedDate && old.expectedIncome != null
+          && !settings.sourceId && !settings.sourceFields && !settings.removeSource && !settings.adjustment;
         const sourceIds = [...new Set([...settings.sources.map(source => source.id), ...(settings.sourceId ? [settings.sourceId] : [])])];
         const sources = await Promise.all(sourceIds.map(async id => {
           const ref = api.doc(db, 'users', uid, 'incomeSources', id);
@@ -7398,7 +7400,16 @@ WR.ui = WR.ui || {};
           Object.assign(fields, { rolloverApplied: true, rolloverAvailable: availableBuffer, shortfallAmount: Math.max(0, -availableBuffer) });
         }
         if (bufferAmount > Math.max(0, availableBuffer)) throw new Error('Buffer exceeds the available balance.');
-        Object.assign(fields, { expectedIncome: active.reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0), advanceAmount, savingsAmount, bufferAmount, budgetAdjustment: settings.budgetAdjustment ?? old.budgetAdjustment ?? 0, extraFundsAdjustment: settings.extraFundsAdjustment ?? old.extraFundsAdjustment ?? 0, sourceAdjustments: adjustments, confirmed: payDate <= today });
+        Object.assign(fields, {
+          expectedIncome: preservesReceivedIncome ? value(old.expectedIncome) : active.reduce((sum, source) => sum + WR.ui.monthlyAmountFromFrequency(source.amount, source.frequency || 'monthly'), 0),
+          advanceAmount: preservesReceivedIncome ? value(old.advanceAmount ?? 0) : advanceAmount,
+          savingsAmount: preservesReceivedIncome ? value(old.savingsAmount ?? (old.allocations || []).reduce((sum, item) => sum + Number(item.amount), 0)) : savingsAmount,
+          bufferAmount,
+          budgetAdjustment: settings.budgetAdjustment ?? old.budgetAdjustment ?? 0,
+          extraFundsAdjustment: settings.extraFundsAdjustment ?? old.extraFundsAdjustment ?? 0,
+          confirmed: payDate <= today,
+        });
+        if (!preservesReceivedIncome) fields.sourceAdjustments = adjustments;
       }
       const next = { ...old, id: month, month, payDate, expectedIncome: value(fields.expectedIncome), advanceAmount: value(fields.advanceAmount ?? old.advanceAmount ?? 0), bufferAmount: value(fields.bufferAmount ?? old.bufferAmount ?? 0), budgetAdjustment: Math.round(Number(fields.budgetAdjustment ?? old.budgetAdjustment ?? 0) * 100) / 100, extraFundsAdjustment: Math.round(Number(fields.extraFundsAdjustment ?? old.extraFundsAdjustment ?? 0) * 100) / 100, fixedAmount: value(fields.fixedAmount), variableAmount: value(fields.variableAmount), debtAmount: value(fields.debtAmount), allocations, confirmed: !!fields.confirmed };
       if (fields.incomeTable) {

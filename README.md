@@ -210,6 +210,8 @@ On your payday, the previous cycle's remaining money plus any unused reserve
 becomes Available buffer. The opening amount is saved once per cycle, so
 refreshing or reopening on another device cannot credit it again. Later edits
 to historical spending do not silently rewrite a captured opening buffer.
+Corrections to a cycle's added-funds total are included in its remaining balance
+and carry forward when the next cycle's opening amount is calculated.
 Use **Buffer allocated to spending** to choose how much to spend, or enable
 **Use opening buffer automatically** to include positive buffer now and at later paydays.
 The toggle defaults off and is saved per account. Disabling it leaves the
