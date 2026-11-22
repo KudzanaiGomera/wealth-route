@@ -721,18 +721,8 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .dashboard-heading h1 { margin: 0; font-size: 1.6rem; }
 .dashboard-heading .month-label { margin: 0; font-size: 0.85rem; }
 .dashboard-heading-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.65rem; flex-shrink: 0; }
-.dashboard-month-controls { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px auto; align-items: center; gap: 0.3rem; padding: 0.3rem; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border)); border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--panel)), var(--panel) 75%); box-shadow: 0 5px 16px color-mix(in srgb, var(--accent) 9%, transparent); }
-.dashboard-month-picker { width: 10.5rem; min-width: 9rem !important; min-height: 42px; padding: 0.4rem 0.55rem !important; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border)); border-radius: 11px; background-color: var(--panel); color: var(--text); font-family: var(--font-sans) !important; font-size: 0.92rem !important; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
-.dashboard-month-picker:hover { border-color: var(--accent); }
-.dashboard-month-picker:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 2px; }
-.dashboard-month-step { display: inline-flex; align-items: center; justify-content: center; width: 42px; min-height: 42px; padding: 0; border: 1px solid transparent; border-radius: 11px; background: transparent; color: var(--accent); }
-.dashboard-month-step:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 18%, transparent); background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--accent); filter: none; }
-.dashboard-month-step svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; }
-.dashboard-month-current { min-height: 42px; padding: 0.45rem 0.8rem; border: 0; border-radius: 11px; background: var(--accent); color: var(--accent-contrast); box-shadow: 0 2px 7px color-mix(in srgb, var(--accent) 28%, transparent); white-space: nowrap; }
-.dashboard-month-current:hover:not(:disabled) { filter: brightness(1.08); }
 .dashboard-heading-actions > [data-quick-expense] { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 44px; border-radius: 12px; box-shadow: 0 3px 9px color-mix(in srgb, var(--accent) 22%, transparent); }
 .dashboard-heading-actions > [data-quick-expense] span { display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 50%; background: color-mix(in srgb, var(--accent-contrast) 18%, transparent); font-size: 1.1rem; line-height: 1; }
-.dashboard-month-notice { margin: -0.3rem 0 1rem; padding: 0.65rem 0.8rem; border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border)); border-radius: var(--radius-control); background: color-mix(in srgb, var(--accent) 5%, var(--panel)); color: var(--muted); font-size: 0.85rem; line-height: 1.45; }
 .position-card {
   grid-area: position;
   background:
@@ -2217,10 +2207,6 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .dashboard-card, .health-score, .chart-block, .pie-card { padding: 0.95rem; }
   .dashboard-heading { align-items: flex-start; flex-direction: column; gap: 0.65rem; }
   .dashboard-heading-actions { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.35rem; }
-  .dashboard-month-controls { width: 100%; grid-template-columns: 40px minmax(0, 1fr) 40px auto; gap: 0.3rem; }
-  .dashboard-month-picker { width: 100%; min-width: 0 !important; }
-  .dashboard-month-step { width: 40px; }
-  .dashboard-month-current { padding-left: 0.55rem; padding-right: 0.55rem; }
   .dashboard-actions { gap: 0.4rem; }
   .dashboard-actions a { flex-direction: column; gap: 0.4rem; font-size: 0.82rem; padding: 0.6rem 0.25rem; }
   .ef-summary { flex-direction: column; align-items: stretch; padding: 1.1rem; }
@@ -2243,11 +2229,6 @@ html.pull-refresh-enabled, html.pull-refresh-enabled body { overscroll-behavior-
   .hero-headline .hero-value { font-size: 1.9rem; overflow-wrap: anywhere; }
   .debt-calendar-stats { gap: 0.7rem; }
   .debt-calendar-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-@media (max-width: 340px) {
-  .dashboard-month-controls { grid-template-columns: 40px minmax(0, 1fr) 40px; }
-  .dashboard-month-current { grid-column: 1 / -1; }
 }
 
 @media (min-width: 901px) {
@@ -5061,7 +5042,6 @@ WR.ui = WR.ui || {};
     const previous = WR.ui._activeBudgetMonth;
     WR.ui._activeBudgetMonth = month;
     if (!previous || previous === month) return false;
-    if (WR.ui._dashboardMonth === previous) WR.ui._dashboardMonth = month;
     if (WR.ui._dayMonth === previous) WR.ui._dayMonth = month;
     if (WR.ui._paydayMonth === previous) WR.ui._paydayMonth = month;
     if (WR.ui._transactionsMonth === previous) WR.ui._transactionsMonth = month;
@@ -5908,17 +5888,16 @@ WR.ui = WR.ui || {};
   const MONEY_NAV_ITEMS = [
     { hash: '#/dashboard', label: 'Dashboard' },
     { hash: '#/transactions', label: 'Transactions' },
-    { hash: '#/income', label: 'Income' },
-    { hash: '#/fixed-expenses', label: 'Fixed Expenses' },
-    { hash: '#/variable-expenses', label: 'Variable Expenses' },
     { hash: '#/debts', label: 'Debts' },
     { hash: '#/savings', label: 'Savings' },
     { hash: '#/wealth', label: 'Wealth' },
+    { hash: '#/income', label: 'Income' },
+    { hash: '#/fixed-expenses', label: 'Fixed Expenses' },
+    { hash: '#/variable-expenses', label: 'Variable Expenses' },
   ];
 
   const PLANNING_NAV_ITEMS = [
     { hash: '#/goals', label: 'Goals' },
-    { hash: '#/settings', label: 'Settings' },
   ];
 
   const INSIGHT_NAV_ITEMS = [
@@ -5927,13 +5906,14 @@ WR.ui = WR.ui || {};
   ];
 
   const NOTIFICATIONS_NAV_ITEM = { hash: '#/notifications', label: 'Notifications' };
+  const SETTINGS_NAV_ITEM = { hash: '#/settings', label: 'Settings' };
 
-  const NAV_ITEMS = [...MONEY_NAV_ITEMS, ...PLANNING_NAV_ITEMS, ...INSIGHT_NAV_ITEMS, NOTIFICATIONS_NAV_ITEM];
+  const NAV_ITEMS = [...MONEY_NAV_ITEMS, ...PLANNING_NAV_ITEMS, ...INSIGHT_NAV_ITEMS, NOTIFICATIONS_NAV_ITEM, SETTINGS_NAV_ITEM];
 
   // A handful of the most-used destinations, always visible in the topbar on
   // wider screens. Everything else (including these, for keyboard/mobile
   // users) still lives in the grouped hamburger dropdown below.
-  const HORIZONTAL_NAV_HASHES = ['#/dashboard', '#/transactions', '#/debts', '#/savings', '#/settings'];
+  const HORIZONTAL_NAV_HASHES = ['#/dashboard', '#/transactions', '#/debts', '#/savings', '#/wealth'];
   const HORIZONTAL_NAV_ITEMS = HORIZONTAL_NAV_HASHES.map((hash) => NAV_ITEMS.find((i) => i.hash === hash)).filter(Boolean);
   // Must match the links in the mobile bottom bar (.mobile-nav) in renderShell().
   const MOBILE_NAV_HASHES = ['#/dashboard', '#/transactions', '#/variable-expenses', '#/savings'];
@@ -6173,6 +6153,7 @@ WR.ui = WR.ui || {};
       ${navSection('Planning', PLANNING_NAV_ITEMS)}
       ${navSection('Insights', INSIGHT_NAV_ITEMS)}
       ${navLink(NOTIFICATIONS_NAV_ITEM)}
+      ${navLink(SETTINGS_NAV_ITEM)}
       <div class="nav-divider"></div>
       <a href="${SUPPORT_WHATSAPP_URL}" target="_blank" rel="noopener noreferrer" class="nav-support-link">
         <svg class="nav-support-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.5-.2Z"/></svg>
@@ -6638,27 +6619,24 @@ WR.ui = WR.ui || {};
     WR.ui._paydayProfile = paydayProfile;
     WR.ui._paydayCycles = paydayCycles;
     const activeMonth = WR.ui.currentBudgetMonth();
-    const dashboardMonth = WR.ui._dashboardMonth || activeMonth;
-    const s = await WR.ui.buildSnapshot(dashboardMonth, { ...options, readOnly: !!options.readOnly || dashboardMonth !== activeMonth });
+    const s = await WR.ui.buildSnapshot(activeMonth, { ...options, readOnly: !!options.readOnly });
     WR.ui.assertActiveView(container);
     const currency = s.profile.baseCurrency;
     const setupComplete = WR.ui.hasEnoughFinancialData(s);
     const setupSteps = getDashboardSetupSteps(s);
-    if (dashboardMonth === activeMonth) await ensureMonthlyNetWorthSnapshot(s);
+    await ensureMonthlyNetWorthSnapshot(s);
     const debtProgress = calculateDebtFreeProgress(s);
     const hasDueDays = s.fixedExpenses.some((e) => Number(e.dueDay) > 0) || s.debts.some((d) => Number(d.dueDay) > 0);
     const billOccurrences = upcomingBills(s, 7);
-    if (dashboardMonth === activeMonth) {
-      WR.notifications.syncBillReminders(billOccurrences).catch((error) => {
-        console.error('Could not create bill reminders', error);
-        WR.ui.notify('Could not save an upcoming-payment notification.', 'error');
-      });
-      for (const bill of billOccurrences.filter((item) => !item.billStatuses[item.monthKey])) {
-        const repo = WR.repos[bill.repo];
-        const record = await repo.getById(bill.id);
-        if (record && !record.billStatuses?.[bill.monthKey]) {
-          await repo.update({ ...record, billStatuses: { ...record.billStatuses, [bill.monthKey]: 'unpaid' } });
-        }
+    WR.notifications.syncBillReminders(billOccurrences).catch((error) => {
+      console.error('Could not create bill reminders', error);
+      WR.ui.notify('Could not save an upcoming-payment notification.', 'error');
+    });
+    for (const bill of billOccurrences.filter((item) => !item.billStatuses[item.monthKey])) {
+      const repo = WR.repos[bill.repo];
+      const record = await repo.getById(bill.id);
+      if (record && !record.billStatuses?.[bill.monthKey]) {
+        await repo.update({ ...record, billStatuses: { ...record.billStatuses, [bill.monthKey]: 'unpaid' } });
       }
     }
     const bills = billOccurrences.filter((bill) => !bill.paid);
@@ -6673,10 +6651,6 @@ WR.ui = WR.ui || {};
     periodEnd.setDate(periodEnd.getDate() - 1);
     const budgetPeriod = `${periodFormatter.format(periodStart)} - ${periodFormatter.format(periodEnd)}`;
     const balancesAsOf = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
-    const monthNotice = s.month === activeMonth ? '' : s.month > activeMonth
-      ? `<p class="dashboard-month-notice" role="status">Future estimate for ${escapeText(s.monthLabel)}. Cash-flow figures use saved recurring plans and budgets; balances and upcoming payments still reflect today.</p>`
-      : `<p class="dashboard-month-notice" role="status">Viewing ${escapeText(s.monthLabel)}. Monthly figures use that month's records and recurring plans; balances and upcoming payments still reflect today.</p>`;
-
     function billRow(bill) {
       const index = billOccurrences.indexOf(bill);
       const dueLabel = bill.daysAway < 0 ? `Overdue by ${Math.abs(bill.daysAway)} days`
@@ -6763,16 +6737,10 @@ WR.ui = WR.ui || {};
       <header class="dashboard-heading">
         <div><p class="greeting">${escapeText(greeting(s.profile.displayName || WR.account.getUsername()))}</p><h1>Your money at a glance</h1></div>
         <div class="dashboard-heading-actions">
-          <div class="dashboard-month-controls" role="group" aria-label="Select dashboard month">
-            <button type="button" class="dashboard-month-step" data-dashboard-month-step="-1" data-dashboard-month-control aria-label="Previous month" title="Previous month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
-            <input id="dashboard-month-picker" class="dashboard-month-picker" data-dashboard-month-control type="month" value="${escapeText(s.month)}" aria-label="Dashboard month">
-            <button type="button" class="dashboard-month-step" data-dashboard-month-step="1" data-dashboard-month-control aria-label="Next month" title="Next month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
-            <button type="button" class="dashboard-month-current" data-dashboard-current-month data-dashboard-month-control ${s.month === activeMonth ? 'disabled' : ''}>This month</button>
-          </div>
+          <!-- Monthly report navigation is available on the Reports page. -->
           <button type="button" class="quick-expense-action" data-quick-expense><span aria-hidden="true">+</span>Add expense</button>
         </div>
       </header>
-      ${monthNotice}
       <section class="position-summary-grid">
         <div class="dashboard-overview">
         <article class="dashboard-card position-card" aria-label="Net worth summary">
@@ -6941,44 +6909,6 @@ WR.ui = WR.ui || {};
         </div>
       </section>
     `);
-
-    const changeDashboardMonth = async (month, focusSelector) => {
-      const previousMonth = WR.ui._dashboardMonth;
-      WR.ui._dashboardMonth = month === WR.ui.currentBudgetMonth() ? null : month;
-      container.querySelectorAll('[data-dashboard-month-control]').forEach((control) => { control.disabled = true; });
-      try {
-        await renderDashboard(container, options);
-        container.querySelector(focusSelector)?.focus({ preventScroll: true });
-      } catch (error) {
-        WR.ui._dashboardMonth = previousMonth;
-        console.error('Could not load the selected dashboard month', error);
-        WR.ui.notify(error.message || 'Could not load the selected month.', 'error');
-        if (container.isConnected) {
-          const picker = container.querySelector('#dashboard-month-picker');
-          if (picker) picker.value = s.month;
-          container.querySelectorAll('[data-dashboard-month-control]').forEach((control) => { control.disabled = false; });
-        }
-      }
-    };
-    container.querySelectorAll('[data-dashboard-month-step]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const month = Number(button.dataset.dashboardMonthStep) < 0
-          ? WR.ui.previousMonthKey(s.month)
-          : WR.ui.nextMonthKey(s.month);
-        changeDashboardMonth(month, `[data-dashboard-month-step="${button.dataset.dashboardMonthStep}"]`);
-      });
-    });
-    container.querySelector('#dashboard-month-picker').addEventListener('change', (event) => {
-      const month = event.target.value;
-      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-        event.target.value = s.month;
-        return;
-      }
-      changeDashboardMonth(month, '#dashboard-month-picker');
-    });
-    container.querySelector('[data-dashboard-current-month]').addEventListener('click', () => {
-      changeDashboardMonth(WR.ui.currentBudgetMonth(), '#dashboard-month-picker');
-    });
 
     WR.ui.bindFinancialVisibility(container);
     container.querySelector('[data-quick-expense]')?.addEventListener('click', WR.ui.openQuickExpense);
