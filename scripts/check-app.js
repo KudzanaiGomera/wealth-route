@@ -1615,7 +1615,7 @@ function checkVisibility() {
   assert.doesNotMatch(html, /id="auth-password-toggle"[^>]*title=/);
   assert.match(html, /\.password-field \{ position: relative; width: 100%; min-width: 0; box-sizing: border-box; \}/);
   assert.match(html, /\.auth-form \.password-field input \{ width: 100%; min-width: 0; padding-right: 3\.6rem; \}/);
-  assert.match(html, /\.password-field \.visibility-toggle \{ position: absolute; right: 3px; top: 50%; width: 44px; height: 44px; min-height: 44px; margin: 0; border: 0; background: transparent; transform: translateY\(-50%\); \}/);
+  assert.match(html, /\.password-field \.visibility-toggle \{ position: absolute; right: 3px; top: 50%; width: 44px; height: 44px; min-height: 44px; margin: 0; padding: 0; border: 1px solid var\(--border\); border-radius: 6px; background: var\(--panel\); color: var\(--text\); transform: translateY\(-50%\); \}/);
   passwordButton.events.click();
   assert.equal(input.type, 'text');
   assert.equal(passwordButton.attributes['aria-pressed'], 'true');
