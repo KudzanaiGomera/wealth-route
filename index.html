@@ -304,6 +304,11 @@ button, a, input, select, textarea {
   font-size: 0.92rem;
   padding: 0 0.75rem;
 }
+.auth-form input:focus-visible {
+  /* The enclosing field draws the focus ring; a second input ring gets
+     clipped by the rounded shell and leaves bright corner fragments. */
+  outline: none;
+}
 #auth-email-input:autofill,
 #auth-password-input:autofill,
 #auth-email-input:-webkit-autofill,
