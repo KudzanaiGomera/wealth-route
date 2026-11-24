@@ -287,8 +287,8 @@ button, a, input, select, textarea {
 .auth-form input {
   height: 3rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel-alt);
+  border-radius: var(--radius-control);
+  background: var(--panel);
   background-clip: padding-box;
   color: var(--text);
   font-family: var(--font-sans);
@@ -303,12 +303,12 @@ button, a, input, select, textarea {
 #auth-password-input:-webkit-autofill:hover,
 #auth-email-input:-webkit-autofill:focus,
 #auth-password-input:-webkit-autofill:focus {
-  background-color: var(--panel-alt);
+  background-color: var(--panel);
   background-clip: padding-box;
   -webkit-text-fill-color: var(--text);
   caret-color: var(--text);
-  -webkit-box-shadow: 0 0 0 1000px var(--panel-alt) inset;
-  box-shadow: 0 0 0 1000px var(--panel-alt) inset;
+  -webkit-box-shadow: 0 0 0 1000px var(--panel) inset;
+  box-shadow: 0 0 0 1000px var(--panel) inset;
 }
 .auth-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .auth-form button[type="submit"] {
