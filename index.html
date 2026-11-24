@@ -753,10 +753,10 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .position-card .visibility-toggle { background: transparent; border-color: transparent; color: var(--muted); }
 .position-card .visibility-toggle:hover { color: var(--accent); border-color: var(--accent); }
 .position-card .visibility-toggle:focus-visible { outline-color: var(--accent); }
-.password-field { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; min-width: 0; }
-.auth-form .password-field input { width: 100%; min-width: 0; padding-right: 0.75rem; }
+.password-field { position: relative; width: 100%; min-width: 0; box-sizing: border-box; }
+.auth-form .password-field input { width: 100%; min-width: 0; padding-right: 3.6rem; }
 #auth-password-input::-ms-reveal, #auth-password-input::-ms-clear { display: none; }
-.password-field .visibility-toggle { position: static; width: 44px; height: 44px; min-height: 44px; margin: 0; border: 0; background: transparent; transform: none; }
+.password-field .visibility-toggle { position: absolute; right: 3px; top: 50%; width: 44px; height: 44px; min-height: 44px; margin: 0; border: 0; background: transparent; transform: translateY(-50%); }
 .balance-masked { color: inherit !important; }
 [data-private-detail].balance-masked { min-height: 2.5rem; display: flex; align-items: center; color: var(--muted) !important; font-size: 0.85rem; }
 .dashboard-actions { grid-area: actions; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin: 0; }

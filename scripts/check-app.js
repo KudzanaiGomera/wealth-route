@@ -1613,8 +1613,9 @@ function checkVisibility() {
   assert.equal(passwordButton.attributes['aria-label'], 'Show password');
   assert.equal(passwordButton.title, undefined, 'Password visibility must not show a moving native title tooltip');
   assert.doesNotMatch(html, /id="auth-password-toggle"[^>]*title=/);
-  assert.match(html, /\.password-field \{ display: grid; grid-template-columns: minmax\(0, 1fr\) 44px;/);
-  assert.match(html, /\.password-field \.visibility-toggle \{ position: static; width: 44px; height: 44px;/);
+  assert.match(html, /\.password-field \{ position: relative; width: 100%; min-width: 0; box-sizing: border-box; \}/);
+  assert.match(html, /\.auth-form \.password-field input \{ width: 100%; min-width: 0; padding-right: 3\.6rem; \}/);
+  assert.match(html, /\.password-field \.visibility-toggle \{ position: absolute; right: 3px; top: 50%; width: 44px; height: 44px; min-height: 44px; margin: 0; border: 0; background: transparent; transform: translateY\(-50%\); \}/);
   passwordButton.events.click();
   assert.equal(input.type, 'text');
   assert.equal(passwordButton.attributes['aria-pressed'], 'true');
