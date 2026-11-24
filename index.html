@@ -298,31 +298,32 @@ button, a, input, select, textarea {
   height: 100%;
   border: 0;
   border-radius: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  box-shadow: none;
   background: transparent;
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 0.92rem;
   padding: 0 0.75rem;
 }
-.auth-form input:focus-visible {
-  /* The enclosing field draws the focus ring; a second input ring gets
-     clipped by the rounded shell and leaves bright corner fragments. */
+.auth-form input:focus {
   outline: none;
+  box-shadow: none;
 }
-#auth-email-input:autofill,
-#auth-password-input:autofill,
-#auth-email-input:-webkit-autofill,
-#auth-password-input:-webkit-autofill,
-#auth-email-input:-webkit-autofill:hover,
-#auth-password-input:-webkit-autofill:hover,
-#auth-email-input:-webkit-autofill:focus,
-#auth-password-input:-webkit-autofill:focus {
-  background-color: var(--panel);
-  background-clip: border-box;
+.auth-form input:autofill,
+.auth-form input:-webkit-autofill,
+.auth-form input:-webkit-autofill:hover,
+.auth-form input:-webkit-autofill:focus {
+  /* Keep the browser's autofill paint transparent. The rounded field shell
+     supplies the surface, avoiding inset-fill seams at the corners. */
+  background-color: transparent !important;
   -webkit-text-fill-color: var(--text);
   caret-color: var(--text);
-  -webkit-box-shadow: 0 0 0 1000px var(--panel) inset;
-  box-shadow: 0 0 0 1000px var(--panel) inset;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+  transition: background-color 99999s ease-out 0s;
 }
 .auth-input-shell:focus-within, .password-field:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
 .auth-form button[type="submit"] {
