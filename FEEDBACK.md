@@ -11,6 +11,7 @@ reported problems open until the relevant change is deployed and tested.
 | F-002 | Sign-up username input gives a confusing format error when a full name or email address is entered. | Medium | Closed (2026-11-16) — signup now accepts email/password without a username field, and a temporary member username is created automatically. |
 | F-003 | Consider packaging a beta for the Google Play Store. | Later | Backlog — evaluate packaging, release readiness, and Play Store requirements. |
 | F-004 | Consider monetization, potentially ads before other revenue. | Later | Backlog — assess privacy, trust, and suitability for a personal-finance app before deciding. |
+| F-005 | Login email and password autofill shows a thin light edge at the rounded corners; signup fields look correct. | Medium | Open — fields now use rounded clipping shells; verify with saved credentials in the deployed login page. |
 
 ## Details and follow-up
 
@@ -56,3 +57,20 @@ beta.
 
 No monetization decision has been made. Review privacy, user trust, and the
 risks of advertising in a personal-finance product before implementation.
+
+### F-005 — Login autofill corner edge
+
+The reported artifact appears on the login email and password fields when the
+browser fills saved credentials. The signup fields look correct, suggesting the
+issue is tied to browser autofill rather than the shared field colors. The
+login-only autofill styling previously painted a large inset shadow directly
+on the input, where its corners could show a thin light edge.
+
+- Email and password controls now sit inside rounded, overflow-clipped shells
+  with the same panel background as the Google sign-in button.
+- Keep autofill text readable and the autofill fill matched to the panel; avoid
+  moving the oversized autofill fill outside the clipping shell.
+- Verify the deployed login page with actual saved email/password credentials
+  in the affected browser. Confirm the corners match the signup fields and
+  Google button, including on focus. Close this item only after that visual
+  check.

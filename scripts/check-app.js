@@ -1613,9 +1613,10 @@ function checkVisibility() {
   assert.equal(passwordButton.attributes['aria-label'], 'Show password');
   assert.equal(passwordButton.title, undefined, 'Password visibility must not show a moving native title tooltip');
   assert.doesNotMatch(html, /id="auth-password-toggle"[^>]*title=/);
-  assert.match(html, /\.password-field \{ position: relative; width: 100%; min-width: 0; box-sizing: border-box; \}/);
+  assert.match(html, /\.password-field \{ position: relative; width: 100%; min-width: 0; height: 3rem; box-sizing: border-box; overflow: hidden; border: 1px solid var\(--border\); border-radius: var\(--radius-control\); background: var\(--panel\); \}/);
   assert.match(html, /\.auth-form \.password-field input \{ width: 100%; min-width: 0; padding-right: 3\.6rem; \}/);
-  assert.match(html, /#auth-email-input:autofill,[\s\S]*#auth-password-input:-webkit-autofill:focus \{[\s\S]*-webkit-box-shadow: 0 0 0 1000px var\(--panel-alt\) inset;/);
+  assert.match(html, /\.auth-input-shell \{[\s\S]*overflow: hidden;[\s\S]*border-radius: var\(--radius-control\);[\s\S]*background: var\(--panel\);/);
+  assert.match(html, /#auth-email-input:autofill,[\s\S]*#auth-password-input:-webkit-autofill:focus \{[\s\S]*-webkit-box-shadow: 0 0 0 1000px var\(--panel\) inset;/);
   assert.match(html, /\.password-field \.visibility-toggle \{ position: absolute; right: 3px; top: 50%; width: 44px; height: 44px; min-height: 44px; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var\(--text\); transform: translateY\(-50%\); \}/);
   passwordButton.events.click();
   assert.equal(input.type, 'text');

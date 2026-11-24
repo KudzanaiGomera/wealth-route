@@ -284,12 +284,21 @@ button, a, input, select, textarea {
   font-size: 0.83rem;
   color: var(--muted);
 }
-.auth-form input {
+.auth-input-shell {
   height: 3rem;
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--panel);
-  background-clip: padding-box;
+}
+.auth-form input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 0.92rem;
@@ -304,13 +313,13 @@ button, a, input, select, textarea {
 #auth-email-input:-webkit-autofill:focus,
 #auth-password-input:-webkit-autofill:focus {
   background-color: var(--panel);
-  background-clip: padding-box;
+  background-clip: border-box;
   -webkit-text-fill-color: var(--text);
   caret-color: var(--text);
   -webkit-box-shadow: 0 0 0 1000px var(--panel) inset;
   box-shadow: 0 0 0 1000px var(--panel) inset;
 }
-.auth-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.auth-input-shell:focus-within, .password-field:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
 .auth-form button[type="submit"] {
   height: 3rem;
   border: none;
@@ -769,7 +778,7 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .position-card .visibility-toggle { background: transparent; border-color: transparent; color: var(--muted); }
 .position-card .visibility-toggle:hover { color: var(--accent); border-color: var(--accent); }
 .position-card .visibility-toggle:focus-visible { outline-color: var(--accent); }
-.password-field { position: relative; width: 100%; min-width: 0; box-sizing: border-box; }
+.password-field { position: relative; width: 100%; min-width: 0; height: 3rem; box-sizing: border-box; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--panel); }
 .auth-form .password-field input { width: 100%; min-width: 0; padding-right: 3.6rem; }
 #auth-password-input::-ms-reveal, #auth-password-input::-ms-clear { display: none; }
 .password-field .visibility-toggle { position: absolute; right: 3px; top: 50%; width: 44px; height: 44px; min-height: 44px; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text); transform: translateY(-50%); }
@@ -12571,7 +12580,9 @@ WR.ui = WR.ui || {};
 
             <form id="auth-form" class="auth-form" novalidate>
               <label>Email
-                <input type="text" id="auth-email-input" autocomplete="email" inputmode="email" aria-label="Email address" required>
+                <div class="auth-input-shell">
+                  <input type="text" id="auth-email-input" autocomplete="email" inputmode="email" aria-label="Email address" required>
+                </div>
               </label>
               ${isReset ? '' : `<label for="auth-password-input">Password</label>
               <div class="password-field">
