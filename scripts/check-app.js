@@ -100,8 +100,10 @@ assert.match(html, /const HORIZONTAL_NAV_HASHES = \['#\/dashboard', '#\/transact
 assert.match(html, /navSection\('Money', MONEY_NAV_ITEMS\)[\s\S]*navSection\('Planning', PLANNING_NAV_ITEMS\)[\s\S]*navSection\('Insights', INSIGHT_NAV_ITEMS\)[\s\S]*navLink\(NOTIFICATIONS_NAV_ITEM\)[\s\S]*navLink\(SETTINGS_NAV_ITEM\)[\s\S]*nav-divider/);
 assert.match(html, /@media \(min-width: 901px\) \{[\s\S]*#nav \.nav-section-title,[\s\S]*#nav \.nav-divider \{ display: none; \}/);
 assert.ok(!functions.get('renderShell').includes('nav-wide-actions'));
-assert.ok(!functions.get('renderShell').includes('nav-logout-btn'));
+assert.match(functions.get('renderShell'), /id="nav-install"[\s\S]*id="nav-logout"/);
 assert.ok(!functions.get('renderShell').includes('nav-logout-wide'));
+assert.match(functions.get('renderNavAccount'), /nav-action-item nav-action-danger nav-logout-btn/);
+assert.match(functions.get('renderNavAccount'), /await WR\.account\.signOut\(\)/);
 assert.ok(functions.get('renderShell').includes('class="nav-support-link"'));
 assert.ok(functions.get('renderShell').includes('<div id="nav-install"></div>'));
 assert.ok(html.includes('id="account-logout-btn"'));
@@ -1694,19 +1696,13 @@ async function checkTransactionLayout() {
     querySelectorAll: selector => { selectors.push(selector); return selector === '.day-date-toggle' ? [dateToggle] : []; },
   };
   await layoutContext.renderDayToDay(container);
-  assert.ok(markup.indexOf('id="day-add-form"') < markup.indexOf('id="day-activity-title"'));
   assert.ok(markup.indexOf('id="day-activity-title"') < markup.indexOf('Where your money is going'));
   assert.ok(markup.includes('id="day-today"'));
   assert.ok(markup.includes('id="day-collapse-all"'));
   assert.ok(markup.includes('id="day-expand-all"'));
   assert.ok(markup.includes('<details id="day-import" class="day-disclosure" hidden>'));
-  assert.ok(markup.includes('inputmode="decimal"'));
-  assert.ok(markup.includes('name="allocationType"'));
-  assert.ok(markup.includes('name="allocationLink"'));
-  assert.ok(markup.includes('Already recorded elsewhere'));
   assert.ok(markup.includes('data-field="allocationType" aria-label="Allocation for'));
   assert.ok(markup.includes('id="day-allocation-categories-form"'));
-  assert.ok(markup.includes('<label>Description<input'));
   assert.ok(markup.includes('<details class="day-disclosure">'));
   dateToggle.click();
   assert.equal(firstRow.hidden, true);
@@ -1733,7 +1729,7 @@ async function checkTransactionLayout() {
   assert.ok(!markup.includes("of this month's day-to-day spending"));
   assert.ok(selectors.includes('.day-ledger tbody tr[data-id]'));
   assert.ok(markup.includes('<dt>Total budget</dt><dd>ZAR 5121.00'));
-  assert.ok(markup.indexOf('id="spending-funds-toggle"') < markup.indexOf('id="day-entry"'));
+  assert.ok(markup.indexOf('id="spending-funds-toggle"') < markup.indexOf('id="day-import"'));
   assert.equal((markup.match(/class="spending-budget-summary"/g) || []).length, 1);
   assert.ok(!markup.includes('coveredByBudget'));
   assert.ok(!markup.includes('Reserved expense'));

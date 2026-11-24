@@ -501,6 +501,8 @@ button, a, input, select, textarea {
 .nav-action-item:hover { background: var(--panel-alt); }
 .nav-action-item.nav-action-danger { color: var(--danger); }
 .nav-action-item.nav-action-danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+#nav-logout { margin-top: 0.15rem; }
+.nav-logout-btn { text-align: center; }
 #nav a.nav-support-link {
   display: flex;
   align-items: center;
@@ -2059,6 +2061,28 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
 .money-owed-fields input, .money-owed-fields select, .money-owed-fields textarea { width: 100%; min-width: 0; box-sizing: border-box; }
 .money-owed-history { list-style: none; padding: 0; }
 .money-owed-history li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+.money-owed-paid { margin: 1rem 0; }
+.money-owed-paid summary { cursor: pointer; font-weight: 600; }
+.money-owed-paid-table td { vertical-align: top; }
+.money-owed-paid-table .card-edit { max-width: 18rem; }
+.money-owed-paid-table .money-owed-history { min-width: 16rem; }
+.money-owed-table-note { display: block; max-width: 16rem; margin-top: 0.25rem; color: var(--muted); font-size: 0.82rem; }
+.money-owed-add { border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); }
+.money-owed-add > summary { display: flex; align-items: center; min-height: 2.75rem; cursor: pointer; font-size: 1rem; font-weight: 700; }
+.money-owed-add[open] > summary { margin-bottom: 0.75rem; }
+.money-owed-add-form { max-width: 68rem; }
+.money-owed-add-form .money-owed-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0 0 1rem; }
+.money-owed-add-form .money-owed-fields label { gap: 0.4rem; color: var(--muted); font-size: 0.82rem; font-weight: 600; }
+.money-owed-add-form .money-owed-fields input,
+.money-owed-add-form .money-owed-fields select { min-height: 2.75rem; }
+.money-owed-add-form > button { min-width: 9rem; }
+@media (max-width: 760px) {
+  .money-owed-add-form .money-owed-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .money-owed-add-form .money-owed-fields { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
+  .money-owed-add-form > button { width: 100%; }
+}
 .debt-tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border); margin: 1rem 0; padding-bottom: 0.5rem; }
 .debt-tabs button { flex: 1; min-width: 0; min-height: 44px; background: transparent; color: var(--muted); border-color: transparent; }
 .debt-tabs button[aria-selected="true"] { background: var(--panel-alt); border-color: var(--accent); color: var(--text); }
@@ -5922,9 +5946,11 @@ WR.ui = WR.ui || {};
 
   function renderNavAccount() {
     const host = document.getElementById('nav-account');
+    const logoutHost = document.getElementById('nav-logout');
     if (!host) return;
     if (!WR.account.isConfigured()) {
       WR.ui.setHTML(host, '');
+      if (logoutHost) WR.ui.setHTML(logoutHost, '');
       return;
     }
     const user = WR.account.getCurrentUser();
@@ -5934,6 +5960,22 @@ WR.ui = WR.ui || {};
         <a href="#/settings" class="nav-account-link">Log in</a>
         <a href="#/settings" class="nav-account-link nav-account-link-accent">Sign up</a>
       `);
+    if (!logoutHost) return;
+    WR.ui.setHTML(logoutHost, user
+      ? '<button type="button" class="nav-action-item nav-action-danger nav-logout-btn">Log out</button>'
+      : '');
+    logoutHost.querySelector('.nav-logout-btn')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      WR.ui.closeNavigation?.();
+      try {
+        await WR.account.signOut();
+        WR.ui.notify('Logged out.', 'success');
+      } catch (error) {
+        button.disabled = false;
+        WR.ui.notify(`Log out failed: ${error.message}`, 'error');
+      }
+    });
   }
 
   // Chrome/Edge/Android fire this when the site meets install criteria; we
@@ -6161,6 +6203,7 @@ WR.ui = WR.ui || {};
         Contact support
       </a>
       <div id="nav-install"></div>
+      <div id="nav-logout"></div>
     `;
     WR.ui.setHTML(document.getElementById('app'), `
       <header class="topbar">
@@ -8494,7 +8537,7 @@ WR.ui = WR.ui || {};
         <label>50 / 30 / 20<select name="allocationType">${allocationOptions(draft.allocationType || '')}</select></label>
         <label>Linked payment<select name="allocationLink">${allocationLinkOptions(draft)}</select></label>
       </div></details>
-      <div class="day-entry-actions"><button type="submit">${options.quickEntry ? 'Save expense' : 'Add spending'}</button><span data-save-feedback role="status" aria-live="polite"></span></div>
+      <div class="day-entry-actions"><button type="submit">Save expense</button><span data-save-feedback role="status" aria-live="polite"></span></div>
     </form>`;
     if (options.quickEntry) {
       WR.ui.setHTML(container, entryMarkup);
@@ -8569,11 +8612,6 @@ WR.ui = WR.ui || {};
       <div class="toolbar"><label>Month: <input id="day-month" type="month" value="${WR.ui.escapeText(month)}"></label></div>
 
       ${WR.ui.renderSpendingFunds({ ...budgetSnapshot, payCycleBudget: payBudget }, transactions, payAdvances)}
-
-      <details id="day-entry" class="day-disclosure" ${WR.ui._dayDraft ? 'open' : ''}>
-        <summary>Add spending</summary>
-        ${entryMarkup}
-      </details>
 
       <details id="day-import" class="day-disclosure" hidden>
         <summary>Import transactions from CSV</summary>
@@ -9425,6 +9463,24 @@ WR.ui = WR.ui || {};
         <div class="toolbar"><button type="button" class="link-btn" data-delete-owed="${esc(entry.id)}">Delete entry</button></div>
       </article>`;
     }).join('');
+    const settledRows = (list) => list.map((entry) => {
+      const balance = calculateMoneyOwed(entry);
+      const paidOffDate = (entry.repayments || []).map((payment) => payment.date).sort().at(-1) || '';
+      return `<tr data-owed-id="${esc(entry.id)}">
+        <td data-label="Person"><strong>${esc(entry.borrower)}</strong>${entry.note ? `<span class="money-owed-table-note">${esc(entry.note)}</span>` : ''}</td>
+        <td data-label="Type">${entry.kind === 'shared-bill' ? 'Bill paid' : 'Money lent'}</td>
+        <td data-label="Original">${money(entry, balance.principal)}</td>
+        <td data-label="Interest">${money(entry, balance.interest)}</td>
+        <td data-label="Repaid">${money(entry, balance.repaid)}</td>
+        <td data-label="Currency">${esc(entry.currency || profile.baseCurrency)}</td>
+        <td data-label="Paid off">${esc(paidOffDate || 'Date not recorded')}</td>
+        <td data-label="Details"><details class="card-edit"><summary>Repayment history (${entry.repayments.length})</summary>
+          ${entry.repayments.length ? `<ul class="money-owed-history">${entry.repayments.map((payment) => `<li><span>${esc(payment.date)} · ${money(entry, payment.amount)}</span><button type="button" class="secondary" data-remove-repayment="${esc(payment.id)}">Remove repayment</button></li>`).join('')}</ul>` : '<p class="fine-print">No repayment history.</p>'}
+          <details class="card-edit"><summary>Edit entry</summary><form data-owed-action="edit">${fields(entry)}<button type="submit">Save changes</button></form></details>
+        </details></td>
+        <td><button type="button" class="link-btn" data-delete-owed="${esc(entry.id)}">Delete entry</button></td>
+      </tr>`;
+    }).join('');
     const outstanding = entries.filter((entry) => calculateMoneyOwed(entry).remaining > 0);
     const settled = entries.filter((entry) => calculateMoneyOwed(entry).remaining === 0);
     const totals = new Map();
@@ -9436,9 +9492,9 @@ WR.ui = WR.ui || {};
       <h2>Money owed to me</h2>
       <div class="stat-grid">${[...totals].map(([currency, total]) => `<div class="stat"><span class="stat-label">Outstanding (${esc(currency)})</span><strong class="stat-value">${esc(currency)} ${WR.ui.fmt(total)}</strong></div>`).join('')}</div>
       <div class="money-owed-grid">${cards(outstanding) || '<p class="empty">No money outstanding.</p>'}</div>
-      ${settled.length ? `<details><summary>Fully repaid (${settled.length})</summary><div class="money-owed-grid">${cards(settled)}</div></details>` : ''}
+      ${settled.length ? `<details class="money-owed-paid"><summary>Fully repaid (${settled.length})</summary><div class="table-wrap"><table class="data-table money-owed-paid-table"><thead><tr><th>Person</th><th>Type</th><th>Original</th><th>Interest</th><th>Repaid</th><th>Currency</th><th>Paid off</th><th>Details</th><th></th></tr></thead><tbody>${settledRows(settled)}</tbody></table></div></details>` : ''}
       <datalist id="money-owed-accounts">${accountNames.map((name) => `<option value="${esc(name)}"></option>`).join('')}</datalist>
-      <details class="form-panel" ${entries.length ? '' : 'open'}><summary>Add money owed to me</summary><form data-owed-action="add">${fields()}<button type="submit">Add entry</button></form></details>`);
+      <details class="form-panel money-owed-add" ${entries.length ? '' : 'open'}><summary>Add money owed to me</summary><form class="money-owed-add-form" data-owed-action="add">${fields()}<button type="submit">Add entry</button></form></details>`);
 
     container.querySelectorAll('form[data-owed-action]').forEach((form) => {
       form.addEventListener('submit', async (event) => {
