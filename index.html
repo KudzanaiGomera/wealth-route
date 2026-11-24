@@ -2063,23 +2063,48 @@ button.danger { background: var(--danger); color: var(--accent-contrast); }
 .money-owed-history li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
 .money-owed-paid { margin: 1rem 0; }
 .money-owed-paid summary { cursor: pointer; font-weight: 600; }
-.money-owed-paid-table td { vertical-align: top; }
-.money-owed-paid-table .card-edit { max-width: 18rem; }
-.money-owed-paid-table .money-owed-history { min-width: 16rem; }
+.money-owed-paid-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
+.money-owed-paid-card { min-width: 0; padding: 0.9rem; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); }
+.money-owed-paid-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.money-owed-paid-head h3 { margin: 0; overflow-wrap: anywhere; }
+.money-owed-paid-badge { flex: 0 0 auto; padding: 0.25rem 0.45rem; border-radius: 999px; background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); font-size: 0.72rem; font-weight: 700; }
+.money-owed-paid-card .money-owed-table-note { max-width: 100%; }
+.money-owed-paid-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; margin: 0.75rem 0; }
+.money-owed-paid-meta div { min-width: 0; }
+.money-owed-paid-meta dt { color: var(--muted); font-size: 0.72rem; }
+.money-owed-paid-meta dd { margin: 0.15rem 0 0; font-weight: 700; overflow-wrap: anywhere; }
+.money-owed-paid-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.25rem; }
+.money-owed-paid-actions .link-btn { min-height: 44px; }
 .money-owed-table-note { display: block; max-width: 16rem; margin-top: 0.25rem; color: var(--muted); font-size: 0.82rem; }
-.money-owed-add { border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); }
-.money-owed-add > summary { display: flex; align-items: center; min-height: 2.75rem; cursor: pointer; font-size: 1rem; font-weight: 700; }
+.money-owed-add { border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); padding: 0; }
+.money-owed-add > summary { display: flex; align-items: center; min-height: 3.25rem; padding: 0 1.1rem; cursor: pointer; font-size: 1rem; font-weight: 700; }
 .money-owed-add[open] > summary { margin-bottom: 0.75rem; }
-.money-owed-add-form { max-width: 68rem; }
+.money-owed-add-form { max-width: none; padding: 0 1.1rem 1.1rem; }
 .money-owed-add-form .money-owed-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0 0 1rem; }
 .money-owed-add-form .money-owed-fields label { gap: 0.4rem; color: var(--muted); font-size: 0.82rem; font-weight: 600; }
 .money-owed-add-form .money-owed-fields input,
 .money-owed-add-form .money-owed-fields select { min-height: 2.75rem; }
 .money-owed-add-form > button { min-width: 9rem; }
 @media (max-width: 760px) {
+  .money-owed-grid,
+  .money-owed-paid-list { grid-template-columns: minmax(0, 1fr); }
   .money-owed-add-form .money-owed-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 520px) {
+  .money-owed-section { margin: 1rem 0; }
+  .money-owed-card,
+  .money-owed-paid-card { padding: 0.85rem; }
+  .money-owed-paid-head { flex-wrap: wrap; }
+  .money-owed-paid-badge { margin-left: auto; }
+  .money-owed-paid-meta { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+  .money-owed-paid-meta div { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+  .money-owed-paid-meta dd { margin: 0; text-align: right; }
+  .money-owed-paid-actions,
+  .money-owed-paid-card .card-edit { width: 100%; }
+  .money-owed-paid-actions .link-btn { width: 100%; }
+  .money-owed-history li { align-items: flex-start; }
+  .money-owed-history li button { width: 100%; }
+  .money-owed-paid-card .card-edit form { min-width: 0; }
   .money-owed-add-form .money-owed-fields { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
   .money-owed-add-form > button { width: 100%; }
 }
@@ -8984,6 +9009,7 @@ WR.ui = WR.ui || {};
 
   function bindSpendingEntry(container, categoryKey, afterSave) {
     const entryForm = container.querySelector('#day-add-form');
+    if (!entryForm) return;
     const owner = WR.account?.getCurrentUser()?.uid || 'local';
     if (WR.ui._daySaving) entryForm.querySelectorAll('input,select,button').forEach(control => { control.disabled = true; });
     entryForm.addEventListener('input', (event) => {
@@ -9466,20 +9492,24 @@ WR.ui = WR.ui || {};
     const settledRows = (list) => list.map((entry) => {
       const balance = calculateMoneyOwed(entry);
       const paidOffDate = (entry.repayments || []).map((payment) => payment.date).sort().at(-1) || '';
-      return `<tr data-owed-id="${esc(entry.id)}">
-        <td data-label="Person"><strong>${esc(entry.borrower)}</strong>${entry.note ? `<span class="money-owed-table-note">${esc(entry.note)}</span>` : ''}</td>
-        <td data-label="Type">${entry.kind === 'shared-bill' ? 'Bill paid' : 'Money lent'}</td>
-        <td data-label="Original">${money(entry, balance.principal)}</td>
-        <td data-label="Interest">${money(entry, balance.interest)}</td>
-        <td data-label="Repaid">${money(entry, balance.repaid)}</td>
-        <td data-label="Currency">${esc(entry.currency || profile.baseCurrency)}</td>
-        <td data-label="Paid off">${esc(paidOffDate || 'Date not recorded')}</td>
-        <td data-label="Details"><details class="card-edit"><summary>Repayment history (${entry.repayments.length})</summary>
+      return `<article class="money-owed-paid-card" data-owed-id="${esc(entry.id)}">
+        <div class="money-owed-paid-head">
+          <div><h3>${esc(entry.borrower)}</h3><span class="fine-print">${entry.kind === 'shared-bill' ? 'Bill paid' : 'Money lent'}</span></div>
+          <span class="money-owed-paid-badge">Fully repaid</span>
+        </div>
+        ${entry.note ? `<span class="money-owed-table-note">${esc(entry.note)}</span>` : ''}
+        <dl class="money-owed-paid-meta">
+          <div><dt>Original</dt><dd>${money(entry, balance.principal)}</dd></div>
+          <div><dt>Repaid</dt><dd>${money(entry, balance.repaid)}</dd></div>
+          <div><dt>Interest</dt><dd>${money(entry, balance.interest)}</dd></div>
+          <div><dt>Paid off</dt><dd>${esc(paidOffDate || 'Date not recorded')}</dd></div>
+        </dl>
+        <details class="card-edit"><summary>Repayment history (${entry.repayments.length})</summary>
           ${entry.repayments.length ? `<ul class="money-owed-history">${entry.repayments.map((payment) => `<li><span>${esc(payment.date)} · ${money(entry, payment.amount)}</span><button type="button" class="secondary" data-remove-repayment="${esc(payment.id)}">Remove repayment</button></li>`).join('')}</ul>` : '<p class="fine-print">No repayment history.</p>'}
-          <details class="card-edit"><summary>Edit entry</summary><form data-owed-action="edit">${fields(entry)}<button type="submit">Save changes</button></form></details>
-        </details></td>
-        <td><button type="button" class="link-btn" data-delete-owed="${esc(entry.id)}">Delete entry</button></td>
-      </tr>`;
+        </details>
+        <details class="card-edit"><summary>Edit entry</summary><form data-owed-action="edit">${fields(entry)}<button type="submit">Save changes</button></form></details>
+        <div class="money-owed-paid-actions"><button type="button" class="link-btn" data-delete-owed="${esc(entry.id)}">Delete entry</button></div>
+      </article>`;
     }).join('');
     const outstanding = entries.filter((entry) => calculateMoneyOwed(entry).remaining > 0);
     const settled = entries.filter((entry) => calculateMoneyOwed(entry).remaining === 0);
@@ -9492,7 +9522,7 @@ WR.ui = WR.ui || {};
       <h2>Money owed to me</h2>
       <div class="stat-grid">${[...totals].map(([currency, total]) => `<div class="stat"><span class="stat-label">Outstanding (${esc(currency)})</span><strong class="stat-value">${esc(currency)} ${WR.ui.fmt(total)}</strong></div>`).join('')}</div>
       <div class="money-owed-grid">${cards(outstanding) || '<p class="empty">No money outstanding.</p>'}</div>
-      ${settled.length ? `<details class="money-owed-paid"><summary>Fully repaid (${settled.length})</summary><div class="table-wrap"><table class="data-table money-owed-paid-table"><thead><tr><th>Person</th><th>Type</th><th>Original</th><th>Interest</th><th>Repaid</th><th>Currency</th><th>Paid off</th><th>Details</th><th></th></tr></thead><tbody>${settledRows(settled)}</tbody></table></div></details>` : ''}
+      ${settled.length ? `<details class="money-owed-paid"><summary>Fully repaid (${settled.length})</summary><div class="money-owed-paid-list">${settledRows(settled)}</div></details>` : ''}
       <datalist id="money-owed-accounts">${accountNames.map((name) => `<option value="${esc(name)}"></option>`).join('')}</datalist>
       <details class="form-panel money-owed-add" ${entries.length ? '' : 'open'}><summary>Add money owed to me</summary><form class="money-owed-add-form" data-owed-action="add">${fields()}<button type="submit">Add entry</button></form></details>`);
 
