@@ -108,6 +108,10 @@ assert.ok(functions.get('renderShell').includes('class="nav-support-link"'));
 assert.ok(functions.get('renderShell').includes('<div id="nav-install"></div>'));
 assert.ok(html.includes('id="account-logout-btn"'));
 assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 2;[\s\S]*\.topbar #notification-shortcut \{ order: 3;/);
+assert.match(html, /\.money-owed-paid-list \{[\s\S]*repeat\(auto-fit, minmax\(min\(100%, 280px\), 1fr\)\)/);
+assert.ok(!html.includes('money-owed-paid-table'));
+assert.match(html, /@media \(max-width: 760px\) \{[\s\S]*\.money-owed-paid-list \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+assert.match(html, /@media \(max-width: 520px\) \{[\s\S]*\.money-owed-paid-meta \{ grid-template-columns: minmax\(0, 1fr\);[\s\S]*\.money-owed-paid-actions \.link-btn \{ width: 100%; \}/);
 assert.match(html, /\.topbar #ask-ai-shortcut \{ order: 4;[\s\S]*\.topbar #notification-shortcut \{ order: 5;[\s\S]*\.topbar \.nav-controls \{ order: 6;/);
 assert.match(html, /<summary>Use email and password<\/summary>/);
 const setupContext = {};
@@ -1381,6 +1385,7 @@ async function checkQuickExpenseRetry() {
   } };
   vm.createContext(quickContext);
   vm.runInContext(functions.get('bindSpendingEntry'), quickContext);
+  quickContext.bindSpendingEntry({ querySelector: () => null }, 'last-category-test', async () => {});
   quickContext.bindSpendingEntry({ isConnected: true, querySelector: () => form }, 'last-category-test', async () => { refreshed += 1; });
   const event = { preventDefault() {}, target: form, currentTarget: form };
   listeners.input(event);
