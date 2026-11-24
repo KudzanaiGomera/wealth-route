@@ -294,6 +294,19 @@ button, a, input, select, textarea {
   font-size: 0.92rem;
   padding: 0 0.75rem;
 }
+#auth-email-input:autofill,
+#auth-password-input:autofill,
+#auth-email-input:-webkit-autofill,
+#auth-password-input:-webkit-autofill,
+#auth-email-input:-webkit-autofill:hover,
+#auth-password-input:-webkit-autofill:hover,
+#auth-email-input:-webkit-autofill:focus,
+#auth-password-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px var(--panel-alt) inset;
+  box-shadow: 0 0 0 1000px var(--panel-alt) inset;
+}
 .auth-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .auth-form button[type="submit"] {
   height: 3rem;
@@ -756,7 +769,9 @@ h3 { font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; }
 .password-field { position: relative; width: 100%; min-width: 0; box-sizing: border-box; }
 .auth-form .password-field input { width: 100%; min-width: 0; padding-right: 3.6rem; }
 #auth-password-input::-ms-reveal, #auth-password-input::-ms-clear { display: none; }
-.password-field .visibility-toggle { position: absolute; right: 3px; top: 50%; width: 44px; height: 44px; min-height: 44px; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); transform: translateY(-50%); }
+.password-field .visibility-toggle { position: absolute; right: 3px; top: 50%; width: 44px; height: 44px; min-height: 44px; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text); transform: translateY(-50%); }
+.password-field .visibility-toggle:hover { background: transparent; color: var(--accent); }
+.password-field .visibility-toggle:focus-visible { outline-offset: 0; }
 .balance-masked { color: inherit !important; }
 [data-private-detail].balance-masked { min-height: 2.5rem; display: flex; align-items: center; color: var(--muted) !important; font-size: 0.85rem; }
 .dashboard-actions { grid-area: actions; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin: 0; }
