@@ -1613,6 +1613,8 @@ function checkVisibility() {
   assert.equal(passwordButton.attributes['aria-label'], 'Show password');
   assert.equal(passwordButton.title, undefined, 'Password visibility must not show a moving native title tooltip');
   assert.doesNotMatch(html, /id="auth-password-toggle"[^>]*title=/);
+  assert.match(html, /\.password-field \{ display: grid; grid-template-columns: minmax\(0, 1fr\) 44px;/);
+  assert.match(html, /\.password-field \.visibility-toggle \{ position: static; width: 44px; height: 44px;/);
   passwordButton.events.click();
   assert.equal(input.type, 'text');
   assert.equal(passwordButton.attributes['aria-pressed'], 'true');
